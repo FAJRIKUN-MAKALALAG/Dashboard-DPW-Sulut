@@ -7,7 +7,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7171011504620001',
     nomorEKTA: 'ND-7100-2024-0001',
-    namaLengkap: 'Dr. J. Victor Mailangkay, SH, MH',
+    namaLengkap: 'Franky J. Wowor, S.E.',
     nomorHP: '0811430001',
     dpd: 'Kota Manado',
     dpc: 'Wenang',
@@ -22,7 +22,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7171021808640002',
     nomorEKTA: 'ND-7100-2024-0002',
-    namaLengkap: 'Dr. Ir. GS Vicky Lumentut, SH, M.Si',
+    namaLengkap: 'Ir. Ronald G. Pangemanan, M.Si',
     nomorHP: '0812440002',
     dpd: 'Kota Manado',
     dpc: 'Malalayang',
@@ -37,7 +37,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7171032511720003',
     nomorEKTA: 'ND-7100-2024-0003',
-    namaLengkap: 'Stella Marlina Runtuwene, A.Md.Sek',
+    namaLengkap: 'Debby C. Sondakh, S.E.',
     nomorHP: '0813550003',
     dpd: 'Kabupaten Minahasa Selatan',
     dpc: 'Amurang',
@@ -45,7 +45,7 @@ export const INITIAL_MEMBERS: Member[] = [
     jabatan: 'Bendahara DPD NasDem',
     status: 'Aktif',
     tanggalBergabung: '2021-04-15',
-    catatanMutasi: 'Bendahara DPW Partai NasDem Provinsi Sulawesi Utara & Pimpinan DPRD Sulut.',
+    catatanMutasi: 'Bendahara DPW Partai NasDem Provinsi Sulawesi Utara.',
     terakhirDiubah: '2024-06-01 10:00',
     diubahOleh: 'Super Admin DPW',
   },
@@ -56,7 +56,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7171011504850001',
     nomorEKTA: 'ND-7171-2024-0012',
-    namaLengkap: 'Prof. Dr. Julyeta Paulina Amelia Runtuwene, MS',
+    namaLengkap: 'Drs. Albert H. Tombokan, M.Si',
     nomorHP: '081244558891',
     dpd: 'Kota Manado',
     dpc: 'Malalayang',
@@ -239,7 +239,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7173010304860002',
     nomorEKTA: 'ND-7173-2024-0019',
-    namaLengkap: 'Cherly Mantiri, SH',
+    namaLengkap: 'Silvia L. Supit, SH',
     nomorHP: '081299883344',
     dpd: 'Kota Tomohon',
     dpc: 'Tomohon Tengah',
@@ -292,7 +292,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7174011202830004',
     nomorEKTA: 'ND-7174-2024-0015',
-    namaLengkap: 'Syarifuddin J. Mokodongan, SH',
+    namaLengkap: 'Iskandar S. Mokoginta, SH',
     nomorHP: '081244332211',
     dpd: 'Kota Kotamobagu',
     dpc: 'Kotamobagu Barat',
@@ -348,7 +348,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7102011905840001',
     nomorEKTA: 'ND-7102-2024-0033',
-    namaLengkap: 'Braien Waworuntu, SE',
+    namaLengkap: 'Bryan E. Lumempouw, SE',
     nomorHP: '081288991122',
     dpd: 'Kabupaten Minahasa',
     dpc: 'Tondano Barat',
@@ -416,7 +416,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7106010506860002',
     nomorEKTA: 'ND-7106-2024-0027',
-    namaLengkap: 'Daniel Matthew Rumumpe',
+    namaLengkap: 'Daniel M. Rantung, ST',
     nomorHP: '081277112233',
     dpd: 'Kabupaten Minahasa Utara',
     dpc: 'Airmadidi',
@@ -429,7 +429,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7106021409890006',
     nomorEKTA: 'ND-7106-2024-0068',
-    namaLengkap: 'Shintia Rumumpe',
+    namaLengkap: 'Sherly V. Roring, SE',
     nomorHP: '081355443322',
     dpd: 'Kabupaten Minahasa Utara',
     dpc: 'Kalawat',
@@ -469,7 +469,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7105011802850003',
     nomorEKTA: 'ND-7105-2024-0017',
-    namaLengkap: 'Paulman Stevanus Runtuwene, SE',
+    namaLengkap: 'Paulus S. Rondonuwu, SE',
     nomorHP: '081299554433',
     dpd: 'Kabupaten Minahasa Selatan',
     dpc: 'Amurang',
@@ -566,7 +566,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7101011403810001',
     nomorEKTA: 'ND-7101-2024-0016',
-    namaLengkap: 'Sukron Mamonto, SE, MM',
+    namaLengkap: 'Subhan Mamonto, SE',
     nomorHP: '081255883322',
     dpd: 'Kabupaten Bolaang Mongondow',
     dpc: 'Lolak',
@@ -704,7 +704,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7110011504780001',
     nomorEKTA: 'ND-7110-2024-0014',
-    namaLengkap: 'Sam Sachrul Mamonto, S.Sos, M.Si',
+    namaLengkap: 'Saripudin Manoppo, S.Sos',
     nomorHP: '0811438811',
     dpd: 'Kabupaten Bolaang Mongondow Timur',
     dpc: 'Modayag',
@@ -730,7 +730,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7110031910900008',
     nomorEKTA: 'ND-7110-2024-0085',
-    namaLengkap: 'Seska Ervina Budiman, S.Sos',
+    namaLengkap: 'Selvy E. Paputungan, S.Sos',
     nomorHP: '082188442266',
     dpd: 'Kabupaten Bolaang Mongondow Timur',
     dpc: 'Kotabunan',
@@ -758,7 +758,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7103011206820002',
     nomorEKTA: 'ND-7103-2024-0018',
-    namaLengkap: 'Michael Thungari, SE, MM',
+    namaLengkap: 'Mikael T. Tatengkeng, SE',
     nomorHP: '081277884422',
     dpd: 'Kabupaten Kepulauan Sangihe',
     dpc: 'Tahuna',
@@ -811,7 +811,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7104011112830002',
     nomorEKTA: 'ND-7104-2024-0013',
-    namaLengkap: 'Moktar Arunde Parapaga',
+    namaLengkap: 'Marcellus A. Pateda, SE',
     nomorHP: '081266881144',
     dpd: 'Kabupaten Kepulauan Talaud',
     dpc: 'Melonguane',
@@ -824,7 +824,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7104022005880006',
     nomorEKTA: 'ND-7104-2024-0047',
-    namaLengkap: 'Yopi Saraung, SE',
+    namaLengkap: 'Yance S. Bawues, SE',
     nomorHP: '081388442266',
     dpd: 'Kabupaten Kepulauan Talaud',
     dpc: 'Beo',
@@ -864,7 +864,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7109012803850003',
     nomorEKTA: 'ND-7109-2024-0024',
-    namaLengkap: 'Evensen Wangkanusa, SE',
+    namaLengkap: 'Edison W. Salindeho, SE',
     nomorHP: '081277443311',
     dpd: 'Kabupaten Kepulauan Siau Tagulandang Biaro',
     dpc: 'Siau Barat',
@@ -877,7 +877,7 @@ export const INITIAL_MEMBERS: Member[] = [
   {
     nik: '7109021409890007',
     nomorEKTA: 'ND-7109-2024-0063',
-    namaLengkap: 'Alfrets Ronald Takarendehang, SE',
+    namaLengkap: 'Alfrets R. Kasehung, SE',
     nomorHP: '081399558833',
     dpd: 'Kabupaten Kepulauan Siau Tagulandang Biaro',
     dpc: 'Tagulandang',

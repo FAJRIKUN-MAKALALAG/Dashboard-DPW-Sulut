@@ -58,6 +58,12 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
   const [catatanMutasi, setCatatanMutasi] = useState<string>(initialMember?.catatanMutasi || '');
   const [fotoProfilUrl, setFotoProfilUrl] = useState<string>(initialMember?.fotoProfilUrl || '');
   const [fotoKtpUrl, setFotoKtpUrl] = useState<string>(initialMember?.fotoKtpUrl || '');
+  const [kaderPerekrutNama, setKaderPerekrutNama] = useState<string>(
+    initialMember?.kaderPerekrutNama || ''
+  );
+  const [kaderPerekrutJabatan, setKaderPerekrutJabatan] = useState<string>(
+    initialMember?.kaderPerekrutJabatan || 'Pengurus DPW/DPD NasDem'
+  );
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [isUploadingKtp, setIsUploadingKtp] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -188,6 +194,9 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       fotoProfilUrl: fotoProfilUrl || undefined,
       fotoKtpUrl: fotoKtpUrl || undefined,
       statusKtpVerified: !!fotoKtpUrl,
+      kaderPerekrutNama: kaderPerekrutNama.trim() || undefined,
+      kaderPerekrutJabatan: kaderPerekrutNama.trim() ? kaderPerekrutJabatan.trim() : undefined,
+      kaderPerekrutDpd: dpd,
     };
 
     onSave(savedMember, isEdit);
@@ -570,6 +579,40 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
                 placeholder="Contoh: Pengurus DPW Partai NasDem Sulut periode 2024-2029..."
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
+            </div>
+
+            {/* Kader Pengusung / Yang Merekrut */}
+            <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl space-y-2">
+              <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Kader Perekrut (Siapa Kader yang Mengajak/Merekrut?)</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Nama Kader Perekrut
+                  </label>
+                  <input
+                    type="text"
+                    value={kaderPerekrutNama}
+                    onChange={(e) => setKaderPerekrutNama(e.target.value)}
+                    placeholder="Contoh: Debby Sondakh / Pengurus DPC"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Jabatan Kader Perekrut
+                  </label>
+                  <input
+                    type="text"
+                    value={kaderPerekrutJabatan}
+                    onChange={(e) => setKaderPerekrutJabatan(e.target.value)}
+                    placeholder="Contoh: Ketua DPC / Pengurus DPRt"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

@@ -395,6 +395,13 @@ export default function App() {
             members={members}
             onOpenPrintReport={() => setIsPrintReportOpen(true)}
             onNavigateToMembers={handleNavigateFromDashboard}
+            onOpenCardModal={(m) => {
+              setSelectedMember(m);
+              setIsCardModalOpen(true);
+            }}
+            onAddMembers={(newMembers) => {
+              handleImportSuccess(newMembers, newMembers.length);
+            }}
           />
         )}
 

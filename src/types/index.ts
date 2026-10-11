@@ -27,6 +27,12 @@ export interface Member {
   agama?: string;
   pekerjaan?: string;
   statusKtpVerified?: boolean;
+  // Kader Pengusung / Perekrut (Referal Anggota Baru)
+  kaderPerekrutNama?: string;
+  kaderPerekrutNik?: string;
+  kaderPerekrutEkta?: string;
+  kaderPerekrutJabatan?: string;
+  kaderPerekrutDpd?: string;
 }
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPD';

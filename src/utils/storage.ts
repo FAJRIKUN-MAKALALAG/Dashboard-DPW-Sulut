@@ -2,9 +2,9 @@ import { Member, AuditLog, UserSession } from '../types';
 import { INITIAL_MEMBERS } from '../data/seedMembers';
 
 const STORAGE_KEYS = {
-  MEMBERS: 'nasdem_sulut_ekta_members_v2',
-  AUDIT_LOGS: 'nasdem_sulut_ekta_audit_logs_v2',
-  SESSION: 'nasdem_sulut_ekta_session_v2',
+  MEMBERS: 'nasdem_sulut_ekta_members_v3',
+  AUDIT_LOGS: 'nasdem_sulut_ekta_audit_logs_v3',
+  SESSION: 'nasdem_sulut_ekta_session_v3',
 };
 
 export const DEFAULT_SUPER_ADMIN: UserSession = {
