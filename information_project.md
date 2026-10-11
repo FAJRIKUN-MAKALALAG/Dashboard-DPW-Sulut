@@ -233,4 +233,57 @@ Untuk meningkatkan sistem ini ke tingkat operasional skala penuh (*enterprise pr
    - Menambahkan template ekspor spreadsheet yang format kolomnya langsung sesuai dengan format upload verifikasi parpol KPU (Sipol).
 
 ---
+
+## 9. SISTEM HAK AKSES BERJENJANG (RBAC) & MEKANISME PENGAJUAN HAPUS DATA
+
+### 9.1 Hierarki 4 Tingkatan Peran Pengguna (Role-Based Access Control)
+Sistem membatasi hak operasional dan visibilitas data sesuai hierarki struktur partai:
+
+1. **Super Admin DPW (Tingkat Provinsi)**:
+   - **Cakupan Akses:** Seluruh wilayah Sulawesi Utara (15 DPD Kabupaten/Kota, seluruh DPC & DPRt).
+   - **Akses Dashboard:** Melihat statistik agregat, peta geografis interaktif, dan grafik lengkap seluruh 15 DPD.
+   - **Hak Data:** Akses penuh (**CRUD** — Tambah, Lihat, Edit, dan **Hapus Langsung**).
+   - **Hak Approval:** Memiliki panel khusus **Verifikasi & Persetujuan Hapus Data** untuk menyetujui atau menolak permohonan hapus dari daerah.
+
+2. **Admin DPD (Tingkat Kabupaten/Kota)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 DPD miliknya (misal: hanya DPD Kota Manado). Data 14 DPD lainnya **tidak dapat dilihat maupun diakses**.
+   - **Hak Data:** Bisa Tambah (Add) dan Ubah (Edit) data di wilayah DPD-nya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**. Tombol aksi otomatis menjadi **"Ajukan Hapus"** ke DPW dengan mengisi surat/pernyataan alasan resmi.
+   - **Kebijakan Antarmuka (Clean View):** Pilihan DPD pada filter dan form registrasi **disembunyikan (hidden)** agar tidak mengganggu pandangan, hanya menyisakan pilihan DPC (Kecamatan) dan DPRt.
+
+3. **Admin DPC (Tingkat Kecamatan)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 Kecamatan (DPC) miliknya.
+   - **Hak Data:** Bisa Tambah dan Edit data hanya di wilayah DPC-nya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**, wajib mengajukan permohonan hapus ke DPW.
+   - **Kebijakan Antarmuka:** Pilihan DPD dan DPC **disembunyikan otomatis (hidden)**, hanya menyisakan input DPRt (Desa/Kelurahan).
+
+4. **Admin DPRt (Tingkat Desa/Kelurahan)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 Desa/Kelurahan (DPRt) miliknya.
+   - **Hak Data:** Bisa Tambah dan Edit data hanya di lingkup desanya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**, wajib mengajukan permohonan ke DPW.
+   - **Kebijakan Antarmuka:** Seluruh input wilayah teritorial (DPD, DPC, DPRt) **disembunyikan (hidden)** dan otomatis terisi sesuai identitas akun tanpa clutters/dropdown.
+
+### 9.2 Alur Permohonan & Verifikasi Penghapusan Data (Deletion Workflow)
+
+```
+[Admin DPD / DPC / DPRt]
+         │
+         ▼
+Pilih Baris Kader & Klik "Ajukan Hapus"
+         │
+         ▼
+Mengisi Formulir Pernyataan Alasan Penghapusan (Minimal 15 Karakter)
+         │
+         ▼
+Terkirim ke Antrean DPW: Status "PENDING (Menunggu Persetujuan)"
+         │
+         ▼
+[Super Admin DPW]
+Melihat Notifikasi Badge & Membuka "Panel Verifikasi Permohonan Hapus"
+         ├──▶ [Tolak Permohonan]: Status REJECTED, data kader tetap utuh, dicatat di Audit Log.
+         └──▶ [Setujui & Hapus]: Status APPROVED, data kader dihapus permanen, dicatat di Audit Log.
+```
+
+---
 *Dokumen ini disusun untuk Dewan Pimpinan Wilayah (DPW) Partai NasDem Provinsi Sulawesi Utara.*
+

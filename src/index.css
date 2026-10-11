@@ -24,6 +24,18 @@
   }
 }
 
+/* Smooth expand animations */
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Standar Tombol Basic Putih (efek agak gelap saat hover) */
 .btn-white {
   background-color: #ffffff;

@@ -23,6 +23,8 @@ import {
   User,
   CheckSquare,
   FileDown,
+  Trash2,
+  FileText,
 } from 'lucide-react';
 import { exportMembersToExcel, exportMembersToCsv } from '../utils/excelUtils';
 import { getInitials, getAvatarColor } from '../utils/imageUtils';
@@ -40,6 +42,8 @@ interface MemberManagementProps {
   onOpenCardModal: (member: Member) => void;
   onOpenEditModal: (member: Member) => void;
   onOpenDetailModal: (member: Member) => void;
+  onOpenDeletionRequest: (member: Member) => void;
+  onDirectDelete: (member: Member) => void;
 }
 
 export const MemberManagement: React.FC<MemberManagementProps> = ({
@@ -53,6 +57,8 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   onOpenCardModal,
   onOpenEditModal,
   onOpenDetailModal,
+  onOpenDeletionRequest,
+  onDirectDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('ALL');
@@ -63,10 +69,11 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   const [selectedNiks, setSelectedNiks] = useState<Set<string>>(new Set());
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
-    session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'
+    session.role !== 'SUPER_ADMIN' && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialDpdFilter || 'ALL'
   );
+  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatusFilter || 'ALL');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -91,11 +98,19 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   // Filter pipeline
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
-      // Role scope lock: Admin DPD can only view and manage their assigned DPD
-      if (session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL') {
+      // Role scope lock:
+      if (session.role === 'ADMIN_DPD') {
+        if (session.dpdAccess !== 'ALL' && member.dpd !== session.dpdAccess) return false;
+        if (selectedDpcFilter !== 'ALL' && member.dpc !== selectedDpcFilter) return false;
+      } else if (session.role === 'ADMIN_DPC') {
         if (member.dpd !== session.dpdAccess) return false;
-      } else if (selectedDpd !== 'ALL' && member.dpd !== selectedDpd) {
-        return false;
+        if (session.dpcAccess && member.dpc !== session.dpcAccess) return false;
+      } else if (session.role === 'ADMIN_DPRT') {
+        if (member.dpd !== session.dpdAccess) return false;
+        if (session.dpcAccess && member.dpc !== session.dpcAccess) return false;
+        if (session.dprtAccess && member.dprt !== session.dprtAccess) return false;
+      } else {
+        if (selectedDpd !== 'ALL' && member.dpd !== selectedDpd) return false;
       }
 
       if (selectedStatus !== 'ALL' && member.status !== selectedStatus) {
@@ -128,7 +143,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
 
       return true;
     });
-  }, [members, selectedDpd, selectedStatus, selectedRole, searchTerm, searchCategory, session]);
+  }, [members, selectedDpd, selectedDpcFilter, selectedStatus, selectedRole, searchTerm, searchCategory, session]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredMembers.length / pageSize) || 1;
@@ -414,30 +429,59 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
           </div>
         </div>
 
-        {/* Secondary Filters Bar (DPD, Status, Role) */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* DPD Filter */}
-          <div>
-            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Filter Wilayah DPD:
-            </label>
-            <select
-              value={selectedDpd}
-              disabled={session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'}
-              onChange={(e) => {
-                setSelectedDpd(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 disabled:opacity-60 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="ALL">Semua 15 DPD Kabupaten/Kota</option>
-              {SULUT_REGIONS.map((r) => (
-                <option key={r.id} value={r.name}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Secondary Filters Bar (DPD, Status, Role) - Sembunyikan teritorial sesuai hierarki peran */}
+        <div
+          className={`pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 ${
+            session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPD'
+              ? 'sm:grid-cols-3'
+              : 'sm:grid-cols-2'
+          } gap-3`}
+        >
+          {/* DPD Filter (HANYA MUNCUL UNTUK SUPER ADMIN DPW) */}
+          {session.role === 'SUPER_ADMIN' ? (
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
+                Filter Wilayah DPD:
+              </label>
+              <select
+                value={selectedDpd}
+                onChange={(e) => {
+                  setSelectedDpd(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              >
+                <option value="ALL">Semua 15 DPD Kabupaten/Kota</option>
+                {SULUT_REGIONS.map((r) => (
+                  <option key={r.id} value={r.name}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : session.role === 'ADMIN_DPD' ? (
+            /* DPC Filter Khusus Admin DPD untuk menyaring kecamatan di wilayahnya sendiri */
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
+                Filter Kecamatan ({session.dpdAccess}):
+              </label>
+              <select
+                value={selectedDpcFilter}
+                onChange={(e) => {
+                  setSelectedDpcFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              >
+                <option value="ALL">Semua Kecamatan di {session.dpdAccess}</option>
+                {SULUT_REGIONS.find((r) => r.name === session.dpdAccess)?.subdistricts.map((sub) => (
+                  <option key={sub.name} value={sub.name}>
+                    Kec. {sub.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           {/* Status Filter */}
           <div>
@@ -631,8 +675,9 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                   const isSelected = selectedNiks.has(member.nik);
                   const canEdit =
                     session.role === 'SUPER_ADMIN' ||
-                    session.dpdAccess === 'ALL' ||
-                    session.dpdAccess === member.dpd;
+                    (session.role === 'ADMIN_DPD' && session.dpdAccess === member.dpd) ||
+                    (session.role === 'ADMIN_DPC' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc) ||
+                    (session.role === 'ADMIN_DPRT' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc && session.dprtAccess === member.dprt);
 
                   return (
                     <tr
@@ -794,6 +839,28 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                             <Edit className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
+
+                          {/* Hapus Data: Super Admin bisa langsung hapus, role daerah mengajukan permohonan ke DPW */}
+                          {session.role === 'SUPER_ADMIN' ? (
+                            <button
+                              onClick={() => onDirectDelete(member)}
+                              title="Hapus Data Kader Permanen (Super Admin DPW)"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          ) : (
+                            <button
+                              disabled={!canEdit}
+                              onClick={() => onOpenDeletionRequest(member)}
+                              title="Ajukan Permohonan Hapus Data ke DPW"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              <span>Ajukan Hapus</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

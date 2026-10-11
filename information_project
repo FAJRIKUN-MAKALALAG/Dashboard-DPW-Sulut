@@ -1,5 +1,7 @@
 # DOKUMENTASI LENGKAP SISTEM
+
 # DASHBOARD EKSEKUTIF KEANGGOTAAN & SHADOW DATABASE MANDIRI
+
 ## DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM SULAWESI UTARA
 
 ---
@@ -7,8 +9,10 @@
 ## 1. PENDAHULUAN & LATAR BELAKANG SISTEM
 
 ### 1.1 Mengapa Dibangun "Shadow Database"?
+
 Di dalam tata kelola partai politik modern, basis data keanggotaan terpusat (DPP / e-KTA Nasional) sering kali mengalami kendala birokrasi dan keterlambatan sinkronisasi data lapangan:
-1. **Data Anggota Tidak Riil (*Ghost Members*)**: Banyak kader yang tercatat di sistem pusat sudah wafat, pindah partai lain, mengundurkan diri, atau pindah domisili antar-provinsi tanpa sempat dilaporkan atau diproses verifikasi pusatnya.
+
+1. **Data Anggota Tidak Riil (_Ghost Members_)**: Banyak kader yang tercatat di sistem pusat sudah wafat, pindah partai lain, mengundurkan diri, atau pindah domisili antar-provinsi tanpa sempat dilaporkan atau diproses verifikasi pusatnya.
 2. **Kebutuhan Data Elektoral Bappilu & OKK**: Menjelang Pemilu dan Pilkada, pimpinan DPW (Ketua, Sekretaris, Bappilu, OKK) membutuhkan angka **kekuatan riil (real cadre strength)** yang faktual dan dapat dipertanggungjawabkan di tingkat TPS/desa, bukan sekadar angka klaim di atas kertas.
 
 **Shadow Database DPW Partai NasDem Sulut** hadir sebagai basis data operasional independen tingkat provinsi. Sistem ini secara otomatis memfilter dan hanya menghitung kader yang berstatus **Aktif Riil**, sembari memisahkan kader yang non-aktif (wafat/pindah/mundur) tanpa harus menunggu proses administrasi DPP.
@@ -17,7 +21,8 @@ Di dalam tata kelola partai politik modern, basis data keanggotaan terpusat (DPP
 
 ## 2. PRINSIP KERJA: REKRUTMEN BERBASIS KADER LAPANGAN
 
-Sistem ini mengadopsi prinsip **Rekrutmen Teritorial Berbasis Kader (*Cadre-Driven Membership Recruitment*)**:
+Sistem ini mengadopsi prinsip **Rekrutmen Teritorial Berbasis Kader (_Cadre-Driven Membership Recruitment_)**:
+
 1. **Kader Penggerak sebagai Sponsor**: Setiap anggota baru yang didaftarkan terhubung dengan kader penggerak yang merekrutnya (mencatat Nama Kader Perekrut, Jabatan di partai, dan DPD asalnya).
 2. **Penempatan Teritorial Otomatis Berbasis Alamat KTP**: Ketika data anggota baru diinput (melalui form maupun import Excel), sistem membaca alamat KTP dan secara otomatis menempatkan anggota baru tersebut ke dalam struktur teritorial berjenjang:
    $$\text{DPD (Kabupaten/Kota)} \longrightarrow \text{DPC (Kecamatan)} \longrightarrow \text{DPRt (Kelurahan/Desa)}$$
@@ -30,6 +35,7 @@ Sistem ini mengadopsi prinsip **Rekrutmen Teritorial Berbasis Kader (*Cadre-Driv
 Sistem telah dipetakan secara autentik mencakup **15 Kabupaten/Kota** di Sulawesi Utara, yang dikelompokkan ke dalam 3 zona geografis:
 
 ### A. Daratan Minahasa
+
 1. **Kota Manado** (10 Kecamatan: Wenang, Malalayang, Sario, Wanea, Tikala, Mapanget, Tuminting, Singkil, Bunaken, Paal Dua)
 2. **Kota Bitung** (8 Kecamatan: Maesa, Madidir, Ranowulu, Aertembaga, Matuari, Girian, Lembeh Selatan, Lembeh Utara)
 3. **Kota Tomohon** (5 Kecamatan: Tomohon Tengah, Tomohon Utara, Tomohon Selatan, Tomohon Barat, Tomohon Timur)
@@ -39,6 +45,7 @@ Sistem telah dipetakan secara autentik mencakup **15 Kabupaten/Kota** di Sulawes
 7. **Kabupaten Minahasa Tenggara** (Kecamatan: Ratahan, Belang, Ratatotok, Pusomaen, Touluaan, dll)
 
 ### B. Bolaang Mongondow Raya (BMR)
+
 8. **Kota Kotamobagu** (Kecamatan: Kotamobagu Timur, Barat, Selatan, Utara)
 9. **Kabupaten Bolaang Mongondow** (Kecamatan: Lolak, Poigar, Dumoga, Bolaang, dll)
 10. **Kabupaten Bolaang Mongondow Utara** (Kecamatan: Boroko, Bintauna, Kaidipang, Sangkub, dll)
@@ -46,6 +53,7 @@ Sistem telah dipetakan secara autentik mencakup **15 Kabupaten/Kota** di Sulawes
 12. **Kabupaten Bolaang Mongondow Timur** (Kecamatan: Tutuyan, Kotabunan, Modayag, Nuangan, dll)
 
 ### C. Kepulauan Nusa Utara
+
 13. **Kabupaten Kepulauan Sangihe** (Kecamatan: Tahuna, Manganitu, Tamako, Tabukan, Kendahe, dll)
 14. **Kabupaten Kepulauan Talaud** (Kecamatan: Melonguane, Beo, Rainis, Lirung, Nanusa, dll)
 15. **Kabupaten Kepulauan Siau Tagulandang Biaro (Sitaro)** (Kecamatan: Siau Barat, Siau Timur, Tagulandang, Biaro, dll)
@@ -55,106 +63,119 @@ Sistem telah dipetakan secara autentik mencakup **15 Kabupaten/Kota** di Sulawes
 ## 4. MODUL DAN FITUR-FITUR UTAMA APLIKASI
 
 ### 4.1 Dashboard Eksekutif (`ExecutiveDashboard.tsx`)
+
 Halaman ringkasan monitoring strategis untuk pimpinan:
-* **4 Kartu Metrik Utama**:
+
+- **4 Kartu Metrik Utama**:
   - **Kekuatan Riil Lapangan**: Jumlah total kader berstatus Aktif.
   - **Tingkat Keaktifan Validitas**: Persentase rasio kader aktif dibanding total data terdaftar.
   - **Non-Aktif (Tereliminasi)**: Rincian kader non-aktif yang dipecah menjadi: Wafat, Pindah Partai/Mundur, dan Pindah Domisili.
   - **Struktur Kepengurusan**: Informasi 15 DPD dan 167 DPC se-Sulut.
-* **Monitoring Laju Rekrutmen Anggota Baru oleh Kader**:
+- **Monitoring Laju Rekrutmen Anggota Baru oleh Kader**:
   - **4 Stat Badge Rekrutmen**: Anggota baru hari ini, akumulasi 7 hari, akumulasi 30 hari, dan Top Kader Perekrut.
   - **Filter Periode Dinamis**: Hari Ini, 7 Hari, 30 Hari, Semua Riwayat.
   - **Grafik Batang Penambahan Harian**: Menampilkan tren harian. Setiap batang tanggal dapat diklik untuk memfilter asal daerah penambahan pada hari tersebut.
   - **Dua Sudut Pandang (Tab)**:
-    1. *Sebaran Teritorial KTP*: Menampilkan DPD $\rightarrow$ DPC $\rightarrow$ DPRt beserta informasi kader yang merekrut di wilayah tersebut.
-    2. *Kinerja Kader Perekrut*: Leaderboard kader lapangan yang paling aktif merekrut anggota baru, lengkap dengan wilayah sebaran hasil rekrutannya.
+    1. _Sebaran Teritorial KTP_: Menampilkan DPD $\rightarrow$ DPC $\rightarrow$ DPRt beserta informasi kader yang merekrut di wilayah tersebut.
+    2. _Kinerja Kader Perekrut_: Leaderboard kader lapangan yang paling aktif merekrut anggota baru, lengkap dengan wilayah sebaran hasil rekrutannya.
   - **Tombol Simulasi Rekrutmen Cepat**: Memuat skenario uji coba (+100 di Minahasa Selatan & +50 di Manado oleh kader lokal) dalam 1 klik.
-* **Grafik Batang Distribusi Kader per DPD**: Menampilkan perbandingan kader aktif vs non-aktif di 15 Kabupaten/Kota.
-* **Visualisasi Peta Geografis Sulut (`SulutMapVisual.tsx`)**: Pemetaan interaktif per 3 zona (Daratan Minahasa, BMR, Kepulauan).
+- **Grafik Batang Distribusi Kader per DPD**: Menampilkan perbandingan kader aktif vs non-aktif di 15 Kabupaten/Kota.
+- **Visualisasi Peta Geografis Sulut (`SulutMapVisual.tsx`)**: Pemetaan interaktif per 3 zona (Daratan Minahasa, BMR, Kepulauan).
 
 ### 4.2 Modal Audit Teritorial Layar Penuh (`TerritorialGrowthModal.tsx`)
-* Modal inspeksi mendalam untuk pimpinan saat mengevaluasi laju penambahan anggota:
+
+- Modal inspeksi mendalam untuk pimpinan saat mengevaluasi laju penambahan anggota:
   - **Breadcrumb Interaktif**: Melompat antar tingkat (Sulut $\rightarrow$ DPD $\rightarrow$ DPC $\rightarrow$ DPRt).
   - **Pencarian Cepat**: Filter instan berdasarkan nama anggota, NIK, kelurahan, atau nama kader perekrut.
   - **Tabel Rincian Anggota**: Nama, NIK 16 digit, Nomor e-KTA, Alamat KTP, Nama & Jabatan Kader Perekrut, Tanggal Bergabung.
   - **Ekspor Excel (.xlsx)**: Mengunduh data rekrutan pada filter yang dipilih.
 
 ### 4.3 Manajemen Anggota / Kader Daerah (`MemberManagement.tsx`)
-* Halaman operasional sekretariat DPW/DPD:
+
+- Halaman operasional sekretariat DPW/DPD:
   - Pencarian fleksibel (berdasarkan NIK, Nama, Kecamatan/DPC, atau Semua).
   - Filter multi-kategori berdasarkan Status Keanggotaan dan DPD.
   - Tabel anggota dengan pagination, avatar inisial berwarna, badge status, dan status verifikasi KTP.
   - Tombol aksi per anggota: Lihat Detail, Ubah Data, Mutasi Status, dan Cetak e-KTA Digital.
 
 ### 4.4 Form Registrasi Anggota Baru (`MemberFormModal.tsx`)
-* Formulir registrasi anggota yang dilengkapi:
+
+- Formulir registrasi anggota yang dilengkapi:
   - Validasi NIK 16 digit angka & deteksi anti-duplikasi realtime.
   - Generator otomatis nomor e-KTA standar NasDem (`ND-XXXX-2024-XXXX`).
-  - Pemilihan DPD, DPC, dan DPRt yang saling terhubung secara kaskade (*dependent dropdown*).
+  - Pemilihan DPD, DPC, dan DPRt yang saling terhubung secara kaskade (_dependent dropdown_).
   - **Bagian Kader Perekrut**: Input Nama Kader Perekrut dan Jabatan Kader Perekrut untuk mencatat siapa yang mengajak/merekrut anggota baru tersebut.
   - Unggah foto profil dan foto KTP dengan kompresi otomatis di sisi browser.
 
 ### 4.5 Simulasi e-KTA Digital (`EKtaCardModal.tsx`)
-* Pratinjau kartu anggota digital e-KTA Partai NasDem:
+
+- Pratinjau kartu anggota digital e-KTA Partai NasDem:
   - Desain kartu eksklusif: Logo Partai NasDem, watermark security pattern, QR Code verifikasi, dan chip visual simulasi.
   - Data kartu: Nomor e-KTA, NIK, Nama Lengkap, Jabatan, DPD/DPC, Tanggal Bergabung, dan foto kader.
-  - Fitur cetak kartu langsung (*print-ready*).
+  - Fitur cetak kartu langsung (_print-ready_).
 
 ### 4.6 Mutasi & Perubahan Status Keanggotaan (`StatusChangeModal.tsx`)
-* Pengubahan status kader secara akuntabel:
-  - Pilihan status: *Aktif*, *Non-Aktif (Meninggal)*, *Non-Aktif (Pindah Partai/Mundur)*, *Non-Aktif (Pindah Domisili)*.
+
+- Pengubahan status kader secara akuntabel:
+  - Pilihan status: _Aktif_, _Non-Aktif (Meninggal)_, _Non-Aktif (Pindah Partai/Mundur)_, _Non-Aktif (Pindah Domisili)_.
   - Wajib menyertakan catatan/alasan mutasi faktual.
-  - Setiap perubahan status otomatis tercatat di log audit (*audit trail*).
+  - Setiap perubahan status otomatis tercatat di log audit (_audit trail_).
 
 ### 4.7 Rekonsiliasi & Sinkronisasi ID (`SyncIdReconciliation.tsx`)
-* Alat pemeriksa kesesuaian database daerah dengan format pusat:
+
+- Alat pemeriksa kesesuaian database daerah dengan format pusat:
   - Memeriksa validitas NIK (16 digit) dan mendeteksi jika ada NIK duplikat.
   - Memeriksa standarisasi nomor e-KTA (apakah sudah berformat resmi `ND-` / `KT-` atau masih sementara/temp).
   - Fitur standarisasi massal otomatis untuk kader yang belum memiliki nomor e-KTA standar.
 
 ### 4.8 Import Massal Spreadsheet (`BulkImportModal.tsx`)
-* Fitur import berkas Excel (.xlsx) atau CSV:
+
+- Fitur import berkas Excel (.xlsx) atau CSV:
   - Membaca kolom: NIK, No e-KTA, Nama, No HP, DPD, DPC, DPRt, Jabatan, Status.
   - Validasi otomatis: Format NIK, pencegahan duplikasi data lokal, dan deteksi baris ganda di dalam file unggahan.
   - Pratinjau data valid vs error sebelum disimpan ke database.
 
 ### 4.9 Cetak Laporan Eksekutif Pimpinan (`ExecutiveReportPrintModal.tsx`)
-* Format laporan resmi siap cetak (print/PDF layout) untuk diserahkan ke Pimpinan DPW atau DPP:
+
+- Format laporan resmi siap cetak (print/PDF layout) untuk diserahkan ke Pimpinan DPW atau DPP:
   - Kop Surat Resmi DPW Partai NasDem Sulawesi Utara.
   - Rekapitulasi per 15 Kabupaten/Kota.
   - Rincian mutasi status dan persentase kekuatan riil.
   - Tanda tangan resmi pimpinan.
 
 ### 4.10 Simulasi Multi-Role & Audit Log
-* **Role Switcher (`RoleSwitcherModal.tsx`)**:
+
+- **Role Switcher (`RoleSwitcherModal.tsx`)**:
   - `SUPER_ADMIN`: Akses seluruh 15 DPD Kabupaten/Kota se-Sulut (Bappilu & OKK DPW).
   - `ADMIN_DPD`: Akses terbatas ke kabupaten/kota masing-masing (contoh: Admin DPD Kota Manado hanya dapat mengelola data Kota Manado).
-* **Audit Trail (`AuditTrailModal.tsx`)**:
-  - Mencatat setiap aksi (*CREATE*, *UPDATE*, *STATUS_CHANGE*, *IMPORT_MASSAL*) beserta timestamp, aktor yang mengubah, dan keterangannya.
+- **Audit Trail (`AuditTrailModal.tsx`)**:
+  - Mencatat setiap aksi (_CREATE_, _UPDATE_, _STATUS_CHANGE_, _IMPORT_MASSAL_) beserta timestamp, aktor yang mengubah, dan keterangannya.
 
 ---
 
 ## 5. ARSITEKTUR TEKNOLOGI (TECH STACK)
 
-| Komponen | Teknologi | Keterangan |
-| :--- | :--- | :--- |
-| **Framework Utama** | React 19 + TypeScript | Performa tinggi, pengetikan aman (*type-safe*). |
-| **Build Tool & Bundler** | Vite 8 | Waktu kompilasi sangat cepat (<400ms) menggunakan ESM native. |
-| **Styling** | Tailwind CSS v4 + Vanilla CSS | Desain modern, responsif, dan konsisten. |
-| **Ikon UI** | Lucide React | Koleksi ikon vektor modern dan ringan. |
-| **Spreadsheet Engine** | SheetJS (`xlsx`) | Pembacaan dan pembuatan file Excel (.xlsx / .csv) di sisi klien. |
-| **Penyimpanan Data** | LocalStorage Engine (`storage.ts`) | *Offline-first*, data persist di browser pengguna dengan skema versi `v3`. |
-| **Mode Tampilan** | Dark Mode & Light Mode | Toggle tema responsif dengan penyimpanan preferensi pengguna. |
+| Komponen                 | Teknologi                          | Keterangan                                                                 |
+| :----------------------- | :--------------------------------- | :------------------------------------------------------------------------- |
+| **Framework Utama**      | React 19 + TypeScript              | Performa tinggi, pengetikan aman (_type-safe_).                            |
+| **Build Tool & Bundler** | Vite 8                             | Waktu kompilasi sangat cepat (<400ms) menggunakan ESM native.              |
+| **Styling**              | Tailwind CSS v4 + Vanilla CSS      | Desain modern, responsif, dan konsisten.                                   |
+| **Ikon UI**              | Lucide React                       | Koleksi ikon vektor modern dan ringan.                                     |
+| **Spreadsheet Engine**   | SheetJS (`xlsx`)                   | Pembacaan dan pembuatan file Excel (.xlsx / .csv) di sisi klien.           |
+| **Penyimpanan Data**     | LocalStorage Engine (`storage.ts`) | _Offline-first_, data persist di browser pengguna dengan skema versi `v3`. |
+| **Mode Tampilan**        | Dark Mode & Light Mode             | Toggle tema responsif dengan penyimpanan preferensi pengguna.              |
 
 ---
 
 ## 6. CARA MENJALANKAN SISTEM SECARA LOKAL
 
 ### Prasyarat
+
 - Node.js versi 18 ke atas (disarankan v20 atau v22).
 - NPM (v9 / v10).
 
 ### Langkah Menjalankan
+
 1. Buka terminal di folder project:
    ```powershell
    cd "c:\FAJRIKUN\PROJECT KERJAAN\Nasdem\Dashboard-DPW-Sulut"
@@ -169,7 +190,9 @@ Halaman ringkasan monitoring strategis untuk pimpinan:
    ```
 
 ### Langkah Membangun Versi Produksi
+
 Untuk menguji atau mem-build bundle produksi:
+
 ```powershell
 npm run build
 ```
@@ -221,16 +244,71 @@ Dashboard-DPW-Sulut/
 
 ## 8. ROADMAP & REKOMENDASI PENGEMBANGAN LANJUTAN
 
-Untuk meningkatkan sistem ini ke tingkat operasional skala penuh (*enterprise production*) bagi DPW:
+Untuk meningkatkan sistem ini ke tingkat operasional skala penuh (_enterprise production_) bagi DPW:
 
 1. **Integrasi Backend Cloud Database (Supabase / PostgreSQL)**:
    - Saat ini data disimpan di `localStorage` per peramban (browser). Untuk penggunaan tim nyata di 15 DPD, disarankan menghubungkan API backend agar perubahan data dari admin DPD di Talaud atau Bolmong langsung ter-update di layar Ketua DPW di Manado secara realtime.
 2. **Penyimpanan Berkas Foto KTP di Cloud Storage (S3 / Supabase Storage)**:
-   - Agar memori lokal browser tidak terbebani oleh file foto KTP base64 berukuran besar, foto KTP dapat diunggah ke *cloud storage bucket* dan disimpan dalam bentuk tautan URL terenkripsi.
+   - Agar memori lokal browser tidak terbebani oleh file foto KTP base64 berukuran besar, foto KTP dapat diunggah ke _cloud storage bucket_ dan disimpan dalam bentuk tautan URL terenkripsi.
 3. **Peta GIS Interaktif Heatmap (Leaflet / Mapbox GeoJSON Sulut)**:
-   - Menghubungkan batas wilayah poligon GeoJSON 15 Kabupaten/Kota untuk menampilkan *choropleth heatmap* warna densitas kader (wilayah hijau pekat menandakan rasio kader terhadap DPT pemilu sangat tinggi).
+   - Menghubungkan batas wilayah poligon GeoJSON 15 Kabupaten/Kota untuk menampilkan _choropleth heatmap_ warna densitas kader (wilayah hijau pekat menandakan rasio kader terhadap DPT pemilu sangat tinggi).
 4. **Export Laporan Berbasis Form KPU / Silog**:
    - Menambahkan template ekspor spreadsheet yang format kolomnya langsung sesuai dengan format upload verifikasi parpol KPU (Sipol).
 
 ---
-*Dokumen ini disusun untuk Dewan Pimpinan Wilayah (DPW) Partai NasDem Provinsi Sulawesi Utara.*
+
+---
+
+## 9. SISTEM HAK AKSES BERJENJANG (RBAC) & MEKANISME PENGAJUAN HAPUS DATA
+
+### 9.1 Hierarki 4 Tingkatan Peran Pengguna (Role-Based Access Control)
+Sistem membatasi hak operasional dan visibilitas data sesuai hierarki struktur partai:
+
+1. **Super Admin DPW (Tingkat Provinsi)**:
+   - **Cakupan Akses:** Seluruh wilayah Sulawesi Utara (15 DPD Kabupaten/Kota, seluruh DPC & DPRt).
+   - **Akses Dashboard:** Melihat statistik agregat, peta geografis interaktif, dan grafik lengkap seluruh 15 DPD.
+   - **Hak Data:** Akses penuh (**CRUD** — Tambah, Lihat, Edit, dan **Hapus Langsung**).
+   - **Hak Approval:** Memiliki panel khusus **Verifikasi & Persetujuan Hapus Data** untuk menyetujui atau menolak permohonan hapus dari daerah.
+
+2. **Admin DPD (Tingkat Kabupaten/Kota)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 DPD miliknya (misal: hanya DPD Kota Manado). Data 14 DPD lainnya **tidak dapat dilihat maupun diakses**.
+   - **Hak Data:** Bisa Tambah (Add) dan Ubah (Edit) data di wilayah DPD-nya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**. Tombol aksi otomatis menjadi **"Ajukan Hapus"** ke DPW dengan mengisi surat/pernyataan alasan resmi.
+   - **Kebijakan Antarmuka (Clean View):** Pilihan DPD pada filter dan form registrasi **disembunyikan (hidden)** agar tidak mengganggu pandangan, hanya menyisakan pilihan DPC (Kecamatan) dan DPRt.
+
+3. **Admin DPC (Tingkat Kecamatan)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 Kecamatan (DPC) miliknya.
+   - **Hak Data:** Bisa Tambah dan Edit data hanya di wilayah DPC-nya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**, wajib mengajukan permohonan hapus ke DPW.
+   - **Kebijakan Antarmuka:** Pilihan DPD dan DPC **disembunyikan otomatis (hidden)**, hanya menyisakan input DPRt (Desa/Kelurahan).
+
+4. **Admin DPRt (Tingkat Desa/Kelurahan)**:
+   - **Cakupan Akses:** Terkunci hanya pada 1 Desa/Kelurahan (DPRt) miliknya.
+   - **Hak Data:** Bisa Tambah dan Edit data hanya di lingkup desanya.
+   - **Hapus Data:** **TIDAK BISA hapus langsung**, wajib mengajukan permohonan ke DPW.
+   - **Kebijakan Antarmuka:** Seluruh input wilayah teritorial (DPD, DPC, DPRt) **disembunyikan (hidden)** dan otomatis terisi sesuai identitas akun tanpa clutters/dropdown.
+
+### 9.2 Alur Permohonan & Verifikasi Penghapusan Data (Deletion Workflow)
+
+```
+[Admin DPD / DPC / DPRt]
+         │
+         ▼
+Pilih Baris Kader & Klik "Ajukan Hapus"
+         │
+         ▼
+Mengisi Formulir Pernyataan Alasan Penghapusan (Minimal 15 Karakter)
+         │
+         ▼
+Terkirim ke Antrean DPW: Status "PENDING (Menunggu Persetujuan)"
+         │
+         ▼
+[Super Admin DPW]
+Melihat Notifikasi Badge & Membuka "Panel Verifikasi Permohonan Hapus"
+         ├──▶ [Tolak Permohonan]: Status REJECTED, data kader tetap utuh, dicatat di Audit Log.
+         └──▶ [Setujui & Hapus]: Status APPROVED, data kader dihapus permanen, dicatat di Audit Log.
+```
+
+---
+
+_Dokumen ini disusun untuk Dewan Pimpinan Wilayah (DPW) Partai NasDem Provinsi Sulawesi Utara._

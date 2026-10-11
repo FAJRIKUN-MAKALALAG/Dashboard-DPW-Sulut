@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Member, MemberStatus } from '../types';
+import { Member, MemberStatus, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { SulutMapVisual } from './SulutMapVisual';
 import { TerritorialGrowthModal } from './TerritorialGrowthModal';
+import { GrowthInteractiveChart } from './GrowthInteractiveChart';
 import {
   Users,
   UserCheck,
@@ -12,6 +13,7 @@ import {
   Printer,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   ShieldCheck,
   Building2,
   AlertCircle,
@@ -26,6 +28,8 @@ import {
   Maximize2,
   IdCard,
   Award,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { exportMembersToExcel } from '../utils/excelUtils';
 import {
@@ -37,6 +41,7 @@ import {
 
 interface ExecutiveDashboardProps {
   members: Member[];
+  session?: UserSession;
   onOpenPrintReport: () => void;
   onNavigateToMembers: (filterDpd?: string, filterStatus?: MemberStatus) => void;
   onOpenCardModal?: (member: Member) => void;
@@ -45,6 +50,7 @@ interface ExecutiveDashboardProps {
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   members,
+  session,
   onOpenPrintReport,
   onNavigateToMembers,
   onOpenCardModal,
@@ -68,6 +74,13 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const [expandedDpds, setExpandedDpds] = useState<Record<string, boolean>>({});
   const [expandedDpcs, setExpandedDpcs] = useState<Record<string, boolean>>({});
 
+  // Bar chart expanded items
+  const [expandedBars, setExpandedBars] = useState<Record<string, boolean>>({});
+
+  const toggleBarExpansion = (regionId: string) => {
+    setExpandedBars((prev) => ({ ...prev, [regionId]: !prev[regionId] }));
+  };
+
   const toggleDpdAccordion = (dpdName: string) => {
     setExpandedDpds((prev) => ({ ...prev, [dpdName]: !prev[dpdName] }));
   };
@@ -76,11 +89,31 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     setExpandedDpcs((prev) => ({ ...prev, [dpcKey]: !prev[dpcKey] }));
   };
 
-  // Filtered members by region if selected
-  const scopedMembers =
-    selectedDpdFilter === 'ALL'
-      ? members
-      : members.filter((m) => m.dpd === selectedDpdFilter);
+  // Filtered members by region if selected or scoped by role
+  const scopedMembers = useMemo(() => {
+    let list = members;
+    if (session && session.role !== 'SUPER_ADMIN') {
+      if (session.role === 'ADMIN_DPD') {
+        list = list.filter((m) => m.dpd === session.dpdAccess);
+      } else if (session.role === 'ADMIN_DPC') {
+        list = list.filter(
+          (m) =>
+            m.dpd === session.dpdAccess &&
+            (!session.dpcAccess || m.dpc === session.dpcAccess)
+        );
+      } else if (session.role === 'ADMIN_DPRT') {
+        list = list.filter(
+          (m) =>
+            m.dpd === session.dpdAccess &&
+            (!session.dpcAccess || m.dpc === session.dpcAccess) &&
+            (!session.dprtAccess || m.dprt === session.dprtAccess)
+        );
+      }
+    } else if (selectedDpdFilter !== 'ALL') {
+      list = list.filter((m) => m.dpd === selectedDpdFilter);
+    }
+    return list;
+  }, [members, session, selectedDpdFilter]);
 
   // Executive calculation: ONLY status "Aktif" is considered real active membership
   const activeMembers = scopedMembers.filter((m) => m.status === 'Aktif');
@@ -98,11 +131,32 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const activePercentage =
     totalRegistered > 0 ? Math.round((activeMembers.length / totalRegistered) * 100) : 0;
 
-  // Aggregate distribution per 15 DPDs for Bar Chart
-  const distributionData = SULUT_REGIONS.map((region) => {
+  // Aggregate distribution per DPDs for Bar Chart (with DPC breakdown)
+  const visibleRegions = useMemo(() => {
+    if (session && session.role !== 'SUPER_ADMIN' && session.dpdAccess !== 'ALL') {
+      return SULUT_REGIONS.filter((r) => r.name === session.dpdAccess);
+    }
+    return SULUT_REGIONS;
+  }, [session]);
+
+  const distributionData = visibleRegions.map((region) => {
     const regMembers = members.filter((m) => m.dpd === region.name);
     const active = regMembers.filter((m) => m.status === 'Aktif').length;
     const inactive = regMembers.length - active;
+
+    // DPC (Kecamatan) breakdown for expanded view
+    const dpcBreakdown = region.subdistricts.map((sub) => {
+      const dpcMembers = regMembers.filter((m) => m.dpc === sub.name);
+      const dpcActive = dpcMembers.filter((m) => m.status === 'Aktif').length;
+      return {
+        name: sub.name,
+        active: dpcActive,
+        inactive: dpcMembers.length - dpcActive,
+        total: dpcMembers.length,
+        percentage: dpcMembers.length > 0 ? Math.round((dpcActive / dpcMembers.length) * 100) : 0,
+      };
+    }).filter((d) => d.total > 0).sort((a, b) => b.active - a.active);
+
     return {
       name: region.name,
       id: region.id,
@@ -110,6 +164,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       inactive,
       total: regMembers.length,
       percentage: regMembers.length > 0 ? Math.round((active / regMembers.length) * 100) : 0,
+      dpcBreakdown,
+      totalDpc: region.subdistricts.length,
     };
   }).sort((a, b) => b.active - a.active);
 
@@ -117,8 +173,33 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
-    return computeGrowthAnalytics(members, growthPeriod, selectedDpdFilter, pinnedDate, filterRecruiter);
-  }, [members, growthPeriod, selectedDpdFilter, pinnedDate, filterRecruiter]);
+    const targetSource = !session || session.role === 'SUPER_ADMIN' ? members : scopedMembers;
+    const activeDpd = !session || session.role === 'SUPER_ADMIN' ? selectedDpdFilter : session.dpdAccess;
+    return computeGrowthAnalytics(targetSource, growthPeriod, activeDpd, pinnedDate, filterRecruiter);
+  }, [members, scopedMembers, session, growthPeriod, selectedDpdFilter, pinnedDate, filterRecruiter]);
+
+  // DPC distribution breakdown for Admin DPD
+  const currentDpdRegion = SULUT_REGIONS.find((r) => r.name === session?.dpdAccess);
+  const currentDpcList = useMemo(() => {
+    if (!currentDpdRegion) return [];
+    return currentDpdRegion.subdistricts
+      .map((sub) => {
+        const dpcMembers = scopedMembers.filter((m) => m.dpc === sub.name);
+        const active = dpcMembers.filter((m) => m.status === 'Aktif').length;
+        const inactive = dpcMembers.length - active;
+        return {
+          name: sub.name,
+          villages: sub.villages,
+          active,
+          inactive,
+          total: dpcMembers.length,
+          percentage: dpcMembers.length > 0 ? Math.round((active / dpcMembers.length) * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.active - a.active);
+  }, [currentDpdRegion, scopedMembers]);
+
+  const maxDpcActiveCount = Math.max(...currentDpcList.map((d) => d.active), 1);
 
   const maxDailyCount = Math.max(...growthAnalytics.dailyPoints.map((p) => p.count), 1);
 
@@ -147,21 +228,26 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              Executive Briefing & Monitoring
+              {session && session.role !== 'SUPER_ADMIN'
+                ? `Monitoring Teritorial · ${session.jabatan}`
+                : 'Executive Briefing & Monitoring'}
             </span>
             <span className="text-slate-400 dark:text-slate-600">·</span>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-              DPW Partai NasDem Sulut · Shadow Database
+              {session && session.role !== 'SUPER_ADMIN'
+                ? `DPD NasDem ${session.dpdAccess}`
+                : 'DPW Partai NasDem Sulut · Shadow Database'}
             </span>
           </div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
-            Dashboard Eksekutif Keanggotaan NasDem Sulut
+            {session && session.role !== 'SUPER_ADMIN'
+              ? `Dashboard Keanggotaan DPD ${session.dpdAccess}`
+              : 'Dashboard Eksekutif Keanggotaan NasDem Sulut'}
           </h2>
           <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
-            Sistem shadow database mandiri DPW Partai NasDem Sulut secara otomatis memverifikasi kader yang{' '}
-            <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">terkonfirmasi riil Aktif</strong> di lapangan
-            serta memetakan anggota baru yang <strong className="text-blue-600 dark:text-blue-400 font-semibold">direkrut oleh kader</strong> ke
-            tingkat basis (DPD → DPC → DPRt) berdasarkan alamat KTP.
+            {session && session.role !== 'SUPER_ADMIN'
+              ? `Memantau kekuatan kader aktif riil, sebaran anggota per kecamatan (DPC), dan laju perekrutan kader di wilayah ${session.dpdAccess}.`
+              : 'Sistem shadow database mandiri DPW Partai NasDem Sulut secara otomatis memverifikasi kader yang terkonfirmasi riil Aktif di lapangan serta memetakan anggota baru yang direkrut oleh kader ke tingkat basis (DPD → DPC → DPRt) berdasarkan alamat KTP.'}
           </p>
         </div>
 
@@ -188,25 +274,33 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-blue-500" />
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Lingkup Wilayah Pantauan:</span>
-          <select
-            value={selectedDpdFilter}
-            onChange={(e) => {
-              setSelectedDpdFilter(e.target.value);
-              setPinnedDate(undefined);
-              setFilterRecruiter(undefined);
-            }}
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-          >
-            <option value="ALL">Seluruh Sulawesi Utara (15 DPD Kab/Kota)</option>
-            {SULUT_REGIONS.map((r) => (
-              <option key={r.id} value={r.name}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+          {session && session.role !== 'SUPER_ADMIN' ? (
+            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded">
+              {session.jabatan} ({session.dpdAccess}
+              {session.dpcAccess ? ` › Kec. ${session.dpcAccess}` : ''}
+              {session.dprtAccess ? ` › ${session.dprtAccess}` : ''})
+            </span>
+          ) : (
+            <select
+              value={selectedDpdFilter}
+              onChange={(e) => {
+                setSelectedDpdFilter(e.target.value);
+                setPinnedDate(undefined);
+                setFilterRecruiter(undefined);
+              }}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="ALL">Seluruh Sulawesi Utara (15 DPD Kab/Kota)</option>
+              {SULUT_REGIONS.map((r) => (
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {selectedDpdFilter !== 'ALL' && (
+        {session?.role === 'SUPER_ADMIN' && selectedDpdFilter !== 'ALL' && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded font-medium">
               Filter Terpasang: {selectedDpdFilter}
@@ -332,15 +426,23 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight" data-tabular="true">
-              15
+              {session && session.role !== 'SUPER_ADMIN' ? '1' : '15'}
             </span>
             <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-              DPD Kab / Kota
+              {session && session.role !== 'SUPER_ADMIN' ? `DPD Terpilih` : 'DPD Kab / Kota'}
             </span>
           </div>
           <div className="mt-2.5 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-            <p className="font-medium text-slate-800 dark:text-slate-200">167 DPC Kecamatan di Sulut</p>
-            <p>Shadow database mandiri se-Sulut</p>
+            <p className="font-medium text-slate-800 dark:text-slate-200">
+              {session && session.role !== 'SUPER_ADMIN'
+                ? `${currentDpdRegion?.subdistricts.length || 0} DPC Kecamatan di ${session.dpdAccess}`
+                : '167 DPC Kecamatan di Sulut'}
+            </p>
+            <p>
+              {session && session.role !== 'SUPER_ADMIN'
+                ? `Yurisdiksi Daerah Mandiri`
+                : 'Shadow database mandiri se-Sulut'}
+            </p>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
@@ -435,8 +537,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               </button>
             </div>
 
-            {/* Quick Scenario Injector */}
-            {onAddMembers && (
+            {/* Quick Scenario Injector - Khusus Super Admin DPW */}
+            {(!session || session.role === 'SUPER_ADMIN') && onAddMembers && (
               <button
                 onClick={handleLoadTestScenario}
                 className="btn-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer shadow-2xs"
@@ -570,88 +672,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </div>
         )}
 
-        {/* Interactive Daily Growth Bar Chart */}
-        <div className="bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Grafik Penambahan Anggota Baru Harian ({growthAnalytics.periodLabel})</span>
-              </span>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Klik pada batang tanggal untuk melihat siapa kader yang merekrut dan di daerah mana anggotanya bertambah.
-              </p>
-            </div>
-            <div className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
-              Total Rekrutan: +{growthAnalytics.totalNew} Anggota
-            </div>
-          </div>
-
-          {/* Visual Bars */}
-          <div className="pt-6 pb-2 overflow-x-auto">
-            <div className="flex items-end gap-2 sm:gap-3 min-w-[500px] h-36 px-2">
-              {growthAnalytics.dailyPoints.map((point) => {
-                const heightPercent = point.count > 0 ? Math.max(Math.round((point.count / maxDailyCount) * 100), 12) : 6;
-                const isPinned = pinnedDate === point.date;
-
-                return (
-                  <div
-                    key={point.date}
-                    onClick={() => {
-                      if (point.count > 0) {
-                        setPinnedDate(isPinned ? undefined : point.date);
-                      }
-                    }}
-                    className={`flex-1 flex flex-col items-center gap-1.5 group transition-all select-none ${
-                      point.count > 0 ? 'cursor-pointer' : 'cursor-default opacity-40'
-                    }`}
-                  >
-                    {/* Tooltip on hover / count indicator */}
-                    <span
-                      className={`text-[10px] font-mono font-bold transition-all ${
-                        isPinned
-                          ? 'text-amber-600 dark:text-amber-400 scale-110'
-                          : point.count > 0
-                          ? 'text-emerald-600 dark:text-emerald-400 group-hover:scale-110'
-                          : 'text-slate-400 opacity-0 group-hover:opacity-100'
-                      }`}
-                    >
-                      {point.count > 0 ? `+${point.count}` : '0'}
-                    </span>
-
-                    {/* Bar */}
-                    <div className="w-full max-w-[28px] h-24 bg-slate-200/50 dark:bg-slate-800/50 rounded-t-lg flex items-end overflow-hidden">
-                      <div
-                        className={`w-full rounded-t-md transition-all duration-300 ${
-                          isPinned
-                            ? 'bg-amber-500 shadow-md ring-2 ring-amber-400'
-                            : point.count > 0
-                            ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 group-hover:from-amber-500 group-hover:to-amber-300 shadow-xs'
-                            : 'bg-transparent'
-                        }`}
-                        style={{ height: `${heightPercent}%` }}
-                      ></div>
-                    </div>
-
-                    {/* Date label */}
-                    <div className="text-center">
-                      <div
-                        className={`text-[10px] font-mono leading-none ${
-                          isPinned ? 'font-bold text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {point.displayDate}
-                      </div>
-                      <div className="text-[9px] text-slate-400 leading-none mt-0.5">
-                        {point.dayName}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        {/* Ultra-Interactive Cadre Growth Chart (Area Spline Wave & Modern Bars) */}
+        <GrowthInteractiveChart
+          dailyPoints={growthAnalytics.dailyPoints}
+          pinnedDate={pinnedDate}
+          onPinDate={(date) => setPinnedDate(date)}
+          periodLabel={growthAnalytics.periodLabel}
+          totalNew={growthAnalytics.totalNew}
+        />
 
         {/* Tab Toggle: Peta Teritorial KTP vs Kader Perekrut */}
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
@@ -710,7 +738,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 <p className="text-xs">
                   Tidak ada data penambahan anggota pada periode atau filter ini.
                 </p>
-                {onAddMembers && (
+                {(!session || session.role === 'SUPER_ADMIN') && onAddMembers && (
                   <button
                     onClick={handleLoadTestScenario}
                     className="mt-3 btn-white text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 cursor-pointer"
@@ -962,7 +990,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         )}
       </div>
 
-      {/* Bar Chart: Distribusi Anggota Aktif per DPD */}
+      {/* Bar Chart: Distribusi Anggota Aktif per DPD / DPC - Interactive */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
@@ -971,11 +999,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 Grafik Batang Distribusi
               </span>
               <span className="text-slate-300 dark:text-slate-700">·</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">15 Kabupaten/Kota</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {(!session || session.role === 'SUPER_ADMIN') ? '15 Kabupaten/Kota' : `DPD ${session?.dpdAccess}`}
+              </span>
             </div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight mt-0.5">
-              Sebaran Jumlah Anggota Aktif per DPD
+              {(!session || session.role === 'SUPER_ADMIN')
+                ? 'Sebaran Jumlah Anggota Aktif per DPD'
+                : `Sebaran Jumlah Anggota Aktif per DPC (Kecamatan)`}
             </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              {(!session || session.role === 'SUPER_ADMIN')
+                ? <>Klik <strong className="text-blue-600 dark:text-blue-400">▼ Detail</strong> pada setiap DPD untuk melihat distribusi anggota per DPC (Kecamatan).</>
+                : <>Distribusi anggota di setiap kecamatan (DPC) dalam wilayah <strong className="text-blue-600 dark:text-blue-400">{session?.dpdAccess}</strong>. Klik untuk melihat rincian DPRt (Kelurahan/Desa).</>}
+            </p>
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-4">
             <div className="flex items-center gap-1.5">
@@ -989,80 +1026,416 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </div>
         </div>
 
-        {/* Horizontal Bar Chart for high clarity */}
-        <div className="space-y-2.5">
-          {distributionData.map((item, index) => {
-            const barWidthPercent = Math.max(Math.round((item.active / maxActiveCount) * 100), 4);
-            const isSelected = selectedDpdFilter === item.name;
+        {/* Horizontal Bar Chart - Interactive with DPC Drill-Down */}
+        <div className="space-y-2">
+          {/* ===== SUPER ADMIN: 15 DPD Distribution ===== */}
+          {(!session || session.role === 'SUPER_ADMIN') ? (
+            <>
+              {distributionData.map((item, index) => {
+                const barWidthPercent = Math.max(Math.round((item.active / maxActiveCount) * 100), 4);
+                const isSelected = selectedDpdFilter === item.name;
+                const isBarExpanded = !!expandedBars[item.id];
+                const maxDpcActive = Math.max(...(item.dpcBreakdown.map((d) => d.active)), 1);
 
-            return (
-              <div
-                key={item.id}
-                onClick={() => setSelectedDpdFilter(isSelected ? 'ALL' : item.name)}
-                className={`group p-2.5 rounded-lg transition-all cursor-pointer border ${
-                  isSelected
-                    ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 border-transparent hover:border-slate-200 dark:hover:border-slate-800'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 text-slate-400 dark:text-slate-500 font-mono text-[11px] text-right font-medium">
-                      {String(index + 1).padStart(2, '0')}.
-                    </span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {item.name}
-                    </span>
-                    {isSelected && (
-                      <span className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.2 rounded font-mono font-medium">
-                        Terpilih
-                      </span>
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl overflow-hidden border transition-all duration-200 ${
+                      isBarExpanded
+                        ? 'border-blue-300 dark:border-blue-700 shadow-sm bg-white dark:bg-slate-900'
+                        : isSelected
+                        ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
+                        : 'border-transparent hover:border-slate-200 dark:hover:border-slate-800'
+                    }`}
+                  >
+                    {/* Main Bar Row */}
+                    <div className="flex items-center gap-0">
+                      {/* Left: Filter Click Area */}
+                      <div
+                        onClick={() => setSelectedDpdFilter(isSelected ? 'ALL' : item.name)}
+                        className="flex-1 p-2.5 cursor-pointer group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 text-slate-400 dark:text-slate-500 font-mono text-[11px] text-right font-medium">
+                              {String(index + 1).padStart(2, '0')}.
+                            </span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              {item.name}
+                            </span>
+                            {isSelected && (
+                              <span className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono font-medium">
+                                Terpilih
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs font-mono">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold" data-tabular="true">
+                              {item.active} Aktif
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600">/</span>
+                            <span className="text-slate-600 dark:text-slate-400" data-tabular="true">
+                              {item.total} Total
+                            </span>
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">({item.percentage}%)</span>
+                          </div>
+                        </div>
+
+                        {/* Bar representation */}
+                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex">
+                          <div
+                            className="bg-emerald-500 h-full rounded-l-full transition-all duration-300 shadow-xs"
+                            style={{ width: `${barWidthPercent}%` }}
+                            title={`${item.active} Anggota Aktif`}
+                          ></div>
+                          {item.inactive > 0 && (
+                            <div
+                              className="bg-rose-400/80 h-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(
+                                  Math.round((item.inactive / maxActiveCount) * 100),
+                                  2
+                                )}%`,
+                              }}
+                              title={`${item.inactive} Anggota Non-Aktif`}
+                            ></div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Expand DPC Button */}
+                      <button
+                        onClick={() => toggleBarExpansion(item.id)}
+                        className={`px-3 py-4 border-l transition-colors cursor-pointer flex items-center gap-1 text-xs font-medium shrink-0 ${
+                          isBarExpanded
+                            ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                            : 'border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-blue-600'
+                        }`}
+                        title={isBarExpanded ? 'Tutup rincian DPC' : `Lihat ${item.totalDpc} DPC`}
+                      >
+                        {isBarExpanded ? (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Tutup</span>
+                            <ChevronUp className="w-3 h-3" />
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{item.dpcBreakdown.length} DPC</span>
+                            <ChevronDown className="w-3 h-3" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Expanded DPC Detail Panel */}
+                    {isBarExpanded && (
+                      <div className="border-t border-blue-100 dark:border-blue-900/60 bg-slate-50/50 dark:bg-slate-950/40 p-3.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-semibold">
+                            <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                            Distribusi per DPC (Kecamatan) di {item.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {item.dpcBreakdown.length} / {item.totalDpc} DPC aktif
+                          </span>
+                        </div>
+
+                        {item.dpcBreakdown.length === 0 ? (
+                          <div className="text-[11px] text-slate-400 italic text-center py-3">
+                            Belum ada anggota terdaftar di wilayah ini
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {item.dpcBreakdown.map((dpc, dIdx) => {
+                              const dpcBarWidth = Math.max(Math.round((dpc.active / maxDpcActive) * 100), 6);
+                              const dpcColor = dpc.percentage >= 80 ? 'emerald' : dpc.percentage >= 60 ? 'blue' : 'amber';
+
+                              return (
+                                <div
+                                  key={dpc.name}
+                                  className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between text-[11px] mb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
+                                      <span className="font-medium text-slate-700 dark:text-slate-300">Kec. {dpc.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 font-mono">
+                                      <span className={`font-semibold text-${dpcColor}-600 dark:text-${dpcColor}-400`}>
+                                        {dpc.active} Aktif
+                                      </span>
+                                      <span className="text-slate-300 dark:text-slate-600">/</span>
+                                      <span className="text-slate-500">{dpc.total}</span>
+                                      <span className={`text-[10px] px-1 py-0.5 rounded border font-semibold ${
+                                        dpc.percentage >= 80
+                                          ? 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50'
+                                          : dpc.percentage >= 60
+                                          ? 'border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50'
+                                          : 'border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50'
+                                      }`}>
+                                        {dpc.percentage}%
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* DPC Mini Bar */}
+                                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex">
+                                    <div
+                                      className={`h-full rounded-l-full transition-all duration-300 ${
+                                        dpc.percentage >= 80 ? 'bg-emerald-500' : dpc.percentage >= 60 ? 'bg-blue-500' : 'bg-amber-500'
+                                      }`}
+                                      style={{ width: `${dpcBarWidth}%` }}
+                                    ></div>
+                                    {dpc.inactive > 0 && (
+                                      <div
+                                        className="bg-rose-400/60 h-full transition-all duration-300"
+                                        style={{ width: `${Math.max(Math.round((dpc.inactive / maxDpcActive) * 100), 3)}%` }}
+                                      ></div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Summary Footer */}
+                        <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                          <span>{item.totalDpc - item.dpcBreakdown.length} DPC belum memiliki anggota</span>
+                          <button
+                            onClick={() => {
+                              setSelectedDpdFilter(item.name);
+                              toggleBarExpansion(item.id);
+                            }}
+                            className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer flex items-center gap-0.5"
+                          >
+                            Filter ke {item.name}
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs font-mono">
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold" data-tabular="true">
-                      {item.active} Aktif
-                    </span>
-                    <span className="text-slate-300 dark:text-slate-600">/</span>
-                    <span className="text-slate-600 dark:text-slate-400" data-tabular="true">
-                      {item.total} Total
-                    </span>
-                    <span className="text-blue-600 dark:text-blue-400 font-medium">({item.percentage}%)</span>
-                  </div>
+                );
+              })}
+            </>
+          ) : (
+            /* ===== NON-SUPER ADMIN: DPC (Kecamatan) Distribution of their DPD ===== */
+            <>
+              {currentDpcList.length === 0 ? (
+                <div className="text-sm text-slate-400 italic text-center py-8">
+                  Belum ada data anggota terdaftar di wilayah {session?.dpdAccess}.
                 </div>
+              ) : (
+                currentDpcList.map((dpcItem, index) => {
+                  const barWidthPercent = Math.max(Math.round((dpcItem.active / maxDpcActiveCount) * 100), 4);
+                  const dpcColor = dpcItem.percentage >= 80 ? 'emerald' : dpcItem.percentage >= 60 ? 'blue' : 'amber';
+                  const isBarExpanded = !!expandedBars[dpcItem.name];
 
-                {/* Bar representation with rich colors */}
-                <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-emerald-500 h-full rounded-l-full transition-all duration-300 shadow-xs"
-                    style={{ width: `${barWidthPercent}%` }}
-                    title={`${item.active} Anggota Aktif`}
-                  ></div>
-                  {item.inactive > 0 && (
+                  // Get village (DPRt) breakdown for this DPC
+                  const villageBreakdown = (dpcItem.villages || []).map((village: string) => {
+                    const vMembers = scopedMembers.filter((m) => m.dpc === dpcItem.name && m.dprt === village);
+                    const vActive = vMembers.filter((m) => m.status === 'Aktif').length;
+                    return {
+                      name: village,
+                      active: vActive,
+                      inactive: vMembers.length - vActive,
+                      total: vMembers.length,
+                      percentage: vMembers.length > 0 ? Math.round((vActive / vMembers.length) * 100) : 0,
+                    };
+                  }).filter((v: { total: number }) => v.total > 0).sort((a: { active: number }, b: { active: number }) => b.active - a.active);
+
+                  const maxVillageActive = Math.max(...villageBreakdown.map((v: { active: number }) => v.active), 1);
+
+                  return (
                     <div
-                      className="bg-rose-400/80 h-full transition-all duration-300"
-                      style={{
-                        width: `${Math.max(
-                          Math.round((item.inactive / maxActiveCount) * 100),
-                          2
-                        )}%`,
-                      }}
-                      title={`${item.inactive} Anggota Non-Aktif`}
-                    ></div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                      key={dpcItem.name}
+                      className={`rounded-xl overflow-hidden border transition-all duration-200 ${
+                        isBarExpanded
+                          ? 'border-blue-300 dark:border-blue-700 shadow-sm bg-white dark:bg-slate-900'
+                          : 'border-transparent hover:border-slate-200 dark:hover:border-slate-800'
+                      }`}
+                    >
+                      {/* Main Bar Row */}
+                      <div className="flex items-center gap-0">
+                        <div className="flex-1 p-2.5 group">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 text-slate-400 dark:text-slate-500 font-mono text-[11px] text-right font-medium">
+                                {String(index + 1).padStart(2, '0')}.
+                              </span>
+                              <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                Kec. {dpcItem.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs font-mono">
+                              <span className={`font-bold text-${dpcColor}-600 dark:text-${dpcColor}-400`} data-tabular="true">
+                                {dpcItem.active} Aktif
+                              </span>
+                              <span className="text-slate-300 dark:text-slate-600">/</span>
+                              <span className="text-slate-600 dark:text-slate-400" data-tabular="true">
+                                {dpcItem.total} Total
+                              </span>
+                              <span className={`text-[10px] px-1 py-0.5 rounded border font-semibold ${
+                                dpcItem.percentage >= 80
+                                  ? 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50'
+                                  : dpcItem.percentage >= 60
+                                  ? 'border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50'
+                                  : 'border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50'
+                              }`}>
+                                {dpcItem.percentage}%
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Bar representation */}
+                          <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex">
+                            <div
+                              className={`h-full rounded-l-full transition-all duration-300 shadow-xs ${
+                                dpcItem.percentage >= 80 ? 'bg-emerald-500' : dpcItem.percentage >= 60 ? 'bg-blue-500' : 'bg-amber-500'
+                              }`}
+                              style={{ width: `${barWidthPercent}%` }}
+                              title={`${dpcItem.active} Anggota Aktif`}
+                            ></div>
+                            {dpcItem.inactive > 0 && (
+                              <div
+                                className="bg-rose-400/80 h-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.max(
+                                    Math.round((dpcItem.inactive / maxDpcActiveCount) * 100),
+                                    2
+                                  )}%`,
+                                }}
+                                title={`${dpcItem.inactive} Anggota Non-Aktif`}
+                              ></div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right: Expand DPRt (Villages) Button */}
+                        <button
+                          onClick={() => toggleBarExpansion(dpcItem.name)}
+                          className={`px-3 py-4 border-l transition-colors cursor-pointer flex items-center gap-1 text-xs font-medium shrink-0 ${
+                            isBarExpanded
+                              ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                              : 'border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-blue-600'
+                          }`}
+                          title={isBarExpanded ? 'Tutup rincian DPRt' : `Lihat DPRt (Kel/Desa)`}
+                        >
+                          {isBarExpanded ? (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Tutup</span>
+                              <ChevronUp className="w-3 h-3" />
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">{villageBreakdown.length} DPRt</span>
+                              <ChevronDown className="w-3 h-3" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Expanded DPRt (Village) Detail Panel */}
+                      {isBarExpanded && (
+                        <div className="border-t border-blue-100 dark:border-blue-900/60 bg-slate-50/50 dark:bg-slate-950/40 p-3.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-semibold">
+                              <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                              Distribusi per DPRt (Kelurahan/Desa) di Kec. {dpcItem.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {villageBreakdown.length} / {(dpcItem.villages || []).length} DPRt aktif
+                            </span>
+                          </div>
+
+                          {villageBreakdown.length === 0 ? (
+                            <div className="text-[11px] text-slate-400 italic text-center py-3">
+                              Belum ada anggota terdaftar di kelurahan/desa kecamatan ini
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {villageBreakdown.map((village: { name: string; active: number; inactive: number; total: number; percentage: number }) => {
+                                const vBarWidth = Math.max(Math.round((village.active / maxVillageActive) * 100), 6);
+                                const vColor = village.percentage >= 80 ? 'emerald' : village.percentage >= 60 ? 'blue' : 'amber';
+
+                                return (
+                                  <div
+                                    key={village.name}
+                                    className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                                  >
+                                    <div className="flex items-center justify-between text-[11px] mb-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <Layers className="w-3 h-3 text-purple-400 shrink-0" />
+                                        <span className="font-medium text-slate-700 dark:text-slate-300">{village.name}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 font-mono">
+                                        <span className={`font-semibold text-${vColor}-600 dark:text-${vColor}-400`}>
+                                          {village.active} Aktif
+                                        </span>
+                                        <span className="text-slate-300 dark:text-slate-600">/</span>
+                                        <span className="text-slate-500">{village.total}</span>
+                                        <span className={`text-[10px] px-1 py-0.5 rounded border font-semibold ${
+                                          village.percentage >= 80
+                                            ? 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50'
+                                            : village.percentage >= 60
+                                            ? 'border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50'
+                                            : 'border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50'
+                                        }`}>
+                                          {village.percentage}%
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Village Mini Bar */}
+                                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex">
+                                      <div
+                                        className={`h-full rounded-l-full transition-all duration-300 ${
+                                          village.percentage >= 80 ? 'bg-emerald-500' : village.percentage >= 60 ? 'bg-blue-500' : 'bg-amber-500'
+                                        }`}
+                                        style={{ width: `${vBarWidth}%` }}
+                                      ></div>
+                                      {village.inactive > 0 && (
+                                        <div
+                                          className="bg-rose-400/60 h-full transition-all duration-300"
+                                          style={{ width: `${Math.max(Math.round((village.inactive / maxVillageActive) * 100), 3)}%` }}
+                                        ></div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Summary Footer */}
+                          <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                            <span>{(dpcItem.villages || []).length - villageBreakdown.length} DPRt belum memiliki anggota</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Sulut Map Geographic Interactive Component */}
-      <SulutMapVisual
-        members={members}
-        selectedDpd={selectedDpdFilter}
-        onSelectDpd={(dpd) => setSelectedDpdFilter(dpd)}
-      />
+      {/* Sulut Map Geographic Interactive Component — Only for Super Admin DPW */}
+      {(!session || session.role === 'SUPER_ADMIN') && (
+        <SulutMapVisual
+          members={members}
+          selectedDpd={selectedDpdFilter}
+          onSelectDpd={(dpd) => setSelectedDpdFilter(dpd)}
+        />
+      )}
 
       {/* Atasan Briefing Callout */}
       <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-4.5 rounded-xl flex items-start gap-3.5 text-xs text-slate-700 dark:text-slate-300 transition-colors">

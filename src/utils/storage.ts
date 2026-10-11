@@ -1,15 +1,18 @@
-import { Member, AuditLog, UserSession } from '../types';
+import { Member, AuditLog, UserSession, DeletionRequest } from '../types';
 import { INITIAL_MEMBERS } from '../data/seedMembers';
 
 const STORAGE_KEYS = {
   MEMBERS: 'nasdem_sulut_ekta_members_v3',
   AUDIT_LOGS: 'nasdem_sulut_ekta_audit_logs_v3',
   SESSION: 'nasdem_sulut_ekta_session_v3',
+  DELETION_REQUESTS: 'nasdem_sulut_ekta_deletion_requests_v3',
 };
 
 export const DEFAULT_SUPER_ADMIN: UserSession = {
   role: 'SUPER_ADMIN',
   dpdAccess: 'ALL',
+  dpcAccess: 'ALL',
+  dprtAccess: 'ALL',
   adminName: 'Bappilu & OKK DPW NasDem Sulut',
   jabatan: 'Super Admin DPW Partai NasDem Sulut',
 };
@@ -143,4 +146,70 @@ export function saveSession(session: UserSession): void {
 export function resetToDefaultSeeds(): void {
   saveMembers(INITIAL_MEMBERS);
   localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+  localStorage.removeItem(STORAGE_KEYS.DELETION_REQUESTS);
+}
+
+export function loadDeletionRequests(): DeletionRequest[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETION_REQUESTS);
+    if (!raw) {
+      // Seed initial sample deletion request for demonstration
+      const initialRequests: DeletionRequest[] = [
+        {
+          id: 'del-req-1',
+          memberNik: '7171060909930008',
+          memberName: 'Ferry Jerry Paat',
+          memberNomorEKTA: 'ND-7171-2024-0044',
+          dpd: 'Kota Manado',
+          dpc: 'Wenang',
+          dprt: 'Mahakeret Barat',
+          statusMember: 'Non-Aktif (Pindah Partai/Mundur)',
+          requestedByRole: 'ADMIN_DPD',
+          requestedByName: 'Admin DPD NasDem Kota Manado',
+          requestedAt: '2024-06-25 10:15',
+          reason: 'Kader yang bersangkutan telah resmi mengundurkan diri dan mendaftar sebagai caleg parpol lain dengan bukti surat pernyataan bermaterai. Kami mohon DPW menghapus data permanen dari arsip aktif.',
+          status: 'PENDING',
+        },
+      ];
+      saveDeletionRequests(initialRequests);
+      return initialRequests;
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    console.error('Error loading deletion requests', e);
+  }
+  return [];
+}
+
+export function saveDeletionRequests(requests: DeletionRequest[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.DELETION_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error('Error saving deletion requests', e);
+  }
+}
+
+export function appendDeletionRequest(
+  request: Omit<DeletionRequest, 'id' | 'requestedAt' | 'status'>
+): DeletionRequest {
+  const current = loadDeletionRequests();
+  const now = new Date();
+  const requestedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const newEntry: DeletionRequest = {
+    ...request,
+    id: `del-req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    requestedAt,
+    status: 'PENDING',
+  };
+
+  saveDeletionRequests([newEntry, ...current]);
+  return newEntry;
+}
+
+export function updateDeletionRequest(updated: DeletionRequest): void {
+  const current = loadDeletionRequests();
+  const updatedList = current.map((r) => (r.id === updated.id ? updated : r));
+  saveDeletionRequests(updatedList);
 }

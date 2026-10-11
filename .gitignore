@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+.information_project
+.information_project.md

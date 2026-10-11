@@ -35,13 +35,36 @@ export interface Member {
   kaderPerekrutDpd?: string;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPD';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
 
 export interface UserSession {
   role: UserRole;
   dpdAccess: string; // 'ALL' for Super Admin or specific DPD name
+  dpcAccess?: string; // specific DPC (Kecamatan) name or undefined
+  dprtAccess?: string; // specific DPRt (Kelurahan/Desa) name or undefined
   adminName: string;
   jabatan: string;
+}
+
+export type DeletionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface DeletionRequest {
+  id: string;
+  memberNik: string;
+  memberName: string;
+  memberNomorEKTA: string;
+  dpd: string;
+  dpc: string;
+  dprt: string;
+  statusMember: MemberStatus;
+  requestedByRole: UserRole;
+  requestedByName: string;
+  requestedAt: string; // YYYY-MM-DD HH:mm
+  reason: string; // Pernyataan & alasan resmi pengajuan hapus
+  status: DeletionRequestStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
 }
 
 export interface AuditLog {
@@ -49,7 +72,7 @@ export interface AuditLog {
   timestamp: string;
   memberNik: string;
   memberName: string;
-  action: 'STATUS_CHANGE' | 'CREATE' | 'IMPORT_MASSAL' | 'UPDATE';
+  action: 'STATUS_CHANGE' | 'CREATE' | 'IMPORT_MASSAL' | 'UPDATE' | 'DELETE' | 'DELETE_REQUEST';
   previousStatus?: MemberStatus;
   newStatus?: MemberStatus;
   reason: string;

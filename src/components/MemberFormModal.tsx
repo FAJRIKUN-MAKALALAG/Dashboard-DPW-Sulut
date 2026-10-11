@@ -42,17 +42,27 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
   const isEdit = !!initialMember;
 
   const defaultDpd =
-    session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'
+    session.role !== 'SUPER_ADMIN' && session.dpdAccess && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialMember?.dpd || SULUT_REGIONS[0].name;
+
+  const defaultDpc =
+    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess
+      ? session.dpcAccess
+      : initialMember?.dpc || '';
+
+  const defaultDprt =
+    session.role === 'ADMIN_DPRT' && session.dprtAccess
+      ? session.dprtAccess
+      : initialMember?.dprt || '';
 
   const [nik, setNik] = useState<string>(initialMember?.nik || '');
   const [nomorEKTA, setNomorEKTA] = useState<string>(initialMember?.nomorEKTA || '');
   const [namaLengkap, setNamaLengkap] = useState<string>(initialMember?.namaLengkap || '');
   const [nomorHP, setNomorHP] = useState<string>(initialMember?.nomorHP || '');
   const [dpd, setDpd] = useState<string>(defaultDpd);
-  const [dpc, setDpc] = useState<string>(initialMember?.dpc || '');
-  const [dprt, setDprt] = useState<string>(initialMember?.dprt || '');
+  const [dpc, setDpc] = useState<string>(defaultDpc);
+  const [dprt, setDprt] = useState<string>(defaultDprt);
   const [jabatan, setJabatan] = useState<string>(initialMember?.jabatan || 'Pengurus DPW NasDem');
   const [status, setStatus] = useState<MemberStatus>(initialMember?.status || 'Aktif');
   const [catatanMutasi, setCatatanMutasi] = useState<string>(initialMember?.catatanMutasi || '');
@@ -175,14 +185,29 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       nomorEKTA.trim() ||
       `ND-${cleanedNik.substring(0, 4)}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const finalDpd =
+      session.role !== 'SUPER_ADMIN' && session.dpdAccess && session.dpdAccess !== 'ALL'
+        ? session.dpdAccess
+        : dpd;
+
+    const finalDpc =
+      (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess
+        ? session.dpcAccess
+        : dpc || 'Umum';
+
+    const finalDprt =
+      session.role === 'ADMIN_DPRT' && session.dprtAccess
+        ? session.dprtAccess
+        : dprt.trim() || 'Umum';
+
     const savedMember: Member = {
       nik: cleanedNik,
       nomorEKTA: finalEkta,
       namaLengkap: namaLengkap.trim(),
       nomorHP: nomorHP.trim() || '-',
-      dpd,
-      dpc: dpc || 'Umum',
-      dprt: dprt.trim() || 'Umum',
+      dpd: finalDpd,
+      dpc: finalDpc,
+      dprt: finalDprt,
       jabatan,
       status,
       tanggalBergabung: initialMember?.tanggalBergabung || new Date().toISOString().split('T')[0],
@@ -196,7 +221,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       statusKtpVerified: !!fotoKtpUrl,
       kaderPerekrutNama: kaderPerekrutNama.trim() || undefined,
       kaderPerekrutJabatan: kaderPerekrutNama.trim() ? kaderPerekrutJabatan.trim() : undefined,
-      kaderPerekrutDpd: dpd,
+      kaderPerekrutDpd: finalDpd,
     };
 
     onSave(savedMember, isEdit);
@@ -474,61 +499,104 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
               <span>Wilayah Struktur & Jabatan Partai</span>
             </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  DPD (Kabupaten / Kota)
-                </label>
-                <select
-                  disabled={session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'}
-                  value={dpd}
-                  onChange={(e) => {
-                    setDpd(e.target.value);
-                    const region = SULUT_REGIONS.find((r) => r.name === e.target.value);
-                    if (region && region.subdistricts.length > 0) {
-                      setDpc(region.subdistricts[0].name);
-                    }
-                  }}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50"
-                >
-                  {SULUT_REGIONS.map((r) => (
-                    <option key={r.name} value={r.name}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Banner info yurisdiksi jika role daerah */}
+            {session.role !== 'SUPER_ADMIN' && (
+              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-xs text-blue-900 dark:text-blue-200 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>
+                    Yurisdiksi Wilayah Anda:{' '}
+                    <strong className="text-slate-900 dark:text-white">{session.dpdAccess}</strong>
+                    {session.dpcAccess && session.dpcAccess !== 'ALL' && (
+                      <> &rsaquo; Kec. <strong className="text-slate-900 dark:text-white">{session.dpcAccess}</strong></>
+                    )}
+                    {session.dprtAccess && session.dprtAccess !== 'ALL' && (
+                      <> &rsaquo; Kel/Desa <strong className="text-slate-900 dark:text-white">{session.dprtAccess}</strong></>
+                    )}
+                  </span>
+                </div>
+                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
+                  Wilayah Lain Disembunyikan
+                </span>
               </div>
+            )}
 
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  DPC (Kecamatan)
-                </label>
-                <select
-                  value={dpc}
-                  onChange={(e) => setDpc(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
-                >
-                  {availableSubdistricts.map((sub) => (
-                    <option key={sub.name} value={sub.name}>
-                      Kec. {sub.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Input Teritorial yang Ditampilkan Sesuai Hak Akses */}
+            {session.role !== 'ADMIN_DPRT' && (
+              <div
+                className={`grid grid-cols-1 ${
+                  session.role === 'SUPER_ADMIN'
+                    ? 'sm:grid-cols-3'
+                    : session.role === 'ADMIN_DPD'
+                    ? 'sm:grid-cols-2'
+                    : 'sm:grid-cols-1'
+                } gap-3`}
+              >
+                {/* DPD: Hanya ditampilkan jika Super Admin DPW */}
+                {session.role === 'SUPER_ADMIN' && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      DPD (Kabupaten / Kota)
+                    </label>
+                    <select
+                      value={dpd}
+                      onChange={(e) => {
+                        setDpd(e.target.value);
+                        const region = SULUT_REGIONS.find((r) => r.name === e.target.value);
+                        if (region && region.subdistricts.length > 0) {
+                          setDpc(region.subdistricts[0].name);
+                        }
+                      }}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    >
+                      {SULUT_REGIONS.map((r) => (
+                        <option key={r.name} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  DPRt (Kelurahan / Desa)
-                </label>
-                <input
-                  type="text"
-                  value={dprt}
-                  onChange={(e) => setDprt(e.target.value)}
-                  placeholder="Contoh: Wenang Selatan"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                />
+                {/* DPC: Ditampilkan jika Super Admin DPW atau Admin DPD */}
+                {(session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPD') && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      DPC (Kecamatan)
+                    </label>
+                    <select
+                      value={dpc}
+                      onChange={(e) => setDpc(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    >
+                      {availableSubdistricts.map((sub) => (
+                        <option key={sub.name} value={sub.name}>
+                          Kec. {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* DPRt: Ditampilkan jika Super Admin, Admin DPD, atau Admin DPC */}
+                {(session.role === 'SUPER_ADMIN' ||
+                  session.role === 'ADMIN_DPD' ||
+                  session.role === 'ADMIN_DPC') && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      DPRt (Kelurahan / Desa)
+                    </label>
+                    <input
+                      type="text"
+                      value={dprt}
+                      onChange={(e) => setDprt(e.target.value)}
+                      placeholder="Contoh: Wenang Selatan"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Jabatan & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

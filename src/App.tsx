@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Member, MemberStatus, UserSession, AuditLog } from './types';
+import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from './types';
 import {
   loadMembers,
   saveMembers,
@@ -8,6 +8,9 @@ import {
   loadSession,
   saveSession,
   resetToDefaultSeeds,
+  loadDeletionRequests,
+  appendDeletionRequest,
+  updateDeletionRequest,
 } from './utils/storage';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { MemberManagement } from './components/MemberManagement';
@@ -17,8 +20,11 @@ import { ExecutiveReportPrintModal } from './components/ExecutiveReportPrintModa
 import { StatusChangeModal } from './components/StatusChangeModal';
 import { MemberFormModal } from './components/MemberFormModal';
 import { EKtaCardModal } from './components/EKtaCardModal';
+import { MemberDetailModal } from './components/MemberDetailModal';
 import { RoleSwitcherModal } from './components/RoleSwitcherModal';
 import { AuditTrailModal } from './components/AuditTrailModal';
+import { DeletionRequestModal } from './components/DeletionRequestModal';
+import { DeletionApprovalModal } from './components/DeletionApprovalModal';
 import nasdemLogo from './assets/logo/logo_nasdem.png';
 import {
   Users,
@@ -75,9 +81,20 @@ export default function App() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  // Deletion requests state & modals
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>(() =>
+    loadDeletionRequests()
+  );
+  const [isDeletionApprovalOpen, setIsDeletionApprovalOpen] = useState(false);
+  const [isDeletionRequestOpen, setIsDeletionRequestOpen] = useState(false);
+  const [deletionTargetMember, setDeletionTargetMember] = useState<Member | null>(null);
+
+  const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
 
   // Notification toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -210,6 +227,121 @@ export default function App() {
     setActiveTab('members');
   };
 
+  // Deletion workflows
+  const handleDirectDeleteMember = (member: Member) => {
+    if (session.role !== 'SUPER_ADMIN') {
+      alert('Hanya Super Admin DPW yang memiliki hak menghapus data kader secara langsung.');
+      return;
+    }
+    if (
+      window.confirm(
+        `HAPUS PERMANEN:\nApakah Anda yakin ingin menghapus data kader ${member.namaLengkap} (NIK: ${member.nik}) dari database Partai NasDem?`
+      )
+    ) {
+      const updated = members.filter((m) => m.nik !== member.nik);
+      updateMembersState(updated);
+      appendAuditLog({
+        memberNik: member.nik,
+        memberName: member.namaLengkap,
+        action: 'DELETE',
+        reason: 'Penghapusan permanen langsung oleh Super Admin DPW Partai NasDem Sulut.',
+        actor: session.adminName,
+        dpd: member.dpd,
+      });
+      setAuditLogs(loadAuditLogs());
+      showToast(`Data kader ${member.namaLengkap} berhasil dihapus permanen.`);
+    }
+  };
+
+  const handleOpenDeletionRequest = (member: Member) => {
+    setDeletionTargetMember(member);
+    setIsDeletionRequestOpen(true);
+  };
+
+  const handleSubmitDeletionRequest = (member: Member, reason: string) => {
+    appendDeletionRequest({
+      memberNik: member.nik,
+      memberName: member.namaLengkap,
+      memberNomorEKTA: member.nomorEKTA,
+      dpd: member.dpd,
+      dpc: member.dpc,
+      dprt: member.dprt,
+      statusMember: member.status,
+      requestedByRole: session.role,
+      requestedByName: session.adminName,
+      reason,
+    });
+    setDeletionRequests(loadDeletionRequests());
+    appendAuditLog({
+      memberNik: member.nik,
+      memberName: member.namaLengkap,
+      action: 'DELETE_REQUEST',
+      reason: `Permohonan penghapusan kader diajukan oleh ${session.jabatan}: "${reason}"`,
+      actor: session.adminName,
+      dpd: member.dpd,
+    });
+    setAuditLogs(loadAuditLogs());
+    showToast(`Permohonan penghapusan kader ${member.namaLengkap} berhasil dikirim ke DPW.`);
+  };
+
+  const handleApproveDeletionRequest = (requestId: string, notes?: string) => {
+    const target = deletionRequests.find((r) => r.id === requestId);
+    if (!target) return;
+
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updatedReq: DeletionRequest = {
+      ...target,
+      status: 'APPROVED',
+      reviewedBy: session.adminName,
+      reviewedAt: nowTime,
+      reviewNotes: notes,
+    };
+    updateDeletionRequest(updatedReq);
+    setDeletionRequests(loadDeletionRequests());
+
+    // Permanently remove member
+    const updated = members.filter((m) => m.nik !== target.memberNik);
+    updateMembersState(updated);
+
+    appendAuditLog({
+      memberNik: target.memberNik,
+      memberName: target.memberName,
+      action: 'DELETE',
+      reason: `Disetujui oleh DPW atas permohonan ${target.requestedByName}. Alasan: "${target.reason}". Catatan DPW: "${notes || '-'}"`,
+      actor: session.adminName,
+      dpd: target.dpd,
+    });
+    setAuditLogs(loadAuditLogs());
+    showToast(`Permohonan disetujui. Data kader ${target.memberName} telah dihapus permanen.`);
+  };
+
+  const handleRejectDeletionRequest = (requestId: string, notes: string) => {
+    const target = deletionRequests.find((r) => r.id === requestId);
+    if (!target) return;
+
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updatedReq: DeletionRequest = {
+      ...target,
+      status: 'REJECTED',
+      reviewedBy: session.adminName,
+      reviewedAt: nowTime,
+      reviewNotes: notes,
+    };
+    updateDeletionRequest(updatedReq);
+    setDeletionRequests(loadDeletionRequests());
+
+    appendAuditLog({
+      memberNik: target.memberNik,
+      memberName: target.memberName,
+      action: 'DELETE_REQUEST',
+      reason: `Permohonan penghapusan kader ${target.memberName} ditolak DPW. Alasan: "${notes}"`,
+      actor: session.adminName,
+      dpd: target.dpd,
+    });
+    setAuditLogs(loadAuditLogs());
+    showToast(`Permohonan penghapusan kader ${target.memberName} ditolak.`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
       {/* Toast Notification */}
@@ -294,6 +426,17 @@ export default function App() {
               className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               Riwayat Audit ({auditLogs.length})
+            </button>
+            <button
+              onClick={() => setIsDeletionApprovalOpen(true)}
+              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>{session.role === 'SUPER_ADMIN' ? 'Permohonan Hapus' : 'Status Pengajuan Hapus'}</span>
+              {pendingDeletionCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
+                  {pendingDeletionCount}
+                </span>
+              )}
             </button>
           </nav>
 
@@ -393,6 +536,7 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <ExecutiveDashboard
             members={members}
+            session={session}
             onOpenPrintReport={() => setIsPrintReportOpen(true)}
             onNavigateToMembers={handleNavigateFromDashboard}
             onOpenCardModal={(m) => {
@@ -426,6 +570,12 @@ export default function App() {
               setSelectedMember(m);
               setIsEditModalOpen(true);
             }}
+            onOpenDetailModal={(m) => {
+              setSelectedMember(m);
+              setIsDetailModalOpen(true);
+            }}
+            onOpenDeletionRequest={handleOpenDeletionRequest}
+            onDirectDelete={handleDirectDeleteMember}
           />
         )}
 
@@ -533,6 +683,57 @@ export default function App() {
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
         logs={auditLogs}
+      />
+
+      {/* Member Detail Modal */}
+      <MemberDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedMember(null);
+        }}
+        member={selectedMember}
+        session={session}
+        onUpdateMember={(updated) => {
+          handleSaveMember(updated, true);
+        }}
+        onOpenEdit={(m) => {
+          setIsDetailModalOpen(false);
+          setSelectedMember(m);
+          setIsEditModalOpen(true);
+        }}
+        onOpenStatusChange={(m) => {
+          setIsDetailModalOpen(false);
+          setSelectedMember(m);
+          setIsStatusModalOpen(true);
+        }}
+        onOpenCardModal={(m) => {
+          setIsDetailModalOpen(false);
+          setSelectedMember(m);
+          setIsCardModalOpen(true);
+        }}
+      />
+
+      {/* Permohonan Hapus Data Modal (Khusus Admin Daerah DPD / DPC / DPRt) */}
+      <DeletionRequestModal
+        isOpen={isDeletionRequestOpen}
+        onClose={() => {
+          setIsDeletionRequestOpen(false);
+          setDeletionTargetMember(null);
+        }}
+        member={deletionTargetMember}
+        session={session}
+        onSubmitRequest={handleSubmitDeletionRequest}
+      />
+
+      {/* Panel Approval Permohonan Hapus (Otoritas Super Admin DPW) */}
+      <DeletionApprovalModal
+        isOpen={isDeletionApprovalOpen}
+        onClose={() => setIsDeletionApprovalOpen(false)}
+        requests={deletionRequests}
+        session={session}
+        onApprove={handleApproveDeletionRequest}
+        onReject={handleRejectDeletionRequest}
       />
     </div>
   );
