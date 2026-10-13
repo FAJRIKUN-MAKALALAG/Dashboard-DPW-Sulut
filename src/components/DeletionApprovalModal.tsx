@@ -70,37 +70,46 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-6 transition-colors animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                  Panel Verifikasi &amp; Persetujuan Hapus Data
-                </h3>
-                {pendingRequests.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
-                    {pendingRequests.length} Menunggu
-                  </span>
-                )}
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <Trash2 className="w-5 h-5" />
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Otoritas Super Admin DPW Partai NasDem Sulawesi Utara
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                    Panel Verifikasi &amp; Persetujuan Hapus Data
+                  </h3>
+                  {pendingRequests.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
+                      {pendingRequests.length} Menunggu
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Otoritas Super Admin DPW Partai NasDem Sulawesi Utara
+                </p>
+              </div>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Tutup Panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
         {/* Tabs Bar */}
         <div className="flex items-center gap-2 px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-xs">
@@ -136,7 +145,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-5 max-h-[65vh] overflow-y-auto space-y-4">
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
           {displayedRequests.length === 0 ? (
             <div className="text-center py-12 px-4 space-y-2">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
@@ -314,7 +323,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs">
+        <div className="flex items-center justify-between p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs shrink-0">
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
             Penghapusan data yang disetujui akan menghapus data kader secara permanen dari database.
           </p>
@@ -325,6 +334,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
             Tutup
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

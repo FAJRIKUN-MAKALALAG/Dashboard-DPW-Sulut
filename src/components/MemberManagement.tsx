@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
-import { SULUT_REGIONS, STATUS_BADGE_CONFIG, PARTY_ROLES, STATUS_OPTIONS } from '../data/sulutRegions';
+import { SULUT_REGIONS, STATUS_BADGE_CONFIG, PARTY_ROLES, STATUS_OPTIONS, LEVEL_PARTY_ROLES } from '../data/sulutRegions';
 import {
   Search,
   Filter,
@@ -78,6 +78,87 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 15;
+
+  // Jabatan dinamis yang akurat sesuai data riil yang ada di database & filter wilayah:
+  const availableRolesWithCount = useMemo(() => {
+    // Ambil anggota sesuai yurisdiksi dan wilayah yang sedang dipilih
+    const scopedMembers = members.filter((m) => {
+      if (session.role === 'ADMIN_DPD') {
+        if (session.dpdAccess !== 'ALL' && m.dpd !== session.dpdAccess) return false;
+        if (selectedDpcFilter !== 'ALL' && m.dpc !== selectedDpcFilter) return false;
+      } else if (session.role === 'ADMIN_DPC') {
+        if (m.dpd !== session.dpdAccess) return false;
+        if (session.dpcAccess && m.dpc !== session.dpcAccess) return false;
+      } else if (session.role === 'ADMIN_DPRT') {
+        if (m.dpd !== session.dpdAccess) return false;
+        if (session.dpcAccess && m.dpc !== session.dpcAccess) return false;
+        if (session.dprtAccess && m.dprt !== session.dprtAccess) return false;
+      } else {
+        if (selectedDpd !== 'ALL' && m.dpd !== selectedDpd) return false;
+        if (selectedDpcFilter !== 'ALL' && m.dpc !== selectedDpcFilter) return false;
+      }
+
+      if (selectedStatus !== 'ALL' && m.status !== selectedStatus) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Hitung jumlah personil per jabatan riil di database
+    const roleCounts = new Map<string, number>();
+    scopedMembers.forEach((m) => {
+      if (m.jabatan && m.jabatan.trim()) {
+        const j = m.jabatan.trim();
+        roleCounts.set(j, (roleCounts.get(j) || 0) + 1);
+      }
+    });
+
+    // Hierarki urutan jabatan standar NasDem
+    const priority = [
+      'Ketua',
+      'Sekretaris',
+      'Bendahara',
+      'Wakil Sekretaris',
+      'Wakil Bendahara',
+    ];
+
+    const sortedDbRoles = Array.from(roleCounts.keys()).sort((a, b) => {
+      const idxA = priority.indexOf(a);
+      const idxB = priority.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    // Jika database belum terisi atau baru, gunakan fallback standar resmi
+    if (sortedDbRoles.length === 0) {
+      const fallbackRoles =
+        session.role === 'ADMIN_DPRT'
+          ? LEVEL_PARTY_ROLES.DPRt
+          : selectedDpcFilter && selectedDpcFilter !== 'ALL'
+          ? LEVEL_PARTY_ROLES.DPC
+          : selectedDpd && selectedDpd !== 'ALL'
+          ? LEVEL_PARTY_ROLES.DPD
+          : PARTY_ROLES;
+
+      return fallbackRoles.map((r) => ({ role: r, count: 0 }));
+    }
+
+    return sortedDbRoles.map((r) => ({ role: r, count: roleCounts.get(r) || 0 }));
+  }, [members, session, selectedDpd, selectedDpcFilter, selectedStatus]);
+
+  const availableRoles = useMemo(() => {
+    return availableRolesWithCount.map((item) => item.role);
+  }, [availableRolesWithCount]);
+
+  // Reset selectedRole jika tidak lagi ada di availableRoles
+  useEffect(() => {
+    if (selectedRole !== 'ALL' && !availableRoles.includes(selectedRole)) {
+      setSelectedRole('ALL');
+    }
+  }, [availableRoles, selectedRole]);
 
   // Keyboard shortcut: Press '/' to focus global search bar
   useEffect(() => {
@@ -504,10 +585,10 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
             </select>
           </div>
 
-          {/* Role Filter */}
+          {/* Role Filter - Dynamically populated based on real database records */}
           <div>
             <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Filter Jabatan:
+              Filter Jabatan ({selectedDpd !== 'ALL' ? (selectedDpcFilter !== 'ALL' ? `DPC ${selectedDpcFilter}` : `DPD ${selectedDpd.replace(/^(Kabupaten|Kota)\s+/, '')}`) : 'Semua'}):
             </label>
             <select
               value={selectedRole}
@@ -515,12 +596,12 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                 setSelectedRole(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer font-medium"
             >
-              <option value="ALL">Semua Jabatan Partai</option>
-              {PARTY_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+              <option value="ALL">Semua Jabatan ({filteredMembers.length} kader)</option>
+              {availableRolesWithCount.map(({ role, count }) => (
+                <option key={role} value={role}>
+                  {role} {count > 0 ? `(${count})` : ''}
                 </option>
               ))}
             </select>
@@ -784,9 +865,26 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                         </div>
                       </td>
 
-                      {/* Jabatan */}
+                      {/* Jabatan & SK */}
                       <td className="p-3 text-slate-800 dark:text-slate-300 font-medium">
-                        <span className="text-slate-900 dark:text-slate-200">{member.jabatan}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {member.isPengurus && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                              {member.tingkatKepengurusan || 'DPW'}
+                            </span>
+                          )}
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold">{member.jabatan}</span>
+                        </div>
+                        {member.nomorSK && (
+                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            SK: {member.nomorSK}
+                          </div>
+                        )}
+                        {member.kodeReferral && (
+                          <div className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                            Ref: {member.kodeReferral}
+                          </div>
+                        )}
                       </td>
 
                       {/* Status Keanggotaan */}

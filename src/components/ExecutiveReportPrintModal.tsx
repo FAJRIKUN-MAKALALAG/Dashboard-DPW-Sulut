@@ -144,23 +144,31 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   }).format(new Date());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[96vh] transition-colors">
-        {/* Controls Bar (Hidden during print) */}
-        <div className="no-print flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-              <Printer className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div className="w-screen max-w-4xl sm:max-w-5xl lg:max-w-6xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+          {/* Controls Bar (Hidden during print) */}
+          <div className="no-print flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 gap-3 sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <Printer className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Laporan Eksekutif Keanggotaan untuk Atasan (Siap Cetak / PDF)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Pilih format Ringkasan Statistik 15 DPD atau Daftar Rinci Nominatif
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                Laporan Eksekutif Keanggotaan untuk Atasan (Siap Cetak / PDF)
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Pilih format Ringkasan Statistik 15 DPD atau Daftar Rinci Nominatif
-              </p>
-            </div>
-          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Report Mode Tabs */}
@@ -559,6 +567,7 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

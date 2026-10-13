@@ -109,10 +109,18 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Layers className="w-5 h-5" />
@@ -127,7 +135,7 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
                   {periodLabel}
                 </span>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
                 Rincian Anggota Baru Direkrut Oleh Kader (Teritorial KTP)
               </h3>
             </div>
@@ -144,7 +152,8 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              title="Tutup Panel"
             >
               <X className="w-5 h-5" />
             </button>
@@ -755,6 +764,7 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
             Tutup Pratinjau
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

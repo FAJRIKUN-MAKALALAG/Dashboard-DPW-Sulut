@@ -6,12 +6,13 @@ import { getInitials, getAvatarColor } from '../utils/imageUtils';
 import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, IdCard } from 'lucide-react';
 
 interface EKtaCardModalProps {
+  isOpen?: boolean;
   member: Member | null;
   onClose: () => void;
 }
 
-export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ member, onClose }) => {
-  if (!member) return null;
+export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, member, onClose }) => {
+  if (!isOpen || !member) return null;
 
   const statusConfig = STATUS_BADGE_CONFIG[member.status];
   const avatarColor = getAvatarColor(member.namaLengkap);
@@ -21,26 +22,35 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ member, onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transition-colors">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-              Pratinjau e-KTA Digital Partai NasDem Sulut
-            </h3>
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-lg sm:max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                Pratinjau e-KTA Digital Partai NasDem Sulut
+              </h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Tutup Panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
         {/* Card Body */}
-        <div className="p-6 flex flex-col items-center">
+        <div className="p-6 flex flex-col items-center flex-1 overflow-y-auto">
           {/* Physical e-KTA simulation card */}
           <div className="w-full max-w-md aspect-[1.58/1] rounded-2xl p-5 relative overflow-hidden shadow-2xl border border-blue-500/30 bg-gradient-to-br from-slate-950 via-blue-950/80 to-slate-900 text-white flex flex-col justify-between">
             {/* Background watermark / security pattern */}
@@ -173,24 +183,25 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ member, onClose })
               </span>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="w-full flex items-center justify-end gap-3 mt-5">
-            <button
-              onClick={handlePrint}
-              className="btn-white flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"
-            >
-              <Printer className="w-4 h-4 text-blue-500" />
-              <span>Cetak Kartu Fisik</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
-            >
-              Tutup
-            </button>
-          </div>
         </div>
+
+        {/* Actions Footer */}
+        <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
+          <button
+            onClick={handlePrint}
+            className="btn-white flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-blue-500" />
+            <span>Cetak Kartu Fisik</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
       </div>
     </div>
   );

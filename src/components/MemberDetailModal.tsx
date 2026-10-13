@@ -193,10 +193,18 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
-          {/* Header Bar */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+      <div className="fixed inset-0 z-50 overflow-hidden">
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+          onClick={onClose}
+        />
+
+        {/* Slide-over Right Drawer Container */}
+        <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+          <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-3">
               <img
                 src={nasdemLogo}
@@ -444,7 +452,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
           </div>
 
           {/* Tab Content Body */}
-          <div className="p-5 sm:p-6 max-h-[62vh] overflow-y-auto">
+          <div className="p-5 sm:p-6 flex-1 overflow-y-auto">
             {/* TAB 1: BIODATA & STRUKTUR */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
@@ -564,9 +572,54 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                       </div>
 
                       <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                        <span className="text-slate-500 dark:text-slate-400">Status Kepengurusan Ber-SK</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {member.isPengurus ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                              Pengurus {member.tingkatKepengurusan || 'DPW'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">Anggota Biasa (Non-Pengurus)</span>
+                          )}
+                        </span>
+                      </div>
+
+                      {member.nomorSK && (
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500 dark:text-slate-400">Nomor SK Resmi</span>
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {member.nomorSK}
+                          </span>
+                        </div>
+                      )}
+
+                      {member.kodeReferral && (
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500 dark:text-slate-400">Kode Referral Perekrut (Unik)</span>
+                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
+                            {member.kodeReferral}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                         <span className="text-slate-500 dark:text-slate-400">Penugasan / Jabatan</span>
                         <span className="font-bold text-blue-700 dark:text-blue-300">{member.jabatan}</span>
                       </div>
+
+                      {member.email && (
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500 dark:text-slate-400">Email</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200">{member.email}</span>
+                        </div>
+                      )}
+
+                      {member.sosmed && (
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500 dark:text-slate-400">Media Sosial</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">{member.sosmed}</span>
+                        </div>
+                      )}
 
                       <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                         <span className="text-slate-500 dark:text-slate-400">Tanggal Bergabung Resmi</span>
@@ -932,7 +985,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs">
+          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs shrink-0">
             <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
               ID NIK: {member.nik} · DPW Partai NasDem Sulawesi Utara
             </span>
@@ -943,6 +996,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               Tutup
             </button>
           </div>
+        </div>
         </div>
       </div>
 

@@ -9,10 +9,21 @@ export interface Member {
   nomorEKTA: string; // e.g. KT-7101-2024-XXXX or ND-71XX-2024-XXXX
   namaLengkap: string;
   nomorHP: string;
-  dpd: string; // Kabupaten / Kota in Sulut
-  dpc: string; // Kecamatan
-  dprt: string; // Kelurahan / Desa
-  jabatan: string; // Jabatan di partai
+  email?: string;
+  sosmed?: string; // Instagram / Facebook / TikTok / X
+  dpd: string; // Domisili Alamat KTP: Kabupaten / Kota in Sulut
+  dpc: string; // Domisili Alamat KTP: Kecamatan
+  dprt: string; // Domisili Alamat KTP: Kelurahan / Desa
+  
+  // Wilayah Penugasan Struktural & SK
+  isPengurus?: boolean; // true = Pengurus Struktural (Punya SK & Kode Referral), false = Anggota Biasa
+  tingkatKepengurusan?: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus';
+  wilayahPenugasan?: string; // e.g. 'DPW Sulut', 'DPD Minahasa Selatan', 'DPC Amurang', 'DPRt Ranomeida'
+  nomorSK?: string; // Nomor Surat Keputusan (SK)
+  tanggalSK?: string; // Tanggal Terbit SK YYYY-MM-DD
+  kodeReferral?: string; // Kode referral unik khusus pengurus (e.g. REF-DPW-001)
+
+  jabatan: string; // Jabatan spesifik di partai (Ketua, Sekretaris, Bendahara, Anggota, dll)
   status: MemberStatus;
   tanggalBergabung: string; // YYYY-MM-DD
   catatanMutasi?: string;
@@ -33,6 +44,7 @@ export interface Member {
   kaderPerekrutEkta?: string;
   kaderPerekrutJabatan?: string;
   kaderPerekrutDpd?: string;
+  kaderPerekrutKodeReferral?: string;
 }
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';

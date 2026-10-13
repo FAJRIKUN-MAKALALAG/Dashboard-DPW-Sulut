@@ -4,6 +4,7 @@ import { SULUT_REGIONS } from '../data/sulutRegions';
 import { SulutMapVisual } from './SulutMapVisual';
 import { TerritorialGrowthModal } from './TerritorialGrowthModal';
 import { GrowthInteractiveChart } from './GrowthInteractiveChart';
+import { StructureDrilldownModal } from './StructureDrilldownModal';
 import {
   Users,
   UserCheck,
@@ -70,6 +71,13 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const [modalInitialDprt, setModalInitialDprt] = useState<string | undefined>(undefined);
   const [modalInitialRecruiter, setModalInitialRecruiter] = useState<string | undefined>(undefined);
 
+  // Structural Drilldown Modal (Pejabat Ber-SK, DPW-DPD-DPC-DPRt)
+  const [isStructureModalOpen, setIsStructureModalOpen] = useState(false);
+  const [structureModalFilter, setStructureModalFilter] = useState<{
+    level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt';
+    dpd?: string;
+  }>({ level: 'ALL', dpd: 'ALL' });
+
   // Accordion state for territorial tree inline viewing
   const [expandedDpds, setExpandedDpds] = useState<Record<string, boolean>>({});
   const [expandedDpcs, setExpandedDpcs] = useState<Record<string, boolean>>({});
@@ -119,13 +127,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const activeMembers = scopedMembers.filter((m) => m.status === 'Aktif');
   const inactiveMembers = scopedMembers.filter((m) => m.status !== 'Aktif');
 
-  const countMeninggal = scopedMembers.filter((m) => m.status === 'Non-Aktif (Meninggal)').length;
-  const countPindahPartai = scopedMembers.filter(
-    (m) => m.status === 'Non-Aktif (Pindah Partai/Mundur)'
-  ).length;
-  const countPindahDomisili = scopedMembers.filter(
-    (m) => m.status === 'Non-Aktif (Pindah Domisili)'
-  ).length;
+  // Pengurus Ber-SK calculations
+  const pengurusList = scopedMembers.filter((m) => m.status === 'Aktif' && m.isPengurus);
+  const countPengurusDpw = scopedMembers.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPW').length;
+  const countPengurusDpd = scopedMembers.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPD').length;
+  const countPengurusDpc = scopedMembers.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPC').length;
+  const countPengurusDprt = scopedMembers.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPRt').length;
+
+
 
   const totalRegistered = scopedMembers.length;
   const activePercentage =
@@ -319,8 +328,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         )}
       </div>
 
-      {/* 4 Primary Executive Metrics with Vibrant Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3 Primary Executive Metrics: Kekuatan Riil Lapangan, Tingkat Keaktifan, Struktur DPW */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Metric 1: Anggota Aktif Riil */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
@@ -351,13 +360,22 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </button>
         </div>
 
-        {/* Metric 2: Tingkat Keaktifan Validitas */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-blue-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all">
+        {/* Metric 2: Tingkat Keaktifan & Keterisian Struktur (CLICKABLE) */}
+        <div
+          onClick={() => {
+            setStructureModalFilter({ level: 'ALL', dpd: selectedDpdFilter });
+            setIsStructureModalOpen(true);
+          }}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-blue-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
-            <span className="font-semibold text-blue-800 dark:text-blue-400 uppercase tracking-wider text-[11px]">
-              Tingkat Keaktifan
+            <span className="font-semibold text-blue-800 dark:text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <span>Tingkat Keaktifan</span>
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 opacity-80 group-hover:underline">
+                (Klik Rincian)
+              </span>
             </span>
-            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-2xs">
+            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-2xs group-hover:scale-110 transition-transform">
               <TrendingUp className="w-4.5 h-4.5" />
             </div>
           </div>
@@ -366,7 +384,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               {activePercentage}%
             </span>
             <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
-              Validitas
+              Kader Aktif Riil
             </span>
           </div>
           <div className="w-full bg-blue-100 dark:bg-blue-950 rounded-full h-2 mt-3 overflow-hidden">
@@ -375,79 +393,145 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               style={{ width: `${activePercentage}%` }}
             ></div>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-            {activeMembers.length} dari {totalRegistered} nama terdata masih aktif di basis teritorial.
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed flex items-center justify-between">
+            <span>{activeMembers.length} kader aktif ({pengurusList.length} ber-SK)</span>
+            <span className="text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center text-[10px]">
+              Lihat Orang &raquo;
+            </span>
           </p>
         </div>
 
-        {/* Metric 3: Non-Aktif */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-rose-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
-            <span className="font-semibold text-rose-800 dark:text-rose-400 uppercase tracking-wider text-[11px]">
-              Non-Aktif
-            </span>
-            <div className="w-9 h-9 rounded-lg bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-2xs">
-              <UserX className="w-4.5 h-4.5" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-bold text-rose-600 dark:text-rose-400 font-mono tracking-tight" data-tabular="true">
-              {inactiveMembers.length}
-            </span>
-            <span className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800">
-              Kader
-            </span>
-          </div>
-          <div className="mt-2.5 text-[11px] space-y-1.5 font-mono">
-            <div className="flex justify-between items-center bg-rose-50/80 dark:bg-rose-950/30 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-900">
-              <span className="text-rose-700 dark:text-rose-300">Wafat:</span>
-              <span className="text-rose-800 dark:text-rose-200 font-bold">{countMeninggal}</span>
-            </div>
-            <div className="flex justify-between items-center bg-purple-50/80 dark:bg-purple-950/30 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-900">
-              <span className="text-purple-700 dark:text-purple-300">Pindah Partai:</span>
-              <span className="text-purple-800 dark:text-purple-200 font-bold">{countPindahPartai}</span>
-            </div>
-            <div className="flex justify-between items-center bg-amber-50/80 dark:bg-amber-950/30 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900">
-              <span className="text-amber-700 dark:text-amber-300">Pindah Domisili:</span>
-              <span className="text-amber-800 dark:text-amber-200 font-bold">{countPindahDomisili}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric 4: Struktur Kepengurusan */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-indigo-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all">
+        {/* Metric 4: Struktur DPW (Ganti nama & Klik untuk Buka Rincian Struktur DPW) */}
+        <div
+          onClick={() => {
+            setStructureModalFilter({ level: 'DPW', dpd: 'ALL' });
+            setIsStructureModalOpen(true);
+          }}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-indigo-500 rounded-xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
             <span className="font-semibold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider text-[11px]">
-              Struktur Kepengurusan
+              Struktur DPW
             </span>
-            <div className="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
+            <div className="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs group-hover:scale-110 transition-transform">
               <Building2 className="w-4.5 h-4.5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight" data-tabular="true">
-              {session && session.role !== 'SUPER_ADMIN' ? '1' : '15'}
+              {countPengurusDpw > 0 ? countPengurusDpw : (session && session.role !== 'SUPER_ADMIN' ? '1' : '15')}
             </span>
             <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-              {session && session.role !== 'SUPER_ADMIN' ? `DPD Terpilih` : 'DPD Kab / Kota'}
+              {countPengurusDpw > 0 ? 'Pengurus DPW Ber-SK' : (session && session.role !== 'SUPER_ADMIN' ? 'DPD Yurisdiksi' : 'DPD Kab / Kota')}
             </span>
           </div>
           <div className="mt-2.5 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
             <p className="font-medium text-slate-800 dark:text-slate-200">
-              {session && session.role !== 'SUPER_ADMIN'
-                ? `${currentDpdRegion?.subdistricts.length || 0} DPC Kecamatan di ${session.dpdAccess}`
-                : '167 DPC Kecamatan di Sulut'}
+              15 DPD &middot; 167 DPC &middot; DPRt Basis Desa
             </p>
-            <p>
-              {session && session.role !== 'SUPER_ADMIN'
-                ? `Yurisdiksi Daerah Mandiri`
-                : 'Shadow database mandiri se-Sulut'}
+            <p className="text-indigo-600 dark:text-indigo-400 group-hover:underline text-[10px] font-semibold">
+              Klik untuk melihat susunan pengurus DPW &raquo;
             </p>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Anti-Duplikasi NIK Aktif</span>
+          <div className="mt-3 pt-2 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/50 p-2 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">
+            <span>Total Pengurus Ber-SK:</span>
+            <span className="font-mono font-bold text-slate-900 dark:text-white">{pengurusList.length} Org</span>
           </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MONITORING STRUKTUR 15 KAB/KOTA & PROGRES MINSEL (PERTANYAAN PIMPINAN DPW) */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm transition-colors space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                Peta Kesiapan SK & Kelengkapan Organisasi
+              </span>
+              <span className="text-slate-400 dark:text-slate-600">&middot;</span>
+              <span className="text-xs text-slate-500 font-mono">15 Kab/Kota Se-Sulut</span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
+              Status Struktur Kepengurusan DPW &rarr; DPD &rarr; DPC &rarr; DPRt
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Menjawab kelengkapan legalitas SK, keterisian kecamatan (DPC), dan basis kelurahan/desa (DPRt).
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setStructureModalFilter({ level: 'ALL', dpd: 'ALL' });
+                setIsStructureModalOpen(true);
+              }}
+              className="btn-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5 text-blue-600" />
+              <span>Daftar Seluruh Pengurus Ber-SK</span>
+            </button>
+          </div>
+        </div>
+
+
+
+        {/* 15 Kab/Kota Grid Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {SULUT_REGIONS.map((region) => {
+            const regMembers = members.filter((m) => m.dpd === region.name && m.status === 'Aktif');
+            const regPengurus = regMembers.filter((m) => m.isPengurus);
+            const dpcCount = region.subdistricts.length;
+            const filledDpcs = new Set(regPengurus.filter((m) => m.tingkatKepengurusan === 'DPC').map((m) => m.dpc)).size;
+            const isLengkap = regPengurus.length >= 3 && filledDpcs >= Math.ceil(dpcCount * 0.7);
+
+            return (
+              <div
+                key={region.id}
+                onClick={() => {
+                  setStructureModalFilter({ level: 'ALL', dpd: region.name });
+                  setIsStructureModalOpen(true);
+                }}
+                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                    {region.name}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      regPengurus.length > 0
+                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                    }`}
+                  >
+                    {regPengurus.length > 0 ? `${regPengurus.length} Ber-SK` : 'Belum Ada SK'}
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Cakupan DPC Kecamatan:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {filledDpcs} / {dpcCount} Kec
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Kader Aktif:</span>
+                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                      {regMembers.length} Kader
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                  <span>Lihat daftar nama & jabatan</span>
+                  <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1462,6 +1546,15 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         initialDprt={modalInitialDprt}
         initialRecruiter={modalInitialRecruiter}
         onOpenCardModal={onOpenCardModal}
+      />
+
+      {/* Dedicated Structure & SK Drilldown Modal */}
+      <StructureDrilldownModal
+        isOpen={isStructureModalOpen}
+        onClose={() => setIsStructureModalOpen(false)}
+        members={members}
+        session={session || { role: 'SUPER_ADMIN', dpdAccess: 'ALL', adminName: 'Admin', jabatan: 'DPW' }}
+        initialFilter={structureModalFilter}
       />
     </div>
   );
