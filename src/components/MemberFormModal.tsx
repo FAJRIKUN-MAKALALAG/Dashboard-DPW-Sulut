@@ -202,11 +202,10 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
     }
   }, [dpd]);
 
-  // Auto-generate standard e-KTA number with ND- prefix (Partai NasDem)
+  // Auto-generate standard e-KTA number (Partai NasDem DPP)
   const handleAutoGenerateEkta = () => {
-    const regionPrefix = cleanedNik.length >= 4 ? cleanedNik.substring(0, 4) : '7100';
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    setNomorEKTA(`ND-${regionPrefix}-${new Date().getFullYear()}-${randomSuffix}`);
+    const base = cleanedNik.length === 16 ? cleanedNik : `2503${Date.now()}`.padEnd(16, '0').slice(0, 16);
+    setNomorEKTA(base);
   };
 
   // Upload Photo handler
@@ -278,9 +277,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
       return;
     }
 
-    const finalEkta =
-      nomorEKTA.trim() ||
-      `ND-${cleanedNik.substring(0, 4)}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalEkta = nomorEKTA.trim() || cleanedNik || '-';
 
     const finalDpd =
       session.role !== 'SUPER_ADMIN' && session.dpdAccess && session.dpdAccess !== 'ALL'
@@ -581,7 +578,7 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
                   type="text"
                   value={nomorEKTA}
                   onChange={(e) => setNomorEKTA(e.target.value)}
-                  placeholder="Contoh: ND-7171-2024-0012"
+                  placeholder="Contoh: 2503196713393376"
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
                 />
               </div>

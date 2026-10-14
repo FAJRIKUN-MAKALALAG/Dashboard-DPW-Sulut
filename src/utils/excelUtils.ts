@@ -249,8 +249,8 @@ export async function parseUploadedFile(
       statusVal = 'Non-Aktif (Pindah Domisili)';
     }
 
-    // 5. e-KTA fallback
-    const finalEkta = rawEkta || (cleanNik ? `KT-${cleanNik.substring(0, 4)}-${new Date().getFullYear()}-${cleanNik.substring(12)}` : '-');
+    // 5. e-KTA fallback (gunakan nomor e-KTA riil asli apa adanya)
+    const finalEkta = rawEkta || cleanNik || '-';
 
     const memberData: Partial<Member> = {
       nik: cleanNik,

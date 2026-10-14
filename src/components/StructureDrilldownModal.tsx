@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS, LEVEL_PARTY_ROLES, PARTY_ROLES } from '../data/sulutRegions';
+import { isDpdMatch } from '../utils/structureReadinessUtils';
 import {
   X,
   Building,
@@ -50,7 +51,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     const matched = members.filter((m) => {
       if (m.status !== 'Aktif') return false;
       if (selectedLevel !== 'ALL' && m.tingkatKepengurusan !== selectedLevel) return false;
-      if (selectedDpd !== 'ALL' && m.dpd !== selectedDpd) return false;
+      if (selectedDpd !== 'ALL' && !isDpdMatch(m.dpd, selectedDpd)) return false;
       return true;
     });
 
@@ -120,7 +121,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     }
 
     // Filter DPD
-    if (selectedDpd !== 'ALL' && m.dpd !== selectedDpd) {
+    if (selectedDpd !== 'ALL' && !isDpdMatch(m.dpd, selectedDpd)) {
       return false;
     }
 
@@ -130,7 +131,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     }
 
     // Role restrictions
-    if (session.role === 'ADMIN_DPD' && m.dpd !== session.dpdAccess) {
+    if (session.role === 'ADMIN_DPD' && !isDpdMatch(m.dpd, session.dpdAccess)) {
       return false;
     }
 

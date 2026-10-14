@@ -31,6 +31,7 @@ import { RoleSwitcherModal } from './components/RoleSwitcherModal';
 import { AuditTrailModal } from './components/AuditTrailModal';
 import { DeletionRequestModal } from './components/DeletionRequestModal';
 import { DeletionApprovalModal } from './components/DeletionApprovalModal';
+import { TerritorialMatrixModal } from './components/TerritorialMatrixModal';
 import { LoginPage } from './components/LoginPage';
 import nasdemLogo from './assets/logo/logo_nasdem.png';
 import {
@@ -38,6 +39,7 @@ import {
   LayoutDashboard,
   Shield,
   Key,
+  Table,
   Upload,
   Printer,
   History,
@@ -129,6 +131,11 @@ export default function App() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  // Territorial Matrix Modal state
+  const [isTerritorialMatrixOpen, setIsTerritorialMatrixOpen] = useState(false);
+  const [matrixInitialDpd, setMatrixInitialDpd] = useState<string | undefined>(undefined);
+  const [matrixInitialDpc, setMatrixInitialDpc] = useState<string | undefined>(undefined);
 
   // Deletion requests state & modals
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>(() =>
@@ -265,6 +272,30 @@ export default function App() {
     } else {
       showToast(`Status ${target.namaLengkap} diaktifkan kembali.`);
     }
+  };
+
+  const handleBatchSaveTerritorialMembers = (incomingMembers: Member[]) => {
+    // Upsert batch members into current members array
+    const membersMap = new Map<string, Member>();
+    // First put existing members
+    members.forEach((m) => membersMap.set(m.nik, m));
+    // Then upsert incoming members
+    incomingMembers.forEach((m) => membersMap.set(m.nik, m));
+
+    const combined = Array.from(membersMap.values());
+    updateMembersState(combined);
+
+    appendAuditLog({
+      memberNik: 'MATRIKS-TERITORIAL',
+      memberName: `${incomingMembers.length} Pengurus Teritorial`,
+      action: 'UPDATE',
+      newStatus: 'Aktif',
+      reason: `Pembaruan data matriks struktur jabatan teritorial (${incomingMembers.length} pengurus).`,
+      actor: session.adminName,
+      dpd: incomingMembers[0]?.dpd || 'Sulawesi Utara',
+    });
+    setAuditLogs(loadAuditLogs());
+    showToast(`Berhasil menyimpan ${incomingMembers.length} pengurus struktur teritorial.`);
   };
 
   const handleImportSuccess = (newMembers: Member[], count: number) => {
@@ -494,6 +525,17 @@ export default function App() {
               Kader Daerah
             </button>
             <button
+              onClick={() => {
+                setMatrixInitialDpd(session.dpdAccess !== 'ALL' ? session.dpdAccess : 'Kabupaten Minahasa Selatan');
+                setMatrixInitialDpc(undefined);
+                setIsTerritorialMatrixOpen(true);
+              }}
+              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+            >
+              <Table className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Matriks Struktur</span>
+            </button>
+            <button
               onClick={() => setIsBulkImportOpen(true)}
               className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
@@ -653,6 +695,11 @@ export default function App() {
             onAddMembers={(newMembers) => {
               handleImportSuccess(newMembers, newMembers.length);
             }}
+            onOpenTerritorialMatrix={(dpd, dpc) => {
+              setMatrixInitialDpd(dpd);
+              setMatrixInitialDpc(dpc);
+              setIsTerritorialMatrixOpen(true);
+            }}
           />
         )}
 
@@ -801,6 +848,19 @@ export default function App() {
         logs={auditLogs}
         session={session}
       />
+
+      {/* 3. Modal Matriks Struktur Teritorial & Template Jabatan */}
+      {isTerritorialMatrixOpen && (
+        <TerritorialMatrixModal
+          isOpen={isTerritorialMatrixOpen}
+          onClose={() => setIsTerritorialMatrixOpen(false)}
+          members={members}
+          session={session}
+          onSaveMembersBatch={handleBatchSaveTerritorialMembers}
+          initialDpd={matrixInitialDpd}
+          initialDpc={matrixInitialDpc}
+        />
+      )}
 
       {/* Member Detail Modal */}
       <MemberDetailModal

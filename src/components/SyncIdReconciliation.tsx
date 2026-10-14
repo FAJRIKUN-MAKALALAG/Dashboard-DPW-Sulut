@@ -25,18 +25,20 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
   const [searchKey, setSearchKey] = useState<string>('');
   const [reconcileFilter, setReconcileFilter] = useState<'all' | 'needs_ekta' | 'synced'>('all');
 
+  // Helper to validate e-KTA from DPP NasDem (real format is pure numbers e.g. 16-digit like 2503196713393376, but also supports legacy/ND/KT)
+  const isStandardEkta = (ekta?: string) => {
+    if (!ekta) return false;
+    const clean = ekta.trim();
+    if (clean === '' || clean === '-' || clean.includes('TEMP')) return false;
+    // Pure numeric e-KTA (official DPP format e.g. 16 digits) or prefix-based
+    return /^\d{10,20}$/.test(clean) || clean.startsWith('ND-') || clean.startsWith('KT-') || clean.length >= 8;
+  };
+
   // Metrics
   const total = members.length;
   const withValidNik = members.filter((m) => m.nik && m.nik.length === 16).length;
-  const withStandardEkta = members.filter(
-    (m) => m.nomorEKTA && (m.nomorEKTA.startsWith('ND-') || m.nomorEKTA.startsWith('KT-'))
-  ).length;
-  const missingOrTempEkta = members.filter(
-    (m) =>
-      !m.nomorEKTA ||
-      (!m.nomorEKTA.startsWith('ND-') && !m.nomorEKTA.startsWith('KT-')) ||
-      m.nomorEKTA.includes('TEMP')
-  ).length;
+  const withStandardEkta = members.filter((m) => isStandardEkta(m.nomorEKTA)).length;
+  const missingOrTempEkta = members.filter((m) => !isStandardEkta(m.nomorEKTA)).length;
 
   // Find duplicates if any
   const nikCounts = new Map<string, number>();
@@ -48,37 +50,33 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
   // Filtered list
   const filteredList = members.filter((m) => {
     if (reconcileFilter === 'needs_ekta') {
-      const isMissing =
-        !m.nomorEKTA || (!m.nomorEKTA.startsWith('ND-') && !m.nomorEKTA.startsWith('KT-'));
-      if (!isMissing) return false;
+      if (isStandardEkta(m.nomorEKTA)) return false;
     }
     if (reconcileFilter === 'synced') {
-      const isSynced =
-        m.nomorEKTA && (m.nomorEKTA.startsWith('ND-') || m.nomorEKTA.startsWith('KT-'));
-      if (!isSynced) return false;
+      if (!isStandardEkta(m.nomorEKTA)) return false;
     }
     if (searchKey.trim()) {
       const q = searchKey.toLowerCase().trim();
       return (
         m.nik.includes(q) ||
-        m.nomorEKTA.toLowerCase().includes(q) ||
+        (m.nomorEKTA && m.nomorEKTA.toLowerCase().includes(q)) ||
         m.namaLengkap.toLowerCase().includes(q)
       );
     }
     return true;
   });
 
-  // Batch auto-sync empty e-KTA IDs with standard national structure
+  // Batch auto-sync empty e-KTA IDs with numeric sequence based on NIK
   const handleBatchStandardizeEkta = () => {
     const updated = members.map((m) => {
-      if (!m.nomorEKTA || (!m.nomorEKTA.startsWith('ND-') && !m.nomorEKTA.startsWith('KT-'))) {
-        const prefix = m.nik.substring(0, 4) || '7100';
-        const randomNum = Math.floor(1000 + Math.random() * 9000);
+      if (!isStandardEkta(m.nomorEKTA)) {
+        // Fallback numeric e-KTA matching DPP format using NIK basis if available
+        const base = m.nik && m.nik.length === 16 ? m.nik : `71${Date.now()}`.padEnd(16, '0').slice(0, 16);
         return {
           ...m,
-          nomorEKTA: `ND-${prefix}-${new Date().getFullYear()}-${randomNum}`,
+          nomorEKTA: base,
           catatanMutasi:
-            (m.catatanMutasi ? m.catatanMutasi + ' ' : '') + '[Auto-standardized ID NasDem]',
+            (m.catatanMutasi ? m.catatanMutasi + ' ' : '') + '[Auto-sync Nomor e-KTA]',
         };
       }
       return m;
@@ -156,7 +154,7 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
             <span className="text-xs text-blue-700 dark:text-blue-300 font-semibold bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">Terpetakan</span>
           </div>
           <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">
-            Format baku: KT-[Kode Wilayah]-[Tahun]-[Nomor Urut].
+            Format baku DPP NasDem: Nomor e-KTA resmi (numerik baku / terdaftar).
           </p>
         </div>
 
@@ -220,7 +218,7 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-amber-700 dark:hover:text-amber-400'
               }`}
             >
-              Perlu Standardisasi ({missingOrTempEkta})
+              Perlu e-KTA ({missingOrTempEkta})
             </button>
           </div>
         </div>
@@ -239,11 +237,11 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white dark:bg-slate-900/60 font-mono text-xs">
               {filteredList.map((m) => {
-                const hasValidEkta = m.nomorEKTA && m.nomorEKTA.startsWith('KT-');
+                const hasValidEkta = isStandardEkta(m.nomorEKTA);
                 return (
                   <tr key={m.nik} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="p-3 font-bold text-slate-900 dark:text-white" data-tabular="true">{m.nik}</td>
-                    <td className="p-3 text-amber-700 dark:text-amber-300 font-bold" data-tabular="true">{m.nomorEKTA}</td>
+                    <td className="p-3 text-amber-700 dark:text-amber-300 font-bold" data-tabular="true">{m.nomorEKTA || '-'}</td>
                     <td className="p-3 text-slate-800 dark:text-slate-200 font-sans font-medium">{m.namaLengkap}</td>
                     <td className="p-3 text-slate-600 dark:text-slate-400 font-sans">{m.dpd}</td>
                     <td className="p-3">
@@ -255,7 +253,7 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
                       ) : (
                         <span className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1 font-sans font-semibold">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                          <span>Perlu Format e-KTA Baku</span>
+                          <span>Perlu Nomor e-KTA</span>
                         </span>
                       )}
                     </td>

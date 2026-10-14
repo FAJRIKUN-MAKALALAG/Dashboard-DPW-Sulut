@@ -135,9 +135,9 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   if (!isOpen || !member) return null;
 
   const handleAutoGenerateEkta = () => {
-    const regionPrefix = cleanedNik.length >= 4 ? cleanedNik.substring(0, 4) : '7100';
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    setNomorEKTA(`ND-${regionPrefix}-${new Date().getFullYear()}-${randomSuffix}`);
+    // Generate nomor e-KTA format numerik DPP NasDem (16 digit angka)
+    const base = cleanedNik.length === 16 ? cleanedNik : `2503${Date.now()}`.padEnd(16, '0').slice(0, 16);
+    setNomorEKTA(base);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -488,7 +488,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                       type="text"
                       value={nomorEKTA}
                       onChange={(e) => setNomorEKTA(e.target.value)}
-                      placeholder="Contoh: ND-7171-2024-0012"
+                      placeholder="Contoh: 2503196713393376"
                       className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   </div>
