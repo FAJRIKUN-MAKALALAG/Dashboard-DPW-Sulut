@@ -1,15 +1,28 @@
-import { Member, AuditLog, UserSession } from '../types';
+import { Member, AuditLog, UserSession, DeletionRequest } from '../types';
 import { INITIAL_MEMBERS } from '../data/seedMembers';
 
 const STORAGE_KEYS = {
-  MEMBERS: 'nasdem_sulut_ekta_members_v2',
-  AUDIT_LOGS: 'nasdem_sulut_ekta_audit_logs_v2',
-  SESSION: 'nasdem_sulut_ekta_session_v2',
+  MEMBERS: 'nasdem_sulut_ekta_members_real_v1',
+  AUDIT_LOGS: 'nasdem_sulut_ekta_audit_logs_real_v1',
+  SESSION: 'nasdem_sulut_ekta_session_v5',
+  DELETION_REQUESTS: 'nasdem_sulut_ekta_deletion_requests_real_v1',
 };
+
+// Bersihkan cache dummy lama agar tidak mengotori data riil
+try {
+  [
+    'nasdem_sulut_ekta_members_v3',
+    'nasdem_sulut_ekta_members_supabase_only',
+    'nasdem_sulut_ekta_audit_logs_v5',
+    'nasdem_sulut_ekta_deletion_requests_v4',
+  ].forEach((k) => localStorage.removeItem(k));
+} catch {}
 
 export const DEFAULT_SUPER_ADMIN: UserSession = {
   role: 'SUPER_ADMIN',
   dpdAccess: 'ALL',
+  dpcAccess: 'ALL',
+  dprtAccess: 'ALL',
   adminName: 'Bappilu & OKK DPW NasDem Sulut',
   jabatan: 'Super Admin DPW Partai NasDem Sulut',
 };
@@ -17,25 +30,15 @@ export const DEFAULT_SUPER_ADMIN: UserSession = {
 export function loadMembers(): Member[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
-    if (!raw) {
-      saveMembers(INITIAL_MEMBERS);
-      return INITIAL_MEMBERS;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Validate that it's updated NasDem data (starts with ND- or contains NasDem roles)
-      const hasNasdemData = parsed.some((m: Member) => m.nomorEKTA?.startsWith('ND-') || m.jabatan?.includes('NasDem'));
-      if (hasNasdemData) {
-        return parsed;
-      }
-      // If older dummy data was saved, reset to new NasDem seeds
-      saveMembers(INITIAL_MEMBERS);
-      return INITIAL_MEMBERS;
+    if (Array.isArray(parsed)) {
+      return parsed;
     }
   } catch (e) {
     console.error('Error loading members from localStorage', e);
   }
-  return INITIAL_MEMBERS;
+  return [];
 }
 
 export function saveMembers(members: Member[]): void {
@@ -49,49 +52,7 @@ export function saveMembers(members: Member[]): void {
 export function loadAuditLogs(): AuditLog[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
-    if (!raw) {
-      // Initial seed audit logs for DPW Partai NasDem Sulut
-      const initialLogs: AuditLog[] = [
-        {
-          id: 'log-1',
-          timestamp: '2024-06-20 09:12',
-          memberNik: '7171060909930008',
-          memberName: 'Ferry Jerry Paat',
-          action: 'STATUS_CHANGE',
-          previousStatus: 'Aktif',
-          newStatus: 'Non-Aktif (Pindah Partai/Mundur)',
-          reason: 'Mengundurkan diri karena maju caleg melalui parpol lain. Status dinonaktifkan di shadow DB.',
-          actor: 'Admin DPD NasDem Kota Manado',
-          dpd: 'Kota Manado',
-        },
-        {
-          id: 'log-2',
-          timestamp: '2024-05-18 11:30',
-          memberNik: '7171040402880002',
-          memberName: 'Christovel Rompis, SH',
-          action: 'STATUS_CHANGE',
-          previousStatus: 'Aktif',
-          newStatus: 'Non-Aktif (Pindah Domisili)',
-          reason: 'Pindah penugasan dinas & KTP ke IKN / Kalimantan Timur. Dinonaktifkan di shadow DB daerah.',
-          actor: 'Admin DPD NasDem Kota Manado',
-          dpd: 'Kota Manado',
-        },
-        {
-          id: 'log-3',
-          timestamp: '2024-03-25 15:10',
-          memberNik: '7102041212800008',
-          memberName: 'Alm. Markus Tumiwa',
-          action: 'STATUS_CHANGE',
-          previousStatus: 'Aktif',
-          newStatus: 'Non-Aktif (Meninggal)',
-          reason: 'Telah wafat Maret 2024. Dokumen akta kematian telah diverifikasi DPD NasDem Minahasa.',
-          actor: 'Admin DPD NasDem Kab. Minahasa',
-          dpd: 'Kabupaten Minahasa',
-        },
-      ];
-      saveAuditLogs(initialLogs);
-      return initialLogs;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed;
   } catch (e) {
@@ -141,6 +102,51 @@ export function saveSession(session: UserSession): void {
 }
 
 export function resetToDefaultSeeds(): void {
-  saveMembers(INITIAL_MEMBERS);
+  saveMembers([]);
   localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+  localStorage.removeItem(STORAGE_KEYS.DELETION_REQUESTS);
+}
+
+export function loadDeletionRequests(): DeletionRequest[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETION_REQUESTS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    console.error('Error loading deletion requests', e);
+  }
+  return [];
+}
+
+export function saveDeletionRequests(requests: DeletionRequest[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.DELETION_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error('Error saving deletion requests', e);
+  }
+}
+
+export function appendDeletionRequest(
+  request: Omit<DeletionRequest, 'id' | 'requestedAt' | 'status'>
+): DeletionRequest {
+  const current = loadDeletionRequests();
+  const now = new Date();
+  const requestedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const newEntry: DeletionRequest = {
+    ...request,
+    id: `del-req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    requestedAt,
+    status: 'PENDING',
+  };
+
+  saveDeletionRequests([newEntry, ...current]);
+  return newEntry;
+}
+
+export function updateDeletionRequest(updated: DeletionRequest): void {
+  const current = loadDeletionRequests();
+  const updatedList = current.map((r) => (r.id === updated.id ? updated : r));
+  saveDeletionRequests(updatedList);
 }

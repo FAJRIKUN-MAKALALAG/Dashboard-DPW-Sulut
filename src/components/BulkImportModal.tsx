@@ -107,6 +107,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       dpd: r.data.dpd!,
       dpc: r.data.dpc || 'Umum',
       dprt: r.data.dprt || 'Umum',
+      isPengurus: false,
+      tingkatKepengurusan: 'Bukan Pengurus',
       jabatan: r.data.jabatan || 'Anggota Biasa',
       status: r.data.status || 'Aktif',
       tanggalBergabung: r.data.tanggalBergabung || new Date().toISOString().split('T')[0],
@@ -136,30 +138,39 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-              <Upload className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <Upload className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Import Massal Kader Partai NasDem Sulut (Excel / CSV)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Shadow database DPW Partai NasDem Sulut · Unggah berkas Excel/CSV kader dengan validasi anti-duplikat NIK.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                Import Massal Kader Partai NasDem Sulut (Excel / CSV)
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Shadow database DPW Partai NasDem Sulut · Unggah berkas Excel/CSV kader dengan validasi anti-duplikat NIK.
-              </p>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Tutup Panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
@@ -171,7 +182,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 <span>Format Kolom Baku NasDem Sulut</span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                Gunakan template standar agar pembacaan kolom NIK, nomor e-KTA NasDem, dan struktur wilayah berjalan akurat.
+                Format kolom resmi: <strong>No, Jabatan Pengurus, Nama Lengkap (Sesuai KTP), No. NIK, E-KTA NasDem, Email, No Telepon, Sosial Media, DPC Kecamatan</strong>.
               </p>
             </div>
 
@@ -342,7 +353,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shrink-0">
           <div className="text-xs text-slate-600 dark:text-slate-400 font-mono">
             {validCount > 0 ? (
               <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
@@ -370,6 +381,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

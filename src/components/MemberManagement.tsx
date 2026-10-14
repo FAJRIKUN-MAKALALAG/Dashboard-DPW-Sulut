@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
-import { SULUT_REGIONS, STATUS_BADGE_CONFIG, PARTY_ROLES, STATUS_OPTIONS } from '../data/sulutRegions';
+import { SULUT_REGIONS, STATUS_BADGE_CONFIG, PARTY_ROLES, STATUS_OPTIONS, LEVEL_PARTY_ROLES } from '../data/sulutRegions';
 import {
   Search,
   Filter,
@@ -23,9 +23,14 @@ import {
   User,
   CheckSquare,
   FileDown,
+  Trash2,
+  FileText,
+  Building,
+  Layers,
 } from 'lucide-react';
 import { exportMembersToExcel, exportMembersToCsv } from '../utils/excelUtils';
 import { getInitials, getAvatarColor } from '../utils/imageUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 
 type SearchCategory = 'ALL' | 'NIK' | 'NAMA' | 'DPC';
 
@@ -40,6 +45,8 @@ interface MemberManagementProps {
   onOpenCardModal: (member: Member) => void;
   onOpenEditModal: (member: Member) => void;
   onOpenDetailModal: (member: Member) => void;
+  onOpenDeletionRequest: (member: Member) => void;
+  onDirectDelete: (member: Member) => void;
 }
 
 export const MemberManagement: React.FC<MemberManagementProps> = ({
@@ -53,6 +60,8 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   onOpenCardModal,
   onOpenEditModal,
   onOpenDetailModal,
+  onOpenDeletionRequest,
+  onDirectDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('ALL');
@@ -63,14 +72,208 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   const [selectedNiks, setSelectedNiks] = useState<Set<string>>(new Set());
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
-    session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'
+    session.role !== 'SUPER_ADMIN' && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialDpdFilter || 'ALL'
   );
+  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>('ALL');
+  const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatusFilter || 'ALL');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 15;
+
+  // Sinkronisasi saat ada navigasi filter dari komponen lain (misal dari dashboard)
+  useEffect(() => {
+    if (initialDpdFilter) {
+      setSelectedDpd(initialDpdFilter);
+      setSelectedDpcFilter('ALL');
+      setSelectedDprtFilter('ALL');
+      setCurrentPage(1);
+    }
+  }, [initialDpdFilter]);
+
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setSelectedStatus(initialStatusFilter);
+      setCurrentPage(1);
+    }
+  }, [initialStatusFilter]);
+
+  // Daftar 15 DPD beserta jumlah data kader riil di database Supabase
+  const dpdOptionsWithCount = useMemo(() => {
+    return SULUT_REGIONS.map((region) => {
+      const count = members.filter((m) => isDpdMatch(m.dpd, region.name)).length;
+      return {
+        id: region.id,
+        name: region.name,
+        count,
+      };
+    });
+  }, [members]);
+
+  // DPD aktif yang terpilih
+  const activeRegion = useMemo(() => {
+    const effectiveDpd =
+      session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'
+        ? session.dpdAccess
+        : selectedDpd;
+    if (!effectiveDpd || effectiveDpd === 'ALL') return null;
+    return SULUT_REGIONS.find((r) => isDpdMatch(r.name, effectiveDpd)) || null;
+  }, [selectedDpd, session]);
+
+  // Daftar DPC (Kecamatan) dari DPD terpilih beserta hitungan data riil
+  const availableDpcOptions = useMemo(() => {
+    if (!activeRegion) return { dpdLevelCount: 0, subdistricts: [] };
+    const effectiveDpd = activeRegion.name;
+
+    // Anggota pengurus khusus tingkat DPD (yang dpc = 'Wilayah DPD' atau tingkat 'DPD')
+    const dpdLevelCount = members.filter(
+      (m) =>
+        isDpdMatch(m.dpd, effectiveDpd) &&
+        (isDpcMatch(m.dpc, 'Wilayah DPD') || m.tingkatKepengurusan === 'DPD')
+    ).length;
+
+    const subdistricts = activeRegion.subdistricts.map((sub) => {
+      const count = members.filter(
+        (m) => isDpdMatch(m.dpd, effectiveDpd) && isDpcMatch(m.dpc, sub.name)
+      ).length;
+      return {
+        name: sub.name,
+        count,
+        villages: sub.villages,
+      };
+    });
+
+    return {
+      dpdLevelCount,
+      subdistricts,
+    };
+  }, [activeRegion, members]);
+
+  // Daftar DPRt (Desa/Kelurahan) dari DPC terpilih beserta hitungan data riil
+  const availableDprtOptions = useMemo(() => {
+    if (!activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD') {
+      return [];
+    }
+    const effectiveDpd = activeRegion.name;
+    const subdistrict = activeRegion.subdistricts.find((s) => isDpcMatch(s.name, selectedDpcFilter));
+
+    const villageSet = new Set<string>(subdistrict?.villages || []);
+
+    // Tambahkan desa riil anggota yang ada di database bila ada di luar daftar baku
+    members.forEach((m) => {
+      if (
+        isDpdMatch(m.dpd, effectiveDpd) &&
+        isDpcMatch(m.dpc, selectedDpcFilter) &&
+        m.dprt &&
+        m.dprt.trim() &&
+        m.dprt !== '-' &&
+        m.dprt !== 'Wilayah DPC'
+      ) {
+        villageSet.add(m.dprt.trim());
+      }
+    });
+
+    return Array.from(villageSet)
+      .sort((a, b) => a.localeCompare(b))
+      .map((villageName) => {
+        const count = members.filter(
+          (m) =>
+            isDpdMatch(m.dpd, effectiveDpd) &&
+            isDpcMatch(m.dpc, selectedDpcFilter) &&
+            isDprtMatch(m.dprt, villageName)
+        ).length;
+        return {
+          name: villageName,
+          count,
+        };
+      });
+  }, [activeRegion, selectedDpcFilter, members]);
+
+  // Jabatan dinamis yang akurat sesuai data riil yang ada di database & filter wilayah cascading:
+  const availableRolesWithCount = useMemo(() => {
+    // Ambil anggota sesuai yurisdiksi dan wilayah cascading yang sedang dipilih
+    const scopedMembers = members.filter((m) => {
+      if (session.role === 'ADMIN_DPD') {
+        if (session.dpdAccess !== 'ALL' && !isDpdMatch(m.dpd, session.dpdAccess)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(m.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(m.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPC') {
+        if (!isDpdMatch(m.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(m.dpc, session.dpcAccess)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(m.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPRT') {
+        if (!isDpdMatch(m.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(m.dpc, session.dpcAccess)) return false;
+        if (session.dprtAccess && !isDprtMatch(m.dprt, session.dprtAccess)) return false;
+      } else {
+        if (selectedDpd !== 'ALL' && !isDpdMatch(m.dpd, selectedDpd)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(m.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(m.dprt, selectedDprtFilter)) return false;
+      }
+
+      if (selectedStatus !== 'ALL' && m.status !== selectedStatus) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Hitung jumlah personil per jabatan riil di database
+    const roleCounts = new Map<string, number>();
+    scopedMembers.forEach((m) => {
+      if (m.jabatan && m.jabatan.trim()) {
+        const j = m.jabatan.trim();
+        roleCounts.set(j, (roleCounts.get(j) || 0) + 1);
+      }
+    });
+
+    // Hierarki urutan jabatan standar NasDem
+    const priority = [
+      'Ketua',
+      'Sekretaris',
+      'Bendahara',
+      'Wakil Sekretaris',
+      'Wakil Bendahara',
+    ];
+
+    const sortedDbRoles = Array.from(roleCounts.keys()).sort((a, b) => {
+      const idxA = priority.indexOf(a);
+      const idxB = priority.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    // Jika database belum terisi atau baru, gunakan fallback standar resmi
+    if (sortedDbRoles.length === 0) {
+      const fallbackRoles =
+        session.role === 'ADMIN_DPRT' || (selectedDprtFilter && selectedDprtFilter !== 'ALL')
+          ? LEVEL_PARTY_ROLES.DPRt
+          : selectedDpcFilter && selectedDpcFilter !== 'ALL' && selectedDpcFilter !== 'Wilayah DPD'
+          ? LEVEL_PARTY_ROLES.DPC
+          : selectedDpd && selectedDpd !== 'ALL'
+          ? LEVEL_PARTY_ROLES.DPD
+          : PARTY_ROLES;
+
+      return fallbackRoles.map((r) => ({ role: r, count: 0 }));
+    }
+
+    return sortedDbRoles.map((r) => ({ role: r, count: roleCounts.get(r) || 0 }));
+  }, [members, session, selectedDpd, selectedDpcFilter, selectedDprtFilter, selectedStatus]);
+
+  const availableRoles = useMemo(() => {
+    return availableRolesWithCount.map((item) => item.role);
+  }, [availableRolesWithCount]);
+
+  // Reset selectedRole jika tidak lagi ada di availableRoles
+  useEffect(() => {
+    if (selectedRole !== 'ALL' && !availableRoles.includes(selectedRole)) {
+      setSelectedRole('ALL');
+    }
+  }, [availableRoles, selectedRole]);
 
   // Keyboard shortcut: Press '/' to focus global search bar
   useEffect(() => {
@@ -88,14 +291,26 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Filter pipeline
+  // Filter pipeline dengan pencocokan teritorial riil isDpdMatch, isDpcMatch, isDprtMatch
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
-      // Role scope lock: Admin DPD can only view and manage their assigned DPD
-      if (session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL') {
-        if (member.dpd !== session.dpdAccess) return false;
-      } else if (selectedDpd !== 'ALL' && member.dpd !== selectedDpd) {
-        return false;
+      // Role scope lock:
+      if (session.role === 'ADMIN_DPD') {
+        if (session.dpdAccess !== 'ALL' && !isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPC') {
+        if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPRT') {
+        if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
+        if (session.dprtAccess && !isDprtMatch(member.dprt, session.dprtAccess)) return false;
+      } else {
+        if (selectedDpd !== 'ALL' && !isDpdMatch(member.dpd, selectedDpd)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
       }
 
       if (selectedStatus !== 'ALL' && member.status !== selectedStatus) {
@@ -128,7 +343,17 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
 
       return true;
     });
-  }, [members, selectedDpd, selectedStatus, selectedRole, searchTerm, searchCategory, session]);
+  }, [
+    members,
+    selectedDpd,
+    selectedDpcFilter,
+    selectedDprtFilter,
+    selectedStatus,
+    selectedRole,
+    searchTerm,
+    searchCategory,
+    session,
+  ]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredMembers.length / pageSize) || 1;
@@ -414,35 +639,124 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
           </div>
         </div>
 
-        {/* Secondary Filters Bar (DPD, Status, Role) */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* DPD Filter */}
+        {/* Secondary Filters Bar: Cascading Teritorial (DPD -> DPC -> DPRt -> Status -> Jabatan) */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* 1. DPD Filter (Kabupaten/Kota) */}
           <div>
-            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Filter Wilayah DPD:
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <Building className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              1. DPD (Kab/Kota):
+            </label>
+            {session.role === 'SUPER_ADMIN' ? (
+              <select
+                value={selectedDpd}
+                onChange={(e) => {
+                  setSelectedDpd(e.target.value);
+                  setSelectedDpcFilter('ALL');
+                  setSelectedDprtFilter('ALL');
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-medium"
+              >
+                <option value="ALL">Semua 15 DPD ({members.length} kader)</option>
+                {dpdOptionsWithCount.map((r) => (
+                  <option key={r.id} value={r.name}>
+                    {r.name} {r.count > 0 ? `(${r.count})` : '(0)'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold truncate">
+                {session.dpdAccess}
+              </div>
+            )}
+          </div>
+
+          {/* 2. DPC Filter (Kecamatan - Cascading dari DPD terpilih) */}
+          <div>
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <Layers className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+              2. DPC (Kecamatan):
             </label>
             <select
-              value={selectedDpd}
-              disabled={session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'}
+              value={selectedDpcFilter}
+              disabled={!activeRegion}
               onChange={(e) => {
-                setSelectedDpd(e.target.value);
+                setSelectedDpcFilter(e.target.value);
+                setSelectedDprtFilter('ALL');
                 setCurrentPage(1);
               }}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 disabled:opacity-60 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium ${
+                !activeRegion
+                  ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
+              }`}
             >
-              <option value="ALL">Semua 15 DPD Kabupaten/Kota</option>
-              {SULUT_REGIONS.map((r) => (
-                <option key={r.id} value={r.name}>
-                  {r.name}
-                </option>
-              ))}
+              {!activeRegion ? (
+                <option value="ALL">Pilih DPD Terlebih Dahulu</option>
+              ) : (
+                <>
+                  <option value="ALL">
+                    Semua DPC ({activeRegion.subdistricts.length} Kec.)
+                  </option>
+                  {availableDpcOptions.dpdLevelCount > 0 && (
+                    <option value="Wilayah DPD">
+                      ⭐ Wilayah DPD (Tingkat Kab/Kota) ({availableDpcOptions.dpdLevelCount})
+                    </option>
+                  )}
+                  {availableDpcOptions.subdistricts.map((sub) => (
+                    <option key={sub.name} value={sub.name}>
+                      Kec. {sub.name} {sub.count > 0 ? `(${sub.count})` : '(0)'}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 
-          {/* Status Filter */}
+          {/* 3. DPRt Filter (Desa/Kelurahan - Cascading dari DPC terpilih) */}
           <div>
-            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Filter Status:
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              3. DPRt (Desa/Kel.):
+            </label>
+            <select
+              value={selectedDprtFilter}
+              disabled={!activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'}
+              onChange={(e) => {
+                setSelectedDprtFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium ${
+                !activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'
+                  ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
+              }`}
+            >
+              {!activeRegion || selectedDpcFilter === 'ALL' ? (
+                <option value="ALL">Pilih DPC Terlebih Dahulu</option>
+              ) : selectedDpcFilter === 'Wilayah DPD' ? (
+                <option value="ALL">Khusus Tingkat DPD</option>
+              ) : (
+                <>
+                  <option value="ALL">
+                    Semua DPRt di Kec. {selectedDpcFilter} ({availableDprtOptions.length} Desa)
+                  </option>
+                  {availableDprtOptions.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name} {v.count > 0 ? `(${v.count})` : ''}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* 4. Status Keanggotaan Filter */}
+          <div>
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              4. Status Kader:
             </label>
             <select
               value={selectedStatus}
@@ -450,7 +764,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium"
             >
               <option value="ALL">Semua Status (Aktif & Non-Aktif)</option>
               <option value="Aktif">Hanya Aktif</option>
@@ -460,10 +774,11 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
             </select>
           </div>
 
-          {/* Role Filter */}
+          {/* 5. Jabatan Struktur Filter - Dinamis sesuai wilayah cascading terpilih */}
           <div>
-            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Filter Jabatan:
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <IdCard className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              5. Jabatan Struktur:
             </label>
             <select
               value={selectedRole}
@@ -471,55 +786,88 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                 setSelectedRole(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer font-medium truncate"
             >
-              <option value="ALL">Semua Jabatan Partai</option>
-              {PARTY_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+              <option value="ALL">Semua Jabatan ({filteredMembers.length} kader)</option>
+              {availableRolesWithCount.map(({ role, count }) => (
+                <option key={role} value={role}>
+                  {role} {count > 0 ? `(${count})` : ''}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Search Results Summary & Badges */}
+        {/* Territorial Filter Breadcrumb & Summary Bar */}
         <div className="flex flex-wrap items-center justify-between text-xs pt-2.5 border-t border-slate-100 dark:border-slate-800 gap-2 font-mono">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Breadcrumb Teritorial */}
+            <div className="flex items-center gap-1 text-[11px] bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-md text-slate-700 dark:text-slate-300 font-sans border border-slate-200 dark:border-slate-800">
+              <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="font-semibold text-slate-900 dark:text-white">Sulawesi Utara</span>
+              <span className="text-slate-400">›</span>
+              <span className={selectedDpd !== 'ALL' ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-slate-500'}>
+                {selectedDpd !== 'ALL' ? selectedDpd.replace(/^(Kabupaten|Kota)\s+/, '') : 'Semua DPD'}
+              </span>
+              <span className="text-slate-400">›</span>
+              <span className={selectedDpcFilter !== 'ALL' ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-slate-500'}>
+                {selectedDpcFilter !== 'ALL' ? (selectedDpcFilter === 'Wilayah DPD' ? 'Pengurus DPD' : `Kec. ${selectedDpcFilter}`) : 'Semua DPC'}
+              </span>
+              <span className="text-slate-400">›</span>
+              <span className={selectedDprtFilter !== 'ALL' ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-slate-500'}>
+                {selectedDprtFilter !== 'ALL' ? `Desa ${selectedDprtFilter}` : 'Semua DPRt'}
+              </span>
+            </div>
+
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+
             {searchTerm.trim() ? (
               <span className="text-blue-800 dark:text-blue-300">
-                Hasil pencarian untuk "<strong className="text-slate-900 dark:text-white">{searchTerm}</strong>" ({searchCategory}):{' '}
-                <strong className="text-slate-900 dark:text-white">{filteredMembers.length}</strong> anggota ditemukan
+                Pencarian "<strong className="text-slate-900 dark:text-white">{searchTerm}</strong>":{' '}
+                <strong className="text-slate-900 dark:text-white">{filteredMembers.length}</strong> ditemukan
               </span>
             ) : (
               <span className="text-slate-600 dark:text-slate-400">
-                Menampilkan <strong className="text-blue-600 dark:text-blue-400 font-bold">{filteredMembers.length}</strong> anggota
+                Total: <strong className="text-blue-600 dark:text-blue-400 font-bold">{filteredMembers.length}</strong> kader
               </span>
             )}
+
             <span className="text-slate-300 dark:text-slate-700">·</span>
             <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 font-semibold">
-              <strong>{activeFilteredCount}</strong> Aktif Riil
+              <strong>{activeFilteredCount}</strong> Aktif
             </span>
-            <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 font-semibold">
-              <strong>{nonActiveFilteredCount}</strong> Non-Aktif
-            </span>
+            {nonActiveFilteredCount > 0 && (
+              <>
+                <span className="text-slate-300 dark:text-slate-700">·</span>
+                <span className="text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 font-semibold">
+                  <strong>{nonActiveFilteredCount}</strong> Non-Aktif
+                </span>
+              </>
+            )}
           </div>
 
-          {(searchTerm || selectedDpd !== 'ALL' || selectedStatus !== 'ALL' || selectedRole !== 'ALL' || searchCategory !== 'ALL') && (
+          {(searchTerm ||
+            (session.role === 'SUPER_ADMIN' && selectedDpd !== 'ALL') ||
+            selectedDpcFilter !== 'ALL' ||
+            selectedDprtFilter !== 'ALL' ||
+            selectedStatus !== 'ALL' ||
+            selectedRole !== 'ALL' ||
+            searchCategory !== 'ALL') && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setSearchCategory('ALL');
                 if (session.role === 'SUPER_ADMIN') setSelectedDpd('ALL');
+                setSelectedDpcFilter('ALL');
+                setSelectedDprtFilter('ALL');
                 setSelectedStatus('ALL');
                 setSelectedRole('ALL');
                 setCurrentPage(1);
                 searchInputRef.current?.focus();
               }}
-              className="btn-white text-xs px-2.5 py-1 rounded-md cursor-pointer font-medium"
+              className="btn-white text-xs px-2.5 py-1 rounded-md cursor-pointer font-medium hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors"
             >
-              Reset Pencarian & Filter
+              Reset Semua Filter
             </button>
           )}
         </div>
@@ -631,8 +979,9 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                   const isSelected = selectedNiks.has(member.nik);
                   const canEdit =
                     session.role === 'SUPER_ADMIN' ||
-                    session.dpdAccess === 'ALL' ||
-                    session.dpdAccess === member.dpd;
+                    (session.role === 'ADMIN_DPD' && session.dpdAccess === member.dpd) ||
+                    (session.role === 'ADMIN_DPC' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc) ||
+                    (session.role === 'ADMIN_DPRT' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc && session.dprtAccess === member.dprt);
 
                   return (
                     <tr
@@ -739,9 +1088,26 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                         </div>
                       </td>
 
-                      {/* Jabatan */}
+                      {/* Jabatan & SK */}
                       <td className="p-3 text-slate-800 dark:text-slate-300 font-medium">
-                        <span className="text-slate-900 dark:text-slate-200">{member.jabatan}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {member.isPengurus && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                              {member.tingkatKepengurusan || 'DPW'}
+                            </span>
+                          )}
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold">{member.jabatan}</span>
+                        </div>
+                        {member.nomorSK && (
+                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            SK: {member.nomorSK}
+                          </div>
+                        )}
+                        {member.kodeReferral && (
+                          <div className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                            Ref: {member.kodeReferral}
+                          </div>
+                        )}
                       </td>
 
                       {/* Status Keanggotaan */}
@@ -794,6 +1160,28 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                             <Edit className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
+
+                          {/* Hapus Data: Super Admin bisa langsung hapus, role daerah mengajukan permohonan ke DPW */}
+                          {session.role === 'SUPER_ADMIN' ? (
+                            <button
+                              onClick={() => onDirectDelete(member)}
+                              title="Hapus Data Kader Permanen (Super Admin DPW)"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          ) : (
+                            <button
+                              disabled={!canEdit}
+                              onClick={() => onOpenDeletionRequest(member)}
+                              title="Ajukan Permohonan Hapus Data ke DPW"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              <span>Ajukan Hapus</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

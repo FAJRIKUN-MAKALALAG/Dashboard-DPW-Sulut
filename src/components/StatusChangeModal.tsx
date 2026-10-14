@@ -73,33 +73,43 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
   const avatarColor = getAvatarColor(member.namaLengkap);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                Pembaruan Status Keanggotaan Kader
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Audit Trail Mandiri DPW Sulut · Soft-Delete Berkas Tanpa Menghilangkan Arsip
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
+      />
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+      {/* Slide-over Right Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-xl sm:max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <ShieldAlert className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Pembaruan Status Keanggotaan Kader
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Audit Trail Mandiri DPW Sulut · Soft-Delete Berkas Tanpa Menghilangkan Arsip
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Tutup Panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Form Body */}
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
           {/* Member Visual Summary Card */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5">
             <div className="w-14 h-16 rounded-xl overflow-hidden border border-amber-400/60 bg-slate-800 shrink-0 flex items-center justify-center">
@@ -273,24 +283,26 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
                 : 'Anggota ini otomatis dicoret dari hitungan total Aktif di Dashboard Eksekutif Atasan, menjaga laporan faktual tetap akurat.'}
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="btn-white px-5 py-2 text-xs font-semibold rounded-lg shadow-sm cursor-pointer"
-            >
-              Simpan Perubahan Status
-            </button>
-          </div>
-        </form>
+        {/* Action Buttons */}
+        <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="btn-white px-5 py-2 text-xs font-semibold rounded-lg shadow-sm cursor-pointer"
+              >
+                Simpan Perubahan Status
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

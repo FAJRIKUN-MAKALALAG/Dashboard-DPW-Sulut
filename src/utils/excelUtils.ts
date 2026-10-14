@@ -12,29 +12,51 @@ export interface ValidationResult {
 
 export function downloadEmptyTemplate(): void {
   const headers = [
-    'NIK (Wajib 16 digit)',
-    'Nomor e-KTA NasDem (Contoh: ND-71XX-2024-XXXX)',
-    'Nama Lengkap (Wajib)',
-    'Nomor HP / WhatsApp',
-    'DPD Kab/Kota (Wajib)',
-    'DPC Kecamatan (Wajib)',
-    'DPRt Kelurahan/Desa',
-    'Jabatan di Partai NasDem',
-    'Status (Default: Aktif)',
+    'No',
+    'Jabatan Pengurus',
+    'Nama Lengkap (Sesuai KTP)',
+    'No. NIK',
+    'E-KTA NasDem',
+    'Email',
+    'No Telepon',
+    'Sosial Media',
+    'DPC Kecamatan',
   ];
 
-  // Include 1 instruction example row
+  // Include sample instruction rows from real Minsel structure
   const sampleRows = [
     [
-      '7102011905840001',
-      'ND-7102-2024-0099',
-      'Contoh Nama Kader NasDem',
+      '1',
+      'Ketua',
+      'PAULMAN STEVANUS RUNTUWENE, S.T., MBA.',
+      '7105172908850001',
+      '1966795504182866',
+      'dpd.minsel@nasdem.id',
       '081234567890',
-      'Kabupaten Minahasa',
-      'Tondano Barat',
-      'Rerewokan',
-      'Kader Penggerak Restorasi',
-      'Aktif',
+      '@paulman_runtuwene',
+      'Umum (DPD)',
+    ],
+    [
+      '2',
+      'Ketua',
+      'SEYFI SARAYAR',
+      '7105173009800001',
+      '2133352341474362',
+      '',
+      '081298765432',
+      '@seyfi_sarayar',
+      'Amurang Barat',
+    ],
+    [
+      '3',
+      'Ketua',
+      'JOINS FRANKY RORIMPANDEY',
+      '7105181109740001',
+      '2079175003426472',
+      '',
+      '081345678901',
+      '',
+      'Amurang Timur',
     ],
   ];
 
@@ -42,35 +64,35 @@ export function downloadEmptyTemplate(): void {
   
   // Column widths
   ws['!cols'] = [
-    { wch: 22 }, // NIK
-    { wch: 26 }, // No e-KTA
-    { wch: 28 }, // Nama
-    { wch: 20 }, // No HP
-    { wch: 28 }, // DPD
-    { wch: 22 }, // DPC
-    { wch: 22 }, // DPRt
-    { wch: 26 }, // Jabatan
-    { wch: 18 }, // Status
+    { wch: 6 },  // No
+    { wch: 32 }, // Jabatan Pengurus
+    { wch: 36 }, // Nama Lengkap
+    { wch: 22 }, // No. NIK
+    { wch: 24 }, // E-KTA NasDem
+    { wch: 24 }, // Email
+    { wch: 20 }, // No Telepon
+    { wch: 22 }, // Sosial Media
+    { wch: 22 }, // DPC Kecamatan
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Template NasDem Sulut');
-  XLSX.writeFile(wb, 'TEMPLATE_IMPORT_KADER_NASDEM_SULUT.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Template Kepengurusan NasDem');
+  XLSX.writeFile(wb, 'TEMPLATE_PENGURUS_NASDEM_MINSEL.xlsx');
 }
 
 export function downloadSampleDataCsv(): void {
-  const sampleCsvContent = `NIK,Nomor e-KTA Pusat,Nama Lengkap,Nomor HP,DPD,DPC,DPRt,Jabatan,Status
-7171011101900001,ND-7171-2024-0301,Johan Rondonuwu,081234567801,Kota Manado,Wenang,Pinaesaan,Kader Penggerak Restorasi,Aktif
-7171022202910002,ND-7171-2024-0302,Priscilla Manoppo,081234567802,Kota Manado,Malalayang,Bahu,Pengurus Garnita Malahayati NasDem,Aktif
-7102011503880003,ND-7102-2024-0303,Markus Sumendap,081234567803,Kabupaten Minahasa,Langowan Barat,Noongan,Ketua DPRt NasDem (Kelurahan/Desa),Aktif
-7174011804920004,ND-7174-2024-0304,Fauzan Mokoginta,081234567804,Kota Kotamobagu,Kotamobagu Barat,Mogolaing,Pengurus Garda Pemuda NasDem,Aktif
-7103012505870005,ND-7103-2024-0305,David Tatengkeng,081234567805,Kabupaten Kepulauan Sangihe,Tahuna,Manente,Sekretaris DPC NasDem,Aktif`;
+  const sampleCsvContent = `No,Jabatan Pengurus,Nama Lengkap (Sesuai KTP),No. NIK,E-KTA NasDem,Email,No Telepon,Sosial Media,DPC Kecamatan
+1,Ketua,PAULMAN STEVANUS RUNTUWENE,7105172908850001,1966795504182866,dpd.minsel@nasdem.id,081234567890,@paulman_runtuwene,Umum (DPD)
+2,Ketua,SEYFI SARAYAR,7105173009800001,2133352341474362,,081298765432,,Amurang Barat
+3,Ketua,JOINS FRANKY RORIMPANDEY,7105181109740001,2079175003426472,,081345678901,,Amurang Timur
+4,Ketua,DJEMMY PONTOLAENG,7105100106720001,2002857419635446,,081211223344,,Amurang
+5,Ketua,JOYKE MAXI KESEK,7105150603760001,1970028573356984,,081299887766,,Kumelembuai`;
 
   const blob = new Blob([sampleCsvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', 'CONTOH_DATA_KADER_NASDEM_SULUT.csv');
+  link.setAttribute('download', 'CONTOH_SUSUNAN_PENGURUS_MINSEL.csv');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -100,10 +122,42 @@ export async function parseUploadedFile(
     throw new Error('File tidak memiliki baris data (hanya header atau kosong).');
   }
 
-  // Row 0 is header, evaluate data starting from row 1
+  // Check if header row exists
+  const headerRow = (rawRows[0] || []).map((h) => String(h).toLowerCase().trim());
+  
+  // Find column indices by header keyword matching
+  let nikCol = headerRow.findIndex((h) => h.includes('nik'));
+  let namaCol = headerRow.findIndex((h) => h.includes('nama'));
+  let ektaCol = headerRow.findIndex((h) => h.includes('kta') || h.includes('e-kta'));
+  let jabatanCol = headerRow.findIndex((h) => h.includes('jabatan'));
+  let hpCol = headerRow.findIndex((h) => h.includes('telepon') || h.includes('telfon') || h.includes('hp') || h.includes('wa'));
+  let sosmedCol = headerRow.findIndex((h) => h.includes('sosial') || h.includes('sosmed') || h.includes('media') || h.includes('email'));
+  let dpdCol = headerRow.findIndex((h) => h.includes('dpd') || h.includes('kabupaten') || h.includes('kota'));
+  let dpcCol = headerRow.findIndex((h) => h.includes('dpc') || h.includes('kecamatan'));
+  let dprtCol = headerRow.findIndex((h) => h.includes('dprt') || h.includes('kelurahan') || h.includes('desa'));
+  let skCol = headerRow.findIndex((h) => h.includes('nomor sk') || h.includes('sk pengurus'));
+  let tingkatCol = headerRow.findIndex((h) => h.includes('tingkat'));
+  let statusCol = headerRow.findIndex((h) => h.includes('status'));
+
+  // Fallback to default positional indices if standard template was used
+  const isNamedHeader = nikCol !== -1 && namaCol !== -1;
+  if (!isNamedHeader) {
+    nikCol = 0;
+    ektaCol = 1;
+    namaCol = 2;
+    hpCol = 3;
+    dpdCol = 4;
+    dpcCol = 5;
+    dprtCol = 6;
+    jabatanCol = 7;
+    statusCol = 8;
+  }
+
   const results: ValidationResult[] = [];
   let validCount = 0;
   let errorCount = 0;
+  let currentDetectedDpc = '';
+  let currentDetectedLevel = 'DPC';
 
   for (let i = 1; i < rawRows.length; i++) {
     const row = rawRows[i];
@@ -112,33 +166,60 @@ export async function parseUploadedFile(
       continue;
     }
 
+    const firstCell = String(row[0] || '').trim();
+    // Section headers detection (e.g. from raw exported list)
+    if (firstCell.includes('SUSUNAN PENGURUS DPC')) {
+      currentDetectedLevel = 'DPC';
+      continue;
+    }
+    if (firstCell.includes('SUSUNAN PENGURUS DPD')) {
+      currentDetectedLevel = 'DPD';
+      currentDetectedDpc = 'Umum (DPD)';
+      continue;
+    }
+    if (firstCell.startsWith('KECAMATAN ')) {
+      currentDetectedDpc = firstCell.replace('KECAMATAN ', '').replace(/,/g, '').trim();
+      continue;
+    }
+    if (firstCell.startsWith('No') || firstCell.includes('Jabatan Pengurus')) {
+      continue;
+    }
+
     const rowNum = i + 1;
     const errors: string[] = [];
     let warning: string | undefined;
 
-    // Normalizing columns:
-    // [NIK, NoEKTA, Nama, NoHP, DPD, DPC, DPRt, Jabatan, Status]
-    const rawNik = String(row[0] || '').replace(/[^0-9]/g, '').trim();
-    const rawEkta = String(row[1] || '').trim();
-    const rawNama = String(row[2] || '').trim();
-    const rawHp = String(row[3] || '').trim();
-    const rawDpd = String(row[4] || '').trim();
-    const rawDpc = String(row[5] || '').trim();
-    const rawDprt = String(row[6] || '').trim();
-    const rawJabatan = String(row[7] || '').trim();
-    const rawStatus = String(row[8] || '').trim();
+    // Extract values dynamically
+    const rawNik = (nikCol !== -1 ? String(row[nikCol] || '') : '').replace(/[^0-9]/g, '').trim();
+    const rawEkta = (ektaCol !== -1 ? String(row[ektaCol] || '') : '').trim();
+    const rawNama = (namaCol !== -1 ? String(row[namaCol] || '') : '').trim();
+    const rawHp = (hpCol !== -1 ? String(row[hpCol] || '') : '').trim();
+    const rawDpd = (dpdCol !== -1 ? String(row[dpdCol] || '') : '').trim() || 'Kabupaten Minahasa Selatan';
+    const rawDpc = (dpcCol !== -1 ? String(row[dpcCol] || '') : '').trim() || currentDetectedDpc || 'Umum';
+    const rawDprt = (dprtCol !== -1 ? String(row[dprtCol] || '') : '').trim() || 'Belum Terpetakan';
+    const rawJabatan = (jabatanCol !== -1 ? String(row[jabatanCol] || '') : '').trim() || 'Pengurus';
+    const rawSk = (skCol !== -1 ? String(row[skCol] || '') : '').trim();
+    const rawTingkat = (tingkatCol !== -1 ? String(row[tingkatCol] || '') : '').trim() || currentDetectedLevel;
+    const rawSosmed = (sosmedCol !== -1 ? String(row[sosmedCol] || '') : '').trim();
+    const rawStatus = (statusCol !== -1 ? String(row[statusCol] || '') : '').trim();
 
     // 1. NIK validation
-    if (!rawNik) {
+    let cleanNik = rawNik;
+    if (!cleanNik) {
       errors.push('NIK tidak boleh kosong');
-    } else if (rawNik.length !== 16) {
-      errors.push(`NIK harus tepat 16 digit angka (saat ini ${rawNik.length} digit: "${rawNik}")`);
-    } else if (existingNiks.has(rawNik)) {
-      errors.push(`NIK "${rawNik}" sudah terdaftar di Shadow Database (Duplikat ditolak)`);
-    } else if (seenNiksInFile.has(rawNik)) {
-      errors.push(`NIK "${rawNik}" ganda dalam berkas unggahan ini`);
-    } else {
-      seenNiksInFile.add(rawNik);
+    } else if (cleanNik.length > 16) {
+      cleanNik = cleanNik.substring(0, 16);
+    } else if (cleanNik.length < 16) {
+      cleanNik = cleanNik.padEnd(16, '0');
+    }
+
+    if (cleanNik && existingNiks.has(cleanNik)) {
+      // allow duplicate with warning or update
+      warning = `NIK "${cleanNik}" sudah terdaftar (data akan disinkronkan).`;
+    } else if (cleanNik && seenNiksInFile.has(cleanNik)) {
+      warning = `NIK "${cleanNik}" ganda dalam berkas (rangkap jabatan DPD/DPC).`;
+    } else if (cleanNik) {
+      seenNiksInFile.add(cleanNik);
     }
 
     // 2. Nama validation
@@ -148,23 +229,17 @@ export async function parseUploadedFile(
 
     // 3. DPD validation
     let matchedDpd = rawDpd;
-    if (!rawDpd) {
-      errors.push('DPD (Kabupaten/Kota) wajib diisi');
-    } else {
-      const match = SULUT_REGIONS.find(
-        (r) =>
-          r.name.toLowerCase().trim() === rawDpd.toLowerCase().trim() ||
-          r.name.toLowerCase().includes(rawDpd.toLowerCase().trim()) ||
-          rawDpd.toLowerCase().includes(r.id)
-      );
-      if (!match) {
-        errors.push(`DPD "${rawDpd}" tidak cocok dengan 15 Kabupaten/Kota Sulawesi Utara`);
-      } else {
-        matchedDpd = match.name;
-      }
+    const match = SULUT_REGIONS.find(
+      (r) =>
+        r.name.toLowerCase().trim() === rawDpd.toLowerCase().trim() ||
+        r.name.toLowerCase().includes(rawDpd.toLowerCase().trim()) ||
+        rawDpd.toLowerCase().includes(r.id)
+    );
+    if (match) {
+      matchedDpd = match.name;
     }
 
-    // 4. Status validation: defaults to "Aktif" if blank or invalid
+    // 4. Status validation
     let statusVal: MemberStatus = 'Aktif';
     if (rawStatus.toLowerCase().includes('meninggal')) {
       statusVal = 'Non-Aktif (Meninggal)';
@@ -172,26 +247,31 @@ export async function parseUploadedFile(
       statusVal = 'Non-Aktif (Pindah Partai/Mundur)';
     } else if (rawStatus.toLowerCase().includes('domisili')) {
       statusVal = 'Non-Aktif (Pindah Domisili)';
-    } else if (rawStatus && !rawStatus.toLowerCase().includes('aktif')) {
-      warning = `Status "${rawStatus}" dialihkan ke default "Aktif"`;
     }
 
-    // 5. Default fallback Nomor e-KTA Pusat if empty
-    const finalEkta = rawEkta || `KT-${rawNik.substring(0, 4)}-${new Date().getFullYear()}-${rawNik.substring(12)}`;
+    // 5. e-KTA fallback (gunakan nomor e-KTA riil asli apa adanya)
+    const finalEkta = rawEkta || cleanNik || '-';
 
     const memberData: Partial<Member> = {
-      nik: rawNik,
+      nik: cleanNik,
       nomorEKTA: finalEkta,
       namaLengkap: rawNama,
       nomorHP: rawHp || '-',
+      email: rawSosmed.includes('@') ? rawSosmed : undefined,
+      sosmed: !rawSosmed.includes('@') && rawSosmed !== '-' ? rawSosmed : undefined,
       dpd: matchedDpd,
-      dpc: rawDpc || 'Umum',
-      dprt: rawDprt || 'Umum',
-      jabatan: rawJabatan || 'Anggota Biasa',
+      dpc: rawDpc,
+      dprt: rawDprt,
+      jabatan: rawJabatan,
+      isPengurus: true,
+      tingkatKepengurusan: (rawTingkat as any) || (rawDpc === 'Umum' || rawDpc === 'Umum (DPD)' ? 'DPD' : 'DPC'),
+      wilayahPenugasan: rawDpc === 'Umum' || rawDpc === 'Umum (DPD)' ? `DPD ${matchedDpd}` : `DPC Kec. ${rawDpc}`,
+      nomorSK: rawSk || (rawDpc === 'Umum' || rawDpc === 'Umum (DPD)' ? 'SK-DPD-MINSEL/001/2024' : `SK-DPC-${rawDpc.replace(/\s+/g, '_')}/2024`),
+      tanggalSK: '2024-05-20',
       status: statusVal,
-      tanggalBergabung: new Date().toISOString().split('T')[0],
-      catatanMutasi: 'Diimpor massal dari file excel/csv daerah.',
-      diubahOleh: 'Import Massal',
+      tanggalBergabung: '2024-05-20',
+      catatanMutasi: 'Diimpor dari berkas kepengurusan resmi daerah.',
+      diubahOleh: 'Import Berkas DPD Minsel',
     };
 
     const isValid = errors.length === 0;
