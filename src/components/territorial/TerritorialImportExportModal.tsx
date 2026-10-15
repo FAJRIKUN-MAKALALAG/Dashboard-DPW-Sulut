@@ -20,6 +20,8 @@ import {
   Loader2,
   Terminal,
   Code2,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { GridRowItem } from '../matrix';
@@ -37,6 +39,7 @@ import {
   getTerritoryFilename,
 } from '../../utils/territorialExcelTemplateUtils';
 import { parseSqlInsertQuery } from '../../utils/sqlQueryParser';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
 
 interface TerritorialImportExportModalProps {
   isOpen: boolean;
@@ -46,6 +49,7 @@ interface TerritorialImportExportModalProps {
   currentMembers: Member[];
   session?: UserSession;
   onSaveMembersBatch: (newMembers: Member[]) => void;
+  onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
   onSuccessRefresh?: () => void;
 }
 
@@ -57,6 +61,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
   currentMembers,
   session,
   onSaveMembersBatch,
+  onDeleteMembersBatch,
   onSuccessRefresh,
 }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -70,8 +75,77 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
   const [sqlQueryInput, setSqlQueryInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Ambil daftar pengurus yang saat ini ada di wilayah target ini
+  const existingTerritoryMembers = currentMembers.filter((m) => {
+    if (territoryContext.level === 'DPW') {
+      return (
+        m.tingkatKepengurusan === 'DPW' ||
+        m.dpd === 'Sulawesi Utara' ||
+        m.wilayahPenugasan === 'DPW' ||
+        m.wilayahPenugasan?.includes('DPW') ||
+        (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
+      );
+    } else if (territoryContext.level === 'DPD') {
+      return (
+        isDpdMatch(m.dpd, territoryContext.dpd) &&
+        (m.tingkatKepengurusan === 'DPD' ||
+          m.dpc === 'Umum (DPD)' ||
+          m.dpc === 'Wilayah DPD' ||
+          (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
+          (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
+      );
+    } else if (territoryContext.level === 'DPC') {
+      return (
+        isDpdMatch(m.dpd, territoryContext.dpd) &&
+        isDpcMatch(m.dpc, territoryContext.dpc || '') &&
+        (m.tingkatKepengurusan === 'DPC' ||
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
+      );
+    } else if (territoryContext.level === 'DPRt') {
+      return (
+        isDpdMatch(m.dpd, territoryContext.dpd) &&
+        isDpcMatch(m.dpc, territoryContext.dpc || '') &&
+        isDprtMatch(m.dprt, territoryContext.dprt || '') &&
+        (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
+      );
+    }
+    return false;
+  });
+
+  const handleClearAllTerritoryData = async () => {
+    if (existingTerritoryMembers.length === 0) {
+      setParseError('Tidak ada data pengurus di wilayah ini untuk dihapus.');
+      setShowConfirmClear(false);
+      return;
+    }
+
+    setIsClearing(true);
+    setParseError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const niksToDelete = existingTerritoryMembers.map((m) => m.nik);
+      if (onDeleteMembersBatch) {
+        onDeleteMembersBatch(niksToDelete, territoryDisplayName);
+      }
+      setSubmitSuccess(
+        `Semua data (${existingTerritoryMembers.length} pengurus) di ${territoryDisplayName} berhasil dihapus/dibersihkan. Sekarang Anda siap mengimpor kembali kueri SQL yang bersih!`
+      );
+      setParseResult(null);
+      setShowConfirmClear(false);
+      if (onSuccessRefresh) onSuccessRefresh();
+    } catch (err: any) {
+      console.error('Error clearing territory data:', err);
+      setParseError(err?.message || 'Gagal menghapus data pengurus wilayah ini.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handleProcessSqlQuery = () => {
     if (!sqlQueryInput.trim()) {
@@ -485,9 +559,32 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Tip: Baris dengan wilayah penugasan <strong>DEWAN PERTIMBANGAN</strong> dan <strong>DEWAN PAKAR</strong> akan langsung terisi tepat ke slot dewan bersangkutan.
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmClear(true)}
+                      disabled={isClearing || isParsing || existingTerritoryMembers.length === 0}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={`Hapus semua data ${existingTerritoryMembers.length} pengurus di ${territoryDisplayName} agar bersih sebelum import baru`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                      <span>Hapus Semua Data Wilayah Ini ({existingTerritoryMembers.length})</span>
+                    </button>
+                    {sqlQueryInput.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSqlQueryInput('');
+                          setParseResult(null);
+                          setParseError(null);
+                        }}
+                        className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer"
+                      >
+                        Bersihkan Editor
+                      </button>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleProcessSqlQuery}
@@ -502,6 +599,51 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                     <span>⚡ Proses & Muat Query SQL</span>
                   </button>
                 </div>
+
+                {/* Dialog Konfirmasi Hapus Bersih Data Wilayah */}
+                {showConfirmClear && (
+                  <div className="p-3.5 rounded-xl border border-rose-300 dark:border-rose-900/80 bg-rose-50/90 dark:bg-rose-950/50 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      <div className="text-xs text-rose-900 dark:text-rose-200">
+                        <p className="font-bold">
+                          Konfirmasi Bersihkan Seluruh Data Pengurus {territoryDisplayName}?
+                        </p>
+                        <p className="text-[11px] text-rose-800 dark:text-rose-300 mt-0.5">
+                          Tindakan ini akan menghapus <strong>{existingTerritoryMembers.length} pengurus</strong> di {territoryDisplayName} dari database dan layar matriks. Gunakan jika import sebelumnya gagal/terpotong atau Anda ingin mengulang import SQL dari awal.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmClear(false)}
+                        disabled={isClearing}
+                        className="px-3 py-1 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllTerritoryData}
+                        disabled={isClearing}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {isClearing ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Menghapus...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3 h-3" />
+                            <span>Ya, Hapus Semua Data Wilayah Ini</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

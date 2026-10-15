@@ -43,6 +43,7 @@ interface TerritorialStructurePageProps {
   members: Member[];
   session?: UserSession;
   onSaveMembersBatch: (updatedMembers: Member[]) => void;
+  onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
   initialDpd?: string;
   initialDpc?: string;
   initialDprt?: string;
@@ -55,6 +56,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   members,
   session,
   onSaveMembersBatch,
+  onDeleteMembersBatch,
   initialDpd,
   initialDpc,
   initialDprt,
@@ -316,6 +318,22 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     const updatedMembersList: Member[] = [];
     const occupiedNiks = new Set<string>(members.map((m) => m.nik));
+    const niksToDelete: string[] = [];
+
+    // Deteksi jika ada baris lama (isExisting / originalNik) yang dihapus atau namanya dikosongkan oleh pengguna saat edit
+    const currentActiveOriginalNiks = new Set<string>();
+    gridRows.forEach((row) => {
+      if (row.originalNik && row.namaLengkap.trim()) {
+        currentActiveOriginalNiks.add(row.originalNik);
+      }
+    });
+
+    // Cari data pengurus yang sebelumnya ada di slot/wilayah ini namun sekarang dikosongkan
+    gridRows.forEach((row) => {
+      if (row.originalNik && !row.namaLengkap.trim()) {
+        niksToDelete.push(row.originalNik);
+      }
+    });
 
     gridRows.forEach((row, idx) => {
       const nama = row.namaLengkap.trim();
@@ -339,6 +357,11 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         }
       } else {
         occupiedNiks.add(nikClean);
+      }
+
+      // Jika NIK diubah dari NIK lama, tandai NIK lama untuk dibersihkan
+      if (row.originalNik && row.originalNik !== nikClean) {
+        niksToDelete.push(row.originalNik);
       }
 
       const updatedMember: Member = {
@@ -367,9 +390,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       updatedMembersList.push(updatedMember);
     });
 
+    // Jika ada NIK yang dihapus/dikosongkan saat edit, hapus dari database
+    if (niksToDelete.length > 0 && onDeleteMembersBatch) {
+      onDeleteMembersBatch(niksToDelete, `${level} ${territoryDpd}`);
+    }
+
     onSaveMembersBatch(updatedMembersList);
     setSaveSuccessMsg(
-      `Berhasil menyimpan ${updatedMembersList.length} data pengurus ke database!`
+      `Berhasil menyimpan perubahan ${updatedMembersList.length} data pengurus ke database!`
     );
     setIsEditMode(false);
     setTimeout(() => setSaveSuccessMsg(null), 4000);
@@ -926,6 +954,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         currentMembers={members}
         session={session}
         onSaveMembersBatch={onSaveMembersBatch}
+        onDeleteMembersBatch={onDeleteMembersBatch}
       />
 
       {/* 6. Modal Cetak Dokumen Resmi Susunan Pengurus */}

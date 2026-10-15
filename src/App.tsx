@@ -18,6 +18,7 @@ import {
   upsertSingleMemberToSupabase,
   upsertMembersToSupabase,
   deleteMemberFromSupabase,
+  deleteMembersFromSupabase,
   getAuditLogsFromSupabase,
   insertAuditLogToSupabase,
   getDeletionRequestsFromSupabase,
@@ -441,6 +442,33 @@ export default function App() {
     });
   };
 
+  // 4b. FITUR HAPUS SEMUA DATA PENGURUS TERITORIAL (RESET / BERSIHKAN DATA WILAYAH TERTENTU)
+  const handleBatchDeleteTerritorialMembers = async (niksToDelete: string[], territoryLabel: string) => {
+    if (niksToDelete.length === 0) return;
+
+    const toDeleteSet = new Set(niksToDelete);
+    const remainingMembers = members.filter((m) => !toDeleteSet.has(m.nik));
+    setMembers(remainingMembers);
+    saveMembers(remainingMembers);
+
+    showToast(`Berhasil menghapus ${niksToDelete.length} data pengurus untuk ${territoryLabel}.`);
+
+    if (isSupabaseConfigured()) {
+      deleteMembersFromSupabase(niksToDelete).catch((e) =>
+        console.error('Gagal hapus pengurus teritorial dari Supabase:', e)
+      );
+    }
+
+    recordAuditLog({
+      memberNik: 'DELETE-TERITORIAL',
+      memberName: `${niksToDelete.length} Pengurus ${territoryLabel}`,
+      action: 'DELETE',
+      reason: `Penghapusan/pembersihan seluruh data pengurus teritorial ${territoryLabel} (${niksToDelete.length} data) sebelum import ulang.`,
+      actor: session.adminName,
+      dpd: territoryLabel,
+    });
+  };
+
   // 5. FITUR IMPORT MASSAL DARI SPREADSHEET EXCEL
   const handleImportSuccess = async (newMembers: Member[], count: number) => {
     const combined = [...newMembers, ...members];
@@ -806,6 +834,7 @@ export default function App() {
               members={members}
               session={session}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
+              onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -825,6 +854,7 @@ export default function App() {
               session={session}
               initialDpd={matrixInitialDpd}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
+              onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -845,6 +875,7 @@ export default function App() {
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
+              onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -865,6 +896,7 @@ export default function App() {
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
+              onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);

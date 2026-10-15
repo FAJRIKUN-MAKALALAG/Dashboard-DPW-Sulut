@@ -258,6 +258,28 @@ export async function deleteMemberFromSupabase(nik: string): Promise<boolean> {
   }
 }
 
+/**
+ * Menghapus kumpulan anggota dari Supabase secara massal (Batch Delete)
+ */
+export async function deleteMembersFromSupabase(niks: string[]): Promise<boolean> {
+  if (!supabase || niks.length === 0) return false;
+  try {
+    const chunkSize = 200;
+    for (let i = 0; i < niks.length; i += chunkSize) {
+      const chunk = niks.slice(i, i + chunkSize);
+      const { error } = await supabase.from('members').delete().in('nik', chunk);
+      if (error) {
+        console.error('Error deleteMembersFromSupabase batch:', error);
+        return false;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error('Exception in deleteMembersFromSupabase:', err);
+    return false;
+  }
+}
+
 // ============================================================================
 // 2. AUDIT LOGS (RIWAYAT AUDIT CRUD)
 // ============================================================================
