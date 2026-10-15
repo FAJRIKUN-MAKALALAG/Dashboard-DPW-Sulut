@@ -9,6 +9,7 @@ import {
   DpdStatRow,
 } from '../utils/excelUtils';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
+import anniversaryLogo from '../assets/logo/Logo_15_Ultah.png';
 import {
   Printer,
   Download,
@@ -264,41 +265,47 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
         {/* Printable Official Document Body */}
         <div className="p-6 sm:p-10 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible">
           {/* Official Letterhead (Kop Surat Resmi DPW Partai NasDem Sulut) */}
-          <div className="border-b-4 border-double border-slate-900 pb-4 mb-5 flex items-center justify-between gap-4">
+          <div className="border-b-2 border-blue-900 pb-3 mb-1 flex items-center justify-between gap-4">
             <div className="w-20 h-20 flex items-center justify-center shrink-0">
               <img
                 src={nasdemLogo}
                 alt="Logo Resmi Partai NasDem"
-                className="max-h-20 max-w-full object-contain"
+                className="max-h-20 max-w-full object-contain drop-shadow-sm"
               />
             </div>
 
             <div className="text-center flex-1 px-3">
-              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight uppercase text-slate-950">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight uppercase text-blue-950 font-serif">
                 DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM
               </h1>
-              <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase text-slate-800">
+              <h2 className="text-xs sm:text-sm font-black tracking-wider uppercase text-amber-600">
                 PROVINSI SULAWESI UTARA
               </h2>
-              <h3 className="text-[11px] font-bold tracking-wide uppercase text-blue-900">
+              <h3 className="text-[11px] font-bold tracking-wide uppercase text-slate-800">
                 BADAN PEMENANGAN PEMILU (BAPPILU) & ORGANISASI KEANGGOTAAN KADERISASI (OKK)
               </h3>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-[10px] text-slate-600 mt-0.5">
                 Sekretariat: Jl. Lengkong Wuaya, Paal Dua / Jl. 17 Agustus, Manado, Sulawesi Utara · Telp/WA: (0431) 845201
               </p>
-              <p className="text-[10px] text-slate-500 italic">
+              <p className="text-[9.5px] text-slate-500 italic">
                 Gerakan Perubahan · Restorasi Indonesia · Shadow Database Keanggotaan Mandiri Daerah
               </p>
             </div>
 
-            <div className="w-24 text-right text-[10px] text-slate-500 font-mono shrink-0">
-              <span className="font-bold text-slate-800">DOKUMEN RESMI</span>
-              <br />
-              <span className="text-slate-600">No: 071/DPW-ND/SULUT</span>
-              <br />
-              <span className="text-emerald-700 font-bold">TERVALIDASI RIIL</span>
+            <div className="w-24 shrink-0 flex flex-col items-center justify-center text-center">
+              <img
+                src={anniversaryLogo}
+                alt="HUT NasDem"
+                className="h-14 object-contain mb-1 drop-shadow-sm"
+              />
+              <span className="text-[8.5px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                DOK. RESMI 071
+              </span>
             </div>
           </div>
+
+          {/* Decorative Tri-color Divider Bar */}
+          <div className="h-1 bg-gradient-to-r from-blue-900 via-amber-500 to-blue-900 mb-5 rounded-full" />
 
           {/* Document Title & Subtitle */}
           <div className="text-center mb-5">
@@ -546,11 +553,16 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                 </div>
               </div>
 
-              <div className="text-center w-52">
-                <div className="w-24 h-24 mx-auto border-2 border-dashed border-blue-400 rounded-full flex flex-col items-center justify-center text-[9px] text-blue-900 font-mono p-1">
-                  <span>STEMPEL RESMI</span>
-                  <span className="font-bold text-[10px] text-blue-950">DPW PARTAI NASDEM</span>
-                  <span className="text-[8px] text-slate-600">SULAWESI UTARA</span>
+              <div className="text-center w-52 flex flex-col items-center justify-center">
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full border-2 border-blue-800 p-0.5 flex items-center justify-center">
+                    <div className="w-full h-full rounded-full border border-dashed border-blue-800 flex flex-col items-center justify-center text-blue-900 p-1 text-center select-none rotate-[-6deg]">
+                      <span className="text-[8px] font-black uppercase tracking-wider">★ RESMI ★</span>
+                      <span className="text-[9px] font-black uppercase leading-tight">DPW PARTAI NASDEM</span>
+                      <span className="text-[7.5px] font-bold text-amber-700">SULAWESI UTARA</span>
+                      <span className="text-[6.5px] text-slate-500 font-mono mt-0.5">TERVALIDASI RIIL</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

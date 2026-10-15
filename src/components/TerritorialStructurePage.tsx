@@ -10,7 +10,7 @@ import {
   downloadTerritorialExcelTemplate,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
-import { TerritorialImportExportModal } from './territorial/TerritorialImportExportModal';
+import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
 import {
   Building2,
   Building,
@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Sparkles,
   FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
@@ -98,6 +99,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   // Modal Import Excel Teritorial
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  // Modal Cetak Dokumen Resmi Susunan Pengurus
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
 
   // Territory Context untuk Template Excel dan Import
   const territoryContext: TerritoryContext = useMemo(() => ({
@@ -852,6 +855,15 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           </button>
 
           <button
+            onClick={() => setIsPrintModalOpen(true)}
+            title="Cetak Berkas Susunan Pengurus Resmi (Format Cetak / PDF dengan Kop Surat & Logo Resmi)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-800 dark:text-slate-200 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
+          >
+            <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Cetak / PDF</span>
+          </button>
+
+          <button
             onClick={handleExportTemplateExcel}
             title="Export Data Susunan Pengurus Saat Ini (.xlsx)"
             className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
@@ -883,6 +895,18 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         currentMembers={members}
         session={session}
         onSaveMembersBatch={onSaveMembersBatch}
+      />
+
+      {/* 6. Modal Cetak Dokumen Resmi Susunan Pengurus */}
+      <TerritorialStructurePrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        level={level}
+        dpd={selectedDpd}
+        dpc={selectedDpc}
+        dprt={selectedDprt}
+        gridRows={gridRows}
+        session={session}
       />
     </div>
   );
