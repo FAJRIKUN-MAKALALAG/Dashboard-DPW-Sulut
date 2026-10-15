@@ -1,0 +1,507 @@
+import React, { useState, useRef } from 'react';
+import {
+  X,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+  ArrowRight,
+  Search,
+  Filter,
+  Check,
+  Building2,
+  Building,
+  MapPin,
+  Home,
+  Sparkles,
+  FileText,
+  Loader2,
+} from 'lucide-react';
+import { Member, UserSession } from '../../types';
+import { GridRowItem } from '../matrix';
+import {
+  TerritoryContext,
+  ParseTerritoryExcelResult,
+  downloadTerritorialExcelTemplate,
+  parseTerritorialExcelFile,
+  getTerritoryFilename,
+} from '../../utils/territorialExcelTemplateUtils';
+
+interface TerritorialImportExportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  territoryContext: TerritoryContext;
+  currentRows?: GridRowItem[];
+  currentMembers: Member[];
+  session?: UserSession;
+  onSaveMembersBatch: (newMembers: Member[]) => void;
+  onSuccessRefresh?: () => void;
+}
+
+export const TerritorialImportExportModal: React.FC<TerritorialImportExportModalProps> = ({
+  isOpen,
+  onClose,
+  territoryContext,
+  currentRows,
+  currentMembers,
+  session,
+  onSaveMembersBatch,
+  onSuccessRefresh,
+}) => {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parseResult, setParseResult] = useState<ParseTerritoryExcelResult | null>(null);
+  const [filterMode, setFilterMode] = useState<'all' | 'filled' | 'empty'>('filled');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isOpen) return null;
+
+  // Nama Wilayah untuk Tampilan
+  const territoryDisplayName =
+    territoryContext.level === 'DPW'
+      ? 'DPW Sulawesi Utara'
+      : territoryContext.level === 'DPD'
+      ? `DPD ${territoryContext.dpd}`
+      : territoryContext.level === 'DPC'
+      ? `DPC Kec. ${territoryContext.dpc} (${territoryContext.dpd})`
+      : `DPRt Desa/Kel. ${territoryContext.dprt} - Kec. ${territoryContext.dpc}`;
+
+  const getLevelIcon = () => {
+    switch (territoryContext.level) {
+      case 'DPW':
+        return <Building2 className="w-5 h-5 text-indigo-500" />;
+      case 'DPD':
+        return <Building className="w-5 h-5 text-blue-500" />;
+      case 'DPC':
+        return <MapPin className="w-5 h-5 text-emerald-500" />;
+      case 'DPRt':
+        return <Home className="w-5 h-5 text-amber-500" />;
+    }
+  };
+
+  // Unduh Template
+  const handleDownloadTemplate = () => {
+    downloadTerritorialExcelTemplate(territoryContext, currentRows);
+  };
+
+  // Drag & Drop
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleProcessFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleProcessFile(e.target.files[0]);
+    }
+  };
+
+  const handleProcessFile = async (file: File) => {
+    setSelectedFile(file);
+    setIsParsing(true);
+    setParseError(null);
+    setParseResult(null);
+    setSubmitSuccess(null);
+
+    try {
+      const result = await parseTerritorialExcelFile(
+        file,
+        territoryContext,
+        currentMembers,
+        session?.adminName || 'Admin'
+      );
+      setParseResult(result);
+    } catch (err: any) {
+      console.error('Error parsing excel:', err);
+      setParseError(err?.message || 'Gagal membaca berkas Excel. Pastikan format tabel sesuai panduan.');
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Simpan ke Database
+  const handleApplyImport = async () => {
+    if (!parseResult || parseResult.membersToSave.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      onSaveMembersBatch(parseResult.membersToSave);
+      setSubmitSuccess(
+        `Berhasil menyimpan ${parseResult.membersToSave.length} data pengurus untuk ${territoryDisplayName} ke database!`
+      );
+      if (onSuccessRefresh) onSuccessRefresh();
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      setParseError('Gagal menyimpan pengurus ke database: ' + (err?.message || 'Terjadi kesalahan sistem.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Rows filter untuk preview
+  const filteredRows = (parseResult?.rows || []).filter((r) => {
+    if (filterMode === 'filled' && !r.isFilled) return false;
+    if (filterMode === 'empty' && r.isFilled) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        r.namaLengkap.toLowerCase().includes(q) ||
+        r.jabatanExcel.toLowerCase().includes(q) ||
+        r.nik.toLowerCase().includes(q) ||
+        r.subOrg.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Modal Header */}
+        <div className="px-6 py-4.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/75 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+              {getLevelIcon()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                  Import Susunan Pengurus
+                </h3>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                  {territoryContext.level}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Target Wilayah: <span className="font-semibold text-slate-700 dark:text-slate-200">{territoryDisplayName}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {/* Card Download Template */}
+          <div className="p-4.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-gradient-to-r from-blue-50/60 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" />
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Unduh Template Excel Khusus {territoryDisplayName}
+                </h4>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl">
+                Template ini sudah otomatis memuat seluruh daftar posisi jabatan resmi partai untuk wilayah ini.
+                Anda cukup mengisi kolom <strong>Nama Lengkap</strong> dan <strong>NIK</strong>, lalu unggah kembali di bawah ini.
+              </p>
+            </div>
+            <button
+              onClick={handleDownloadTemplate}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors shrink-0 cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Unduh Template (.xlsx)</span>
+            </button>
+          </div>
+
+          {/* Area Unggah Berkas */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Unggah Berkas Excel Pengurus yang Sudah Diisi:
+            </label>
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+                dragActive
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20'
+                  : 'border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="flex flex-col items-center justify-center gap-2">
+                <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    {selectedFile ? selectedFile.name : 'Klik untuk memilih berkas atau seret ke sini'}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Mendukung format .xlsx, .xls, atau .csv (Sistem akan mencocokkan singkatan jabatan secara cerdas)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Loading Parser */}
+          {isParsing && (
+            <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+              <span>Sedang membaca dan menganalisis berkas Excel pengurus...</span>
+            </div>
+          )}
+
+          {/* Pesan Kesalahan */}
+          {parseError && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-xs text-red-700 dark:text-red-300">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Gagal Membaca Berkas:</p>
+                <p>{parseError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Hasil Parse & Ringkasan KPI */}
+          {parseResult && (
+            <div className="space-y-4">
+              {/* Statistik Ringkas */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                    Total Baris Terbaca
+                  </span>
+                  <span className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                    {parseResult.stats.totalRows}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                  <span className="text-[11px] text-emerald-700 dark:text-emerald-400 block font-medium">
+                    Pengurus Terisi (Nama)
+                  </span>
+                  <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {parseResult.stats.filledRows}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                  <span className="text-[11px] text-blue-700 dark:text-blue-400 block font-medium">
+                    Cocok Template Resmi
+                  </span>
+                  <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    {parseResult.stats.matchedPositions}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                  <span className="text-[11px] text-purple-700 dark:text-purple-400 block font-medium">
+                    Posisi Tambahan / Kustom
+                  </span>
+                  <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                    {parseResult.stats.customPositions}
+                  </span>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar Tabel Preview */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                  <button
+                    onClick={() => setFilterMode('filled')}
+                    className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                      filterMode === 'filled'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Hanya Yang Terisi ({parseResult.stats.filledRows})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('all')}
+                    className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                      filterMode === 'all'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Semua ({parseResult.stats.totalRows})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('empty')}
+                    className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                      filterMode === 'empty'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Posisi Kosong ({parseResult.stats.emptyRows})
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama atau jabatan..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full sm:w-60 pl-8.5 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Tabel Preview */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800/80 sticky top-0 z-10 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="py-2 px-3 w-10">No</th>
+                      <th className="py-2 px-3">Jabatan di Excel</th>
+                      <th className="py-2 px-3">Nama Lengkap & Gelar</th>
+                      <th className="py-2 px-3">No. NIK</th>
+                      <th className="py-2 px-3">Kesesuaian Template</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                    {filteredRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-xs text-slate-400">
+                          Tidak ada baris yang sesuai dengan filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRows.map((r, idx) => (
+                        <tr
+                          key={idx}
+                          className={r.isFilled ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-900/40 text-slate-400'}
+                        >
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-400">
+                            {r.no}
+                          </td>
+                          <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200">
+                            {r.jabatanExcel}
+                          </td>
+                          <td className="py-2 px-3">
+                            {r.namaLengkap ? (
+                              <span className="font-semibold text-blue-700 dark:text-blue-300">
+                                {r.namaLengkap}
+                              </span>
+                            ) : (
+                              <span className="italic text-slate-400">(Belum Terisi)</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                            {r.nik || '-'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {r.isMatched ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
+                                <Check className="w-3 h-3" /> Cocok Template
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400">
+                                <Sparkles className="w-3 h-3" /> Posisi Kustom
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Sukses Alert */}
+          {submitSuccess && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{submitSuccess}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/75 flex items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+            {parseResult ? (
+              <span>
+                Siap mengimpor{' '}
+                <strong className="text-slate-800 dark:text-slate-200">
+                  {parseResult.membersToSave.length}
+                </strong>{' '}
+                pengurus ke database Supabase
+              </span>
+            ) : (
+              <span>Silakan pilih berkas Excel pengurus terlebih dahulu</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5 ml-auto">
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-medium rounded-lg btn-white cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleApplyImport}
+              disabled={!parseResult || parseResult.membersToSave.length === 0 || isSubmitting}
+              className={`inline-flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer ${
+                parseResult && parseResult.membersToSave.length > 0 && !isSubmitting
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Menyimpan ke Database...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>
+                    Simpan & Terapkan Data ({parseResult?.membersToSave.length || 0})
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TerritorialImportExportModal;

@@ -7,6 +7,11 @@ import { matchMemberToSlot } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
+  downloadTerritorialExcelTemplate,
+  TerritoryContext,
+} from '../utils/territorialExcelTemplateUtils';
+import { TerritorialImportExportModal } from './territorial/TerritorialImportExportModal';
+import {
   Building2,
   Building,
   MapPin,
@@ -22,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
@@ -89,6 +95,21 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   // Edit Mode & Messages
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Modal Import Excel Teritorial
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+
+  // Territory Context untuk Template Excel dan Import
+  const territoryContext: TerritoryContext = useMemo(() => ({
+    level,
+    dpd: selectedDpd,
+    dpc: level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined,
+    dprt: level === 'DPRt' ? selectedDprt : undefined,
+  }), [level, selectedDpd, selectedDpc, selectedDprt]);
+
+  const handleDownloadTemplateExcel = () => {
+    downloadTerritorialExcelTemplate(territoryContext, gridRows);
+  };
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -813,27 +834,31 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           )}
 
           <button
-            onClick={handleExportTemplateExcel}
-            title="Download Template Format Excel Resmi"
-            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+            onClick={handleDownloadTemplateExcel}
+            title={`Download Template Input Excel Khusus ${level} (Daftar Jabatan Resmi Sudah Terisi Otomatis)`}
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 cursor-pointer transition-colors shadow-2xs"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Export Excel</span>
+            <span>Template Excel</span>
           </button>
 
-          <label
-            title="Import Susunan Pengurus dari Excel"
-            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            title="Import Susunan Pengurus dari Excel (Pra-tinjau & Validasi Otomatis)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
           >
             <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Import</span>
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleImportExcel}
-              className="hidden"
-            />
-          </label>
+            <span>Import Excel</span>
+          </button>
+
+          <button
+            onClick={handleExportTemplateExcel}
+            title="Export Data Susunan Pengurus Saat Ini (.xlsx)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+            <span>Ekspor Data</span>
+          </button>
         </div>
       </div>
 
@@ -848,6 +873,17 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           onAddNewRowForSubOrg={handleAddNewRow}
         />
       </div>
+
+      {/* 5. Modal Import / Export Excel Teritorial Khusus */}
+      <TerritorialImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        territoryContext={territoryContext}
+        currentRows={gridRows}
+        currentMembers={members}
+        session={session}
+        onSaveMembersBatch={onSaveMembersBatch}
+      />
     </div>
   );
 };
