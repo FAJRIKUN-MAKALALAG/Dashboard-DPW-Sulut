@@ -129,9 +129,43 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   // Matrix rows state
   const [gridRows, setGridRows] = useState<GridRowItem[]>([]);
+  // Tracking deleted members (NIKs) to delete from database upon saving
+  const [deletedMemberNiks, setDeletedMemberNiks] = useState<string[]>([]);
+
+  // Local storage key for custom deleted template slots per territory
+  const territoryKey = useMemo(() => {
+    return `nasdem_deleted_slots_${level}_${selectedDpd}_${selectedDpc || ''}_${selectedDprt || ''}`;
+  }, [level, selectedDpd, selectedDpc, selectedDprt]);
+
+  // Load deleted slot keys for current territory
+  const getStoredDeletedSlotKeys = (): Set<string> => {
+    try {
+      const saved = localStorage.getItem(territoryKey);
+      if (saved) {
+        return new Set<string>(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn('Failed to read deleted slots from localStorage:', e);
+    }
+    return new Set<string>();
+  };
+
+  const saveDeletedSlotKeys = (keys: Set<string>) => {
+    try {
+      localStorage.setItem(territoryKey, JSON.stringify(Array.from(keys)));
+    } catch (e) {
+      console.warn('Failed to save deleted slots to localStorage:', e);
+    }
+  };
+
+  // Helper to get unique slot key for template slots
+  const getSlotKey = (subOrg: string, no: number, jabatan: string) => {
+    return `${subOrg.trim().toLowerCase()}__${no}__${jabatan.trim().toLowerCase()}`;
+  };
 
   // Build matrix whenever territory changes or members change
-  const buildMatrixRows = () => {
+  const buildMatrixRows = (currentDeletedKeys?: Set<string>) => {
+    const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys();
     const template = getStructureTemplate(level);
 
     // Filter existing members in this territory and level with strict hierarchical separation
@@ -175,7 +209,13 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     const assignedMemberNiks = new Set<string>();
 
-    const rows: GridRowItem[] = template.map((slot: PositionSlot, idx: number) => {
+    // Saring template yang tidak dihapus oleh pengguna
+    const activeTemplate = template.filter((slot) => {
+      const key = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
+      return !deletedKeys.has(key);
+    });
+
+    const rows: GridRowItem[] = activeTemplate.map((slot: PositionSlot, idx: number) => {
       // Pencocokan cerdas: mengenali singkatan Bid, HAM, OKK, & / dan, dsb.
       // Serta mengubah nama jabatan di slot agar mengikuti jabatan asli yang diimpor
       const { matchedMember, displayTitle } = matchMemberToSlot(
@@ -257,6 +297,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     buildMatrixRows();
     setIsEditMode(false);
     setSaveSuccessMsg(null);
+    setDeletedMemberNiks([]);
   }, [level, selectedDpd, selectedDpc, selectedDprt, members]);
 
   // Handle Input Changes
@@ -300,9 +341,40 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     setIsEditMode(true);
   };
 
-  // Delete dynamic row
+  // Delete row (works for template slot, custom added row, or existing member)
   const handleDeleteRow = (id: string) => {
+    const targetRow = gridRows.find((r) => r.id === id);
+    if (!targetRow) return;
+
+    // 1. Jika baris memiliki data pengurus riil di database, catat NIK-nya untuk dihapus
+    if (targetRow.originalNik) {
+      setDeletedMemberNiks((prev) => [...prev, targetRow.originalNik!]);
+    } else if (targetRow.nik && targetRow.isExisting) {
+      setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
+    }
+
+    // 2. Simpan tanda bahwa slot template ini dihapus permanen agar tidak muncul kembali saat reload
+    const slotKey = getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan);
+    const deletedKeys = getStoredDeletedSlotKeys();
+    deletedKeys.add(slotKey);
+    saveDeletedSlotKeys(deletedKeys);
+
+    // 3. Hapus baris dari state tabel langsung
     setGridRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  // Reset/Pulihkan semua slot template bawaan partai yang sempat dihapus
+  const handleResetTemplate = () => {
+    if (window.confirm(`Pulihkan seluruh susunan jabatan template standar untuk wilayah ${level} ${selectedDpd}?`)) {
+      try {
+        localStorage.removeItem(territoryKey);
+      } catch (e) {
+        console.warn(e);
+      }
+      buildMatrixRows(new Set<string>());
+      setSaveSuccessMsg('Template standar berhasil dipulihkan!');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    }
   };
 
   // Save changes to database
@@ -318,7 +390,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     const updatedMembersList: Member[] = [];
     const occupiedNiks = new Set<string>(members.map((m) => m.nik));
-    const niksToDelete: string[] = [];
+    const niksToDelete: string[] = [...deletedMemberNiks];
 
     // Deteksi jika ada baris lama (isExisting / originalNik) yang dihapus atau namanya dikosongkan oleh pengguna saat edit
     const currentActiveOriginalNiks = new Set<string>();
@@ -841,6 +913,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>Simpan Perubahan</span>
+              </button>
+              <button
+                onClick={handleResetTemplate}
+                title="Pulihkan seluruh kolom/baris susunan pengurus ke template bawaan standar partai"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-400 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Reset Template</span>
               </button>
               <button
                 onClick={() => {
