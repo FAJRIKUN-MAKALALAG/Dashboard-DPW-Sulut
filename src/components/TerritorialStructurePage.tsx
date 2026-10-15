@@ -3,7 +3,7 @@ import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
-import { matchMemberToSlot } from '../utils/jobMatchingUtils';
+import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
@@ -14,6 +14,7 @@ import {
   downloadMassAdvisoryOnlyExcelTemplateAllDpds,
   downloadMassExpertOnlyExcelTemplateAllDpds,
   downloadMassAdvisoryAndExpertExcelTemplateAllDpds,
+  generateUniqueTerritoryNik,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
 import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
@@ -219,36 +220,15 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       if (!assignedMemberNiks.has(m.nik)) {
         const jLower = m.jabatan?.toLowerCase() || '';
         const wLower = m.wilayahPenugasan?.toLowerCase() || '';
-        let detectedSubOrg = m.wilayahPenugasan;
-        if (!detectedSubOrg) {
-          if (level === 'DPD') {
-            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
-              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
-            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
-              detectedSubOrg = 'II. DEWAN PAKAR';
-            } else {
-              detectedSubOrg = 'III. DEWAN PIMPINAN DAERAH';
-            }
-          } else if (level === 'DPC') {
-            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
-              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
-            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
-              detectedSubOrg = 'II. DEWAN PAKAR';
-            } else {
-              detectedSubOrg = 'III. DEWAN PIMPINAN CABANG';
-            }
-          } else if (level === 'DPW') {
-            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
-              detectedSubOrg = 'DEWAN PERTIMBANGAN WILAYAH';
-            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
-              detectedSubOrg = 'DEWAN PAKAR WILAYAH';
-            } else {
-              detectedSubOrg = 'DEWAN PIMPINAN WILAYAH';
-            }
-          } else {
-            detectedSubOrg = 'DEWAN PIMPINAN RANTING';
-          }
-        }
+        const detectedSubOrg = normalizeSubOrgName(
+          m.wilayahPenugasan ||
+            (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')
+              ? 'DEWAN PERTIMBANGAN'
+              : jLower.includes('pakar') || wLower.includes('pakar')
+              ? 'DEWAN PAKAR'
+              : undefined),
+          level
+        );
 
         assignedMemberNiks.add(m.nik);
         rows.push({
@@ -335,19 +315,31 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     const territoryDprt = level === 'DPRt' ? selectedDprt : 'Pusat/Umum';
 
     const updatedMembersList: Member[] = [];
+    const occupiedNiks = new Set<string>(members.map((m) => m.nik));
 
     gridRows.forEach((row, idx) => {
       const nama = row.namaLengkap.trim();
       if (!nama) return;
 
+      const existingMember = members.find(
+        (m) =>
+          (row.originalNik && m.nik === row.originalNik) ||
+          (row.nik && m.nik === row.nik.trim()) ||
+          (m.dpd === territoryDpd &&
+            (m.wilayahPenugasan || '').trim().toLowerCase() === (row.subOrg || '').trim().toLowerCase() &&
+            isJobTitleMatch(m.jabatan, row.jabatan))
+      );
+
       let nikClean = row.nik.replace(/[^0-9]/g, '').trim();
       if (!nikClean || nikClean.length < 10) {
-        nikClean = `71002026${String(10000000 + idx).slice(-8)}`;
+        if (existingMember && existingMember.nik) {
+          nikClean = existingMember.nik;
+        } else {
+          nikClean = generateUniqueTerritoryNik(territoryDpd, row.subOrg, idx + 1, occupiedNiks);
+        }
+      } else {
+        occupiedNiks.add(nikClean);
       }
-
-      const existingMember = members.find(
-        (m) => m.nik === row.originalNik || m.nik === nikClean
-      );
 
       const updatedMember: Member = {
         ...(existingMember || {}),

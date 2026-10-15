@@ -41,6 +41,7 @@ import { DeletionRequestModal } from './components/DeletionRequestModal';
 import { DeletionApprovalModal } from './components/DeletionApprovalModal';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
+import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
 import { LoginPage } from './components/LoginPage';
 import {
   Printer,
@@ -397,8 +398,24 @@ export default function App() {
     const membersMap = new Map<string, Member>();
     // Masukkan data lama
     members.forEach((m) => membersMap.set(m.nik, m));
+
     // Timpa / tambahkan data pengurus baru yang diedit
-    incomingMembers.forEach((m) => membersMap.set(m.nik, m));
+    incomingMembers.forEach((inc) => {
+      // Hapus data lama HANYA jika sebelumnya slot posisi yang sama terisi oleh NIK dummy/placeholder
+      for (const [oldNik, oldMem] of membersMap.entries()) {
+        if (
+          oldNik !== inc.nik &&
+          oldMem.dpd === inc.dpd &&
+          normalizeSubOrgName(oldMem.wilayahPenugasan, (oldMem.tingkatKepengurusan as any) || 'DPD') ===
+            normalizeSubOrgName(inc.wilayahPenugasan, (inc.tingkatKepengurusan as any) || 'DPD') &&
+          isJobTitleMatch(oldMem.jabatan, inc.jabatan) &&
+          (oldNik.startsWith('71002026') || oldNik.includes('-DPD-') || oldNik.includes('-DPW-') || oldNik.includes('new_row_'))
+        ) {
+          membersMap.delete(oldNik);
+        }
+      }
+      membersMap.set(inc.nik, inc);
+    });
 
     const combined = Array.from(membersMap.values());
     setMembers(combined);

@@ -203,3 +203,34 @@ export function matchMemberToSlot(
     displayTitle: slot.jabatan,
   };
 }
+
+/**
+ * Normalisasi nama sub-organisasi ke nama standar template resmi
+ * Contoh:
+ * - "DEWAN PERTIMBANGAN", "I. DEWAN PERTIMBANGAN", "Dewan Pertimbangan Daerah" -> "I. DEWAN PERTIMBANGAN" (DPD/DPC) atau "DEWAN PERTIMBANGAN WILAYAH" (DPW)
+ * - "DEWAN PAKAR", "II. DEWAN PAKAR", "Dewan Pakar Daerah" -> "II. DEWAN PAKAR" (DPD/DPC) atau "DEWAN PAKAR WILAYAH" (DPW)
+ * - "DEWAN PIMPINAN DAERAH", "III. DEWAN PIMPINAN DAERAH" -> "III. DEWAN PIMPINAN DAERAH"
+ */
+export function normalizeSubOrgName(
+  rawSubOrg?: string,
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt' = 'DPD'
+): string {
+  const str = (rawSubOrg || '').toLowerCase().trim();
+  if (level === 'DPW') {
+    if (str.includes('pertimbangan')) return 'DEWAN PERTIMBANGAN WILAYAH';
+    if (str.includes('pakar')) return 'DEWAN PAKAR WILAYAH';
+    return 'DEWAN PIMPINAN WILAYAH';
+  } else if (level === 'DPC') {
+    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    return 'III. DEWAN PIMPINAN CABANG';
+  } else if (level === 'DPRt') {
+    return 'DEWAN PIMPINAN RANTING';
+  } else {
+    // DPD
+    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    return 'III. DEWAN PIMPINAN DAERAH';
+  }
+}
+

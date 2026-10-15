@@ -762,6 +762,47 @@ export function downloadMassAdvisoryAndExpertExcelTemplateAllDpds(): void {
 }
 
 /**
+ * Menghasilkan NIK 16-digit unik dan anti-tabrakan untuk pengurus teritorial
+ * yang belum memiliki NIK KTP di berkas Excel atau form input.
+ * Skema penomoran anti-tabrakan:
+ * - Digit 1-2: Kode Provinsi 71 (Sulawesi Utara)
+ * - Digit 3-4: Kode DPD (01..15, atau 00 untuk DPW)
+ * - Digit 5-6: Kode Sub-Organisasi (11: Dewan Pertimbangan, 22: Dewan Pakar, 33: Dewan Pimpinan, 44: Lainnya)
+ * - Digit 7-10: Tahun 2026
+ * - Digit 11-16: Nomor urut (000001..999999)
+ */
+export function generateUniqueTerritoryNik(
+  dpdName: string,
+  subOrg: string,
+  seq: number,
+  occupiedNiks: Set<string>
+): string {
+  const regIdx = SULUT_REGIONS.findIndex((r) => isDpdMatch(r.name, dpdName));
+  const dpdCode = regIdx !== -1 ? String(regIdx + 1).padStart(2, '0') : '00';
+
+  const subLower = (subOrg || '').toLowerCase();
+  let councilCode = '33'; // Default Dewan Pimpinan
+  if (subLower.includes('pertimbangan')) {
+    councilCode = '11';
+  } else if (subLower.includes('pakar')) {
+    councilCode = '22';
+  } else if (subLower.includes('cabang') || subLower.includes('ranting')) {
+    councilCode = '44';
+  }
+
+  let counter = Math.max(1, seq);
+  let candidate = '';
+  do {
+    const seqStr = String(counter).padStart(6, '0').slice(-6);
+    candidate = `71${dpdCode}${councilCode}2026${seqStr}`;
+    counter++;
+  } while (occupiedNiks.has(candidate));
+
+  occupiedNiks.add(candidate);
+  return candidate;
+}
+
+/**
  * 3. Membaca & Mem-parse berkas Excel yang diunggah pengguna (Mendukung multi-sheet otomatis)
  */
 export async function parseTerritorialExcelFile(
@@ -780,6 +821,7 @@ export async function parseTerritorialExcelFile(
   const slots = getStructureTemplate(ctx.level);
   const parsedRows: ParsedTerritoryRow[] = [];
   const membersToSave: Member[] = [];
+  const occupiedNiks = new Set<string>(currentMembers.map((m) => m.nik));
 
   const territoryDpd = ctx.dpd;
   const territoryDpc =
@@ -807,15 +849,49 @@ export async function parseTerritorialExcelFile(
     const rawData: (string | number)[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
     if (!rawData || rawData.length === 0) continue;
 
-    // Cari baris header pada sheet ini
+    // Default subOrg dari nama sheet jika ada
+    let defaultSubOrg = '';
+    if (sheetLower.includes('pertimbangan')) {
+      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+    } else if (sheetLower.includes('pakar')) {
+      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+    }
+
+    // Cari baris header pada sheet ini secara cerdas & toleran
     let headerRowIdx = -1;
-    for (let i = 0; i < Math.min(10, rawData.length); i++) {
+    let colNo = -1;
+    let colDpd = -1;
+    let colSubOrg = -1;
+    let colJabatan = -1;
+    let colNama = -1;
+    let colNik = -1;
+    let colEkta = -1;
+    let colGender = -1;
+    let colHp = -1;
+    let colEmail = -1;
+    let colAlamat = -1;
+
+    for (let i = 0; i < Math.min(15, rawData.length); i++) {
       const row = rawData[i] || [];
       const validCells = row.filter((c) => String(c || '').trim() !== '');
-      if (validCells.length >= 3) {
+      if (validCells.length >= 2) {
         const rowLower = row.map((c) => String(c || '').toLowerCase().trim());
-        const hasJabatan = rowLower.some((c) => c.includes('jabatan') || c.includes('posisi'));
-        const hasNama = rowLower.some((c) => c.includes('nama'));
+        const hasJabatan = rowLower.some(
+          (c) =>
+            c.includes('jabatan') ||
+            c.includes('posisi') ||
+            c.includes('tugas') ||
+            c.includes('struktur') ||
+            c.includes('peran')
+        );
+        const hasNama = rowLower.some(
+          (c) =>
+            c.includes('nama') ||
+            c.includes('kader') ||
+            c.includes('pengurus') ||
+            c.includes('anggota') ||
+            c.includes('person')
+        );
         if (hasJabatan && hasNama) {
           headerRowIdx = i;
           break;
@@ -823,42 +899,97 @@ export async function parseTerritorialExcelFile(
       }
     }
 
-    if (headerRowIdx === -1) continue;
+    // Fallback: Jika tidak ada baris header formal, periksa apakah baris awal langsung berisi nama jabatan
+    if (headerRowIdx === -1) {
+      for (let i = 0; i < Math.min(5, rawData.length); i++) {
+        const row = rawData[i] || [];
+        const c0 = String(row[0] || '').toLowerCase().trim();
+        const c1 = String(row[1] || '').toLowerCase().trim();
+        const c2 = String(row[2] || '').toLowerCase().trim();
+        const isPos = (s: string) =>
+          s.includes('ketua') || s.includes('sekretaris') || s.includes('bendahara') || s.includes('anggota') || s.includes('wakil');
+        if (isPos(c0) || isPos(c1) || isPos(c2)) {
+          headerRowIdx = i - 1; // loop data akan mulai tepat dari index i
+          if (isPos(c0)) {
+            colJabatan = 0;
+            colNama = 1;
+          } else if (isPos(c1)) {
+            colJabatan = 1;
+            colNama = 2;
+          } else {
+            colSubOrg = 1;
+            colJabatan = 2;
+            colNama = 3;
+          }
+          break;
+        }
+      }
+    }
 
-    const headers = (rawData[headerRowIdx] || []).map((h) =>
-      String(h || '').toLowerCase().trim()
-    );
+    if (headerRowIdx === -1 && rawData.length > 0) {
+      // Default ke baris 0 jika berkas memiliki data
+      headerRowIdx = 0;
+    }
 
-    const colNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
-    const colDpd = headers.findIndex(
-      (h) =>
-        h === 'dpd' ||
-        h.includes('kabupaten') ||
-        h.includes('kota') ||
-        h.includes('daerah') ||
-        h.includes('wilayah') ||
-        h.includes('nama dpd')
-    );
-    const colSubOrg = headers.findIndex((h) => h.includes('sub organisasi') || h.includes('sub'));
-    const colJabatan = headers.findIndex((h) => h.includes('jabatan') || h.includes('posisi'));
-    const colNama = headers.findIndex((h) => h.includes('nama'));
-    const colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
-    const colEkta = headers.findIndex((h) => h.includes('kta') || h.includes('ekta'));
-    const colGender = headers.findIndex(
-      (h) => h.includes('kelamin') || h.includes('gender') || h === 'jk'
-    );
-    const colHp = headers.findIndex(
-      (h) => h.includes('hp') || h.includes('wa') || h.includes('telepon') || h.includes('whatsapp')
-    );
-    const colEmail = headers.findIndex((h) => h.includes('email') || h.includes('surel'));
-    const colAlamat = headers.findIndex((h) => h.includes('alamat'));
+    if (headerRowIdx !== -1 && (colJabatan === -1 || colNama === -1)) {
+      const headers = (rawData[headerRowIdx] || []).map((h) =>
+        String(h || '').toLowerCase().trim()
+      );
 
-    // Default subOrg dari nama sheet jika ada
-    let defaultSubOrg = '';
-    if (sheetLower.includes('pertimbangan')) {
-      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
-    } else if (sheetLower.includes('pakar')) {
-      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+      colNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
+      colDpd = headers.findIndex(
+        (h) =>
+          h === 'dpd' ||
+          h.includes('kabupaten') ||
+          h.includes('kota') ||
+          h.includes('daerah') ||
+          h.includes('wilayah') ||
+          h.includes('nama dpd')
+      );
+      colSubOrg = headers.findIndex(
+        (h) =>
+          h.includes('sub organisasi') ||
+          h.includes('sub') ||
+          h.includes('organisasi') ||
+          h.includes('dewan') ||
+          h.includes('divisi') ||
+          h.includes('bidang')
+      );
+      colJabatan = headers.findIndex(
+        (h) =>
+          h.includes('jabatan') ||
+          h.includes('posisi') ||
+          h.includes('tugas') ||
+          h.includes('struktur') ||
+          h.includes('peran')
+      );
+      colNama = headers.findIndex(
+        (h) =>
+          h.includes('nama') ||
+          h.includes('kader') ||
+          h.includes('pengurus') ||
+          h.includes('anggota') ||
+          h.includes('lengkap')
+      );
+      colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
+      colEkta = headers.findIndex((h) => h.includes('kta') || h.includes('ekta'));
+      colGender = headers.findIndex(
+        (h) => h.includes('kelamin') || h.includes('gender') || h === 'jk' || h === 'sex'
+      );
+      colHp = headers.findIndex(
+        (h) =>
+          h.includes('hp') ||
+          h.includes('wa') ||
+          h.includes('telepon') ||
+          h.includes('whatsapp') ||
+          h.includes('kontak')
+      );
+      colEmail = headers.findIndex((h) => h.includes('email') || h.includes('surel') || h.includes('mail'));
+      colAlamat = headers.findIndex((h) => h.includes('alamat') || h.includes('domisili'));
+
+      // Jika belum ketemu, cari kolom pertama yang bukan nomor untuk jabatan dan nama
+      if (colJabatan === -1) colJabatan = 1;
+      if (colNama === -1) colNama = 2;
     }
 
     for (let i = headerRowIdx + 1; i < rawData.length; i++) {
@@ -903,16 +1034,43 @@ export async function parseTerritorialExcelFile(
       }
 
       const isFilled = namaVal.length > 0;
+      const finalSubOrg =
+        subOrgVal ||
+        matchedSlot?.subOrg ||
+        (rowLevel === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${rowLevel}`);
+
       if (isFilled) {
         filledCount++;
 
+        // 1. Cari apakah kader sebelumnya sudah menempati slot persis ini
+        const existingSlotMember = currentMembers.find(
+          (m) =>
+            isDpdMatch(m.dpd, rowDpd) &&
+            (m.wilayahPenugasan || '').trim().toLowerCase() === finalSubOrg.trim().toLowerCase() &&
+            isJobTitleMatch(m.jabatan, jabatanVal)
+        );
+
+        // 2. Tentukan NIK: Jika kosong, gunakan NIK lama pada slot ini, atau generate NIK unik anti-tabrakan
         if (!nikVal || nikVal.length < 10) {
-          nikVal = `71002026${String(10000000 + parsedRows.length + 1).slice(-8)}`;
+          if (existingSlotMember && existingSlotMember.nik) {
+            nikVal = existingSlotMember.nik;
+          } else {
+            nikVal = generateUniqueTerritoryNik(
+              rowDpd,
+              finalSubOrg,
+              parsedRows.length + 1,
+              occupiedNiks
+            );
+          }
+        } else {
+          occupiedNiks.add(nikVal);
         }
 
-        const existingMember = currentMembers.find(
-          (m) => m.nik === nikVal || (ektaVal && m.nomorEKTA === ektaVal)
-        );
+        const existingMember =
+          existingSlotMember ||
+          currentMembers.find(
+            (m) => m.nik === nikVal || (ektaVal && m.nomorEKTA === ektaVal)
+          );
 
         const memberObj: Member = {
           ...(existingMember || {}),
@@ -933,10 +1091,7 @@ export async function parseTerritorialExcelFile(
           dprt: territoryDprt,
           isPengurus: true,
           tingkatKepengurusan: rowLevel,
-          wilayahPenugasan:
-            subOrgVal ||
-            matchedSlot?.subOrg ||
-            (rowLevel === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${rowLevel}`),
+          wilayahPenugasan: finalSubOrg,
           jabatan: jabatanVal || matchedSlot?.jabatan || 'Pengurus',
           status: 'Aktif',
           statusKtpVerified: true,
@@ -952,7 +1107,7 @@ export async function parseTerritorialExcelFile(
       parsedRows.push({
         no: noVal,
         dpd: rowDpd,
-        subOrg: subOrgVal || matchedSlot?.subOrg || `DEWAN PIMPINAN ${rowLevel}`,
+        subOrg: finalSubOrg,
         jabatanExcel: jabatanVal || 'Pengurus',
         jabatanMatched: matchedSlot?.jabatan,
         isMatched,
@@ -971,7 +1126,7 @@ export async function parseTerritorialExcelFile(
 
   if (parsedRows.length === 0) {
     throw new Error(
-      'Format header tabel tidak dikenali atau berkas kosong. Pastikan tabel memiliki kolom "Jabatan Pengurus" dan "Nama Lengkap".'
+      'Berkas Excel kosong atau tidak memiliki baris data nama pengurus. Pastikan tabel memiliki kolom "Jabatan Pengurus" dan "Nama Lengkap".'
     );
   }
 
