@@ -3,6 +3,7 @@ import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import { matchMemberToSlot } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
@@ -104,7 +105,12 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     let matchedMembers: Member[] = [];
     if (level === 'DPW') {
       matchedMembers = members.filter(
-        (m) => m.tingkatKepengurusan === 'DPW' || m.dpd === 'Sulawesi Utara'
+        (m) =>
+          m.tingkatKepengurusan === 'DPW' ||
+          m.dpd === 'Sulawesi Utara' ||
+          m.wilayahPenugasan === 'DPW' ||
+          m.wilayahPenugasan?.includes('DPW') ||
+          (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
       );
     } else if (level === 'DPD') {
       matchedMembers = members.filter(
@@ -113,8 +119,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           (m.tingkatKepengurusan === 'DPD' ||
             m.dpc === 'Umum (DPD)' ||
             m.dpc === 'Wilayah DPD' ||
-            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD')) ||
-            (m.isPengurus && (!m.dpc || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)')))
+            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
+            (m.isPengurus && (m.tingkatKepengurusan === 'DPD' || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
       );
     } else if (level === 'DPC') {
       matchedMembers = members.filter(
@@ -134,78 +140,32 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       );
     }
 
-    // Normalizer helper
-    const cleanStr = (s: string) =>
-      s
-        .toLowerCase()
-        .replace(/bidang/g, 'bid')
-        .replace(/usaha mikro kecil dan menengah/g, 'umkm')
-        .replace(/&/g, 'dan')
-        .replace(/[^a-z0-9]/g, '');
-
     const assignedMemberNiks = new Set<string>();
 
     const rows: GridRowItem[] = template.map((slot: PositionSlot, idx: number) => {
-      const slotClean = cleanStr(slot.jabatan);
-      const isSlotPertimbangan = slot.subOrg.toLowerCase().includes('pertimbangan');
-      const isSlotPakar = slot.subOrg.toLowerCase().includes('pakar');
-      const isSlotPimpinan = !isSlotPertimbangan && !isSlotPakar;
-
-      // Filter anggota yang relevan dengan sub-organisasi
-      const relevantMembers = matchedMembers.filter((m) => {
-        if (assignedMemberNiks.has(m.nik)) return false;
-        const jLower = m.jabatan?.toLowerCase() || '';
-        const wLower = m.wilayahPenugasan?.toLowerCase() || '';
-        const isMemPertimbangan = jLower.includes('pertimbangan') || wLower.includes('pertimbangan');
-        const isMemPakar = jLower.includes('pakar') || wLower.includes('pakar');
-
-        if (isSlotPertimbangan) return isMemPertimbangan;
-        if (isSlotPakar) return isMemPakar;
-        if (isSlotPimpinan) return !isMemPertimbangan && !isMemPakar;
-        return true;
-      });
-
-      let assignedMember = relevantMembers.find(
-        (m) => cleanStr(m.jabatan) === slotClean
+      // Pencocokan cerdas: mengenali singkatan Bid, HAM, OKK, & / dan, dsb.
+      // Serta mengubah nama jabatan di slot agar mengikuti jabatan asli yang diimpor
+      const { matchedMember, displayTitle } = matchMemberToSlot(
+        slot,
+        matchedMembers,
+        assignedMemberNiks
       );
 
-      if (!assignedMember && slotClean.includes('ketua')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('ketua') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-      if (!assignedMember && slotClean.includes('sekretaris')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('sekretaris') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-      if (!assignedMember && slotClean.includes('bendahara')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('bendahara') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-
-      if (assignedMember) {
-        assignedMemberNiks.add(assignedMember.nik);
+      if (matchedMember) {
+        assignedMemberNiks.add(matchedMember.nik);
         return {
-          id: assignedMember.nik,
+          id: matchedMember.nik,
           no: slot.no,
           subOrg: slot.subOrg,
-          jabatan: assignedMember.jabatan || slot.jabatan,
-          namaLengkap: assignedMember.namaLengkap,
-          nik: assignedMember.nik,
-          nomorEKTA: assignedMember.nomorEKTA || '',
-          email: assignedMember.email || '',
-          nomorHP: assignedMember.nomorHP || '',
-          sosmed: assignedMember.sosmed || '',
+          jabatan: displayTitle,
+          namaLengkap: matchedMember.namaLengkap,
+          nik: matchedMember.nik,
+          nomorEKTA: matchedMember.nomorEKTA || '',
+          email: matchedMember.email || '',
+          nomorHP: matchedMember.nomorHP || '',
+          sosmed: matchedMember.sosmed || '',
           isExisting: true,
-          originalNik: assignedMember.nik,
+          originalNik: matchedMember.nik,
         };
       }
 
@@ -224,7 +184,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       };
     });
 
-    // Anggota ekstra yang belum masuk ke slot standar
+    // Anggota ekstra/tambahan dari database yang belum masuk ke slot standar template
     matchedMembers.forEach((m) => {
       if (!assignedMemberNiks.has(m.nik)) {
         const jLower = m.jabatan?.toLowerCase() || '';
@@ -247,11 +207,20 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
             } else {
               detectedSubOrg = 'III. DEWAN PIMPINAN CABANG';
             }
+          } else if (level === 'DPW') {
+            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
+              detectedSubOrg = 'DEWAN PERTIMBANGAN WILAYAH';
+            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
+              detectedSubOrg = 'DEWAN PAKAR WILAYAH';
+            } else {
+              detectedSubOrg = 'DEWAN PIMPINAN WILAYAH';
+            }
           } else {
-            detectedSubOrg = level;
+            detectedSubOrg = 'DEWAN PIMPINAN RANTING';
           }
         }
 
+        assignedMemberNiks.add(m.nik);
         rows.push({
           id: m.nik,
           no: rows.filter((r) => r.subOrg === detectedSubOrg).length + 1,
