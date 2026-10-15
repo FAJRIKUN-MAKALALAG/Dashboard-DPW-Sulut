@@ -1,21 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from './types';
 import {
   loadMembers,
   saveMembers,
   loadAuditLogs,
+  saveAuditLogs,
   appendAuditLog,
   loadSession,
   saveSession,
   resetToDefaultSeeds,
   loadDeletionRequests,
-  appendDeletionRequest,
-  updateDeletionRequest,
+  saveDeletionRequests,
 } from './utils/storage';
 import {
-  getMembersFromSupabase,
-  upsertMembersToSupabase,
   isSupabaseConfigured,
+  getMembersFromSupabase,
+  upsertSingleMemberToSupabase,
+  upsertMembersToSupabase,
+  deleteMemberFromSupabase,
+  getAuditLogsFromSupabase,
+  insertAuditLogToSupabase,
+  getDeletionRequestsFromSupabase,
+  insertDeletionRequestToSupabase,
+  updateDeletionRequestInSupabase,
+  subscribeToAllRealtime,
 } from './utils/supabaseClient';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { MemberManagement } from './components/MemberManagement';
@@ -31,34 +39,25 @@ import { RoleSwitcherModal } from './components/RoleSwitcherModal';
 import { AuditTrailModal } from './components/AuditTrailModal';
 import { DeletionRequestModal } from './components/DeletionRequestModal';
 import { DeletionApprovalModal } from './components/DeletionApprovalModal';
-import { TerritorialMatrixModal } from './components/TerritorialMatrixModal';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { LoginPage } from './components/LoginPage';
-import nasdemLogo from './assets/logo/logo_nasdem.png';
 import {
-  Users,
-  LayoutDashboard,
-  Shield,
-  Key,
-  Table,
-  Upload,
   Printer,
-  History,
   RotateCcw,
   CheckCircle2,
-  ShieldCheck,
-  Building,
-  UserCheck,
   Sun,
   Moon,
-  LogOut,
   Menu,
+  Radio,
 } from 'lucide-react';
 
 export default function App() {
   const [members, setMembers] = useState<Member[]>(() => loadMembers());
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadAuditLogs());
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>(() =>
+    loadDeletionRequests()
+  );
   const [session, setSession] = useState<UserSession>(() => loadSession());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true';
@@ -66,24 +65,135 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<MainNavTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
+  const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
 
-  // Sinkronisasi otomatis dengan Cloud Database Supabase saat startup
+  // Notification toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  }, []);
+
+  // ============================================================================
+  // REALTIME DATABASE SYNCHRONIZATION (SUPABASE LIVE + WEBSOCKETS)
+  // ============================================================================
   useEffect(() => {
-    async function syncCloudDatabase() {
-      if (isSupabaseConfigured()) {
-        try {
-          const cloudData = await getMembersFromSupabase();
-          if (cloudData !== null) {
-            setMembers(cloudData);
-            saveMembers(cloudData);
-            setIsCloudConnected(true);
-          }
-        } catch (err) {
-          console.error('Error connecting to Supabase cloud:', err);
+    if (!isSupabaseConfigured()) {
+      setIsCloudConnected(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    // 1. Initial Load from Supabase (Members, Audit Logs, Deletion Requests)
+    async function loadInitialCloudData() {
+      try {
+        const [cloudMembers, cloudLogs, cloudRequests] = await Promise.all([
+          getMembersFromSupabase(),
+          getAuditLogsFromSupabase(),
+          getDeletionRequestsFromSupabase(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (cloudMembers && cloudMembers.length > 0) {
+          setMembers(cloudMembers);
+          saveMembers(cloudMembers);
         }
+        if (cloudLogs && cloudLogs.length > 0) {
+          setAuditLogs(cloudLogs);
+          saveAuditLogs(cloudLogs);
+        }
+        if (cloudRequests && cloudRequests.length > 0) {
+          setDeletionRequests(cloudRequests);
+          saveDeletionRequests(cloudRequests);
+        }
+
+        setIsCloudConnected(true);
+      } catch (err) {
+        console.error('Gagal sinkronisasi awal dengan Supabase:', err);
       }
     }
-    syncCloudDatabase();
+
+    loadInitialCloudData();
+
+    // 2. Realtime WebSocket Subscription on all 3 tables
+    const unsubscribe = subscribeToAllRealtime({
+      onMemberChange: (eventType, payload) => {
+        if (!isMounted) return;
+        setIsRealtimeActive(true);
+
+        setMembers((prev) => {
+          let updated: Member[];
+          if (eventType === 'DELETE') {
+            const deleteNik = (payload as { nik: string }).nik;
+            updated = prev.filter((m) => m.nik !== deleteNik);
+          } else if (eventType === 'INSERT') {
+            const newMember = payload as Member;
+            const exists = prev.some((m) => m.nik === newMember.nik);
+            if (exists) {
+              updated = prev.map((m) => (m.nik === newMember.nik ? newMember : m));
+            } else {
+              updated = [newMember, ...prev];
+            }
+          } else {
+            // UPDATE
+            const updatedMember = payload as Member;
+            const exists = prev.some((m) => m.nik === updatedMember.nik);
+            if (exists) {
+              updated = prev.map((m) => (m.nik === updatedMember.nik ? updatedMember : m));
+            } else {
+              updated = [updatedMember, ...prev];
+            }
+          }
+          saveMembers(updated);
+          return updated;
+        });
+      },
+
+      onAuditLogInsert: (newLog) => {
+        if (!isMounted) return;
+        setIsRealtimeActive(true);
+
+        setAuditLogs((prev) => {
+          if (prev.some((l) => l.id === newLog.id)) return prev;
+          const updated = [newLog, ...prev];
+          saveAuditLogs(updated);
+          return updated;
+        });
+      },
+
+      onDeletionRequestChange: (eventType, payload) => {
+        if (!isMounted) return;
+        setIsRealtimeActive(true);
+
+        setDeletionRequests((prev) => {
+          let updated: DeletionRequest[];
+          if (eventType === 'DELETE') {
+            const deleteId = (payload as { id: string }).id;
+            updated = prev.filter((r) => r.id !== deleteId);
+          } else if (eventType === 'INSERT') {
+            const newReq = payload as DeletionRequest;
+            if (prev.some((r) => r.id === newReq.id)) return prev;
+            updated = [newReq, ...prev];
+          } else {
+            // UPDATE
+            const updatedReq = payload as DeletionRequest;
+            updated = prev.map((r) => (r.id === updatedReq.id ? updatedReq : r));
+          }
+          saveDeletionRequests(updated);
+          return updated;
+        });
+      },
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const handleLoginSuccess = (userSession: UserSession) => {
@@ -136,47 +246,54 @@ export default function App() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
-  // Territorial Matrix Modal state
-  const [isTerritorialMatrixOpen, setIsTerritorialMatrixOpen] = useState(false);
+  // Initial territory selector for territorial pages
   const [matrixInitialDpd, setMatrixInitialDpd] = useState<string | undefined>(undefined);
   const [matrixInitialDpc, setMatrixInitialDpc] = useState<string | undefined>(undefined);
 
   // Deletion requests state & modals
-  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>(() =>
-    loadDeletionRequests()
-  );
   const [isDeletionApprovalOpen, setIsDeletionApprovalOpen] = useState(false);
   const [isDeletionRequestOpen, setIsDeletionRequestOpen] = useState(false);
   const [deletionTargetMember, setDeletionTargetMember] = useState<Member | null>(null);
 
   const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
 
-  // Notification toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Helper untuk menambah catatan audit ke database Supabase & local storage
+  const recordAuditLog = async (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
+    // 1. Simpan ke local storage
+    appendAuditLog(logData);
+    setAuditLogs(loadAuditLogs());
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
-
-  // Sync to local storage & Supabase Cloud
-  const updateMembersState = (newMembers: Member[]) => {
-    setMembers(newMembers);
-    saveMembers(newMembers);
+    // 2. Simpan ke Supabase secara real-time
     if (isSupabaseConfigured()) {
-      upsertMembersToSupabase(newMembers).catch((e) =>
-        console.error('Failed to sync changes to Supabase:', e)
-      );
+      try {
+        await insertAuditLogToSupabase(logData);
+      } catch (err) {
+        console.error('Gagal mencatat audit log ke Supabase:', err);
+      }
     }
   };
 
+  // ============================================================================
+  // DATABASE ACTIONS (CRUD TERHUBUNG SUPABASE & REALTIME)
+  // ============================================================================
+
   // 1. FITUR DAFTAR ANGGOTA BARU (Registrasi Baru)
-  const handleAddMember = (newMember: Member) => {
+  const handleAddMember = async (newMember: Member) => {
+    // Optimistic UI Update
     const updated = [newMember, ...members];
-    updateMembersState(updated);
-    appendAuditLog({
+    setMembers(updated);
+    saveMembers(updated);
+
+    showToast(`Kader baru ${newMember.namaLengkap} (${newMember.dpd}) berhasil didaftarkan.`);
+
+    // Realtime Supabase Write
+    if (isSupabaseConfigured()) {
+      upsertSingleMemberToSupabase(newMember).catch((err) => {
+        console.error('Gagal menyimpan kader baru ke Supabase:', err);
+      });
+    }
+
+    recordAuditLog({
       memberNik: newMember.nik,
       memberName: newMember.namaLengkap,
       action: 'CREATE',
@@ -185,14 +302,11 @@ export default function App() {
       actor: session.adminName,
       dpd: newMember.dpd,
     });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Kader baru ${newMember.namaLengkap} (${newMember.dpd}) berhasil didaftarkan.`);
   };
 
-  // 2. FITUR EDIT DATA ANGGOTA (Memperbarui data yang ada, tidak menambah jumlah anggota)
-  const handleEditMember = (updatedMember: Member, originalNik: string) => {
+  // 2. FITUR EDIT DATA ANGGOTA (Memperbarui data yang ada)
+  const handleEditMember = async (updatedMember: Member, originalNik: string) => {
     const cleanOriginal = originalNik.replace(/[^0-9]/g, '').trim();
-    // Cari index anggota yang diedit secara presisi
     const targetIndex = members.findIndex(
       (m) => m.nik === originalNik || m.nik.replace(/[^0-9]/g, '').trim() === cleanOriginal
     );
@@ -202,21 +316,21 @@ export default function App() {
       updated = [...members];
       updated[targetIndex] = updatedMember;
     } else {
-      const altIndex = members.findIndex(
-        (m) =>
-          (m.nomorEKTA && updatedMember.nomorEKTA && m.nomorEKTA === updatedMember.nomorEKTA) ||
-          m.nik === updatedMember.nik
-      );
-      if (altIndex !== -1) {
-        updated = [...members];
-        updated[altIndex] = updatedMember;
-      } else {
-        updated = members.map((m) => (m.nik === originalNik ? updatedMember : m));
-      }
+      updated = members.map((m) => (m.nik === originalNik ? updatedMember : m));
     }
 
-    updateMembersState(updated);
-    appendAuditLog({
+    setMembers(updated);
+    saveMembers(updated);
+    showToast(`Data kader ${updatedMember.namaLengkap} berhasil diperbarui.`);
+
+    // Realtime Supabase Write
+    if (isSupabaseConfigured()) {
+      upsertSingleMemberToSupabase(updatedMember).catch((err) => {
+        console.error('Gagal memperbarui data kader di Supabase:', err);
+      });
+    }
+
+    recordAuditLog({
       memberNik: updatedMember.nik,
       memberName: updatedMember.namaLengkap,
       action: 'UPDATE',
@@ -224,42 +338,41 @@ export default function App() {
       actor: session.adminName,
       dpd: updatedMember.dpd,
     });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Data kader ${updatedMember.namaLengkap} berhasil diperbarui.`);
   };
 
-  // Proxy untuk backward-compatibility
-  const handleSaveMember = (memberData: Member, isEdit: boolean, originalNik?: string) => {
-    if (isEdit) {
-      handleEditMember(memberData, originalNik || memberData.nik);
-    } else {
-      handleAddMember(memberData);
-    }
-  };
-
-  const handleSaveStatus = (nik: string, newStatus: MemberStatus, reason: string) => {
+  // 3. FITUR UBAH STATUS KEANGGOTAAN
+  const handleSaveStatus = async (nik: string, newStatus: MemberStatus, reason: string) => {
     const target = members.find((m) => m.nik === nik);
     if (!target) return;
 
     const prevStatus = target.status;
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
+    let updatedMemberTarget: Member | null = null;
     const updated = members.map((m) => {
       if (m.nik === nik) {
-        return {
+        updatedMemberTarget = {
           ...m,
           status: newStatus,
           catatanMutasi: reason,
           terakhirDiubah: nowTime,
           diubahOleh: session.adminName,
         };
+        return updatedMemberTarget;
       }
       return m;
     });
 
-    updateMembersState(updated);
+    setMembers(updated);
+    saveMembers(updated);
 
-    appendAuditLog({
+    if (updatedMemberTarget && isSupabaseConfigured()) {
+      upsertSingleMemberToSupabase(updatedMemberTarget).catch((err) => {
+        console.error('Gagal update status di Supabase:', err);
+      });
+    }
+
+    recordAuditLog({
       memberNik: target.nik,
       memberName: target.namaLengkap,
       action: 'STATUS_CHANGE',
@@ -269,43 +382,64 @@ export default function App() {
       actor: session.adminName,
       dpd: target.dpd,
     });
-    setAuditLogs(loadAuditLogs());
 
     if (newStatus !== 'Aktif') {
-      showToast(`Status ${target.namaLengkap} diubah ke ${newStatus}. Otomatis dikeluarkan dari hitungan Aktif.`);
+      showToast(`Status ${target.namaLengkap} diubah ke ${newStatus}. Dikeluarkan dari hitungan aktif.`);
     } else {
       showToast(`Status ${target.namaLengkap} diaktifkan kembali.`);
     }
   };
 
-  const handleBatchSaveTerritorialMembers = (incomingMembers: Member[]) => {
-    // Upsert batch members into current members array
+  // 4. FITUR SIMPAN PERUBAHAN MATRIKS STRUKTUR TERITORIAL (DPW, DPD, DPC, DPRT)
+  const handleBatchSaveTerritorialMembers = async (incomingMembers: Member[]) => {
+    if (incomingMembers.length === 0) return;
+
     const membersMap = new Map<string, Member>();
-    // First put existing members
+    // Masukkan data lama
     members.forEach((m) => membersMap.set(m.nik, m));
-    // Then upsert incoming members
+    // Timpa / tambahkan data pengurus baru yang diedit
     incomingMembers.forEach((m) => membersMap.set(m.nik, m));
 
     const combined = Array.from(membersMap.values());
-    updateMembersState(combined);
+    setMembers(combined);
+    saveMembers(combined);
 
-    appendAuditLog({
+    showToast(`Berhasil menyimpan ${incomingMembers.length} pengurus struktur teritorial.`);
+
+    // Realtime Supabase Batch Upsert
+    if (isSupabaseConfigured()) {
+      upsertMembersToSupabase(incomingMembers).catch((e) =>
+        console.error('Gagal sync pengurus teritorial ke Supabase:', e)
+      );
+    }
+
+    recordAuditLog({
       memberNik: 'MATRIKS-TERITORIAL',
       memberName: `${incomingMembers.length} Pengurus Teritorial`,
       action: 'UPDATE',
       newStatus: 'Aktif',
-      reason: `Pembaruan data matriks struktur jabatan teritorial (${incomingMembers.length} pengurus).`,
+      reason: `Pembaruan data susunan jabatan pengurus teritorial (${incomingMembers.length} posisi).`,
       actor: session.adminName,
       dpd: incomingMembers[0]?.dpd || 'Sulawesi Utara',
     });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Berhasil menyimpan ${incomingMembers.length} pengurus struktur teritorial.`);
   };
 
-  const handleImportSuccess = (newMembers: Member[], count: number) => {
+  // 5. FITUR IMPORT MASSAL DARI SPREADSHEET EXCEL
+  const handleImportSuccess = async (newMembers: Member[], count: number) => {
     const combined = [...newMembers, ...members];
-    updateMembersState(combined);
-    appendAuditLog({
+    setMembers(combined);
+    saveMembers(combined);
+
+    showToast(`${count} kader berhasil diimpor massal ke Shadow Database.`);
+
+    // Realtime Supabase Batch Upsert
+    if (isSupabaseConfigured()) {
+      upsertMembersToSupabase(newMembers).catch((e) =>
+        console.error('Gagal upload massal ke Supabase:', e)
+      );
+    }
+
+    recordAuditLog({
       memberNik: 'MASS-UPLOAD',
       memberName: `${count} Anggota Daerah`,
       action: 'IMPORT_MASSAL',
@@ -314,13 +448,185 @@ export default function App() {
       actor: session.adminName,
       dpd: session.dpdAccess === 'ALL' ? 'Sulawesi Utara' : session.dpdAccess,
     });
-    setAuditLogs(loadAuditLogs());
-    showToast(`${count} kader berhasil diimpor massal ke Shadow Database.`);
   };
 
-  const handleBatchUpdateMembers = (updated: Member[]) => {
-    updateMembersState(updated);
+  // 6. FITUR SINKRONISASI IDENTITAS & KTA
+  const handleBatchUpdateMembers = async (updated: Member[]) => {
+    setMembers(updated);
+    saveMembers(updated);
     showToast('Standardisasi Nomor e-KTA Pusat berhasil disimpan.');
+
+    if (isSupabaseConfigured()) {
+      upsertMembersToSupabase(updated).catch((e) =>
+        console.error('Gagal sinkronisasi nomor KTA ke Supabase:', e)
+      );
+    }
+  };
+
+  // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN DPW)
+  const handleDirectDeleteMember = async (member: Member) => {
+    if (session.role !== 'SUPER_ADMIN') {
+      alert('Hanya Super Admin DPW yang memiliki hak menghapus data kader secara langsung.');
+      return;
+    }
+    if (
+      window.confirm(
+        `HAPUS PERMANEN:\nApakah Anda yakin ingin menghapus data kader ${member.namaLengkap} (NIK: ${member.nik}) dari database Partai NasDem?`
+      )
+    ) {
+      const updated = members.filter((m) => m.nik !== member.nik);
+      setMembers(updated);
+      saveMembers(updated);
+
+      showToast(`Data kader ${member.namaLengkap} berhasil dihapus permanen.`);
+
+      // Realtime Supabase Delete
+      if (isSupabaseConfigured()) {
+        deleteMemberFromSupabase(member.nik).catch((err) => {
+          console.error('Gagal menghapus anggota dari Supabase:', err);
+        });
+      }
+
+      recordAuditLog({
+        memberNik: member.nik,
+        memberName: member.namaLengkap,
+        action: 'DELETE',
+        reason: 'Penghapusan permanen langsung oleh Super Admin DPW Partai NasDem Sulut.',
+        actor: session.adminName,
+        dpd: member.dpd,
+      });
+    }
+  };
+
+  // 8. ALUR PERMOHONAN HAPUS (ADMIN DAERAH PENGAJUAN KE DPW)
+  const handleOpenDeletionRequest = (member: Member) => {
+    setDeletionTargetMember(member);
+    setIsDeletionRequestOpen(true);
+  };
+
+  const handleSubmitDeletionRequest = async (member: Member, reason: string) => {
+    const payload = {
+      memberNik: member.nik,
+      memberName: member.namaLengkap,
+      memberNomorEKTA: member.nomorEKTA,
+      dpd: member.dpd,
+      dpc: member.dpc,
+      dprt: member.dprt,
+      statusMember: member.status,
+      requestedByRole: session.role,
+      requestedByName: session.adminName,
+      reason,
+    };
+
+    // 1. Simpan ke local storage
+    const newLocalReq = {
+      ...payload,
+      id: `del-req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      requestedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      status: 'PENDING' as const,
+    };
+    const updatedList = [newLocalReq, ...deletionRequests];
+    setDeletionRequests(updatedList);
+    saveDeletionRequests(updatedList);
+
+    // 2. Simpan ke Supabase
+    if (isSupabaseConfigured()) {
+      insertDeletionRequestToSupabase(payload).catch((err) => {
+        console.error('Gagal mengirim permohonan hapus ke Supabase:', err);
+      });
+    }
+
+    recordAuditLog({
+      memberNik: member.nik,
+      memberName: member.namaLengkap,
+      action: 'DELETE_REQUEST',
+      reason: `Permohonan penghapusan kader diajukan oleh ${session.jabatan}: "${reason}"`,
+      actor: session.adminName,
+      dpd: member.dpd,
+    });
+
+    showToast(`Permohonan penghapusan kader ${member.namaLengkap} berhasil dikirim ke DPW.`);
+  };
+
+  // 9. APPROVAL PERMOHONAN HAPUS (SUPER ADMIN DPW MENYETUJUI)
+  const handleApproveDeletionRequest = async (requestId: string, notes?: string) => {
+    const target = deletionRequests.find((r) => r.id === requestId);
+    if (!target) return;
+
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updatedReq: DeletionRequest = {
+      ...target,
+      status: 'APPROVED',
+      reviewedBy: session.adminName,
+      reviewedAt: nowTime,
+      reviewNotes: notes,
+    };
+
+    const newReqList = deletionRequests.map((r) => (r.id === requestId ? updatedReq : r));
+    setDeletionRequests(newReqList);
+    saveDeletionRequests(newReqList);
+
+    // Hapus anggota dari daftar
+    const updatedMembers = members.filter((m) => m.nik !== target.memberNik);
+    setMembers(updatedMembers);
+    saveMembers(updatedMembers);
+
+    // Realtime Supabase Update & Delete
+    if (isSupabaseConfigured()) {
+      updateDeletionRequestInSupabase(updatedReq).catch((err) =>
+        console.error('Gagal update status deletion request di Supabase:', err)
+      );
+      deleteMemberFromSupabase(target.memberNik).catch((err) =>
+        console.error('Gagal delete member dari Supabase:', err)
+      );
+    }
+
+    recordAuditLog({
+      memberNik: target.memberNik,
+      memberName: target.memberName,
+      action: 'DELETE',
+      reason: `Disetujui oleh DPW atas permohonan ${target.requestedByName}. Alasan: "${target.reason}". Catatan DPW: "${notes || '-'}"`,
+      actor: session.adminName,
+      dpd: target.dpd,
+    });
+
+    showToast(`Permohonan disetujui. Data kader ${target.memberName} telah dihapus permanen.`);
+  };
+
+  // 10. REJECT PERMOHONAN HAPUS (SUPER ADMIN DPW MENOLAK)
+  const handleRejectDeletionRequest = async (requestId: string, notes: string) => {
+    const target = deletionRequests.find((r) => r.id === requestId);
+    if (!target) return;
+
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updatedReq: DeletionRequest = {
+      ...target,
+      status: 'REJECTED',
+      reviewedBy: session.adminName,
+      reviewedAt: nowTime,
+      reviewNotes: notes,
+    };
+
+    const newReqList = deletionRequests.map((r) => (r.id === requestId ? updatedReq : r));
+    setDeletionRequests(newReqList);
+    saveDeletionRequests(newReqList);
+
+    if (isSupabaseConfigured()) {
+      updateDeletionRequestInSupabase(updatedReq).catch((err) =>
+        console.error('Gagal update status deletion request di Supabase:', err)
+      );
+    }
+
+    recordAuditLog({
+      memberNik: target.memberNik,
+      memberName: target.memberName,
+      action: 'DELETE_REQUEST',
+      reason: `Permohonan penghapusan kader ${target.memberName} ditolak DPW. Alasan: "${notes}"`,
+      actor: session.adminName,
+      dpd: target.dpd,
+    });
+
+    showToast(`Permohonan penghapusan kader ${target.memberName} ditolak.`);
   };
 
   const handleResetDemoData = () => {
@@ -329,7 +635,8 @@ export default function App() {
       const fresh = loadMembers();
       setMembers(fresh);
       setAuditLogs(loadAuditLogs());
-      showToast('Database berhasil di-reset ke data kader DPW Partai NasDem Sulut.');
+      setDeletionRequests(loadDeletionRequests());
+      showToast('Database berhasil di-reset.');
     }
   };
 
@@ -343,121 +650,6 @@ export default function App() {
     setNavDpdFilter(filterDpd);
     setNavStatusFilter(filterStatus);
     setActiveTab('members');
-  };
-
-  // Deletion workflows
-  const handleDirectDeleteMember = (member: Member) => {
-    if (session.role !== 'SUPER_ADMIN') {
-      alert('Hanya Super Admin DPW yang memiliki hak menghapus data kader secara langsung.');
-      return;
-    }
-    if (
-      window.confirm(
-        `HAPUS PERMANEN:\nApakah Anda yakin ingin menghapus data kader ${member.namaLengkap} (NIK: ${member.nik}) dari database Partai NasDem?`
-      )
-    ) {
-      const updated = members.filter((m) => m.nik !== member.nik);
-      updateMembersState(updated);
-      appendAuditLog({
-        memberNik: member.nik,
-        memberName: member.namaLengkap,
-        action: 'DELETE',
-        reason: 'Penghapusan permanen langsung oleh Super Admin DPW Partai NasDem Sulut.',
-        actor: session.adminName,
-        dpd: member.dpd,
-      });
-      setAuditLogs(loadAuditLogs());
-      showToast(`Data kader ${member.namaLengkap} berhasil dihapus permanen.`);
-    }
-  };
-
-  const handleOpenDeletionRequest = (member: Member) => {
-    setDeletionTargetMember(member);
-    setIsDeletionRequestOpen(true);
-  };
-
-  const handleSubmitDeletionRequest = (member: Member, reason: string) => {
-    appendDeletionRequest({
-      memberNik: member.nik,
-      memberName: member.namaLengkap,
-      memberNomorEKTA: member.nomorEKTA,
-      dpd: member.dpd,
-      dpc: member.dpc,
-      dprt: member.dprt,
-      statusMember: member.status,
-      requestedByRole: session.role,
-      requestedByName: session.adminName,
-      reason,
-    });
-    setDeletionRequests(loadDeletionRequests());
-    appendAuditLog({
-      memberNik: member.nik,
-      memberName: member.namaLengkap,
-      action: 'DELETE_REQUEST',
-      reason: `Permohonan penghapusan kader diajukan oleh ${session.jabatan}: "${reason}"`,
-      actor: session.adminName,
-      dpd: member.dpd,
-    });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Permohonan penghapusan kader ${member.namaLengkap} berhasil dikirim ke DPW.`);
-  };
-
-  const handleApproveDeletionRequest = (requestId: string, notes?: string) => {
-    const target = deletionRequests.find((r) => r.id === requestId);
-    if (!target) return;
-
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    const updatedReq: DeletionRequest = {
-      ...target,
-      status: 'APPROVED',
-      reviewedBy: session.adminName,
-      reviewedAt: nowTime,
-      reviewNotes: notes,
-    };
-    updateDeletionRequest(updatedReq);
-    setDeletionRequests(loadDeletionRequests());
-
-    // Permanently remove member
-    const updated = members.filter((m) => m.nik !== target.memberNik);
-    updateMembersState(updated);
-
-    appendAuditLog({
-      memberNik: target.memberNik,
-      memberName: target.memberName,
-      action: 'DELETE',
-      reason: `Disetujui oleh DPW atas permohonan ${target.requestedByName}. Alasan: "${target.reason}". Catatan DPW: "${notes || '-'}"`,
-      actor: session.adminName,
-      dpd: target.dpd,
-    });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Permohonan disetujui. Data kader ${target.memberName} telah dihapus permanen.`);
-  };
-
-  const handleRejectDeletionRequest = (requestId: string, notes: string) => {
-    const target = deletionRequests.find((r) => r.id === requestId);
-    if (!target) return;
-
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    const updatedReq: DeletionRequest = {
-      ...target,
-      status: 'REJECTED',
-      reviewedBy: session.adminName,
-      reviewedAt: nowTime,
-      reviewNotes: notes,
-    };
-    updateDeletionRequest(updatedReq);
-    setDeletionRequests(loadDeletionRequests());
-
-    appendAuditLog({
-      memberNik: target.memberNik,
-      memberName: target.memberName,
-      action: 'DELETE_REQUEST',
-      reason: `Permohonan penghapusan kader ${target.memberName} ditolak DPW. Alasan: "${notes}"`,
-      actor: session.adminName,
-      dpd: target.dpd,
-    });
-    setAuditLogs(loadAuditLogs());
-    showToast(`Permohonan penghapusan kader ${target.memberName} ditolak.`);
   };
 
   // If not logged in, display full LoginPage
@@ -475,7 +667,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 1. Left Sidebar Navigation (Desktop Fixed & Mobile Slide-Out Drawer) */}
+      {/* 1. Left Sidebar Navigation */}
       <AppSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -496,7 +688,7 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* 2. Main Viewport Container (Offset by sidebar width on desktop) */}
+      {/* 2. Main Viewport Container */}
       <div className="flex-1 lg:pl-72 flex flex-col min-w-0 min-h-screen">
         {/* Minimalist Top Bar: Mobile Hamburger + Breadcrumb + Quick Tools */}
         <header className="no-print sticky top-0 z-30 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 transition-colors">
@@ -528,11 +720,11 @@ export default function App() {
           <div className="flex items-center gap-2">
             {isCloudConnected && (
               <div
-                title="Terhubung ke Cloud Database Supabase Live"
+                title="Terhubung ke Cloud Database Supabase Realtime Live"
                 className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 shadow-2xs"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Supabase Live</span>
+                <Radio className={`w-3.5 h-3.5 text-emerald-500 ${isRealtimeActive ? 'animate-pulse' : ''}`} />
+                <span>Supabase Realtime Live</span>
               </div>
             )}
 
@@ -596,7 +788,7 @@ export default function App() {
               level="DPW"
               members={members}
               session={session}
-              onSaveMembersBatch={handleBatchUpdateMembers}
+              onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -615,7 +807,7 @@ export default function App() {
               members={members}
               session={session}
               initialDpd={matrixInitialDpd}
-              onSaveMembersBatch={handleBatchUpdateMembers}
+              onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -635,7 +827,7 @@ export default function App() {
               session={session}
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
-              onSaveMembersBatch={handleBatchUpdateMembers}
+              onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -655,7 +847,7 @@ export default function App() {
               session={session}
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
-              onSaveMembersBatch={handleBatchUpdateMembers}
+              onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -712,7 +904,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800 dark:text-slate-300">DPW Partai NasDem Sulut</span>
               <span>·</span>
-              <span>Sistem Manajemen Keanggotaan Terpadu</span>
+              <span>Sistem Manajemen Keanggotaan Terpadu Realtime</span>
             </div>
             <div className="flex items-center gap-4 text-[11px] text-slate-500">
               <span className="hidden md:inline font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
@@ -721,7 +913,7 @@ export default function App() {
               <button
                 onClick={handleResetDemoData}
                 className="text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 transition-colors cursor-pointer"
-                title="Reset ke database awal demonstrasi"
+                title="Reset database demonstrasi"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Reset Demo</span>
@@ -757,7 +949,7 @@ export default function App() {
         onSaveStatus={handleSaveStatus}
       />
 
-      {/* 1. Modal Khusus Daftar Anggota Baru */}
+      {/* Modal Khusus Daftar Anggota Baru */}
       {isAddModalOpen && (
         <AddMemberModal
           isOpen={isAddModalOpen}
@@ -768,7 +960,7 @@ export default function App() {
         />
       )}
 
-      {/* 2. Modal Khusus Edit Data Anggota */}
+      {/* Modal Khusus Edit Data Anggota */}
       {isEditModalOpen && selectedMember && (
         <EditMemberModal
           isOpen={isEditModalOpen}
@@ -808,19 +1000,6 @@ export default function App() {
         session={session}
       />
 
-      {/* 3. Modal Matriks Struktur Teritorial & Template Jabatan */}
-      {isTerritorialMatrixOpen && (
-        <TerritorialMatrixModal
-          isOpen={isTerritorialMatrixOpen}
-          onClose={() => setIsTerritorialMatrixOpen(false)}
-          members={members}
-          session={session}
-          onSaveMembersBatch={handleBatchSaveTerritorialMembers}
-          initialDpd={matrixInitialDpd}
-          initialDpc={matrixInitialDpc}
-        />
-      )}
-
       {/* Member Detail Modal */}
       <MemberDetailModal
         isOpen={isDetailModalOpen}
@@ -831,7 +1010,7 @@ export default function App() {
         member={selectedMember}
         session={session}
         onUpdateMember={(updated) => {
-          handleSaveMember(updated, true);
+          handleEditMember(updated, updated.nik);
         }}
         onOpenEdit={(m) => {
           setIsDetailModalOpen(false);

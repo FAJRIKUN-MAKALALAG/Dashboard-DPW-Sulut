@@ -114,3 +114,9 @@ CREATE POLICY "Akses Audit Baca Bebas" ON public.audit_logs FOR SELECT USING (tr
 CREATE POLICY "Akses Audit Tambah Bebas" ON public.audit_logs FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "Akses Deletion Requests Bebas" ON public.deletion_requests FOR ALL USING (true);
+
+-- 5. AKTIFKAN REPLIKASI REALTIME SUPABASE UNTUK SEMUA TABEL
+ALTER PUBLICATION supabase_realtime ADD TABLE public.members;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.deletion_requests;
+
