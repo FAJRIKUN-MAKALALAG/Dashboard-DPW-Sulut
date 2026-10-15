@@ -53,9 +53,9 @@ export interface SulutStructureSummary {
  * - DPRt: 9 jabatan pengurus ranting desa/kelurahan
  */
 export const REQUIRED_POSITIONS = {
-  DPW: DPW_STRUCTURE_TEMPLATE.length, // 34 core
-  DPD: DPD_STRUCTURE_TEMPLATE.length, // 34
-  DPC: DPC_STRUCTURE_TEMPLATE.length, // 17
+  DPW: DPW_STRUCTURE_TEMPLATE.filter((s) => s.subOrg === 'DEWAN PIMPINAN WILAYAH').length || 36, // 36 inti DPW
+  DPD: DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH')).length || 36, // 36 inti DPD
+  DPC: DPC_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN CABANG')).length || 17, // 17 inti DPC
   DPRt: DPRT_STRUCTURE_TEMPLATE.length, // 9
 };
 
@@ -213,7 +213,8 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
     );
 
     const filledTitles = new Set(dpdMembers.map((m) => cleanJobTitle(m.jabatan)));
-    const missing = DPD_STRUCTURE_TEMPLATE.filter(
+    const coreDpdTemplate = DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH'));
+    const missing = coreDpdTemplate.filter(
       (slot) => !filledTitles.has(cleanJobTitle(slot.jabatan))
     ).map((s) => s.jabatan);
 
@@ -303,7 +304,8 @@ export function computeDpcReadinessForDpd(
     );
 
     const filledTitles = new Set(dpcMembers.map((m) => cleanJobTitle(m.jabatan)));
-    const missing = DPC_STRUCTURE_TEMPLATE.filter(
+    const coreDpcTemplate = DPC_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN CABANG'));
+    const missing = coreDpcTemplate.filter(
       (slot) => !filledTitles.has(cleanJobTitle(slot.jabatan))
     ).map((s) => s.jabatan);
 
@@ -382,4 +384,128 @@ export function computeDprtReadinessForDpc(
       missingPositions: missing,
     };
   });
+}
+
+export interface StructureKpiStats {
+  dpwRequired: number;
+  dpwFilled: number;
+  dpdRequired: number;
+  dpdFilled: number;
+  dpcRequired: number;
+  dpcFilled: number;
+  dprtRequired: number;
+  dprtFilled: number;
+  totalRequired: number;
+  totalFilled: number;
+  totalEmpty: number;
+  percentage: number;
+  isAllSulut: boolean;
+  territoryName: string;
+}
+
+/**
+ * Menghitung seluruh keterisian posisi struktur organisasi resmi
+ * (DPW, DPD, DPC, DPRt) berdasarkan template susunan pengurus
+ * Jika posisi di template masih kosong/belum ada pengurus, maka terhitung belum lengkap
+ */
+export function computeStructureKpiStats(
+  members: Member[],
+  selectedDpdFilter: string = 'ALL'
+): StructureKpiStats {
+  const activeMembers = members.filter((m) => m.status === 'Aktif');
+  const isAllSulut = !selectedDpdFilter || selectedDpdFilter === 'ALL';
+
+  let dpwRequired = 0;
+  let dpwFilled = 0;
+  let dpdRequired = 0;
+  let dpdFilled = 0;
+  let dpcRequired = 0;
+  let dpcFilled = 0;
+  let dprtRequired = 0;
+  let dprtFilled = 0;
+
+  // 1. DPW Level (Hanya dihitung jika melihat seluruh Sulut)
+  if (isAllSulut) {
+    dpwRequired = DPW_STRUCTURE_TEMPLATE.length;
+    const dpwMembers = activeMembers.filter(
+      (m) => m.tingkatKepengurusan === 'DPW' || m.dpd === 'Sulawesi Utara'
+    );
+    const dpwFilledTitles = new Set(dpwMembers.map((m) => cleanJobTitle(m.jabatan)));
+    dpwFilled = Math.min(dpwFilledTitles.size, dpwRequired);
+  }
+
+  // 2. Tentukan daftar Region yang dievaluasi
+  const targetRegions = isAllSulut
+    ? SULUT_REGIONS
+    : SULUT_REGIONS.filter((r) => isDpdMatch(r.name, selectedDpdFilter));
+
+  const dpdTemplate = DPD_STRUCTURE_TEMPLATE;
+  const dpcTemplate = DPC_STRUCTURE_TEMPLATE;
+  const dprtTemplate = DPRT_STRUCTURE_TEMPLATE;
+
+  targetRegions.forEach((region) => {
+    // A. DPD level untuk region ini
+    dpdRequired += dpdTemplate.length;
+    const dpdMembers = activeMembers.filter(
+      (m) =>
+        isDpdMatch(m.dpd, region.name) &&
+        (m.tingkatKepengurusan === 'DPD' ||
+          m.dpc === 'Umum (DPD)' ||
+          m.dpc === 'Wilayah DPD' ||
+          (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD')) ||
+          (m.isPengurus && (!m.dpc || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)')))
+    );
+    const dpdFilledTitles = new Set(dpdMembers.map((m) => cleanJobTitle(m.jabatan)));
+    dpdFilled += Math.min(dpdFilledTitles.size, dpdTemplate.length);
+
+    // B. DPC level untuk kecamatan di region ini
+    region.subdistricts.forEach((sub) => {
+      dpcRequired += dpcTemplate.length;
+      const subMembers = activeMembers.filter(
+        (m) =>
+          isDpdMatch(m.dpd, region.name) &&
+          isDpcMatch(m.dpc, sub.name) &&
+          (m.tingkatKepengurusan === 'DPC' ||
+            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
+      );
+      const subFilledTitles = new Set(subMembers.map((m) => cleanJobTitle(m.jabatan)));
+      dpcFilled += Math.min(subFilledTitles.size, dpcTemplate.length);
+
+      // C. DPRt level untuk desa/kelurahan di kecamatan ini
+      sub.villages.forEach((village) => {
+        dprtRequired += dprtTemplate.length;
+        const villageMembers = activeMembers.filter(
+          (m) =>
+            isDpdMatch(m.dpd, region.name) &&
+            isDpcMatch(m.dpc, sub.name) &&
+            isDprtMatch(m.dprt, village) &&
+            (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
+        );
+        const villageFilledTitles = new Set(villageMembers.map((m) => cleanJobTitle(m.jabatan)));
+        dprtFilled += Math.min(villageFilledTitles.size, dprtTemplate.length);
+      });
+    });
+  });
+
+  const totalRequired = dpwRequired + dpdRequired + dpcRequired + dprtRequired;
+  const totalFilled = dpwFilled + dpdFilled + dpcFilled + dprtFilled;
+  const totalEmpty = Math.max(0, totalRequired - totalFilled);
+  const percentage = totalRequired > 0 ? Number(((totalFilled / totalRequired) * 100).toFixed(1)) : 0;
+
+  return {
+    dpwRequired,
+    dpwFilled,
+    dpdRequired,
+    dpdFilled,
+    dpcRequired,
+    dpcFilled,
+    dprtRequired,
+    dprtFilled,
+    totalRequired,
+    totalFilled,
+    totalEmpty,
+    percentage,
+    isAllSulut,
+    territoryName: isAllSulut ? 'Sulawesi Utara' : selectedDpdFilter,
+  };
 }

@@ -32,6 +32,8 @@ import { AuditTrailModal } from './components/AuditTrailModal';
 import { DeletionRequestModal } from './components/DeletionRequestModal';
 import { DeletionApprovalModal } from './components/DeletionApprovalModal';
 import { TerritorialMatrixModal } from './components/TerritorialMatrixModal';
+import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
+import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { LoginPage } from './components/LoginPage';
 import nasdemLogo from './assets/logo/logo_nasdem.png';
 import {
@@ -51,6 +53,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Menu,
 } from 'lucide-react';
 
 export default function App() {
@@ -60,7 +63,8 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true';
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'members' | 'sync'>('dashboard');
+  const [activeTab, setActiveTab] = useState<MainNavTab>('dashboard');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
 
   // Sinkronisasi otomatis dengan Cloud Database Supabase saat startup
@@ -462,7 +466,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
+    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex font-sans transition-colors duration-150">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-white dark:bg-slate-900 border border-amber-500/80 text-slate-900 dark:text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -471,306 +475,261 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Bar Contract: Brand Wordmark — Nav Links — Primary Action & Theme Switcher */}
-      <header className="no-print sticky top-0 z-40 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800/80 shadow-xs transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
-          {/* Zone 1: Wordmark with Partai NasDem Logo */}
-          <div className="flex items-center gap-3 shrink-0">
-            <img
-              src={nasdemLogo}
-              alt="Logo Resmi Partai NasDem"
-              className="h-10 w-auto object-contain shrink-0 drop-shadow-xs"
-            />
-            <div className="flex flex-col">
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveTab('dashboard');
-                }}
-                className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                DPW Partai NasDem Sulut
-              </a>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tight -mt-0.5">
-                e-KTA Digital · Gerakan Perubahan
+      {/* 1. Left Sidebar Navigation (Desktop Fixed & Mobile Slide-Out Drawer) */}
+      <AppSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        session={session}
+        totalMembersCount={members.length}
+        auditLogsCount={auditLogs.length}
+        pendingDeletionCount={pendingDeletionCount}
+        isCloudConnected={isCloudConnected}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onOpenPrintReport={() => setIsPrintReportOpen(true)}
+        onOpenRoleModal={() => setIsRoleModalOpen(true)}
+        onOpenBulkImport={() => setIsBulkImportOpen(true)}
+        onOpenAuditModal={() => setIsAuditModalOpen(true)}
+        onOpenDeletionApproval={() => setIsDeletionApprovalOpen(true)}
+        onLogout={handleLogout}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+      />
+
+      {/* 2. Main Viewport Container (Offset by sidebar width on desktop) */}
+      <div className="flex-1 lg:pl-72 flex flex-col min-w-0 min-h-screen">
+        {/* Minimalist Top Bar: Mobile Hamburger + Breadcrumb + Quick Tools */}
+        <header className="no-print sticky top-0 z-30 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 transition-colors">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              title="Buka Navigasi Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                Menu &raquo;
+              </span>
+              <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
+                {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
+                {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
+                {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
+                {activeTab === 'dprt' && 'Susunan Pengurus DPRt Ranting Desa'}
+                {activeTab === 'members' && 'Database Seluruh Kader Daerah'}
+                {activeTab === 'sync' && 'Sinkronisasi Nomor KTA & NIK'}
               </span>
             </div>
           </div>
 
-          {/* Zone 2: Clean single-line navigation links */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer pb-0.5 ${
-                activeTab === 'dashboard'
-                  ? 'text-slate-900 dark:text-white font-semibold border-b-2 border-slate-900 dark:border-white'
-                  : ''
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => {
-                setNavDpdFilter(undefined);
-                setNavStatusFilter(undefined);
-                setActiveTab('members');
-              }}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer pb-0.5 ${
-                activeTab === 'members'
-                  ? 'text-slate-900 dark:text-white font-semibold border-b-2 border-slate-900 dark:border-white'
-                  : ''
-              }`}
-            >
-              Kader Daerah
-            </button>
-            <button
-              onClick={() => {
-                setMatrixInitialDpd(session.dpdAccess !== 'ALL' ? session.dpdAccess : 'Kabupaten Minahasa Selatan');
-                setMatrixInitialDpc(undefined);
-                setIsTerritorialMatrixOpen(true);
-              }}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
-            >
-              <Table className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Matriks Struktur</span>
-            </button>
-            <button
-              onClick={() => setIsBulkImportOpen(true)}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              Import Massal
-            </button>
-            <button
-              onClick={() => setActiveTab('sync')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer pb-0.5 ${
-                activeTab === 'sync'
-                  ? 'text-slate-900 dark:text-white font-semibold border-b-2 border-slate-900 dark:border-white'
-                  : ''
-              }`}
-            >
-              Sinkronisasi ID
-            </button>
-            <button
-              onClick={() => setIsAuditModalOpen(true)}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              Riwayat Audit ({auditLogs.length})
-            </button>
-            <button
-              onClick={() => setIsDeletionApprovalOpen(true)}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
-            >
-              <span>{session.role === 'SUPER_ADMIN' ? 'Permohonan Hapus' : 'Status Pengajuan Hapus'}</span>
-              {pendingDeletionCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
-                  {pendingDeletionCount}
-                </span>
-              )}
-            </button>
-          </nav>
-
-          {/* Zone 3: Actions + Theme Switcher (Light / Night Mode) */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2">
             {isCloudConnected && (
               <div
-                title="Terhubung ke Cloud Database Supabase Resmi"
-                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 shadow-2xs"
+                title="Terhubung ke Cloud Database Supabase Live"
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 shadow-2xs"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Supabase Live</span>
               </div>
             )}
 
-            {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              title={theme === 'light' ? 'Beralih ke Mode Malam (Night Mode)' : 'Beralih ke Mode Terang (Latar Putih)'}
-              className="btn-white flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg cursor-pointer shadow-2xs"
+              className="btn-white p-2 rounded-xl text-xs font-medium cursor-pointer"
+              title={theme === 'light' ? 'Mode Malam' : 'Mode Terang'}
             >
               {theme === 'light' ? (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-slate-700 shrink-0" />
-                  <span className="hidden lg:inline text-[11px]">Mode Malam</span>
-                </>
+                <Moon className="w-4 h-4 text-slate-700" />
               ) : (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="hidden lg:inline text-[11px]">Mode Terang</span>
-                </>
+                <Sun className="w-4 h-4 text-amber-400" />
               )}
             </button>
 
             <button
               onClick={() => setIsPrintReportOpen(true)}
-              title="Cetak Laporan PDF Ringkasan Statistik 15 DPD untuk Atasan"
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+              className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
+              title="Cetak Laporan PDF Ringkasan Atasan"
             >
-              <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span className="hidden sm:inline">Laporan PDF Atasan</span>
-            </button>
-
-            <button
-              onClick={() => setIsRoleModalOpen(true)}
-              title="Ganti Peran (Super Admin vs Admin DPD/DPC/DPRt)"
-              className="btn-white flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
-            >
-              <Shield className="w-3.5 h-3.5 text-blue-500" />
-              <span className="hidden md:inline font-mono text-[11px]">{session.jabatan}</span>
-              <span className="md:hidden font-mono">Peran</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              title="Keluar / Ganti Akun"
-              className="btn-white flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 cursor-pointer shadow-2xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-            >
-              <LogOut className="w-3.5 h-3.5 text-rose-500" />
-              <span className="hidden sm:inline">Keluar</span>
+              <Printer className="w-3.5 h-3.5" />
+              <span>Laporan PDF</span>
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Viewport Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mobile Navigation Tabs */}
-        <div className="no-print md:hidden flex items-center justify-between gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg mb-6 overflow-x-auto text-xs shadow-2xs">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
-                activeTab === 'dashboard' ? 'btn-white font-bold' : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => {
-                setNavDpdFilter(undefined);
-                setNavStatusFilter(undefined);
-                setActiveTab('members');
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Tab 1: Executive Dashboard */}
+          {activeTab === 'dashboard' && (
+            <ExecutiveDashboard
+              members={members}
+              session={session}
+              onOpenPrintReport={() => setIsPrintReportOpen(true)}
+              onNavigateToMembers={handleNavigateFromDashboard}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
               }}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
-                activeTab === 'members' ? 'btn-white font-bold' : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              Kader Daerah
-            </button>
-            <button
-              onClick={() => setActiveTab('sync')}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
-                activeTab === 'sync' ? 'btn-white font-bold' : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              Sinkronisasi
-            </button>
-            <button
-              onClick={() => setIsPrintReportOpen(true)}
-              className="btn-white px-2.5 py-1.5 rounded-md whitespace-nowrap font-medium"
-            >
-              PDF
-            </button>
+              onAddMembers={(newMembers) => {
+                handleImportSuccess(newMembers, newMembers.length);
+              }}
+              onOpenTerritorialMatrix={(dpd, dpc) => {
+                if (dpc) {
+                  setMatrixInitialDpd(dpd);
+                  setMatrixInitialDpc(dpc);
+                  setActiveTab('dpc');
+                } else if (dpd) {
+                  setMatrixInitialDpd(dpd);
+                  setActiveTab('dpd');
+                } else {
+                  setActiveTab('dpd');
+                }
+              }}
+            />
+          )}
+
+          {/* Tab 2: Pengurus DPW */}
+          {activeTab === 'dpw' && (
+            <TerritorialStructurePage
+              level="DPW"
+              members={members}
+              session={session}
+              onSaveMembersBatch={handleBatchUpdateMembers}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
+              }}
+              onOpenDetailModal={(m) => {
+                setSelectedMember(m);
+                setIsDetailModalOpen(true);
+              }}
+            />
+          )}
+
+          {/* Tab 3: Pengurus DPD */}
+          {activeTab === 'dpd' && (
+            <TerritorialStructurePage
+              level="DPD"
+              members={members}
+              session={session}
+              initialDpd={matrixInitialDpd}
+              onSaveMembersBatch={handleBatchUpdateMembers}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
+              }}
+              onOpenDetailModal={(m) => {
+                setSelectedMember(m);
+                setIsDetailModalOpen(true);
+              }}
+            />
+          )}
+
+          {/* Tab 4: Pengurus DPC */}
+          {activeTab === 'dpc' && (
+            <TerritorialStructurePage
+              level="DPC"
+              members={members}
+              session={session}
+              initialDpd={matrixInitialDpd}
+              initialDpc={matrixInitialDpc}
+              onSaveMembersBatch={handleBatchUpdateMembers}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
+              }}
+              onOpenDetailModal={(m) => {
+                setSelectedMember(m);
+                setIsDetailModalOpen(true);
+              }}
+            />
+          )}
+
+          {/* Tab 5: Pengurus DPRt */}
+          {activeTab === 'dprt' && (
+            <TerritorialStructurePage
+              level="DPRt"
+              members={members}
+              session={session}
+              initialDpd={matrixInitialDpd}
+              initialDpc={matrixInitialDpc}
+              onSaveMembersBatch={handleBatchUpdateMembers}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
+              }}
+              onOpenDetailModal={(m) => {
+                setSelectedMember(m);
+                setIsDetailModalOpen(true);
+              }}
+            />
+          )}
+
+          {/* Tab 6: Member Management */}
+          {activeTab === 'members' && (
+            <MemberManagement
+              members={members}
+              session={session}
+              initialDpdFilter={navDpdFilter}
+              initialStatusFilter={navStatusFilter}
+              onOpenAddModal={() => setIsAddModalOpen(true)}
+              onOpenBulkImport={() => setIsBulkImportOpen(true)}
+              onOpenStatusModal={(m) => {
+                setSelectedMember(m);
+                setIsStatusModalOpen(true);
+              }}
+              onOpenCardModal={(m) => {
+                setSelectedMember(m);
+                setIsCardModalOpen(true);
+              }}
+              onOpenEditModal={(m) => {
+                setSelectedMember(m);
+                setIsEditModalOpen(true);
+              }}
+              onOpenDetailModal={(m) => {
+                setSelectedMember(m);
+                setIsDetailModalOpen(true);
+              }}
+              onOpenDeletionRequest={handleOpenDeletionRequest}
+              onDirectDelete={handleDirectDeleteMember}
+            />
+          )}
+
+          {/* Tab 7: ID Synchronization & Cross Matching */}
+          {activeTab === 'sync' && (
+            <SyncIdReconciliation
+              members={members}
+              onBatchUpdateMembers={handleBatchUpdateMembers}
+            />
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="no-print mt-auto border-t border-slate-200/90 dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 py-5 text-slate-500 text-xs transition-colors">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-800 dark:text-slate-300">DPW Partai NasDem Sulut</span>
+              <span>·</span>
+              <span>Sistem Manajemen Keanggotaan Terpadu</span>
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-slate-500">
+              <span className="hidden md:inline font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                {members.filter((m) => m.status === 'Aktif').length} Kader Aktif Riil
+              </span>
+              <button
+                onClick={handleResetDemoData}
+                className="text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 transition-colors cursor-pointer"
+                title="Reset ke database awal demonstrasi"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset Demo</span>
+              </button>
+            </div>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
-            title="Ganti Mode Tampilan"
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-amber-400" />}
-          </button>
-        </div>
-
-        {/* Tab 1: Executive Dashboard */}
-        {activeTab === 'dashboard' && (
-          <ExecutiveDashboard
-            members={members}
-            session={session}
-            onOpenPrintReport={() => setIsPrintReportOpen(true)}
-            onNavigateToMembers={handleNavigateFromDashboard}
-            onOpenCardModal={(m) => {
-              setSelectedMember(m);
-              setIsCardModalOpen(true);
-            }}
-            onAddMembers={(newMembers) => {
-              handleImportSuccess(newMembers, newMembers.length);
-            }}
-            onOpenTerritorialMatrix={(dpd, dpc) => {
-              setMatrixInitialDpd(dpd);
-              setMatrixInitialDpc(dpc);
-              setIsTerritorialMatrixOpen(true);
-            }}
-          />
-        )}
-
-        {/* Tab 2: Member Management */}
-        {activeTab === 'members' && (
-          <MemberManagement
-            members={members}
-            session={session}
-            initialDpdFilter={navDpdFilter}
-            initialStatusFilter={navStatusFilter}
-            onOpenAddModal={() => setIsAddModalOpen(true)}
-            onOpenBulkImport={() => setIsBulkImportOpen(true)}
-            onOpenStatusModal={(m) => {
-              setSelectedMember(m);
-              setIsStatusModalOpen(true);
-            }}
-            onOpenCardModal={(m) => {
-              setSelectedMember(m);
-              setIsCardModalOpen(true);
-            }}
-            onOpenEditModal={(m) => {
-              setSelectedMember(m);
-              setIsEditModalOpen(true);
-            }}
-            onOpenDetailModal={(m) => {
-              setSelectedMember(m);
-              setIsDetailModalOpen(true);
-            }}
-            onOpenDeletionRequest={handleOpenDeletionRequest}
-            onDirectDelete={handleDirectDeleteMember}
-          />
-        )}
-
-        {/* Tab 3: ID Synchronization & Cross Matching */}
-        {activeTab === 'sync' && (
-          <SyncIdReconciliation
-            members={members}
-            onBatchUpdateMembers={handleBatchUpdateMembers}
-          />
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="no-print mt-auto border-t border-slate-200/90 dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 py-5 text-slate-500 text-xs transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800 dark:text-slate-300">DPW Partai NasDem Sulut</span>
-            <span>·</span>
-            <span>Restorasi Indonesia</span>
-            <span>·</span>
-            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{members.filter((m) => m.status === 'Aktif').length} Kader Aktif Riil</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleResetDemoData}
-              className="text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Reset ke database awal demonstrasi"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Data Demo</span>
-            </button>
-            <button
-              onClick={() => setIsAuditModalOpen(true)}
-              className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Log Mutasi ({auditLogs.length})
-            </button>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       {/* Modals */}
       <BulkImportModal

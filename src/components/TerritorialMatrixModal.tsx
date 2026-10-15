@@ -131,32 +131,47 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
 
     const assignedMemberNiks = new Set<string>();
 
-    const rows: GridRowItem[] = template.map((slot: PositionSlot) => {
+    const rows: GridRowItem[] = template.map((slot: PositionSlot, idx: number) => {
       const slotClean = cleanStr(slot.jabatan);
-      let assignedMember = matchedMembers.find(
-        (m) => !assignedMemberNiks.has(m.nik) && cleanStr(m.jabatan) === slotClean
+      const isSlotPertimbangan = slot.subOrg.toLowerCase().includes('pertimbangan');
+      const isSlotPakar = slot.subOrg.toLowerCase().includes('pakar');
+      const isSlotPimpinan = !isSlotPertimbangan && !isSlotPakar;
+
+      // Filter anggota yang relevan dengan sub-organisasi (Pertimbangan vs Pakar vs Pimpinan)
+      const relevantMembers = matchedMembers.filter((m) => {
+        if (assignedMemberNiks.has(m.nik)) return false;
+        const jLower = m.jabatan?.toLowerCase() || '';
+        const wLower = m.wilayahPenugasan?.toLowerCase() || '';
+        const isMemPertimbangan = jLower.includes('pertimbangan') || wLower.includes('pertimbangan');
+        const isMemPakar = jLower.includes('pakar') || wLower.includes('pakar');
+
+        if (isSlotPertimbangan) return isMemPertimbangan;
+        if (isSlotPakar) return isMemPakar;
+        if (isSlotPimpinan) return !isMemPertimbangan && !isMemPakar;
+        return true;
+      });
+
+      let assignedMember = relevantMembers.find(
+        (m) => cleanStr(m.jabatan) === slotClean
       );
 
       if (!assignedMember && slotClean.includes('ketua')) {
-        assignedMember = matchedMembers.find(
+        assignedMember = relevantMembers.find(
           (m) =>
-            !assignedMemberNiks.has(m.nik) &&
             cleanStr(m.jabatan).startsWith('ketua') &&
             !cleanStr(m.jabatan).includes('wakil')
         );
       }
       if (!assignedMember && slotClean.includes('sekretaris')) {
-        assignedMember = matchedMembers.find(
+        assignedMember = relevantMembers.find(
           (m) =>
-            !assignedMemberNiks.has(m.nik) &&
             cleanStr(m.jabatan).startsWith('sekretaris') &&
             !cleanStr(m.jabatan).includes('wakil')
         );
       }
       if (!assignedMember && slotClean.includes('bendahara')) {
-        assignedMember = matchedMembers.find(
+        assignedMember = relevantMembers.find(
           (m) =>
-            !assignedMemberNiks.has(m.nik) &&
             cleanStr(m.jabatan).startsWith('bendahara') &&
             !cleanStr(m.jabatan).includes('wakil')
         );
@@ -168,7 +183,7 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
           id: assignedMember.nik,
           no: slot.no,
           subOrg: slot.subOrg,
-          jabatan: slot.jabatan,
+          jabatan: assignedMember.jabatan || slot.jabatan,
           namaLengkap: assignedMember.namaLengkap,
           nik: assignedMember.nik,
           nomorEKTA: assignedMember.nomorEKTA || '',
@@ -181,7 +196,7 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
       }
 
       return {
-        id: `empty_${slot.no}_${Date.now()}`,
+        id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
         no: slot.no,
         subOrg: slot.subOrg,
         jabatan: slot.jabatan,
@@ -195,13 +210,38 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
       };
     });
 
-    // Append any extra members not matched into slots
+    // Masukkan anggota ekstra yang belum masuk ke slot standar
     matchedMembers.forEach((m) => {
       if (!assignedMemberNiks.has(m.nik)) {
+        const jLower = m.jabatan?.toLowerCase() || '';
+        const wLower = m.wilayahPenugasan?.toLowerCase() || '';
+        let detectedSubOrg = m.wilayahPenugasan;
+        if (!detectedSubOrg) {
+          if (tingkat === 'DPD') {
+            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
+              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
+            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
+              detectedSubOrg = 'II. DEWAN PAKAR';
+            } else {
+              detectedSubOrg = 'III. DEWAN PIMPINAN DAERAH';
+            }
+          } else if (tingkat === 'DPC') {
+            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
+              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
+            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
+              detectedSubOrg = 'II. DEWAN PAKAR';
+            } else {
+              detectedSubOrg = 'III. DEWAN PIMPINAN CABANG';
+            }
+          } else {
+            detectedSubOrg = tingkat;
+          }
+        }
+
         rows.push({
           id: m.nik,
-          no: rows.length + 1,
-          subOrg: m.wilayahPenugasan || (tingkat === 'DPD' ? 'DPD' : tingkat),
+          no: rows.filter((r) => r.subOrg === detectedSubOrg).length + 1,
+          subOrg: detectedSubOrg,
           jabatan: m.jabatan,
           namaLengkap: m.namaLengkap,
           nik: m.nik,
@@ -235,19 +275,28 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
     );
   };
 
-  // Add new dynamic row
-  const handleAddNewRow = () => {
-    const newId = `new_row_${Date.now()}`;
+  // Add new dynamic row with optional subOrg target
+  const handleAddNewRow = (targetSubOrg?: string) => {
+    const defaultSubOrg =
+      targetSubOrg ||
+      (tingkat === 'DPD'
+        ? 'III. DEWAN PIMPINAN DAERAH'
+        : tingkat === 'DPC'
+        ? 'III. DEWAN PIMPINAN CABANG'
+        : tingkat === 'DPW'
+        ? 'DEWAN PIMPINAN WILAYAH'
+        : `DEWAN PIMPINAN ${tingkat}`);
+
+    const newId = `new_row_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newRow: GridRowItem = {
       id: newId,
-      no: gridRows.length + 1,
-      subOrg:
-        tingkat === 'DPD'
-          ? 'DPD'
-          : tingkat === 'DPW'
-          ? 'DEWAN PIMPINAN WILAYAH'
-          : `DEWAN PIMPINAN ${tingkat}`,
-      jabatan: 'Pengurus Tambahan / Anggota',
+      no: gridRows.filter((r) => r.subOrg === defaultSubOrg).length + 1,
+      subOrg: defaultSubOrg,
+      jabatan: defaultSubOrg.includes('PERTIMBANGAN')
+        ? 'Anggota Dewan Pertimbangan'
+        : defaultSubOrg.includes('PAKAR')
+        ? 'Anggota Dewan Pakar'
+        : 'Pengurus Tambahan / Anggota',
       namaLengkap: '',
       nik: '',
       nomorEKTA: '',
@@ -256,7 +305,7 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
       sosmed: '',
       isExisting: false,
     };
-    setGridRows([...gridRows, newRow]);
+    setGridRows((prev) => [...prev, newRow]);
     setIsEditMode(true);
   };
 
@@ -492,13 +541,14 @@ export const TerritorialMatrixModal: React.FC<TerritorialMatrixModalProps> = ({
           onImportExcel={handleImportExcel}
         />
 
-        {/* 3. Authentic Table Sheet (8 Exact Columns) */}
+        {/* 3. Authentic Table Sheet (8 Exact Columns, Separate Tables for Dewan Pertimbangan, Dewan Pakar & Dewan Pimpinan) */}
         <MatrixTableSheet
           gridRows={gridRows}
           isEditMode={isEditMode}
           officialTitle={getOfficialTitle()}
           onCellChange={handleCellChange}
           onDeleteRow={handleDeleteRow}
+          onAddNewRowForSubOrg={handleAddNewRow}
         />
       </div>
     </div>
