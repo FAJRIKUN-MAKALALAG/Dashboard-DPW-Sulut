@@ -1,6 +1,0 @@
-{
-  "name": "Sistem Monitoring e-KTA Sulut",
-  "description": "Shadow database mandiri dan dashboard monitoring keanggotaan aktif e-KTA DPW Sulawesi Utara di 15 Kabupaten/Kota.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
