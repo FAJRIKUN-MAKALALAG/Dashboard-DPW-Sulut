@@ -80,12 +80,14 @@ DEWAN PAKAR WILAYAH
 -Struktur jabatan dpd-
 I. DEWAN PERTIMBANGAN							
 1	Ketua
-2	Sekretaris
-3	Anggota
+2	Wakil Ketua
+3	Sekretaris
+4	Anggota
 II. DEWAN PAKAR							
 1	Ketua
-2	Sekretaris
-3	Anggota
+2	Wakil Ketua
+3	Sekretaris
+4	Anggota
 III. DEWAN PIMPINAN DAERAH							
 1	Ketua
 2	Wakil Ketua Bid Pemilihan Umum
@@ -127,7 +129,19 @@ III. DEWAN PIMPINAN DAERAH
 
 -struktur jabatan dpc-
 
-No	Jabatan Pengurus
+I. DEWAN PERTIMBANGAN							
+1	Ketua
+2	Wakil Ketua
+3	Sekretaris
+4	Anggota
+
+II. DEWAN PAKAR							
+1	Ketua
+2	Wakil Ketua
+3	Sekretaris
+4	Anggota
+
+III. DEWAN PIMPINAN CABANG							
 1	Ketua
 2	Wakil Ketua Bidang Pemilihan Umum
 3	Wakil Ketua Bidang Organisasi dan Keanggotaan

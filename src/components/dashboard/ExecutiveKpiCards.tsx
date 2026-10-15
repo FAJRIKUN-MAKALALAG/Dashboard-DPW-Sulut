@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserSession } from '../../types';
 import { UserCheck, TrendingUp, Building2, ChevronRight } from 'lucide-react';
+import { StructureKpiStats } from '../../utils/structureReadinessUtils';
 
 interface ExecutiveKpiCardsProps {
   session?: UserSession;
@@ -11,6 +12,7 @@ interface ExecutiveKpiCardsProps {
   totalAnggotaBiasa: number;
   countPengurusDpw: number;
   selectedDpdFilter: string;
+  structureKpi: StructureKpiStats;
   onNavigateToMembers: () => void;
   onOpenStructureModal: (level: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
@@ -24,6 +26,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
   totalAnggotaBiasa,
   countPengurusDpw,
   selectedDpdFilter,
+  structureKpi,
   onNavigateToMembers,
   onOpenStructureModal,
 }) => {
@@ -64,15 +67,15 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
         </button>
       </div>
 
-      {/* Metric 2: Tingkat Keaktifan & Keterisian Struktur */}
+      {/* Metric 2: Tingkat Keterisian Struktur Riil (DPW, DPD, DPC, DPRt) */}
       <div
         onClick={() => onOpenStructureModal('ALL')}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-blue-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-        title="Klik untuk membuka rincian kelengkapan struktur organisasi"
+        title="Klik untuk membuka rincian kelengkapan seluruh struktur organisasi"
       >
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-blue-800 dark:text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <span>Tingkat Keaktifan Riil</span>
+            <span>Tingkat Keterisian Struktur Riil</span>
             <span className="text-[10px] text-blue-600 dark:text-blue-400 opacity-80 group-hover:underline">
               (Klik Rincian)
             </span>
@@ -86,24 +89,67 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             className="text-3xl sm:text-4xl font-extrabold text-blue-600 dark:text-blue-400 font-mono tracking-tight"
             data-tabular="true"
           >
-            {activePercentage}%
+            {structureKpi.percentage}%
           </span>
-          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
-            Rasio Aktif Riil
+          <span
+            className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+              structureKpi.percentage >= 100
+                ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800'
+                : structureKpi.percentage > 0
+                ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800'
+                : 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800'
+            }`}
+          >
+            {structureKpi.percentage >= 100 ? 'Struktur Lengkap' : 'Belum Lengkap'}
           </span>
         </div>
         <div className="w-full bg-blue-100 dark:bg-blue-950 rounded-full h-2 mt-3 overflow-hidden">
           <div
-            className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-500 shadow-xs"
-            style={{ width: `${activePercentage}%` }}
+            className={`h-2 rounded-full transition-all duration-500 shadow-xs ${
+              structureKpi.percentage >= 80
+                ? 'bg-emerald-500'
+                : structureKpi.percentage >= 30
+                ? 'bg-blue-600'
+                : 'bg-amber-500'
+            }`}
+            style={{ width: `${Math.max(2, Math.min(structureKpi.percentage, 100))}%` }}
           ></div>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2.5 leading-relaxed flex items-center justify-between">
-          <span>{totalActive} dari {totalRegistered} data terverifikasi aktif</span>
-          <span className="text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center text-[11px]">
-            Lihat Detail &raquo;
-          </span>
-        </p>
+
+        <div className="mt-2.5 space-y-1">
+          <p className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+            <span>
+              <strong>{structureKpi.totalFilled.toLocaleString('id-ID')}</strong> dari{' '}
+              <strong>{structureKpi.totalRequired.toLocaleString('id-ID')}</strong> jabatan terisi
+            </span>
+            <span className="text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-0.5 transition-transform text-[11px]">
+              Lihat Detail &raquo;
+            </span>
+          </p>
+
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-1.5 pt-0.5">
+            {structureKpi.isAllSulut && (
+              <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                DPW: <strong>{structureKpi.dpwFilled}/{structureKpi.dpwRequired}</strong>
+              </span>
+            )}
+            <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+              DPD: <strong>{structureKpi.dpdFilled}/{structureKpi.dpdRequired}</strong>
+            </span>
+            <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+              DPC: <strong>{structureKpi.dpcFilled}/{structureKpi.dpcRequired}</strong>
+            </span>
+            <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+              DPRt: <strong>{structureKpi.dprtFilled}/{structureKpi.dprtRequired}</strong>
+            </span>
+          </div>
+
+          {structureKpi.totalEmpty > 0 && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+              *Tersisa {structureKpi.totalEmpty.toLocaleString('id-ID')} jabatan kosong yang belum terisi.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Metric 3: Struktur DPW & Pengurus Ber-SK */}

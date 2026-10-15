@@ -8,7 +8,7 @@ import {
   computeGrowthAnalytics,
   generateTestScenarioMembers,
 } from '../utils/growthUtils';
-import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch, computeStructureKpiStats } from '../utils/structureReadinessUtils';
 import {
   DashboardHeader,
   DashboardScopeFilter,
@@ -108,6 +108,11 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const activePercentage =
     totalRegistered > 0 ? Math.round((activeMembers.length / totalRegistered) * 100) : 0;
 
+  // Compute Real Structural Completeness KPI (DPW, DPD, DPC, DPRt templates)
+  const structureKpi = useMemo(() => {
+    return computeStructureKpiStats(members, selectedDpdFilter);
+  }, [members, selectedDpdFilter]);
+
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
     const targetSource = !session || session.role === 'SUPER_ADMIN' ? members : scopedMembers;
@@ -190,6 +195,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         totalAnggotaBiasa={activeMembers.length - pengurusList.length}
         countPengurusDpw={countPengurusDpw}
         selectedDpdFilter={selectedDpdFilter}
+        structureKpi={structureKpi}
         onNavigateToMembers={() =>
           onNavigateToMembers(selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter, 'Aktif')
         }
