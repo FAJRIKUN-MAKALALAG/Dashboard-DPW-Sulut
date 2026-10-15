@@ -309,7 +309,7 @@ export async function parseTerritorialExcelFile(
         namaLengkap: namaVal,
         email: emailVal || existingMember?.email || undefined,
         nomorHP: hpVal || existingMember?.nomorHP || '-',
-        alamat: alamatVal || existingMember?.alamat || undefined,
+        alamatLengkap: alamatVal || existingMember?.alamatLengkap || undefined,
         jenisKelamin:
           genderVal.toUpperCase().startsWith('L') || genderVal.toLowerCase().includes('laki')
             ? 'Laki-laki'

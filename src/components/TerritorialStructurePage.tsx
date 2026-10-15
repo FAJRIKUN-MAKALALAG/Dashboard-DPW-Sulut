@@ -144,7 +144,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
             m.dpc === 'Umum (DPD)' ||
             m.dpc === 'Wilayah DPD' ||
             (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
-            (m.isPengurus && (m.tingkatKepengurusan === 'DPD' || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
+            (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
       );
     } else if (level === 'DPC') {
       matchedMembers = members.filter(
