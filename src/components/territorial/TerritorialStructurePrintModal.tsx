@@ -41,8 +41,6 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
 }) => {
   const [filterMode, setFilterMode] = useState<'all' | 'filled'>('all');
 
-  if (!isOpen) return null;
-
   const currentDateFormatted = new Date().toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
@@ -113,6 +111,8 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
       `SUSUNAN_PENGURUS_${level}_${dpd.replace(/\s+/g, '_')}_${Date.now()}.xlsx`
     );
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:overflow-visible">

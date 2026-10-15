@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Member, MemberStatus } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import { isDpdMatch } from '../utils/structureReadinessUtils';
+import { getMembersFromSupabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { loadMembers, saveMembers } from '../utils/storage';
 import {
   exportMembersToExcel,
   exportMembersToCsv,
@@ -25,6 +28,8 @@ import {
   TrendingUp,
   UserX,
   FileText,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 
 interface ExecutiveReportPrintModalProps {
@@ -40,17 +45,64 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   members,
   initialDpd = 'ALL',
 }) => {
-  if (!isOpen) return null;
-
   // Report Type: 'STATISTICS' (ringkasan statistik per DPD) vs 'NOMINATIVE' (daftar rinci nama)
   const [reportType, setReportType] = useState<'STATISTICS' | 'NOMINATIVE'>('STATISTICS');
   const [filterDpd, setFilterDpd] = useState<string>(initialDpd);
   const [filterStatus, setFilterStatus] = useState<string>('Aktif');
 
-  // Compute 15 DPD Statistics
+  // Real-time Database Members State
+  const [liveMembers, setLiveMembers] = useState<Member[]>(members);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [dbStatusText, setDbStatusText] = useState<string>('Database Tersinkron');
+
+  // Keep liveMembers in sync with members prop
+  useEffect(() => {
+    if (members && members.length > 0) {
+      setLiveMembers(members);
+    }
+  }, [members]);
+
+  // Pull fresh data directly from Supabase / localStorage on demand
+  const refreshFromDatabase = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      if (isSupabaseConfigured()) {
+        const cloudMembers = await getMembersFromSupabase();
+        if (cloudMembers && cloudMembers.length > 0) {
+          setLiveMembers(cloudMembers);
+          saveMembers(cloudMembers);
+          setDbStatusText('Supabase Realtime Live');
+        } else {
+          const local = loadMembers();
+          if (local && local.length > 0) setLiveMembers(local);
+          setDbStatusText('Database Lokal');
+        }
+      } else {
+        const local = loadMembers();
+        if (local && local.length > 0) setLiveMembers(local);
+        setDbStatusText('Penyimpanan Lokal');
+      }
+    } catch (err) {
+      console.warn('Gagal sinkron database pada modal cetak:', err);
+      const local = loadMembers();
+      if (local && local.length > 0) setLiveMembers(local);
+      setDbStatusText('Database Lokal');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Sync automatically whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      refreshFromDatabase();
+    }
+  }, [isOpen, refreshFromDatabase]);
+
+  // Compute 15 DPD Statistics with robust isDpdMatch
   const dpdStats: DpdStatRow[] = useMemo(() => {
     return SULUT_REGIONS.map((region, idx) => {
-      const regMembers = members.filter((m) => m.dpd === region.name);
+      const regMembers = liveMembers.filter((m) => isDpdMatch(m.dpd, region.name));
       const total = regMembers.length;
       const aktif = regMembers.filter((m) => m.status === 'Aktif').length;
       const meninggal = regMembers.filter((m) => m.status === 'Non-Aktif (Meninggal)').length;
@@ -80,7 +132,7 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
         statusKesiapan,
       };
     });
-  }, [members]);
+  }, [liveMembers]);
 
   // Total summary of all 15 DPDs
   const grandTotal = useMemo(() => {
@@ -105,14 +157,14 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
     };
   }, [dpdStats]);
 
-  // Filter for nominative member list
+  // Filter for nominative member list with robust isDpdMatch
   const nominativeMembers = useMemo(() => {
-    return members.filter((m) => {
-      if (filterDpd !== 'ALL' && m.dpd !== filterDpd) return false;
+    return liveMembers.filter((m) => {
+      if (filterDpd !== 'ALL' && !isDpdMatch(m.dpd, filterDpd)) return false;
       if (filterStatus !== 'ALL' && m.status !== filterStatus) return false;
       return true;
     });
-  }, [members, filterDpd, filterStatus]);
+  }, [liveMembers, filterDpd, filterStatus]);
 
   const handlePrint = () => {
     window.print();
@@ -144,6 +196,8 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
     dateStyle: 'long',
   }).format(new Date());
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
@@ -162,16 +216,31 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                 <Printer className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                  Laporan Eksekutif Keanggotaan untuk Atasan (Siap Cetak / PDF)
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span>Laporan Eksekutif Keanggotaan untuk Atasan</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 font-mono">
+                    <Database className="w-3 h-3 text-emerald-600" />
+                    <span>{liveMembers.length.toLocaleString('id-ID')} Kader Riil</span>
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Pilih format Ringkasan Statistik 15 DPD atau Daftar Rinci Nominatif
+                  Data Terhubung Database: <strong className="text-blue-600 dark:text-blue-400 font-semibold">{dbStatusText}</strong> · Ringkasan 15 DPD & Nominatif
                 </p>
               </div>
             </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Sync Live Database Button */}
+            <button
+              onClick={refreshFromDatabase}
+              disabled={isRefreshing}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+              title="Tarik & sinkronkan data keanggotaan riil terbaru langsung dari database"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 dark:text-blue-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Menyinkronkan...' : 'Sinkron Database'}</span>
+            </button>
+
             {/* Report Mode Tabs */}
             <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs">
               <button
