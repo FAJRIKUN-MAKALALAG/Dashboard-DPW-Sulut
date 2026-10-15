@@ -194,29 +194,24 @@ export function downloadTerritorialExcelTemplate(
 }
 
 /**
- * 2b. Menghasilkan dan mendownload Template Excel KHUSUS Dewan Pertimbangan & Dewan Pakar
- * Berguna saat data Dewan Pimpinan sudah terisi dan admin hanya ingin mengisi Dewan Pertimbangan dan Dewan Pakar
+ * 2b. Menghasilkan dan mendownload Template Excel KHUSUS DEWAN PERTIMBANGAN SAJA
+ * Murni hanya berisi posisi Dewan Pertimbangan berurutan No 1..N
  */
-export function downloadAdvisoryAndExpertExcelTemplate(
+export function downloadAdvisoryOnlyExcelTemplate(
   ctx: TerritoryContext,
   currentRows?: GridRowItem[]
 ): void {
   const allSlots: PositionSlot[] = getStructureTemplate(ctx.level);
-  const slots = allSlots.filter((s) => {
-    const sub = (s.subOrg || '').toLowerCase();
-    return sub.includes('pertimbangan') || sub.includes('pakar');
-  });
+  const slots = allSlots.filter((s) => (s.subOrg || '').toLowerCase().includes('pertimbangan'));
 
   const territoryTitle =
-    ctx.level === 'DPW'
-      ? 'PROVINSI SULAWESI UTARA'
-      : `${ctx.dpd.toUpperCase()}`;
+    ctx.level === 'DPW' ? 'PROVINSI SULAWESI UTARA' : `${ctx.dpd.toUpperCase()}`;
 
   const sheetData: (string | number)[][] = [
-    ['FORMULIR KHUSUS: INPUT DEWAN PERTIMBANGAN & DEWAN PAKAR PARTAI NASDEM'],
+    ['FORMULIR KHUSUS: DEWAN PERTIMBANGAN PARTAI NASDEM'],
     [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
     [
-      'PANDUAN: Khusus untuk mengisi posisi Dewan Pertimbangan & Dewan Pakar. Data Dewan Pimpinan yang sudah ada di database akan tetap aman dan tidak terhapus.',
+      'PETUNJUK: Berkas ini KHUSUS posisi Dewan Pertimbangan saja. Silakan copy-paste seluruh daftar nama dan NIK langsung ke kolom di bawah. Data Dewan Pimpinan & Dewan Pakar di database tetap aman.',
     ],
     [],
     [
@@ -235,11 +230,9 @@ export function downloadAdvisoryAndExpertExcelTemplate(
   ];
 
   if (currentRows && currentRows.length > 0) {
-    const targetRows = currentRows.filter((r) => {
-      const sub = (r.subOrg || '').toLowerCase();
-      return sub.includes('pertimbangan') || sub.includes('pakar');
-    });
-
+    const targetRows = currentRows.filter((r) =>
+      (r.subOrg || '').toLowerCase().includes('pertimbangan')
+    );
     if (targetRows.length > 0) {
       targetRows.forEach((r, idx) => {
         sheetData.push([
@@ -258,36 +251,12 @@ export function downloadAdvisoryAndExpertExcelTemplate(
       });
     } else {
       slots.forEach((s, idx) => {
-        sheetData.push([
-          idx + 1,
-          s.subOrg,
-          s.jabatan,
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          'Aktif',
-        ]);
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
       });
     }
   } else {
     slots.forEach((s, idx) => {
-      sheetData.push([
-        idx + 1,
-        s.subOrg,
-        s.jabatan,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        'Aktif',
-      ]);
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
     });
   }
 
@@ -307,23 +276,243 @@ export function downloadAdvisoryAndExpertExcelTemplate(
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Pakar & Pertimbangan');
+  XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pertimbangan');
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-  const filename = `TEMPLATE_KHUSUS_PAKAR_DAN_PERTIMBANGAN_${ctx.level}_${cleanDpd}.xlsx`;
+  const filename = `TEMPLATE_KHUSUS_DEWAN_PERTIMBANGAN_${ctx.level}_${cleanDpd}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
 /**
- * 2c. Menghasilkan dan mendownload Template Excel MASAL Dewan Pertimbangan & Dewan Pakar untuk SELURUH 15 DPD se-Sulut
- * 1 berkas langsung memuat 15 DPD x 8 posisi (Dewan Pertimbangan & Pakar)
+ * 2c. Menghasilkan dan mendownload Template Excel KHUSUS DEWAN PAKAR SAJA
+ * Murni hanya berisi posisi Dewan Pakar berurutan No 1..N
  */
-export function downloadMassAdvisoryAndExpertExcelTemplateAllDpds(): void {
+export function downloadExpertOnlyExcelTemplate(
+  ctx: TerritoryContext,
+  currentRows?: GridRowItem[]
+): void {
+  const allSlots: PositionSlot[] = getStructureTemplate(ctx.level);
+  const slots = allSlots.filter((s) => (s.subOrg || '').toLowerCase().includes('pakar'));
+
+  const territoryTitle =
+    ctx.level === 'DPW' ? 'PROVINSI SULAWESI UTARA' : `${ctx.dpd.toUpperCase()}`;
+
   const sheetData: (string | number)[][] = [
-    ['FORMULIR MASAL: DEWAN PERTIMBANGAN & DEWAN PAKAR SELURUH 15 DPD KABUPATEN/KOTA'],
-    ['DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM PROVINSI SULAWESI UTARA'],
+    ['FORMULIR KHUSUS: DEWAN PAKAR PARTAI NASDEM'],
+    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
     [
-      'PETUNJUK: Masukkan Nama Lengkap dan NIK untuk masing-masing DPD. Kolom Nama DPD menentukan ke DPD mana pengurus tersebut akan disimpan secara otomatis.',
+      'PETUNJUK: Berkas ini KHUSUS posisi Dewan Pakar saja. Silakan copy-paste seluruh daftar nama dan NIK langsung ke kolom di bawah. Data Dewan Pimpinan & Dewan Pertimbangan di database tetap aman.',
+    ],
+    [],
+    [
+      'No',
+      'Sub Organisasi',
+      'Jabatan Pengurus',
+      'Nama Lengkap (dan Gelar)',
+      'Nomor NIK (KTP)',
+      'Nomor E-KTA NasDem',
+      'Jenis Kelamin (L/P)',
+      'No. WhatsApp / HP',
+      'Email',
+      'Alamat Lengkap',
+      'Status',
+    ],
+  ];
+
+  if (currentRows && currentRows.length > 0) {
+    const targetRows = currentRows.filter((r) =>
+      (r.subOrg || '').toLowerCase().includes('pakar')
+    );
+    if (targetRows.length > 0) {
+      targetRows.forEach((r, idx) => {
+        sheetData.push([
+          idx + 1,
+          r.subOrg,
+          r.jabatan || 'Pengurus',
+          r.namaLengkap || '',
+          r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
+          r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+          '',
+          r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
+          r.email || '',
+          '',
+          'Aktif',
+        ]);
+      });
+    } else {
+      slots.forEach((s, idx) => {
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+      });
+    }
+  } else {
+    slots.forEach((s, idx) => {
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+    });
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  ws['!cols'] = [
+    { wch: 6 },
+    { wch: 32 },
+    { wch: 28 },
+    { wch: 38 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 12 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pakar');
+
+  const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const filename = `TEMPLATE_KHUSUS_DEWAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * 2d. Menghasilkan dan mendownload Template Excel Gabungan Pertimbangan & Pakar
+ * Menggunakan 2 SHEET TERPISAH (Sheet 1: Dewan Pertimbangan, Sheet 2: Dewan Pakar)
+ * agar tidak tercampur dan tidak membingungkan saat copy-paste
+ */
+export function downloadAdvisoryAndExpertExcelTemplate(
+  ctx: TerritoryContext,
+  currentRows?: GridRowItem[]
+): void {
+  const allSlots: PositionSlot[] = getStructureTemplate(ctx.level);
+  const pertimbanganSlots = allSlots.filter((s) =>
+    (s.subOrg || '').toLowerCase().includes('pertimbangan')
+  );
+  const pakarSlots = allSlots.filter((s) => (s.subOrg || '').toLowerCase().includes('pakar'));
+
+  const territoryTitle =
+    ctx.level === 'DPW' ? 'PROVINSI SULAWESI UTARA' : `${ctx.dpd.toUpperCase()}`;
+
+  const headerCols = [
+    'No',
+    'Sub Organisasi',
+    'Jabatan Pengurus',
+    'Nama Lengkap (dan Gelar)',
+    'Nomor NIK (KTP)',
+    'Nomor E-KTA NasDem',
+    'Jenis Kelamin (L/P)',
+    'No. WhatsApp / HP',
+    'Email',
+    'Alamat Lengkap',
+    'Status',
+  ];
+
+  // Sheet 1: Dewan Pertimbangan
+  const sheet1Data: (string | number)[][] = [
+    ['FORMULIR KHUSUS: DEWAN PERTIMBANGAN PARTAI NASDEM'],
+    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
+    ['PANDUAN: Halaman ini murni untuk posisi Dewan Pertimbangan.'],
+    [],
+    headerCols,
+  ];
+
+  const currentPertimbangan = (currentRows || []).filter((r) =>
+    (r.subOrg || '').toLowerCase().includes('pertimbangan')
+  );
+
+  if (currentPertimbangan.length > 0) {
+    currentPertimbangan.forEach((r, idx) => {
+      sheet1Data.push([
+        idx + 1,
+        r.subOrg,
+        r.jabatan || 'Pengurus',
+        r.namaLengkap || '',
+        r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
+        r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+        '',
+        r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
+        r.email || '',
+        '',
+        'Aktif',
+      ]);
+    });
+  } else {
+    pertimbanganSlots.forEach((s, idx) => {
+      sheet1Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+    });
+  }
+
+  // Sheet 2: Dewan Pakar
+  const sheet2Data: (string | number)[][] = [
+    ['FORMULIR KHUSUS: DEWAN PAKAR PARTAI NASDEM'],
+    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
+    ['PANDUAN: Halaman ini murni untuk posisi Dewan Pakar.'],
+    [],
+    headerCols,
+  ];
+
+  const currentPakar = (currentRows || []).filter((r) =>
+    (r.subOrg || '').toLowerCase().includes('pakar')
+  );
+
+  if (currentPakar.length > 0) {
+    currentPakar.forEach((r, idx) => {
+      sheet2Data.push([
+        idx + 1,
+        r.subOrg,
+        r.jabatan || 'Pengurus',
+        r.namaLengkap || '',
+        r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
+        r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+        '',
+        r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
+        r.email || '',
+        '',
+        'Aktif',
+      ]);
+    });
+  } else {
+    pakarSlots.forEach((s, idx) => {
+      sheet2Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+    });
+  }
+
+  const colWidths = [
+    { wch: 6 },
+    { wch: 32 },
+    { wch: 28 },
+    { wch: 38 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 12 },
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+  ws1['!cols'] = colWidths;
+
+  const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+  ws2['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Dewan Pertimbangan');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Dewan Pakar');
+
+  const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const filename = `TEMPLATE_KHUSUS_PERTIMBANGAN_DAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * 2e. Menghasilkan dan mendownload Template MASAL KHUSUS DEWAN PERTIMBANGAN 15 DPD
+ */
+export function downloadMassAdvisoryOnlyExcelTemplateAllDpds(): void {
+  const sheetData: (string | number)[][] = [
+    ['FORMULIR MASAL: DEWAN PERTIMBANGAN SELURUH 15 DPD KABUPATEN/KOTA'],
+    ['DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM SULAWESI UTARA'],
+    [
+      'PETUNJUK: Berkas ini MURNI posisi Dewan Pertimbangan 15 DPD. Silakan copy-paste daftar Dewan Pertimbangan per daerah langsung ke bawah.',
     ],
     [],
     [
@@ -343,10 +532,9 @@ export function downloadMassAdvisoryAndExpertExcelTemplateAllDpds(): void {
   ];
 
   let rowCounter = 1;
-  const dpdSlots = DPD_STRUCTURE_TEMPLATE.filter((s) => {
-    const sub = (s.subOrg || '').toLowerCase();
-    return sub.includes('pertimbangan') || sub.includes('pakar');
-  });
+  const dpdSlots = DPD_STRUCTURE_TEMPLATE.filter((s) =>
+    (s.subOrg || '').toLowerCase().includes('pertimbangan')
+  );
 
   SULUT_REGIONS.forEach((region) => {
     dpdSlots.forEach((slot) => {
@@ -384,12 +572,197 @@ export function downloadMassAdvisoryAndExpertExcelTemplateAllDpds(): void {
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Pakar & Pertimbangan 15 DPD');
+  XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pertimbangan 15 DPD');
+  XLSX.writeFile(wb, 'TEMPLATE_MASAL_DEWAN_PERTIMBANGAN_15_DPD_SULUT.xlsx');
+}
+
+/**
+ * 2f. Menghasilkan dan mendownload Template MASAL KHUSUS DEWAN PAKAR 15 DPD
+ */
+export function downloadMassExpertOnlyExcelTemplateAllDpds(): void {
+  const sheetData: (string | number)[][] = [
+    ['FORMULIR MASAL: DEWAN PAKAR SELURUH 15 DPD KABUPATEN/KOTA'],
+    ['DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM SULAWESI UTARA'],
+    [
+      'PETUNJUK: Berkas ini MURNI posisi Dewan Pakar 15 DPD. Silakan copy-paste daftar Dewan Pakar per daerah langsung ke bawah.',
+    ],
+    [],
+    [
+      'No',
+      'Nama DPD (Kabupaten/Kota)',
+      'Sub Organisasi',
+      'Jabatan Pengurus',
+      'Nama Lengkap (dan Gelar)',
+      'Nomor NIK (KTP)',
+      'Nomor E-KTA NasDem',
+      'Jenis Kelamin (L/P)',
+      'No. WhatsApp / HP',
+      'Email',
+      'Alamat Lengkap',
+      'Status',
+    ],
+  ];
+
+  let rowCounter = 1;
+  const dpdSlots = DPD_STRUCTURE_TEMPLATE.filter((s) =>
+    (s.subOrg || '').toLowerCase().includes('pakar')
+  );
+
+  SULUT_REGIONS.forEach((region) => {
+    dpdSlots.forEach((slot) => {
+      sheetData.push([
+        rowCounter++,
+        region.name,
+        slot.subOrg,
+        slot.jabatan,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        'Aktif',
+      ]);
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  ws['!cols'] = [
+    { wch: 6 },
+    { wch: 30 },
+    { wch: 28 },
+    { wch: 22 },
+    { wch: 38 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 12 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pakar 15 DPD');
+  XLSX.writeFile(wb, 'TEMPLATE_MASAL_DEWAN_PAKAR_15_DPD_SULUT.xlsx');
+}
+
+/**
+ * 2g. Menghasilkan dan mendownload Template Excel MASAL Dewan Pertimbangan & Dewan Pakar untuk SELURUH 15 DPD se-Sulut
+ * 2 Sheet Terpisah (Sheet 1: Dewan Pertimbangan 15 DPD, Sheet 2: Dewan Pakar 15 DPD)
+ */
+export function downloadMassAdvisoryAndExpertExcelTemplateAllDpds(): void {
+  const headerCols = [
+    'No',
+    'Nama DPD (Kabupaten/Kota)',
+    'Sub Organisasi',
+    'Jabatan Pengurus',
+    'Nama Lengkap (dan Gelar)',
+    'Nomor NIK (KTP)',
+    'Nomor E-KTA NasDem',
+    'Jenis Kelamin (L/P)',
+    'No. WhatsApp / HP',
+    'Email',
+    'Alamat Lengkap',
+    'Status',
+  ];
+
+  // Sheet 1: Dewan Pertimbangan 15 DPD
+  const sheet1Data: (string | number)[][] = [
+    ['FORMULIR MASAL: DEWAN PERTIMBANGAN SELURUH 15 DPD KABUPATEN/KOTA'],
+    ['DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM PROVINSI SULAWESI UTARA'],
+    ['PETUNJUK: Masukkan Nama Lengkap dan NIK pengurus Dewan Pertimbangan untuk masing-masing DPD.'],
+    [],
+    headerCols,
+  ];
+
+  let counter1 = 1;
+  const pertimbanganSlots = DPD_STRUCTURE_TEMPLATE.filter((s) =>
+    (s.subOrg || '').toLowerCase().includes('pertimbangan')
+  );
+
+  SULUT_REGIONS.forEach((region) => {
+    pertimbanganSlots.forEach((slot) => {
+      sheet1Data.push([
+        counter1++,
+        region.name,
+        slot.subOrg,
+        slot.jabatan,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        'Aktif',
+      ]);
+    });
+  });
+
+  // Sheet 2: Dewan Pakar 15 DPD
+  const sheet2Data: (string | number)[][] = [
+    ['FORMULIR MASAL: DEWAN PAKAR SELURUH 15 DPD KABUPATEN/KOTA'],
+    ['DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM PROVINSI SULAWESI UTARA'],
+    ['PETUNJUK: Masukkan Nama Lengkap dan NIK pengurus Dewan Pakar untuk masing-masing DPD.'],
+    [],
+    headerCols,
+  ];
+
+  let counter2 = 1;
+  const pakarSlots = DPD_STRUCTURE_TEMPLATE.filter((s) =>
+    (s.subOrg || '').toLowerCase().includes('pakar')
+  );
+
+  SULUT_REGIONS.forEach((region) => {
+    pakarSlots.forEach((slot) => {
+      sheet2Data.push([
+        counter2++,
+        region.name,
+        slot.subOrg,
+        slot.jabatan,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        'Aktif',
+      ]);
+    });
+  });
+
+  const colWidths = [
+    { wch: 6 },
+    { wch: 30 },
+    { wch: 28 },
+    { wch: 22 },
+    { wch: 38 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 12 },
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+  ws1['!cols'] = colWidths;
+
+  const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+  ws2['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Dewan Pertimbangan 15 DPD');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Dewan Pakar 15 DPD');
   XLSX.writeFile(wb, 'TEMPLATE_MASAL_PAKAR_DAN_PERTIMBANGAN_15_DPD_SULUT.xlsx');
 }
 
 /**
- * 3. Membaca & Mem-parse berkas Excel yang diunggah pengguna
+ * 3. Membaca & Mem-parse berkas Excel yang diunggah pengguna (Mendukung multi-sheet otomatis)
  */
 export async function parseTerritorialExcelFile(
   file: File,
@@ -399,62 +772,10 @@ export async function parseTerritorialExcelFile(
 ): Promise<ParseTerritoryExcelResult> {
   const data = await file.arrayBuffer();
   const wb = XLSX.read(data, { type: 'array' });
-  const sheetName = wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  const rawData: (string | number)[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-  if (rawData.length === 0) {
-    throw new Error('Berkas Excel kosong atau tidak dapat dibaca.');
+  if (!wb.SheetNames || wb.SheetNames.length === 0) {
+    throw new Error('Berkas Excel kosong atau tidak memiliki lembar kerja.');
   }
-
-  // Cari baris header (bisa baris 0 atau setelah baris banner panduan)
-  let headerRowIdx = -1;
-  for (let i = 0; i < Math.min(10, rawData.length); i++) {
-    const row = rawData[i] || [];
-    // Baris header tabel yang sebenarnya memiliki beberapa kolom (minimal 3 sel terisi)
-    const validCells = row.filter((c) => String(c || '').trim() !== '');
-    if (validCells.length >= 3) {
-      const rowLower = row.map((c) => String(c || '').toLowerCase().trim());
-      const hasJabatan = rowLower.some((c) => c.includes('jabatan') || c.includes('posisi'));
-      const hasNama = rowLower.some((c) => c.includes('nama'));
-      if (hasJabatan && hasNama) {
-        headerRowIdx = i;
-        break;
-      }
-    }
-  }
-
-  if (headerRowIdx === -1) {
-    throw new Error(
-      'Format header tabel tidak dikenali. Pastikan tabel memiliki kolom "Jabatan Pengurus" dan "Nama Lengkap".'
-    );
-  }
-
-  const headers = (rawData[headerRowIdx] || []).map((h) =>
-    String(h || '').toLowerCase().trim()
-  );
-
-  const colNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
-  const colDpd = headers.findIndex(
-    (h) =>
-      h === 'dpd' ||
-      h.includes('kabupaten') ||
-      h.includes('kota') ||
-      h.includes('daerah') ||
-      h.includes('wilayah') ||
-      h.includes('nama dpd')
-  );
-  const colSubOrg = headers.findIndex((h) => h.includes('sub organisasi') || h.includes('sub'));
-  const colJabatan = headers.findIndex((h) => h.includes('jabatan') || h.includes('posisi'));
-  const colNama = headers.findIndex((h) => h.includes('nama'));
-  const colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
-  const colEkta = headers.findIndex((h) => h.includes('kta') || h.includes('ekta'));
-  const colGender = headers.findIndex((h) => h.includes('kelamin') || h.includes('gender') || h === 'jk');
-  const colHp = headers.findIndex(
-    (h) => h.includes('hp') || h.includes('wa') || h.includes('telepon') || h.includes('whatsapp')
-  );
-  const colEmail = headers.findIndex((h) => h.includes('email') || h.includes('surel'));
-  const colAlamat = headers.findIndex((h) => h.includes('alamat'));
 
   const slots = getStructureTemplate(ctx.level);
   const parsedRows: ParsedTerritoryRow[] = [];
@@ -473,113 +794,185 @@ export async function parseTerritorialExcelFile(
   let matchedPositions = 0;
   let customPositions = 0;
 
-  for (let i = headerRowIdx + 1; i < rawData.length; i++) {
-    const row = rawData[i];
-    if (!row || row.length === 0) continue;
+  // Baca seluruh sheet yang relevan dalam berkas Excel
+  for (const sheetName of wb.SheetNames) {
+    const sheetLower = sheetName.toLowerCase().trim();
+    if (sheetLower.includes('panduan') || sheetLower.includes('info') || sheetLower.includes('petunjuk')) {
+      continue;
+    }
 
-    const noVal = colNo !== -1 ? Number(row[colNo]) || parsedRows.length + 1 : parsedRows.length + 1;
-    const subOrgVal = colSubOrg !== -1 ? String(row[colSubOrg] || '').trim() : '';
-    const jabatanVal = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
-    const namaVal = colNama !== -1 ? String(row[colNama] || '').trim() : '';
-    let nikVal = colNik !== -1 ? String(row[colNik] || '').replace(/[^0-9]/g, '').trim() : '';
-    const ektaVal = colEkta !== -1 ? String(row[colEkta] || '').replace(/[^0-9]/g, '').trim() : '';
-    const genderVal = colGender !== -1 ? String(row[colGender] || '').trim() : '';
-    const hpVal = colHp !== -1 ? String(row[colHp] || '').trim() : '';
-    const emailVal = colEmail !== -1 ? String(row[colEmail] || '').trim() : '';
-    const alamatVal = colAlamat !== -1 ? String(row[colAlamat] || '').trim() : '';
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
 
-    // Periksa apakah baris ini memiliki spesifikasi DPD (misalnya dari berkas template masal 15 DPD)
-    let rowDpd = territoryDpd;
-    let rowLevel = ctx.level;
-    if (colDpd !== -1) {
-      const rawRowDpd = String(row[colDpd] || '').trim();
-      if (rawRowDpd) {
-        const foundReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, rawRowDpd));
-        if (foundReg) {
-          rowDpd = foundReg.name;
-          rowLevel = 'DPD';
+    const rawData: (string | number)[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (!rawData || rawData.length === 0) continue;
+
+    // Cari baris header pada sheet ini
+    let headerRowIdx = -1;
+    for (let i = 0; i < Math.min(10, rawData.length); i++) {
+      const row = rawData[i] || [];
+      const validCells = row.filter((c) => String(c || '').trim() !== '');
+      if (validCells.length >= 3) {
+        const rowLower = row.map((c) => String(c || '').toLowerCase().trim());
+        const hasJabatan = rowLower.some((c) => c.includes('jabatan') || c.includes('posisi'));
+        const hasNama = rowLower.some((c) => c.includes('nama'));
+        if (hasJabatan && hasNama) {
+          headerRowIdx = i;
+          break;
         }
       }
     }
 
-    // Lewati baris kosong jika tidak ada nama maupun jabatan
-    if (!jabatanVal && !namaVal) continue;
+    if (headerRowIdx === -1) continue;
 
-    // Evaluasi kecocokan dengan slot template resmi
-    const matchedSlot = slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan));
-    const isMatched = !!matchedSlot;
-    if (isMatched) {
-      matchedPositions++;
-    } else if (jabatanVal) {
-      customPositions++;
+    const headers = (rawData[headerRowIdx] || []).map((h) =>
+      String(h || '').toLowerCase().trim()
+    );
+
+    const colNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
+    const colDpd = headers.findIndex(
+      (h) =>
+        h === 'dpd' ||
+        h.includes('kabupaten') ||
+        h.includes('kota') ||
+        h.includes('daerah') ||
+        h.includes('wilayah') ||
+        h.includes('nama dpd')
+    );
+    const colSubOrg = headers.findIndex((h) => h.includes('sub organisasi') || h.includes('sub'));
+    const colJabatan = headers.findIndex((h) => h.includes('jabatan') || h.includes('posisi'));
+    const colNama = headers.findIndex((h) => h.includes('nama'));
+    const colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
+    const colEkta = headers.findIndex((h) => h.includes('kta') || h.includes('ekta'));
+    const colGender = headers.findIndex(
+      (h) => h.includes('kelamin') || h.includes('gender') || h === 'jk'
+    );
+    const colHp = headers.findIndex(
+      (h) => h.includes('hp') || h.includes('wa') || h.includes('telepon') || h.includes('whatsapp')
+    );
+    const colEmail = headers.findIndex((h) => h.includes('email') || h.includes('surel'));
+    const colAlamat = headers.findIndex((h) => h.includes('alamat'));
+
+    // Default subOrg dari nama sheet jika ada
+    let defaultSubOrg = '';
+    if (sheetLower.includes('pertimbangan')) {
+      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+    } else if (sheetLower.includes('pakar')) {
+      defaultSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
     }
 
-    const isFilled = namaVal.length > 0;
-    if (isFilled) {
-      filledCount++;
+    for (let i = headerRowIdx + 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (!row || row.length === 0) continue;
 
-      // Generate fallback NIK jika kosong atau tidak valid (<10 digit)
-      if (!nikVal || nikVal.length < 10) {
-        nikVal = `71002026${String(10000000 + i).slice(-8)}`;
+      const noVal = colNo !== -1 ? Number(row[colNo]) || parsedRows.length + 1 : parsedRows.length + 1;
+      let subOrgVal = colSubOrg !== -1 ? String(row[colSubOrg] || '').trim() : '';
+      if (!subOrgVal && defaultSubOrg) subOrgVal = defaultSubOrg;
+
+      const jabatanVal = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
+      const namaVal = colNama !== -1 ? String(row[colNama] || '').trim() : '';
+      let nikVal = colNik !== -1 ? String(row[colNik] || '').replace(/[^0-9]/g, '').trim() : '';
+      const ektaVal = colEkta !== -1 ? String(row[colEkta] || '').replace(/[^0-9]/g, '').trim() : '';
+      const genderVal = colGender !== -1 ? String(row[colGender] || '').trim() : '';
+      const hpVal = colHp !== -1 ? String(row[colHp] || '').trim() : '';
+      const emailVal = colEmail !== -1 ? String(row[colEmail] || '').trim() : '';
+      const alamatVal = colAlamat !== -1 ? String(row[colAlamat] || '').trim() : '';
+
+      // Periksa apakah baris ini memiliki spesifikasi DPD
+      let rowDpd = territoryDpd;
+      let rowLevel = ctx.level;
+      if (colDpd !== -1) {
+        const rawRowDpd = String(row[colDpd] || '').trim();
+        if (rawRowDpd) {
+          const foundReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, rawRowDpd));
+          if (foundReg) {
+            rowDpd = foundReg.name;
+            rowLevel = 'DPD';
+          }
+        }
       }
 
-      // Cari existing member di database untuk mempertahankan data awal
-      const existingMember = currentMembers.find(
-        (m) => m.nik === nikVal || (ektaVal && m.nomorEKTA === ektaVal)
-      );
+      if (!jabatanVal && !namaVal) continue;
 
-      const memberObj: Member = {
-        ...(existingMember || {}),
-        nik: nikVal,
-        nomorEKTA: ektaVal || existingMember?.nomorEKTA || nikVal,
-        namaLengkap: namaVal,
-        email: emailVal || existingMember?.email || undefined,
-        nomorHP: hpVal || existingMember?.nomorHP || '-',
-        alamatLengkap: alamatVal || existingMember?.alamatLengkap || undefined,
-        jenisKelamin:
-          genderVal.toUpperCase().startsWith('L') || genderVal.toLowerCase().includes('laki')
-            ? 'Laki-laki'
-            : genderVal.toUpperCase().startsWith('P') || genderVal.toLowerCase().includes('perem')
-            ? 'Perempuan'
-            : existingMember?.jenisKelamin || 'Laki-laki',
+      const matchedSlot = slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan));
+      const isMatched = !!matchedSlot;
+      if (isMatched) {
+        matchedPositions++;
+      } else if (jabatanVal) {
+        customPositions++;
+      }
+
+      const isFilled = namaVal.length > 0;
+      if (isFilled) {
+        filledCount++;
+
+        if (!nikVal || nikVal.length < 10) {
+          nikVal = `71002026${String(10000000 + parsedRows.length + 1).slice(-8)}`;
+        }
+
+        const existingMember = currentMembers.find(
+          (m) => m.nik === nikVal || (ektaVal && m.nomorEKTA === ektaVal)
+        );
+
+        const memberObj: Member = {
+          ...(existingMember || {}),
+          nik: nikVal,
+          nomorEKTA: ektaVal || existingMember?.nomorEKTA || nikVal,
+          namaLengkap: namaVal,
+          email: emailVal || existingMember?.email || undefined,
+          nomorHP: hpVal || existingMember?.nomorHP || '-',
+          alamatLengkap: alamatVal || existingMember?.alamatLengkap || undefined,
+          jenisKelamin:
+            genderVal.toUpperCase().startsWith('L') || genderVal.toLowerCase().includes('laki')
+              ? 'Laki-laki'
+              : genderVal.toUpperCase().startsWith('P') || genderVal.toLowerCase().includes('perem')
+              ? 'Perempuan'
+              : existingMember?.jenisKelamin || 'Laki-laki',
+          dpd: rowDpd,
+          dpc: rowLevel === 'DPW' ? 'Wilayah DPW' : territoryDpc,
+          dprt: territoryDprt,
+          isPengurus: true,
+          tingkatKepengurusan: rowLevel,
+          wilayahPenugasan:
+            subOrgVal ||
+            matchedSlot?.subOrg ||
+            (rowLevel === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${rowLevel}`),
+          jabatan: jabatanVal || matchedSlot?.jabatan || 'Pengurus',
+          status: 'Aktif',
+          statusKtpVerified: true,
+          tanggalBergabung:
+            existingMember?.tanggalBergabung || new Date().toISOString().substring(0, 10),
+          terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          diubahOleh: `${adminName} (Import Excel Teritorial)`,
+        };
+
+        membersToSave.push(memberObj);
+      }
+
+      parsedRows.push({
+        no: noVal,
         dpd: rowDpd,
-        dpc: rowLevel === 'DPW' ? 'Wilayah DPW' : territoryDpc,
-        dprt: territoryDprt,
-        isPengurus: true,
-        tingkatKepengurusan: rowLevel,
-        wilayahPenugasan:
-          subOrgVal ||
-          matchedSlot?.subOrg ||
-          (rowLevel === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${rowLevel}`),
-        jabatan: jabatanVal || matchedSlot?.jabatan || 'Pengurus',
+        subOrg: subOrgVal || matchedSlot?.subOrg || `DEWAN PIMPINAN ${rowLevel}`,
+        jabatanExcel: jabatanVal || 'Pengurus',
+        jabatanMatched: matchedSlot?.jabatan,
+        isMatched,
+        namaLengkap: namaVal,
+        nik: nikVal,
+        nomorEKTA: ektaVal,
+        jenisKelamin: genderVal,
+        nomorHP: hpVal,
+        email: emailVal,
+        alamat: alamatVal,
         status: 'Aktif',
-        statusKtpVerified: true,
-        tanggalBergabung:
-          existingMember?.tanggalBergabung || new Date().toISOString().substring(0, 10),
-        terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        diubahOleh: `${adminName} (Import Excel Teritorial)`,
-      };
-
-      membersToSave.push(memberObj);
+        isFilled,
+      });
     }
+  }
 
-    parsedRows.push({
-      no: noVal,
-      dpd: rowDpd,
-      subOrg: subOrgVal || matchedSlot?.subOrg || `DEWAN PIMPINAN ${rowLevel}`,
-      jabatanExcel: jabatanVal || 'Pengurus',
-      jabatanMatched: matchedSlot?.jabatan,
-      isMatched,
-      namaLengkap: namaVal,
-      nik: nikVal,
-      nomorEKTA: ektaVal,
-      jenisKelamin: genderVal,
-      nomorHP: hpVal,
-      email: emailVal,
-      alamat: alamatVal,
-      status: 'Aktif',
-      isFilled,
-    });
+  if (parsedRows.length === 0) {
+    throw new Error(
+      'Format header tabel tidak dikenali atau berkas kosong. Pastikan tabel memiliki kolom "Jabatan Pengurus" dan "Nama Lengkap".'
+    );
   }
 
   return {

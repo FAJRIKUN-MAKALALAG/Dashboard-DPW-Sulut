@@ -8,7 +8,11 @@ import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
   downloadTerritorialExcelTemplate,
+  downloadAdvisoryOnlyExcelTemplate,
+  downloadExpertOnlyExcelTemplate,
   downloadAdvisoryAndExpertExcelTemplate,
+  downloadMassAdvisoryOnlyExcelTemplateAllDpds,
+  downloadMassExpertOnlyExcelTemplateAllDpds,
   downloadMassAdvisoryAndExpertExcelTemplateAllDpds,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
@@ -848,20 +852,31 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           </button>
 
           {(level === 'DPW' || level === 'DPD') && (
-            <button
-              onClick={() => downloadAdvisoryAndExpertExcelTemplate(territoryContext, gridRows)}
-              title="Download Template Khusus Dewan Pertimbangan & Dewan Pakar (Dewan Pimpinan tetap aman & tidak terganggu)"
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-300 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>Template Pakar & Pertimbangan</span>
-            </button>
+            <>
+              <button
+                onClick={() => downloadAdvisoryOnlyExcelTemplate(territoryContext, gridRows)}
+                title="Download Template MURNI Khusus Dewan Pertimbangan (Ketua, Wakil, Sekretaris, Anggota urut rapi tanpa tercampur)"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-300 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <span className="text-amber-600 dark:text-amber-400">🏛️</span>
+                <span>Template Pertimbangan</span>
+              </button>
+
+              <button
+                onClick={() => downloadExpertOnlyExcelTemplate(territoryContext, gridRows)}
+                title="Download Template MURNI Khusus Dewan Pakar (Ketua, Wakil, Sekretaris, Anggota urut rapi tanpa tercampur)"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <span className="text-emerald-600 dark:text-emerald-400">🎓</span>
+                <span>Template Pakar</span>
+              </button>
+            </>
           )}
 
           {level === 'DPD' && (
             <button
               onClick={() => downloadMassAdvisoryAndExpertExcelTemplateAllDpds()}
-              title="Download Template Masal Dewan Pertimbangan & Pakar untuk SELURUH 15 DPD se-Sulawesi Utara dalam 1 Berkas"
+              title="Download Template Masal Dewan Pertimbangan & Pakar untuk SELURUH 15 DPD se-Sulawesi Utara dalam 1 Berkas (2 Sheet Terpisah)"
               className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-purple-700 dark:text-purple-300 hover:border-purple-400 cursor-pointer transition-colors shadow-2xs"
             >
               <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />

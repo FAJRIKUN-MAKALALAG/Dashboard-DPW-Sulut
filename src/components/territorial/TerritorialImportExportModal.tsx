@@ -25,7 +25,11 @@ import {
   TerritoryContext,
   ParseTerritoryExcelResult,
   downloadTerritorialExcelTemplate,
+  downloadAdvisoryOnlyExcelTemplate,
+  downloadExpertOnlyExcelTemplate,
   downloadAdvisoryAndExpertExcelTemplate,
+  downloadMassAdvisoryOnlyExcelTemplateAllDpds,
+  downloadMassExpertOnlyExcelTemplateAllDpds,
   downloadMassAdvisoryAndExpertExcelTemplateAllDpds,
   parseTerritorialExcelFile,
   getTerritoryFilename,
@@ -227,67 +231,121 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-              {/* Opsi 1: Template Lengkap */}
-              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2 shadow-2xs">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-900 dark:text-white block">
-                    1. Template Lengkap (Semua Posisi)
-                  </span>
-                  <span className="text-[10px] text-slate-500 block leading-tight mt-0.5">
-                    Memuat seluruh struktur jabatan resmi untuk {territoryDisplayName}.
-                  </span>
-                </div>
-                <button
-                  onClick={handleDownloadTemplate}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 cursor-pointer transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>Unduh Template Lengkap</span>
-                </button>
-              </div>
-
-              {/* Opsi 2: Khusus Dewan Pertimbangan & Dewan Pakar Wilayah Ini */}
-              {(territoryContext.level === 'DPW' || territoryContext.level === 'DPD') && (
-                <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/60 flex flex-col justify-between gap-2 shadow-2xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              {/* Card 1: Khusus Dewan Pertimbangan (100% Terpisah) */}
+              {(territoryContext.level === 'DPW' || territoryContext.level === 'DPD') ? (
+                <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/25 rounded-xl border border-amber-300 dark:border-amber-900/70 flex flex-col justify-between gap-3 shadow-2xs">
                   <div>
-                    <span className="text-[11px] font-bold text-amber-950 dark:text-amber-200 block">
-                      2. Khusus Dewan Pertimbangan & Pakar
-                    </span>
-                    <span className="text-[10px] text-amber-800 dark:text-amber-300 block leading-tight mt-0.5">
-                      Hanya posisi Pertimbangan & Pakar untuk {territoryDisplayName}.
+                    <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
+                      <span className="text-base">🏛️</span>
+                      <span className="text-xs font-bold uppercase tracking-wide">
+                        Khusus Dewan Pertimbangan
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug mt-1.5">
+                      Hanya memuat <strong>Dewan Pertimbangan</strong> (Ketua, Wakil Ketua, Sekretaris, Anggota). Baris berurutan rapi 1, 2, 3.. tanpa tercampur dewan lain, memudahkan copy-paste dari SK/dokumen sebelah.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => downloadAdvisoryOnlyExcelTemplate(territoryContext, currentRows)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs transition-colors"
+                      title="Download template khusus Dewan Pertimbangan wilayah ini"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Unduh Dewan Pertimbangan</span>
+                    </button>
+                    <button
+                      onClick={() => downloadMassAdvisoryOnlyExcelTemplateAllDpds()}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-900/80 text-amber-900 dark:text-amber-200 cursor-pointer transition-colors"
+                      title="Download template Dewan Pertimbangan untuk SELURUH 15 DPD se-Sulut (60 baris berurutan)"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-600" />
+                      <span>Masal 15 DPD (Pertimbangan Saja)</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Card 2: Khusus Dewan Pakar (100% Terpisah) */}
+              {(territoryContext.level === 'DPW' || territoryContext.level === 'DPD') ? (
+                <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/25 rounded-xl border border-emerald-300 dark:border-emerald-900/70 flex flex-col justify-between gap-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200">
+                      <span className="text-base">🎓</span>
+                      <span className="text-xs font-bold uppercase tracking-wide">
+                        Khusus Dewan Pakar
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-snug mt-1.5">
+                      Hanya memuat <strong>Dewan Pakar</strong> (Ketua, Wakil Ketua, Sekretaris, Anggota). Baris berurutan 1, 2, 3.. terisolasi khusus pakar agar penginput tidak bingung saat salin tempel data.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => downloadExpertOnlyExcelTemplate(territoryContext, currentRows)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs transition-colors"
+                      title="Download template khusus Dewan Pakar wilayah ini"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Unduh Dewan Pakar</span>
+                    </button>
+                    <button
+                      onClick={() => downloadMassExpertOnlyExcelTemplateAllDpds()}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:hover:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200 cursor-pointer transition-colors"
+                      title="Download template Dewan Pakar untuk SELURUH 15 DPD se-Sulut (60 baris berurutan)"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      <span>Masal 15 DPD (Pakar Saja)</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Card 3: Pilihan 2 Sheet & Template Lengkap */}
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                    <span className="text-base">📑</span>
+                    <span className="text-xs font-bold uppercase tracking-wide">
+                      Gabungan & Masal Lainnya
                     </span>
                   </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-1.5">
+                    Format 2 lembar kerja (Sheet 1: Dewan Pertimbangan | Sheet 2: Dewan Pakar) atau template komplit seluruh struktur.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {(territoryContext.level === 'DPW' || territoryContext.level === 'DPD') && (
+                    <>
+                      <button
+                        onClick={() => downloadAdvisoryAndExpertExcelTemplate(territoryContext, currentRows)}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 cursor-pointer transition-colors"
+                        title="1 Berkas dengan 2 Sheet terpisah: Sheet Dewan Pertimbangan & Sheet Dewan Pakar"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        <span>2 Sheet Terpisah (Wilayah Ini)</span>
+                      </button>
+                      <button
+                        onClick={() => downloadMassAdvisoryAndExpertExcelTemplateAllDpds()}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 cursor-pointer transition-colors"
+                        title="1 Berkas Masal 15 DPD dengan 2 Sheet terpisah"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>2 Sheet Masal 15 DPD</span>
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => downloadAdvisoryAndExpertExcelTemplate(territoryContext, currentRows)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs transition-colors"
+                    onClick={handleDownloadTemplate}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
+                    title="Unduh seluruh struktur resmi jabatan"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Unduh Khusus Pakar & Pertimbangan</span>
+                    <span>Template Lengkap (Semua Posisi)</span>
                   </button>
                 </div>
-              )}
-
-              {/* Opsi 3: Masal Seluruh 15 DPD se-Sulawesi Utara */}
-              {(territoryContext.level === 'DPD' || territoryContext.level === 'DPW') && (
-                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-900/60 flex flex-col justify-between gap-2 shadow-2xs">
-                  <div>
-                    <span className="text-[11px] font-bold text-purple-950 dark:text-purple-200 block">
-                      3. Masal 15 DPD (Pakar & Pertimbangan)
-                    </span>
-                    <span className="text-[10px] text-purple-800 dark:text-purple-300 block leading-tight mt-0.5">
-                      1 berkas Excel langsung mencakup seluruh 15 DPD se-Sulawesi Utara.
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => downloadMassAdvisoryAndExpertExcelTemplateAllDpds()}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-xs transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Unduh Masal 15 DPD (.xlsx)</span>
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
