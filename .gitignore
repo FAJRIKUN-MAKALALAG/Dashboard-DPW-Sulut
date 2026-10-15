@@ -8,3 +8,4 @@ coverage/
 !.env.example
 .information_project
 .information_project.md
+metadata.json
