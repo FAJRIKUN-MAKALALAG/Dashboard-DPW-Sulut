@@ -8,6 +8,8 @@ import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
   downloadTerritorialExcelTemplate,
+  downloadAdvisoryAndExpertExcelTemplate,
+  downloadMassAdvisoryAndExpertExcelTemplateAllDpds,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
 import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
@@ -838,12 +840,34 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
           <button
             onClick={handleDownloadTemplateExcel}
-            title={`Download Template Input Excel Khusus ${level} (Daftar Jabatan Resmi Sudah Terisi Otomatis)`}
+            title={`Download Template Input Excel Lengkap Khusus ${level} (Daftar Seluruh Jabatan Resmi)`}
             className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 cursor-pointer transition-colors shadow-2xs"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Template Excel</span>
+            <span>Template Lengkap</span>
           </button>
+
+          {(level === 'DPW' || level === 'DPD') && (
+            <button
+              onClick={() => downloadAdvisoryAndExpertExcelTemplate(territoryContext, gridRows)}
+              title="Download Template Khusus Dewan Pertimbangan & Dewan Pakar (Dewan Pimpinan tetap aman & tidak terganggu)"
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-300 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Template Pakar & Pertimbangan</span>
+            </button>
+          )}
+
+          {level === 'DPD' && (
+            <button
+              onClick={() => downloadMassAdvisoryAndExpertExcelTemplateAllDpds()}
+              title="Download Template Masal Dewan Pertimbangan & Pakar untuk SELURUH 15 DPD se-Sulawesi Utara dalam 1 Berkas"
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-purple-700 dark:text-purple-300 hover:border-purple-400 cursor-pointer transition-colors shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Masal 15 DPD</span>
+            </button>
+          )}
 
           <button
             onClick={() => setIsImportModalOpen(true)}
