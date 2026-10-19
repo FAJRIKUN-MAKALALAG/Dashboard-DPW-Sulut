@@ -351,7 +351,7 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                           key={row.id || rIdx}
                           className={
                             !isFilled
-                              ? 'bg-amber-50/20'
+                              ? 'bg-amber-50/50'
                               : rIdx % 2 === 0
                               ? 'bg-white'
                               : 'bg-slate-50/60'
@@ -380,12 +380,12 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                           </td>
                           <td className="p-2 text-center">
                             {isFilled ? (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                 Aktif
                               </span>
                             ) : (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                Kosong
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                Lowong
                               </span>
                             )}
                           </td>

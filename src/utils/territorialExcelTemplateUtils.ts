@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import XLSX, { WorkBook, WorkSheet, Range } from 'xlsx-js-style';
 import { Member } from '../types';
 import {
   getStructureTemplate,
@@ -94,9 +94,402 @@ export function saveWorkbookToExcel(wb: XLSX.WorkBook, filename: string): void {
 }
 
 /**
+ * Helper untuk memberikan styling visual tingkat tinggi pada lembar kerja Excel (XLSX)
+ * Dilengkapi warna tematik NasDem (Navy, Emerald, Gold, Indigo), penanda sel kosong/wajib isi (Kuning Cerah),
+ * border rapi, text wrapping, dan banner instruksi agar admin tidak bingung saat input manual.
+ */
+function applyExcelTemplateStyling(options: {
+  ws: XLSX.WorkSheet;
+  title?: string;
+  subtitle: string;
+  guideText?: string;
+  totalDataRows: number;
+}): void {
+  const {
+    ws,
+    title = '★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★',
+    subtitle,
+    guideText,
+    totalDataRows,
+  } = options;
+
+  // 1. Lebar Kolom yang Nyaman & Proporsional
+  ws['!cols'] = [
+    { wch: 7 },  // No
+    { wch: 32 }, // Sub Organisasi
+    { wch: 40 }, // Jabatan Pengurus
+    { wch: 44 }, // * NAMA LENGKAP (WAJIB DIISI) *
+    { wch: 28 }, // * NOMOR NIK (KTP 16 DIGIT) *
+    { wch: 24 }, // Nomor E-KTA NasDem
+    { wch: 18 }, // Jenis Kelamin (L/P)
+    { wch: 22 }, // No. WhatsApp / HP
+    { wch: 28 }, // Email
+    { wch: 36 }, // Alamat Lengkap Domisili
+    { wch: 26 }, // STATUS FORMASI
+  ];
+
+  // 2. Merges untuk Banner Judul & Legend Bawah
+  const merges: Range[] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, // Row 1 Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }, // Row 2 Subtitle
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } }, // Row 3 Guide
+  ];
+
+  const legendStartRow = 5 + totalDataRows + 1;
+  merges.push(
+    { s: { r: legendStartRow, c: 0 }, e: { r: legendStartRow, c: 10 } },
+    { s: { r: legendStartRow + 1, c: 0 }, e: { r: legendStartRow + 1, c: 10 } },
+    { s: { r: legendStartRow + 2, c: 0 }, e: { r: legendStartRow + 2, c: 10 } },
+    { s: { r: legendStartRow + 3, c: 0 }, e: { r: legendStartRow + 3, c: 10 } },
+    { s: { r: legendStartRow + 4, c: 0 }, e: { r: legendStartRow + 4, c: 10 } }
+  );
+
+  ws['!merges'] = merges;
+
+  // 3. Tinggi Baris (Row Heights)
+  const rowHeights: { hpt: number }[] = [
+    { hpt: 34 }, // Row 1 Judul Utama
+    { hpt: 26 }, // Row 2 Sub Judul Wilayah
+    { hpt: 26 }, // Row 3 Petunjuk
+    { hpt: 12 }, // Row 4 Pemisah
+    { hpt: 32 }, // Row 5 Table Column Headers
+  ];
+  for (let i = 0; i < totalDataRows; i++) {
+    rowHeights.push({ hpt: 24 }); // Baris Data
+  }
+  rowHeights.push({ hpt: 14 }); // Pemisah Legend
+  rowHeights.push({ hpt: 24 }); // Legend Header
+  rowHeights.push({ hpt: 20 }); // Legend 1
+  rowHeights.push({ hpt: 20 }); // Legend 2
+  rowHeights.push({ hpt: 20 }); // Legend 3
+  rowHeights.push({ hpt: 20 }); // Legend 4
+
+  ws['!rows'] = rowHeights;
+
+  const borderThin = {
+    top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+  };
+
+  const borderAmber = {
+    top: { style: 'thin', color: { rgb: 'F59E0B' } },
+    bottom: { style: 'thin', color: { rgb: 'F59E0B' } },
+    left: { style: 'thin', color: { rgb: 'F59E0B' } },
+    right: { style: 'thin', color: { rgb: 'F59E0B' } },
+  };
+
+  // 4. Style Banner Atas (Rows 0..2)
+  for (let c = 0; c <= 10; c++) {
+    const r0Ref = XLSX.utils.encode_cell({ r: 0, c });
+    if (!ws[r0Ref]) ws[r0Ref] = { t: 's', v: '' };
+    ws[r0Ref].s = {
+      fill: { fgColor: { rgb: '002B66' } },
+      font: { name: 'Calibri', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+
+    const r1Ref = XLSX.utils.encode_cell({ r: 1, c });
+    if (!ws[r1Ref]) ws[r1Ref] = { t: 's', v: '' };
+    ws[r1Ref].s = {
+      fill: { fgColor: { rgb: '1E3A8A' } },
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+
+    const r2Ref = XLSX.utils.encode_cell({ r: 2, c });
+    if (!ws[r2Ref]) ws[r2Ref] = { t: 's', v: '' };
+    ws[r2Ref].s = {
+      fill: { fgColor: { rgb: 'FEF3C7' } },
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: { rgb: 'FCD34D' } },
+        bottom: { style: 'thin', color: { rgb: 'FCD34D' } },
+        left: { style: 'thin', color: { rgb: 'FCD34D' } },
+        right: { style: 'thin', color: { rgb: 'FCD34D' } },
+      },
+    };
+  }
+
+  // 5. Style Header Tabel (Row 4 / Baris ke-5 di Excel)
+  for (let c = 0; c <= 10; c++) {
+    const ref = XLSX.utils.encode_cell({ r: 4, c });
+    if (!ws[ref]) continue;
+
+    const isNama = c === 3;
+    const isNik = c === 4;
+    const isStatus = c === 10;
+
+    let bgColor = '0F172A'; // Slate gelap untuk No, Sub-Org, Jabatan
+    if (isNama) bgColor = '047857'; // Emerald Green cerah untuk NAMA LENGKAP
+    else if (isNik) bgColor = '059669'; // Teal Green untuk NIK
+    else if (isStatus) bgColor = '1E1B4B'; // Indigo pekat untuk STATUS
+    else if (c >= 5) bgColor = '334155'; // Slate medium
+
+    ws[ref].s = {
+      fill: { fgColor: { rgb: bgColor } },
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: '1E293B' } },
+        bottom: { style: 'medium', color: { rgb: '0F172A' } },
+        left: { style: 'thin', color: { rgb: '1E293B' } },
+        right: { style: 'thin', color: { rgb: '1E293B' } },
+      },
+    };
+  }
+
+  // 6. Style Baris Data (Row 5 ke atas)
+  for (let r = 5; r < 5 + totalDataRows; r++) {
+    const namaRef = XLSX.utils.encode_cell({ r, c: 3 });
+    const namaVal = ws[namaRef] && ws[namaRef].v ? String(ws[namaRef].v).trim() : '';
+    const isFilled = namaVal.length > 0;
+
+    const subOrgRef = XLSX.utils.encode_cell({ r, c: 1 });
+    const subOrgVal = ws[subOrgRef] && ws[subOrgRef].v ? String(ws[subOrgRef].v).toLowerCase() : '';
+
+    let subBg = 'F8FAFC';
+    let subColor = '334155';
+    if (subOrgVal.includes('pertimbangan')) {
+      subBg = 'EEF2FF'; // Lavender lembut
+      subColor = '3730A3';
+    } else if (subOrgVal.includes('pakar')) {
+      subBg = 'FAF5FF'; // Ungu lembut
+      subColor = '6B21A8';
+    } else if (
+      subOrgVal.includes('pimpinan') ||
+      subOrgVal.includes('dpd') ||
+      subOrgVal.includes('dpw') ||
+      subOrgVal.includes('dpc') ||
+      subOrgVal.includes('dprt')
+    ) {
+      subBg = 'EFF6FF'; // Biru lembut
+      subColor = '1E40AF';
+    }
+
+    const jabatanRef = XLSX.utils.encode_cell({ r, c: 2 });
+    const jabatanVal =
+      ws[jabatanRef] && ws[jabatanRef].v ? String(ws[jabatanRef].v).toLowerCase() : '';
+    const isTopLeader =
+      jabatanVal.includes('ketua') ||
+      jabatanVal.includes('sekretaris') ||
+      jabatanVal.includes('bendahara');
+
+    for (let c = 0; c <= 10; c++) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+
+      if (c === 0) {
+        // No
+        ws[ref].s = {
+          fill: { fgColor: { rgb: 'F8FAFC' } },
+          font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '64748B' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: borderThin,
+        };
+      } else if (c === 1) {
+        // Sub Organisasi
+        ws[ref].s = {
+          fill: { fgColor: { rgb: subBg } },
+          font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: subColor } },
+          alignment: { horizontal: 'left', vertical: 'center' },
+          border: borderThin,
+        };
+      } else if (c === 2) {
+        // Jabatan Pengurus
+        ws[ref].s = {
+          fill: { fgColor: { rgb: isTopLeader ? 'F8FAFC' : 'FFFFFF' } },
+          font: {
+            name: 'Calibri',
+            sz: 10,
+            bold: true,
+            color: { rgb: isTopLeader ? '002B66' : '0F172A' },
+          },
+          alignment: { horizontal: 'left', vertical: 'center' },
+          border: borderThin,
+        };
+      } else if (c === 3) {
+        // NAMA LENGKAP: HIGHLIGHT KUNING CERAH JIKA MASIH KOSONG / LOWONG!
+        if (isFilled) {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'FFFFFF' } },
+            font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '0F172A' } },
+            alignment: { horizontal: 'left', vertical: 'center' },
+            border: borderThin,
+          };
+        } else {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'FEF9C3' } }, // KUNING HIGHLIGHTER LEMBUT & JELAS
+            font: { name: 'Calibri', sz: 11, bold: false, color: { rgb: '854D0E' } },
+            alignment: { horizontal: 'left', vertical: 'center' },
+            border: borderAmber,
+          };
+        }
+      } else if (c === 4) {
+        // NIK: KUNING MUDA JIKA KOSONG
+        if (isFilled) {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'FFFFFF' } },
+            font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '0F172A' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: borderThin,
+          };
+        } else {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'FEFCE8' } },
+            font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '854D0E' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: borderAmber,
+          };
+        }
+      } else if (c === 10) {
+        // STATUS FORMASI
+        if (isFilled) {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'DCFCE7' } },
+            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '166534' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: '86EFAC' } },
+              bottom: { style: 'thin', color: { rgb: '86EFAC' } },
+              left: { style: 'thin', color: { rgb: '86EFAC' } },
+              right: { style: 'thin', color: { rgb: '86EFAC' } },
+            },
+          };
+        } else {
+          ws[ref].s = {
+            fill: { fgColor: { rgb: 'FEF3C7' } },
+            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: 'FCD34D' } },
+              bottom: { style: 'thin', color: { rgb: 'FCD34D' } },
+              left: { style: 'thin', color: { rgb: 'FCD34D' } },
+              right: { style: 'thin', color: { rgb: 'FCD34D' } },
+            },
+          };
+        }
+      } else {
+        // F, G, H, I, J
+        ws[ref].s = {
+          fill: { fgColor: { rgb: 'FFFFFF' } },
+          font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '334155' } },
+          alignment: { horizontal: c === 6 ? 'center' : 'left', vertical: 'center' },
+          border: borderThin,
+        };
+      }
+    }
+  }
+
+  // 7. Style Baris Panduan / Legend Bawah
+  const legendRows = [
+    { rowIdx: legendStartRow, bg: '002B66', fg: 'FFFFFF', bold: true, sz: 10 },
+    { rowIdx: legendStartRow + 1, bg: 'FEF9C3', fg: '854D0E', bold: true, sz: 10 },
+    { rowIdx: legendStartRow + 2, bg: 'FFFFFF', fg: '334155', bold: false, sz: 10 },
+    { rowIdx: legendStartRow + 3, bg: 'EFF6FF', fg: '1E40AF', bold: true, sz: 10 },
+    { rowIdx: legendStartRow + 4, bg: 'DCFCE7', fg: '166534', bold: true, sz: 10 },
+  ];
+
+  legendRows.forEach(({ rowIdx, bg, fg, bold, sz }) => {
+    for (let c = 0; c <= 10; c++) {
+      const ref = XLSX.utils.encode_cell({ r: rowIdx, c });
+      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+      ws[ref].s = {
+        fill: { fgColor: { rgb: bg } },
+        font: { name: 'Calibri', sz, bold, color: { rgb: fg } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        },
+      };
+    }
+  });
+}
+
+/**
+ * Styling untuk Sheet 2 (Panduan & Informasi Wilayah)
+ */
+function applyInfoSheetStyling(ws: XLSX.WorkSheet, totalRows: number): void {
+  ws['!cols'] = [{ wch: 34 }, { wch: 60 }];
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+    { s: { r: 8, c: 0 }, e: { r: 8, c: 1 } },
+  ];
+
+  for (let c = 0; c <= 1; c++) {
+    const r0 = XLSX.utils.encode_cell({ r: 0, c });
+    if (!ws[r0]) ws[r0] = { t: 's', v: '' };
+    ws[r0].s = {
+      fill: { fgColor: { rgb: '002B66' } },
+      font: { name: 'Calibri', sz: 13, bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+  }
+
+  for (let r = 2; r <= 6; r++) {
+    const c0 = XLSX.utils.encode_cell({ r, c: 0 });
+    const c1 = XLSX.utils.encode_cell({ r, c: 1 });
+    if (ws[c0]) {
+      ws[c0].s = {
+        fill: { fgColor: { rgb: 'F8FAFC' } },
+        font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '1E293B' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        },
+      };
+    }
+    if (ws[c1]) {
+      ws[c1].s = {
+        fill: { fgColor: { rgb: 'FFFFFF' } },
+        font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '002B66' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        },
+      };
+    }
+  }
+
+  const r8_0 = XLSX.utils.encode_cell({ r: 8, c: 0 });
+  const r8_1 = XLSX.utils.encode_cell({ r: 8, c: 1 });
+  [r8_0, r8_1].forEach((ref) => {
+    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+    ws[ref].s = {
+      fill: { fgColor: { rgb: '1E3A8A' } },
+      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    };
+  });
+
+  for (let r = 9; r < totalRows; r++) {
+    const c0 = XLSX.utils.encode_cell({ r, c: 0 });
+    if (ws[c0]) {
+      ws[c0].s = {
+        fill: { fgColor: { rgb: r % 2 === 0 ? 'F8FAFC' : 'FFFFFF' } },
+        font: { name: 'Calibri', sz: 10, color: { rgb: '334155' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      };
+    }
+  }
+}
+
+/**
  * 2. Menghasilkan dan mendownload Template Excel khusus untuk wilayah terpilih
  * Template sudah otomatis berisi daftar seluruh slot jabatan resmi partai NasDem
- * sehingga pengguna hanya perlu mengisi Nama Lengkap dan NIK tanpa repot mengetik satu per satu.
+ * Diberikan styling visual cerah dan profesional agar admin tidak bingung saat input data.
  */
 export function downloadTerritorialExcelTemplate(
   ctx: TerritoryContext,
@@ -114,32 +507,36 @@ export function downloadTerritorialExcelTemplate(
       ? `KECAMATAN ${ctx.dpc?.toUpperCase() || '-'} - ${ctx.dpd.toUpperCase()}`
       : `DESA/KELURAHAN ${ctx.dprt?.toUpperCase() || '-'} - KEC. ${ctx.dpc?.toUpperCase() || '-'} (${ctx.dpd.toUpperCase()})`;
 
-  // Data Sheet 1: Formulir Pengisian
-  const sheetData: (string | number)[][] = [
-    ['FORMULIR RESMI INPUT SUSUNAN PENGURUS PARTAI NASDEM SULUT'],
-    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
-    [
-      'PANDUAN PENGISIAN: Cukup isi kolom Nama Lengkap dan NIK. Baris jabatan resmi sudah disiapkan secara otomatis. Anda juga dapat menambahkan baris baru di bawah tabel jika ada pengurus tambahan.',
-    ],
-    [], // Baris kosong pemisah
-    [
-      'No',
-      'Sub Organisasi',
-      'Jabatan Pengurus',
-      'Nama Lengkap (dan Gelar)',
-      'Nomor NIK (KTP)',
-      'Nomor E-KTA NasDem',
-      'Jenis Kelamin (L/P)',
-      'No. WhatsApp / HP',
-      'Email',
-      'Alamat Lengkap',
-      'Status',
-    ],
+  const headerCols = [
+    'No',
+    'Sub Organisasi',
+    'Jabatan Pengurus',
+    '* NAMA LENGKAP (WAJIB DIISI) *',
+    '* NOMOR NIK (KTP 16 DIGIT) *',
+    'Nomor E-KTA NasDem',
+    'Jenis Kelamin (L/P)',
+    'No. WhatsApp / HP',
+    'Email',
+    'Alamat Lengkap Domisili',
+    'STATUS FORMASI',
   ];
 
-  // Gunakan baris saat ini (jika ada data yang sudah terisi di matriks) atau template kosong resmi
+  // Data Sheet 1: Formulir Pengisian
+  const sheetData: (string | number)[][] = [
+    ['★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★'],
+    [`FORMULIR RESMI INPUT SUSUNAN PENGURUS - TINGKAT ${ctx.level} (${territoryTitle})`],
+    [
+      '▶ PETUNJUK: Cukup isi kolom [NAMA LENGKAP] (Warna Hijau & Kuning) dan [NOMOR NIK]. Kolom Jabatan baku sudah terkunci rapi.',
+    ],
+    [], // Baris kosong pemisah
+    headerCols,
+  ];
+
+  let dataCount = 0;
   if (currentRows && currentRows.length > 0) {
+    dataCount = currentRows.length;
     currentRows.forEach((r, idx) => {
+      const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
       sheetData.push([
         idx + 1,
         r.subOrg || `DEWAN PIMPINAN ${ctx.level}`,
@@ -151,44 +548,46 @@ export function downloadTerritorialExcelTemplate(
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
         '',
-        'Aktif',
+        isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
       ]);
     });
   } else {
-    // Isi otomatis dari template resmi
+    dataCount = slots.length;
     slots.forEach((s, idx) => {
       sheetData.push([
         idx + 1,
         s.subOrg,
         s.jabatan,
-        '', // Kosong untuk diisi user
+        '', // Kosong dengan highlight kuning di Excel
         '',
         '',
         '',
         '',
         '',
         '',
-        'Aktif',
+        '⚡ LOWONG (Silakan Diisi)',
       ]);
     });
   }
 
+  // Baris panduan visual di bagian bawah
+  sheetData.push(
+    [],
+    ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
+    ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ POSISI TAMBAHAN ]: Ingin menambah pengurus baru di luar daftar baku ini? Cukup buat baris baru di bawah tabel.'],
+    ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
+  );
+
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Setting lebar kolom agar nyaman dilihat dan dibaca pengguna
-  ws['!cols'] = [
-    { wch: 6 },  // No
-    { wch: 30 }, // Sub Organisasi
-    { wch: 38 }, // Jabatan Pengurus
-    { wch: 38 }, // Nama Lengkap
-    { wch: 22 }, // NIK
-    { wch: 22 }, // E-KTA
-    { wch: 18 }, // Jenis Kelamin
-    { wch: 22 }, // No WA
-    { wch: 28 }, // Email
-    { wch: 32 }, // Alamat
-    { wch: 12 }, // Status
-  ];
+  // Terapkan styling visual lengkap
+  applyExcelTemplateStyling({
+    ws,
+    subtitle: `FORMULIR RESMI INPUT SUSUNAN PENGURUS - TINGKAT ${ctx.level} (${territoryTitle})`,
+    totalDataRows: dataCount,
+  });
 
   // Sheet 2: Panduan & Informasi Wilayah
   const infoData = [
@@ -209,7 +608,7 @@ export function downloadTerritorialExcelTemplate(
   ];
 
   const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
-  wsInfo['!cols'] = [{ wch: 32 }, { wch: 50 }];
+  applyInfoSheetStyling(wsInfo, infoData.length);
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Form Input Pengurus');
@@ -221,7 +620,7 @@ export function downloadTerritorialExcelTemplate(
 
 /**
  * 2b. Menghasilkan dan mendownload Template Excel KHUSUS DEWAN PERTIMBANGAN SAJA
- * Murni hanya berisi posisi Dewan Pertimbangan berurutan No 1..N
+ * Diberikan styling visual bernuansa Lavender/Indigo resmi NasDem.
  */
 export function downloadAdvisoryOnlyExcelTemplate(
   ctx: TerritoryContext,
@@ -233,34 +632,39 @@ export function downloadAdvisoryOnlyExcelTemplate(
   const territoryTitle =
     ctx.level === 'DPW' ? 'PROVINSI SULAWESI UTARA' : `${ctx.dpd.toUpperCase()}`;
 
-  const sheetData: (string | number)[][] = [
-    ['FORMULIR KHUSUS: DEWAN PERTIMBANGAN PARTAI NASDEM'],
-    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
-    [
-      'PETUNJUK: Berkas ini KHUSUS posisi Dewan Pertimbangan saja. Silakan copy-paste seluruh daftar nama dan NIK langsung ke kolom di bawah. Data Dewan Pimpinan & Dewan Pakar di database tetap aman.',
-    ],
-    [],
-    [
-      'No',
-      'Sub Organisasi',
-      'Jabatan Pengurus',
-      'Nama Lengkap (dan Gelar)',
-      'Nomor NIK (KTP)',
-      'Nomor E-KTA NasDem',
-      'Jenis Kelamin (L/P)',
-      'No. WhatsApp / HP',
-      'Email',
-      'Alamat Lengkap',
-      'Status',
-    ],
+  const headerCols = [
+    'No',
+    'Sub Organisasi',
+    'Jabatan Pengurus',
+    '* NAMA LENGKAP (WAJIB DIISI) *',
+    '* NOMOR NIK (KTP 16 DIGIT) *',
+    'Nomor E-KTA NasDem',
+    'Jenis Kelamin (L/P)',
+    'No. WhatsApp / HP',
+    'Email',
+    'Alamat Lengkap Domisili',
+    'STATUS FORMASI',
   ];
 
+  const sheetData: (string | number)[][] = [
+    ['★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★'],
+    [`FORMULIR KHUSUS: DEWAN PERTIMBANGAN - TINGKAT ${ctx.level} (${territoryTitle})`],
+    [
+      '▶ PETUNJUK: Berkas ini KHUSUS posisi Dewan Pertimbangan. Isi kolom Nama Lengkap & NIK. Jabatan lain di database tetap aman.',
+    ],
+    [],
+    headerCols,
+  ];
+
+  let dataCount = 0;
   if (currentRows && currentRows.length > 0) {
     const targetRows = currentRows.filter((r) =>
       (r.subOrg || '').toLowerCase().includes('pertimbangan')
     );
     if (targetRows.length > 0) {
+      dataCount = targetRows.length;
       targetRows.forEach((r, idx) => {
+        const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
         sheetData.push([
           idx + 1,
           r.subOrg,
@@ -272,34 +676,38 @@ export function downloadAdvisoryOnlyExcelTemplate(
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
           '',
-          'Aktif',
+          isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
         ]);
       });
     } else {
+      dataCount = slots.length;
       slots.forEach((s, idx) => {
-        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
       });
     }
   } else {
+    dataCount = slots.length;
     slots.forEach((s, idx) => {
-      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
+  sheetData.push(
+    [],
+    ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
+    ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ POSISI TAMBAHAN ]: Jika anggota Dewan Pertimbangan lebih banyak dari slot, cukup buat baris baru di bawah.'],
+    ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
+  );
+
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  ws['!cols'] = [
-    { wch: 6 },
-    { wch: 32 },
-    { wch: 28 },
-    { wch: 38 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 18 },
-    { wch: 22 },
-    { wch: 28 },
-    { wch: 32 },
-    { wch: 12 },
-  ];
+  applyExcelTemplateStyling({
+    ws,
+    subtitle: `FORMULIR KHUSUS: DEWAN PERTIMBANGAN - TINGKAT ${ctx.level} (${territoryTitle})`,
+    guideText: '▶ PETUNJUK: Berkas ini KHUSUS posisi Dewan Pertimbangan. Cukup isi kolom [NAMA LENGKAP] & [NOMOR NIK].',
+    totalDataRows: dataCount,
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pertimbangan');
@@ -311,7 +719,7 @@ export function downloadAdvisoryOnlyExcelTemplate(
 
 /**
  * 2c. Menghasilkan dan mendownload Template Excel KHUSUS DEWAN PAKAR SAJA
- * Murni hanya berisi posisi Dewan Pakar berurutan No 1..N
+ * Diberikan styling visual bernuansa Ungu/Purple resmi Dewan Pakar.
  */
 export function downloadExpertOnlyExcelTemplate(
   ctx: TerritoryContext,
@@ -323,34 +731,39 @@ export function downloadExpertOnlyExcelTemplate(
   const territoryTitle =
     ctx.level === 'DPW' ? 'PROVINSI SULAWESI UTARA' : `${ctx.dpd.toUpperCase()}`;
 
-  const sheetData: (string | number)[][] = [
-    ['FORMULIR KHUSUS: DEWAN PAKAR PARTAI NASDEM'],
-    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
-    [
-      'PETUNJUK: Berkas ini KHUSUS posisi Dewan Pakar saja. Silakan copy-paste seluruh daftar nama dan NIK langsung ke kolom di bawah. Data Dewan Pimpinan & Dewan Pertimbangan di database tetap aman.',
-    ],
-    [],
-    [
-      'No',
-      'Sub Organisasi',
-      'Jabatan Pengurus',
-      'Nama Lengkap (dan Gelar)',
-      'Nomor NIK (KTP)',
-      'Nomor E-KTA NasDem',
-      'Jenis Kelamin (L/P)',
-      'No. WhatsApp / HP',
-      'Email',
-      'Alamat Lengkap',
-      'Status',
-    ],
+  const headerCols = [
+    'No',
+    'Sub Organisasi',
+    'Jabatan Pengurus',
+    '* NAMA LENGKAP (WAJIB DIISI) *',
+    '* NOMOR NIK (KTP 16 DIGIT) *',
+    'Nomor E-KTA NasDem',
+    'Jenis Kelamin (L/P)',
+    'No. WhatsApp / HP',
+    'Email',
+    'Alamat Lengkap Domisili',
+    'STATUS FORMASI',
   ];
 
+  const sheetData: (string | number)[][] = [
+    ['★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★'],
+    [`FORMULIR KHUSUS: DEWAN PAKAR - TINGKAT ${ctx.level} (${territoryTitle})`],
+    [
+      '▶ PETUNJUK: Berkas ini KHUSUS posisi Dewan Pakar. Isi kolom Nama Lengkap & NIK. Jabatan lain di database tetap aman.',
+    ],
+    [],
+    headerCols,
+  ];
+
+  let dataCount = 0;
   if (currentRows && currentRows.length > 0) {
     const targetRows = currentRows.filter((r) =>
       (r.subOrg || '').toLowerCase().includes('pakar')
     );
     if (targetRows.length > 0) {
+      dataCount = targetRows.length;
       targetRows.forEach((r, idx) => {
+        const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
         sheetData.push([
           idx + 1,
           r.subOrg,
@@ -362,34 +775,38 @@ export function downloadExpertOnlyExcelTemplate(
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
           '',
-          'Aktif',
+          isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
         ]);
       });
     } else {
+      dataCount = slots.length;
       slots.forEach((s, idx) => {
-        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
       });
     }
   } else {
+    dataCount = slots.length;
     slots.forEach((s, idx) => {
-      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
+  sheetData.push(
+    [],
+    ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
+    ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ POSISI TAMBAHAN ]: Jika anggota Dewan Pakar lebih banyak dari slot, cukup buat baris baru di bawah.'],
+    ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
+  );
+
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  ws['!cols'] = [
-    { wch: 6 },
-    { wch: 32 },
-    { wch: 28 },
-    { wch: 38 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 18 },
-    { wch: 22 },
-    { wch: 28 },
-    { wch: 32 },
-    { wch: 12 },
-  ];
+  applyExcelTemplateStyling({
+    ws,
+    subtitle: `FORMULIR KHUSUS: DEWAN PAKAR - TINGKAT ${ctx.level} (${territoryTitle})`,
+    guideText: '▶ PETUNJUK: Berkas ini KHUSUS posisi Dewan Pakar. Cukup isi kolom [NAMA LENGKAP] & [NOMOR NIK].',
+    totalDataRows: dataCount,
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Dewan Pakar');
@@ -402,7 +819,7 @@ export function downloadExpertOnlyExcelTemplate(
 /**
  * 2d. Menghasilkan dan mendownload Template Excel Gabungan Pertimbangan & Pakar
  * Menggunakan 2 SHEET TERPISAH (Sheet 1: Dewan Pertimbangan, Sheet 2: Dewan Pakar)
- * agar tidak tercampur dan tidak membingungkan saat copy-paste
+ * Masing-masing sheet diformat dengan styling visual lengkap dan warna khas.
  */
 export function downloadAdvisoryAndExpertExcelTemplate(
   ctx: TerritoryContext,
@@ -421,21 +838,21 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     'No',
     'Sub Organisasi',
     'Jabatan Pengurus',
-    'Nama Lengkap (dan Gelar)',
-    'Nomor NIK (KTP)',
+    '* NAMA LENGKAP (WAJIB DIISI) *',
+    '* NOMOR NIK (KTP 16 DIGIT) *',
     'Nomor E-KTA NasDem',
     'Jenis Kelamin (L/P)',
     'No. WhatsApp / HP',
     'Email',
-    'Alamat Lengkap',
-    'Status',
+    'Alamat Lengkap Domisili',
+    'STATUS FORMASI',
   ];
 
   // Sheet 1: Dewan Pertimbangan
   const sheet1Data: (string | number)[][] = [
-    ['FORMULIR KHUSUS: DEWAN PERTIMBANGAN PARTAI NASDEM'],
-    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
-    ['PANDUAN: Halaman ini murni untuk posisi Dewan Pertimbangan.'],
+    ['★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★'],
+    [`FORMULIR KHUSUS: DEWAN PERTIMBANGAN - TINGKAT ${ctx.level} (${territoryTitle})`],
+    ['▶ PETUNJUK: Halaman ini murni untuk posisi Dewan Pertimbangan. Isi kolom Nama Lengkap & NIK.'],
     [],
     headerCols,
   ];
@@ -444,8 +861,11 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     (r.subOrg || '').toLowerCase().includes('pertimbangan')
   );
 
+  let dataCount1 = 0;
   if (currentPertimbangan.length > 0) {
+    dataCount1 = currentPertimbangan.length;
     currentPertimbangan.forEach((r, idx) => {
+      const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
       sheet1Data.push([
         idx + 1,
         r.subOrg,
@@ -457,20 +877,38 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
         '',
-        'Aktif',
+        isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
       ]);
     });
   } else {
+    dataCount1 = pertimbanganSlots.length;
     pertimbanganSlots.forEach((s, idx) => {
-      sheet1Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+      sheet1Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
+  sheet1Data.push(
+    [],
+    ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
+    ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ LIHAT SHEET SEBELAH ]: Buka Sheet \"Dewan Pakar\" di tab bawah untuk posisi Dewan Pakar.'],
+    ['[ CARA IMPORT ]: Simpan (Ctrl+S), lalu unggah melalui tombol \"Import Excel\" di sistem dashboard matriks.']
+  );
+
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+  applyExcelTemplateStyling({
+    ws: ws1,
+    subtitle: `FORMULIR KHUSUS: DEWAN PERTIMBANGAN - TINGKAT ${ctx.level} (${territoryTitle})`,
+    guideText: '▶ PETUNJUK: Halaman ini murni untuk posisi Dewan Pertimbangan. Isi kolom [NAMA LENGKAP] & [NOMOR NIK].',
+    totalDataRows: dataCount1,
+  });
+
   // Sheet 2: Dewan Pakar
   const sheet2Data: (string | number)[][] = [
-    ['FORMULIR KHUSUS: DEWAN PAKAR PARTAI NASDEM'],
-    [`WILAYAH: TINGKAT ${ctx.level} | ${territoryTitle}`],
-    ['PANDUAN: Halaman ini murni untuk posisi Dewan Pakar.'],
+    ['★ PARTAI NASDEM - DEWAN PIMPINAN WILAYAH SULAWESI UTARA ★'],
+    [`FORMULIR KHUSUS: DEWAN PAKAR - TINGKAT ${ctx.level} (${territoryTitle})`],
+    ['▶ PETUNJUK: Halaman ini murni untuk posisi Dewan Pakar. Isi kolom Nama Lengkap & NIK.'],
     [],
     headerCols,
   ];
@@ -479,8 +917,11 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     (r.subOrg || '').toLowerCase().includes('pakar')
   );
 
+  let dataCount2 = 0;
   if (currentPakar.length > 0) {
+    dataCount2 = currentPakar.length;
     currentPakar.forEach((r, idx) => {
+      const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
       sheet2Data.push([
         idx + 1,
         r.subOrg,
@@ -492,34 +933,32 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
         '',
-        'Aktif',
+        isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
       ]);
     });
   } else {
+    dataCount2 = pakarSlots.length;
     pakarSlots.forEach((s, idx) => {
-      sheet2Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', 'Aktif']);
+      sheet2Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
-  const colWidths = [
-    { wch: 6 },
-    { wch: 32 },
-    { wch: 28 },
-    { wch: 38 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 18 },
-    { wch: 22 },
-    { wch: 28 },
-    { wch: 32 },
-    { wch: 12 },
-  ];
-
-  const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
-  ws1['!cols'] = colWidths;
+  sheet2Data.push(
+    [],
+    ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
+    ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ LIHAT SHEET SEBELAH ]: Buka Sheet \"Dewan Pertimbangan\" di tab bawah untuk posisi Dewan Pertimbangan.'],
+    ['[ CARA IMPORT ]: Simpan (Ctrl+S), lalu unggah melalui tombol \"Import Excel\" di sistem dashboard matriks.']
+  );
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
-  ws2['!cols'] = colWidths;
+  applyExcelTemplateStyling({
+    ws: ws2,
+    subtitle: `FORMULIR KHUSUS: DEWAN PAKAR - TINGKAT ${ctx.level} (${territoryTitle})`,
+    guideText: '▶ PETUNJUK: Halaman ini murni untuk posisi Dewan Pakar. Isi kolom [NAMA LENGKAP] & [NOMOR NIK].',
+    totalDataRows: dataCount2,
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, 'Dewan Pertimbangan');
@@ -659,7 +1098,9 @@ export async function parseTerritorialExcelFile(
           firstCell.includes('formulir') ||
           firstCell.includes('panduan') ||
           firstCell.includes('petunjuk') ||
-          firstCell.includes('wilayah:')
+          firstCell.includes('wilayah:') ||
+          firstCell.includes('partai') ||
+          firstCell.includes('dewan pimpinan')
         ) {
           continue;
         }
