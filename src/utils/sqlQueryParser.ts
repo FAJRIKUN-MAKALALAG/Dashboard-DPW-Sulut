@@ -242,8 +242,14 @@ export function parseSqlInsertQuery(
     // Normalisasi wilayah penugasan (Dewan Pertimbangan, Dewan Pakar, Dewan Pimpinan)
     const normalizedSubOrg = normalizeSubOrgName(rawWilayah || rawJabatan, rawTingkat || ctx.level);
 
-    // Cari kesesuaian posisi jabatan dengan template resmi
-    const matchedSlot = slots.find((s) => isJobTitleMatch(rawJabatan, s.jabatan));
+    // Cari kesesuaian posisi jabatan dengan template resmi dalam sub-organisasi yang sama
+    const matchedSlot =
+      slots.find(
+        (s) =>
+          normalizeSubOrgName(s.subOrg, rawTingkat || ctx.level) === normalizedSubOrg &&
+          isJobTitleMatch(rawJabatan, s.jabatan, s.subOrg)
+      ) ||
+      slots.find((s) => isJobTitleMatch(rawJabatan, s.jabatan, s.subOrg));
     const isMatched = !!matchedSlot;
     if (isMatched) {
       matchedPositions++;

@@ -898,6 +898,9 @@ export async function parseTerritorialExcelFile(
           isPengurus: true,
           tingkatKepengurusan: rowLevel,
           wilayahPenugasan: finalSubOrg,
+          nomorSK:
+            existingMember?.nomorSK ||
+            `SK-${rowLevel}-${rowDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
           jabatan: jabatanVal || matchedSlot?.jabatan || 'Pengurus',
           status: 'Aktif',
           statusKtpVerified: true,

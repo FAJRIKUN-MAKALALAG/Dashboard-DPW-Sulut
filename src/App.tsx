@@ -76,8 +76,8 @@ export default function App() {
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
   const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
 
-  // Notification toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -204,6 +204,31 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  // 1b. Manual Cloud Sync Trigger (Tarik & Perbarui Data Langsung dari Supabase)
+  const handleRefreshFromSupabase = async () => {
+    if (!isSupabaseConfigured()) {
+      showToast('⚠️ Supabase belum terkonfigurasi di file .env.');
+      return;
+    }
+    setIsRefreshingCloud(true);
+    showToast('Sedang menarik seluruh data terbaru dari database Supabase...');
+    try {
+      const cloudMembers = await getMembersFromSupabase();
+      if (cloudMembers !== null) {
+        setMembers(cloudMembers);
+        saveMembers(cloudMembers);
+        showToast(`✅ Berhasil menarik ${cloudMembers.length} data kader langsung dari Supabase live!`);
+      } else {
+        showToast('⚠️ Gagal menarik data dari Supabase. Periksa koneksi internet.');
+      }
+    } catch (e: any) {
+      console.error('Error saat refresh cloud:', e);
+      showToast(`⚠️ Terjadi kesalahan: ${e.message || e}`);
+    } finally {
+      setIsRefreshingCloud(false);
+    }
+  };
 
   const handleLoginSuccess = (userSession: UserSession) => {
     setSession(userSession);
@@ -887,6 +912,8 @@ export default function App() {
               onOpenPrintReport={() => setIsPrintReportOpen(true)}
               onOpenUserManagement={() => setIsUserManagementOpen(true)}
               onOpenDownloadTemplate={() => setIsTemplateHubOpen(true)}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
               onNavigateToMembers={handleNavigateFromDashboard}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
@@ -924,6 +951,8 @@ export default function App() {
               session={session}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -945,6 +974,8 @@ export default function App() {
               initialDpd={matrixInitialDpd}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -967,6 +998,8 @@ export default function App() {
               initialDpc={matrixInitialDpc}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);
@@ -989,6 +1022,8 @@ export default function App() {
               initialDpc={matrixInitialDpc}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
                 setIsCardModalOpen(true);

@@ -1,4 +1,5 @@
 import { Member, AuditLog, DeletionRequest, MemberStatus, DeletionRequestStatus, AppUser, UserRole } from '../types';
+import { normalizeSubOrgName } from '../utils/jobMatchingUtils';
 
 export function sanitizeDate(dateStr?: string | null): string | null {
   if (!dateStr || !dateStr.trim()) return null;
@@ -13,6 +14,100 @@ export function sanitizeDate(dateStr?: string | null): string | null {
 }
 
 export function mapDbRowToMember(row: any): Member {
+  const rawJabatan = (row.jabatan || '').trim();
+  const jUpper = rawJabatan.toUpperCase();
+  const rawTingkat = (row.tingkat_kepengurusan || '').trim();
+  const dpd = (row.dpd || '').trim();
+  const dpc = (row.dpc || '').trim();
+  const dprt = (row.dprt || '').trim();
+  const wil = (row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || '').toUpperCase();
+
+  // Deteksi apakah penugasan atau jabatannya merupakan bagian dari struktur kepengurusan partai
+  const isCouncilOrStructure =
+    wil.includes('PERTIMBANGAN') ||
+    wil.includes('PAKAR') ||
+    wil.includes('PIMPINAN') ||
+    wil.includes('DEWAN') ||
+    wil.includes('BIDANG') ||
+    wil.includes('SAYAP') ||
+    wil.includes('BADAN') ||
+    jUpper.includes('PERTIMBANGAN') ||
+    jUpper.includes('PAKAR') ||
+    jUpper.includes('WANHAT') ||
+    jUpper.includes('WANTIM') ||
+    jUpper.includes('WANPAK') ||
+    ['DPW', 'DPD', 'DPC', 'DPRT'].includes(rawTingkat.toUpperCase());
+
+  // Hanya dianggap anggota biasa murni jika bukan dari struktur kepengurusan dan jabatannya non-struktural
+  const isOrdinary =
+    !isCouncilOrStructure &&
+    (!rawJabatan ||
+      rawJabatan === '-' ||
+      jUpper === 'ANGGOTA BIASA' ||
+      jUpper === 'ANGGOTA' ||
+      jUpper === 'BUKAN PENGURUS' ||
+      jUpper === 'SIMPATISAN' ||
+      jUpper === 'KADER');
+
+  const isPengurus =
+    row.is_pengurus === true ||
+    row.is_pengurus === 'true' ||
+    row.is_pengurus === 1 ||
+    row.kategori === 'Pengurus' ||
+    row.kategori_kader === 'Pengurus' ||
+    Boolean(row.nomor_sk) ||
+    isCouncilOrStructure ||
+    !isOrdinary;
+
+  // Deteksi tingkat kepengurusan cerdas
+  let tingkatKepengurusan: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus' = 'Bukan Pengurus';
+  if (['DPW', 'DPD', 'DPC', 'DPRt'].includes(rawTingkat)) {
+    tingkatKepengurusan = rawTingkat as any;
+  } else if (isPengurus) {
+    if (
+      jUpper.includes('DPW') ||
+      jUpper.includes('WILAYAH') ||
+      dpd === 'Sulawesi Utara' ||
+      dpd === 'DPW Sulut' ||
+      wil.includes('DPW')
+    ) {
+      tingkatKepengurusan = 'DPW';
+    } else if (
+      jUpper.includes('DPRT') ||
+      jUpper.includes('RANTING') ||
+      (dprt && dprt !== '-' && dprt !== 'Pusat/Umum' && dprt !== 'Umum')
+    ) {
+      tingkatKepengurusan = 'DPRt';
+    } else if (
+      jUpper.includes('DPC') ||
+      jUpper.includes('CABANG') ||
+      (dpc && dpc !== '-' && dpc !== 'Umum (DPD)' && dpc !== 'Wilayah DPD' && dpc !== 'Pusat/Umum' && dpc !== 'Umum' && !jUpper.includes('DPD'))
+    ) {
+      tingkatKepengurusan = 'DPC';
+    } else {
+      tingkatKepengurusan = 'DPD';
+    }
+  }
+
+  // Normalisasi cerdas Sub-Organisasi (Dewan Pertimbangan, Dewan Pakar, Dewan Pimpinan)
+  const rawWil = (row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || '').trim();
+  let finalWilayahPenugasan: string | undefined = undefined;
+
+  if (rawWil) {
+    finalWilayahPenugasan = normalizeSubOrgName(
+      rawWil,
+      tingkatKepengurusan === 'Bukan Pengurus' ? 'DPD' : (tingkatKepengurusan as any)
+    );
+  } else if (isCouncilOrStructure) {
+    if (jUpper.includes('PERTIMBANGAN') || jUpper.includes('WANHAT') || jUpper.includes('WANTIM')) {
+      finalWilayahPenugasan = tingkatKepengurusan === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+    } else if (jUpper.includes('PAKAR') || jUpper.includes('WANPAK')) {
+      finalWilayahPenugasan = tingkatKepengurusan === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+    } else if (isPengurus && tingkatKepengurusan !== 'Bukan Pengurus') {
+      finalWilayahPenugasan = normalizeSubOrgName(undefined, tingkatKepengurusan as any);
+    }
+  }
+
   return {
     nik: String(row.nik || ''),
     nomorEKTA: row.nomor_ekta || '',
@@ -23,19 +118,13 @@ export function mapDbRowToMember(row: any): Member {
     dpd: row.dpd || '',
     dpc: row.dpc || '',
     dprt: row.dprt || '',
-    isPengurus:
-      row.is_pengurus === true ||
-      row.is_pengurus === 'true' ||
-      row.is_pengurus === 1 ||
-      row.kategori === 'Pengurus' ||
-      row.kategori_kader === 'Pengurus' ||
-      Boolean(row.nomor_sk),
-    tingkatKepengurusan: row.tingkat_kepengurusan || 'Bukan Pengurus',
-    wilayahPenugasan: row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || undefined,
+    isPengurus,
+    tingkatKepengurusan,
+    wilayahPenugasan: finalWilayahPenugasan,
     nomorSK: row.nomor_sk || undefined,
     tanggalSK: row.tanggal_sk || undefined,
     kodeReferral: row.kode_referral || undefined,
-    jabatan: row.jabatan || 'Anggota Biasa',
+    jabatan: rawJabatan || 'Anggota Biasa',
     status: (row.status as MemberStatus) || 'Aktif',
     tanggalBergabung: row.tanggal_bergabung || new Date().toISOString().split('T')[0],
     catatanMutasi: row.catatan_mutasi || undefined,

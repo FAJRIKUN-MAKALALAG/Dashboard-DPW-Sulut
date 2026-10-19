@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
-import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
-import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch } from '../utils/jobMatchingUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from '../utils/structureReadinessUtils';
+import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch, getCouncilRank } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
@@ -49,6 +49,8 @@ interface TerritorialStructurePageProps {
   onOpenCardModal?: (member: Member) => void;
   onOpenDetailModal?: (member: Member) => void;
   onBackToDashboard?: () => void;
+  onRefreshCloud?: () => Promise<void> | void;
+  isRefreshingCloud?: boolean;
 }
 
 export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> = ({
@@ -61,6 +63,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   initialDpc,
   initialDprt,
   onBackToDashboard,
+  onRefreshCloud,
+  isRefreshingCloud = false,
 }) => {
   const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
 
@@ -233,65 +237,224 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys();
     const template = getStructureTemplate(level);
 
-    // Filter existing members in this territory and level with strict hierarchical separation
+    // Filter existing members in this territory and level with robust hierarchical detection
     let matchedMembers: Member[] = [];
     if (level === 'DPW') {
       matchedMembers = members.filter(
         (m) =>
           m.tingkatKepengurusan === 'DPW' ||
           m.dpd === 'Sulawesi Utara' ||
+          m.dpd?.toLowerCase().includes('dpw') ||
           m.wilayahPenugasan === 'DPW' ||
           m.wilayahPenugasan?.includes('DPW') ||
-          (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
+          m.jabatan?.toLowerCase().includes('dpw') ||
+          m.jabatan?.toLowerCase().includes('wilayah') ||
+          (m.isPengurus && (!m.dpd || m.dpd === 'Sulawesi Utara'))
       );
     } else if (level === 'DPD') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          (m.tingkatKepengurusan === 'DPD' ||
-            m.dpc === 'Umum (DPD)' ||
-            m.dpc === 'Wilayah DPD' ||
-            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
-            (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPD' ||
+          jLower.includes('dpd') ||
+          jLower.includes('daerah') ||
+          m.dpc === 'Umum (DPD)' ||
+          m.dpc === 'Wilayah DPD' ||
+          !m.dpc ||
+          m.dpc === '-' ||
+          (m.isPengurus && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
+        );
+      });
     } else if (level === 'DPC') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          isDpcMatch(m.dpc, selectedDpc) &&
-          (m.tingkatKepengurusan === 'DPC' ||
-            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPC' ||
+          jLower.includes('dpc') ||
+          jLower.includes('cabang') ||
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+        );
+      });
     } else if (level === 'DPRt') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          isDpcMatch(m.dpc, selectedDpc) &&
-          isDprtMatch(m.dprt, selectedDprt) &&
-          (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc) || !isDprtMatch(m.dprt, selectedDprt)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        return (
+          m.tingkatKepengurusan === 'DPRt' ||
+          jLower.includes('dprt') ||
+          jLower.includes('ranting') ||
+          m.isPengurus ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa')
+        );
+      });
     }
 
     const assignedMemberNiks = new Set<string>();
 
-    // Saring template yang tidak dihapus oleh pengguna
+    // Saring template yang tidak dihapus secara eksplisit oleh pengguna
     const activeTemplate = template.filter((slot) => {
       const key = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
       return !deletedKeys.has(key);
     });
 
-    const rows: GridRowItem[] = activeTemplate.map((slot: PositionSlot, idx: number) => {
-      // Pencocokan cerdas: mengenali singkatan Bid, HAM, OKK, & / dan, dsb.
-      // Serta mengubah nama jabatan di slot agar mengikuti jabatan asli yang diimpor
+    // Pisahkan anggota riil berdasarkan kategori sub-organisasi
+    const pertimbanganMembers = matchedMembers.filter(
+      (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN'
+    );
+    const pakarMembers = matchedMembers.filter(
+      (m) => getMemberSubOrgCategory(m) === 'PAKAR'
+    );
+    const pimpinanMembers = matchedMembers.filter(
+      (m) => getMemberSubOrgCategory(m) === 'PIMPINAN'
+    );
+
+    // Pisahkan slot template resmi berdasarkan sub-organisasi
+    const pertimbanganTemplateSlots = activeTemplate.filter(
+      (s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN'
+    );
+    const pakarTemplateSlots = activeTemplate.filter(
+      (s) => getSlotSubOrgCategory(s) === 'PAKAR'
+    );
+    const pimpinanTemplateSlots = activeTemplate.filter(
+      (s) => getSlotSubOrgCategory(s) === 'PIMPINAN'
+    );
+
+    // Tentukan label nama resmi sub-organisasi
+    const pertimbanganSubOrgName =
+      pertimbanganTemplateSlots[0]?.subOrg ||
+      (level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN');
+
+    const pakarSubOrgName =
+      pakarTemplateSlots[0]?.subOrg ||
+      (level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR');
+
+    const pimpinanSubOrgName =
+      pimpinanTemplateSlots[0]?.subOrg ||
+      (level === 'DPW'
+        ? 'DEWAN PIMPINAN WILAYAH'
+        : level === 'DPD'
+        ? 'III. DEWAN PIMPINAN DAERAH'
+        : level === 'DPC'
+        ? 'III. DEWAN PIMPINAN CABANG'
+        : 'DEWAN PIMPINAN RANTING');
+
+    const rows: GridRowItem[] = [];
+
+    // =========================================================================
+    // 1. DEWAN PERTIMBANGAN (WANGAN)
+    // Fleksibel mengikuti data riil daerah (3, 5, >5 pengurus dsb).
+    // Tidak memaksakan slot kosong jika daerah hanya memiliki pengurus riil tertentu.
+    // =========================================================================
+    if (pertimbanganMembers.length > 0) {
+      const sortedPertimbangan = [...pertimbanganMembers].sort(
+        (a, b) => getCouncilRank(a.jabatan) - getCouncilRank(b.jabatan)
+      );
+
+      sortedPertimbangan.forEach((m, idx) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: idx + 1,
+          subOrg: pertimbanganSubOrgName,
+          jabatan: m.jabatan || 'Anggota',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
+      });
+    } else if (pertimbanganTemplateSlots.length > 0) {
+      // Jika belum ada data riil diimpor, sediakan slot template kosong siap isi
+      pertimbanganTemplateSlots.forEach((slot, idx) => {
+        rows.push({
+          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
+          no: slot.no,
+          subOrg: slot.subOrg,
+          jabatan: slot.jabatan,
+          namaLengkap: '',
+          nik: '',
+          nomorEKTA: '',
+          email: '',
+          nomorHP: '',
+          sosmed: '',
+          isExisting: false,
+        });
+      });
+    }
+
+    // =========================================================================
+    // 2. DEWAN PAKAR (WANKAR)
+    // Fleksibel mengikuti data riil daerah (3, 5, >5 pengurus dsb).
+    // =========================================================================
+    if (pakarMembers.length > 0) {
+      const sortedPakar = [...pakarMembers].sort(
+        (a, b) => getCouncilRank(a.jabatan) - getCouncilRank(b.jabatan)
+      );
+
+      sortedPakar.forEach((m, idx) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: idx + 1,
+          subOrg: pakarSubOrgName,
+          jabatan: m.jabatan || 'Anggota',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
+      });
+    } else if (pakarTemplateSlots.length > 0) {
+      // Jika belum ada data riil diimpor, sediakan slot template kosong siap isi
+      pakarTemplateSlots.forEach((slot, idx) => {
+        rows.push({
+          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
+          no: slot.no,
+          subOrg: slot.subOrg,
+          jabatan: slot.jabatan,
+          namaLengkap: '',
+          nik: '',
+          nomorEKTA: '',
+          email: '',
+          nomorHP: '',
+          sosmed: '',
+          isExisting: false,
+        });
+      });
+    }
+
+    // =========================================================================
+    // 3. DEWAN PIMPINAN (PENGURUS DPD 36 JABATAN / DPW 36 / DPC 17 / DPRt 9)
+    // Sesuai permintaan user:
+    // "kalau ada data yang di masukan tapi di sistem baca pada bagian jabatan x itu
+    // belum ada yang menduduki jabatan x itu, maka data di jabatan x itu tetap ada
+    // dan dikasih kosong.. agar nnti ketika ingin menambahkan data sendiri dari
+    // matriks table itu gampang.."
+    // =========================================================================
+    pimpinanTemplateSlots.forEach((slot, idx) => {
       const { matchedMember, displayTitle } = matchMemberToSlot(
         slot,
-        matchedMembers,
+        pimpinanMembers,
         assignedMemberNiks
       );
 
       if (matchedMember) {
         assignedMemberNiks.add(matchedMember.nik);
-        return {
+        rows.push({
           id: matchedMember.nik,
           no: slot.no,
           subOrg: slot.subOrg,
@@ -304,44 +467,44 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           sosmed: matchedMember.sosmed || '',
           isExisting: true,
           originalNik: matchedMember.nik,
-        };
+        });
+      } else {
+        // Jabatan resmi formasi SK belum ada yang menduduki: tetap ada dan dikasih kosong
+        rows.push({
+          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
+          no: slot.no,
+          subOrg: slot.subOrg,
+          jabatan: slot.jabatan,
+          namaLengkap: '',
+          nik: '',
+          nomorEKTA: '',
+          email: '',
+          nomorHP: '',
+          sosmed: '',
+          isExisting: false,
+        });
       }
-
-      return {
-        id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
-        no: slot.no,
-        subOrg: slot.subOrg,
-        jabatan: slot.jabatan,
-        namaLengkap: '',
-        nik: '',
-        nomorEKTA: '',
-        email: '',
-        nomorHP: '',
-        sosmed: '',
-        isExisting: false,
-      };
     });
 
-    // Anggota ekstra/tambahan dari database yang belum masuk ke slot standar template
+    // =========================================================================
+    // 4. ANGGOTA EKSTRA/TAMBAHAN (ANTI DATA-LOSS)
+    // Setiap pengurus dari database yang belum masuk slot di atas tetap ditampilkan
+    // =========================================================================
     matchedMembers.forEach((m) => {
       if (!assignedMemberNiks.has(m.nik)) {
-        const jLower = m.jabatan?.toLowerCase() || '';
-        const wLower = m.wilayahPenugasan?.toLowerCase() || '';
-        const detectedSubOrg = normalizeSubOrgName(
-          m.wilayahPenugasan ||
-            (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')
-              ? 'DEWAN PERTIMBANGAN'
-              : jLower.includes('pakar') || wLower.includes('pakar')
-              ? 'DEWAN PAKAR'
-              : undefined),
-          level
-        );
-
         assignedMemberNiks.add(m.nik);
+        const cat = getMemberSubOrgCategory(m);
+        const targetSubOrg =
+          cat === 'PERTIMBANGAN'
+            ? pertimbanganSubOrgName
+            : cat === 'PAKAR'
+            ? pakarSubOrgName
+            : pimpinanSubOrgName;
+
         rows.push({
           id: m.nik,
-          no: rows.filter((r) => r.subOrg === detectedSubOrg).length + 1,
-          subOrg: detectedSubOrg,
+          no: rows.filter((r) => r.subOrg === targetSubOrg).length + 1,
+          subOrg: targetSubOrg,
           jabatan: m.jabatan,
           namaLengkap: m.namaLengkap,
           nik: m.nik,
@@ -393,7 +556,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         ? 'Anggota Dewan Pertimbangan'
         : defaultSubOrg.includes('PAKAR')
         ? 'Anggota Dewan Pakar'
-        : 'Pengurus Tambahan / Anggota',
+        : 'Pengurus Tambahan Bidang',
       namaLengkap: '',
       nik: '',
       nomorEKTA: '',
@@ -514,6 +677,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         isPengurus: true,
         tingkatKepengurusan: level,
         wilayahPenugasan: row.subOrg,
+        nomorSK: existingMember?.nomorSK || `SK-${level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
         jabatan: row.jabatan.trim() || 'Pengurus',
         status: existingMember?.status || 'Aktif',
         statusKtpVerified: existingMember ? existingMember.statusKtpVerified : true,
@@ -992,6 +1156,18 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                 <span>Template Pakar</span>
               </button>
             </>
+          )}
+
+          {onRefreshCloud && (
+            <button
+              onClick={onRefreshCloud}
+              disabled={isRefreshingCloud}
+              title="Tarik & sinkronkan ulang seluruh data susunan pengurus langsung dari Supabase live"
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 dark:text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+              <span>{isRefreshingCloud ? 'Menarik...' : 'Tarik Data Supabase'}</span>
+            </button>
           )}
 
           <button

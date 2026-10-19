@@ -83,7 +83,18 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
       if (!map.has(sub)) map.set(sub, []);
       map.get(sub)!.push(r);
     });
-    return Array.from(map.entries());
+
+    // Urutan prioritas resmi: I. Dewan Pertimbangan -> II. Dewan Pakar -> III. Dewan Pimpinan
+    const sortPriority = (title: string) => {
+      const t = title.toUpperCase();
+      if (t.includes('PERTIMBANGAN')) return 1;
+      if (t.includes('PAKAR')) return 2;
+      if (t.includes('PIMPINAN') || t.includes('DPD') || t.includes('DPW') || t.includes('CABANG') || t.includes('RANTING'))
+        return 3;
+      return 4;
+    };
+
+    return Array.from(map.entries()).sort(([a], [b]) => sortPriority(a) - sortPriority(b));
   }, [rowsToPrint, level]);
 
   const handlePrint = () => {

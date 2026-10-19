@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSession } from '../../types';
-import { FileSpreadsheet, Printer, KeyRound, Download } from 'lucide-react';
+import { FileSpreadsheet, Printer, KeyRound, Download, RefreshCw } from 'lucide-react';
 
 interface DashboardHeaderProps {
   session?: UserSession;
@@ -8,6 +8,8 @@ interface DashboardHeaderProps {
   onOpenPrintReport: () => void;
   onOpenUserManagement?: () => void;
   onOpenDownloadTemplate?: () => void;
+  onRefreshCloud?: () => void;
+  isRefreshingCloud?: boolean;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -16,6 +18,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenPrintReport,
   onOpenUserManagement,
   onOpenDownloadTemplate,
+  onRefreshCloud,
+  isRefreshingCloud = false,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
 
@@ -70,6 +74,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <Download className="w-3.5 h-3.5" />
             <span>Unduh Template Excel</span>
+          </button>
+        )}
+        {onRefreshCloud && (
+          <button
+            onClick={onRefreshCloud}
+            disabled={isRefreshingCloud}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white cursor-pointer shadow-xs transition-colors"
+            title="Tarik & sinkronkan ulang seluruh data kader dan pengurus langsung dari Supabase live"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+            <span>{isRefreshingCloud ? 'Menarik Data...' : 'Tarik Data Supabase'}</span>
           </button>
         )}
         <button
