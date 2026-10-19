@@ -13,6 +13,63 @@ export function sanitizeDate(dateStr?: string | null): string | null {
 }
 
 export function mapDbRowToMember(row: any): Member {
+  const rawJabatan = (row.jabatan || '').trim();
+  const jUpper = rawJabatan.toUpperCase();
+  const rawTingkat = (row.tingkat_kepengurusan || '').trim();
+  const dpd = (row.dpd || '').trim();
+  const dpc = (row.dpc || '').trim();
+  const dprt = (row.dprt || '').trim();
+  const wil = (row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || '').toUpperCase();
+
+  // Deteksi apakah kader merupakan pengurus jika diinput massal lewat SQL editor tanpa set is_pengurus
+  const isOrdinary =
+    !rawJabatan ||
+    rawJabatan === '-' ||
+    jUpper === 'ANGGOTA BIASA' ||
+    jUpper === 'ANGGOTA' ||
+    jUpper === 'BUKAN PENGURUS' ||
+    jUpper === 'SIMPATISAN' ||
+    jUpper === 'KADER';
+
+  const isPengurus =
+    row.is_pengurus === true ||
+    row.is_pengurus === 'true' ||
+    row.is_pengurus === 1 ||
+    row.kategori === 'Pengurus' ||
+    row.kategori_kader === 'Pengurus' ||
+    Boolean(row.nomor_sk) ||
+    !isOrdinary;
+
+  // Deteksi tingkat kepengurusan cerdas
+  let tingkatKepengurusan: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus' = 'Bukan Pengurus';
+  if (['DPW', 'DPD', 'DPC', 'DPRt'].includes(rawTingkat)) {
+    tingkatKepengurusan = rawTingkat as any;
+  } else if (isPengurus) {
+    if (
+      jUpper.includes('DPW') ||
+      jUpper.includes('WILAYAH') ||
+      dpd === 'Sulawesi Utara' ||
+      dpd === 'DPW Sulut' ||
+      wil.includes('DPW')
+    ) {
+      tingkatKepengurusan = 'DPW';
+    } else if (
+      jUpper.includes('DPRT') ||
+      jUpper.includes('RANTING') ||
+      (dprt && dprt !== '-' && dprt !== 'Pusat/Umum' && dprt !== 'Umum')
+    ) {
+      tingkatKepengurusan = 'DPRt';
+    } else if (
+      jUpper.includes('DPC') ||
+      jUpper.includes('CABANG') ||
+      (dpc && dpc !== '-' && dpc !== 'Umum (DPD)' && dpc !== 'Wilayah DPD' && dpc !== 'Pusat/Umum' && dpc !== 'Umum' && !jUpper.includes('DPD'))
+    ) {
+      tingkatKepengurusan = 'DPC';
+    } else {
+      tingkatKepengurusan = 'DPD';
+    }
+  }
+
   return {
     nik: String(row.nik || ''),
     nomorEKTA: row.nomor_ekta || '',
@@ -23,19 +80,13 @@ export function mapDbRowToMember(row: any): Member {
     dpd: row.dpd || '',
     dpc: row.dpc || '',
     dprt: row.dprt || '',
-    isPengurus:
-      row.is_pengurus === true ||
-      row.is_pengurus === 'true' ||
-      row.is_pengurus === 1 ||
-      row.kategori === 'Pengurus' ||
-      row.kategori_kader === 'Pengurus' ||
-      Boolean(row.nomor_sk),
-    tingkatKepengurusan: row.tingkat_kepengurusan || 'Bukan Pengurus',
+    isPengurus,
+    tingkatKepengurusan,
     wilayahPenugasan: row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || undefined,
     nomorSK: row.nomor_sk || undefined,
     tanggalSK: row.tanggal_sk || undefined,
     kodeReferral: row.kode_referral || undefined,
-    jabatan: row.jabatan || 'Anggota Biasa',
+    jabatan: rawJabatan || 'Anggota Biasa',
     status: (row.status as MemberStatus) || 'Aktif',
     tanggalBergabung: row.tanggal_bergabung || new Date().toISOString().split('T')[0],
     catatanMutasi: row.catatan_mutasi || undefined,

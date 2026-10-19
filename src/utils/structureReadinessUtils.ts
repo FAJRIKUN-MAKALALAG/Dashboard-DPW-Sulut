@@ -201,16 +201,22 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
   const emptyDpds: string[] = [];
 
   const dpdList: TerritoryReadiness[] = SULUT_REGIONS.map((region) => {
-    // Only count official DPD pengurus (tingkat DPD or Umum DPD or Wilayah DPD)
-    const dpdMembers = activeMembers.filter(
-      (m) =>
-        isDpdMatch(m.dpd, region.name) &&
-        (m.tingkatKepengurusan === 'DPD' ||
-          m.dpc === 'Umum (DPD)' ||
-          m.dpc === 'Wilayah DPD' ||
-          (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD')) ||
-          (m.isPengurus && (!m.dpc || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)')))
-    );
+    const dpdMembers = activeMembers.filter((m) => {
+      if (!isDpdMatch(m.dpd, region.name)) return false;
+      const jLower = (m.jabatan || '').toLowerCase();
+      const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
+      return (
+        m.tingkatKepengurusan === 'DPD' ||
+        jLower.includes('dpd') ||
+        jLower.includes('daerah') ||
+        m.dpc === 'Umum (DPD)' ||
+        m.dpc === 'Wilayah DPD' ||
+        !m.dpc ||
+        m.dpc === '-' ||
+        (m.isPengurus && isNotOtherLevel) ||
+        (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
+      );
+    });
 
     const coreDpdTemplate = DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH'));
     const missing = coreDpdTemplate.filter(
@@ -251,13 +257,18 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
     totalDpcCount += region.subdistricts.length;
     region.subdistricts.forEach((sub) => {
       totalDprtCount += sub.villages.length;
-      const subMembers = activeMembers.filter(
-        (m) =>
-          isDpdMatch(m.dpd, region.name) &&
-          isDpcMatch(m.dpc, sub.name) &&
-          (m.tingkatKepengurusan === 'DPC' ||
-            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
-      );
+      const subMembers = activeMembers.filter((m) => {
+        if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPC' ||
+          jLower.includes('dpc') ||
+          jLower.includes('cabang') ||
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+        );
+      });
       if (subMembers.length >= REQUIRED_POSITIONS.DPC) {
         completedDpcCount++;
       }
@@ -637,15 +648,22 @@ export function computeStructureKpiStats(
     dpdBreakdown.pertimbanganRequired += dpdPerSlots.length;
     dpdBreakdown.pakarRequired += dpdPakSlots.length;
 
-    const dpdMembers = activeMembers.filter(
-      (m) =>
-        isDpdMatch(m.dpd, region.name) &&
-        (m.tingkatKepengurusan === 'DPD' ||
-          m.dpc === 'Umum (DPD)' ||
-          m.dpc === 'Wilayah DPD' ||
-          (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD')) ||
-          (m.isPengurus && (!m.dpc || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)')))
-    );
+    const dpdMembers = activeMembers.filter((m) => {
+      if (!isDpdMatch(m.dpd, region.name)) return false;
+      const jLower = (m.jabatan || '').toLowerCase();
+      const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
+      return (
+        m.tingkatKepengurusan === 'DPD' ||
+        jLower.includes('dpd') ||
+        jLower.includes('daerah') ||
+        m.dpc === 'Umum (DPD)' ||
+        m.dpc === 'Wilayah DPD' ||
+        !m.dpc ||
+        m.dpc === '-' ||
+        (m.isPengurus && isNotOtherLevel) ||
+        (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
+      );
+    });
 
     const regPimFilled = dpdPimSlots.filter((slot) =>
       dpdMembers.some(
@@ -680,13 +698,18 @@ export function computeStructureKpiStats(
       dpcBreakdown.pertimbanganRequired += dpcPerSlots.length;
       dpcBreakdown.pakarRequired += dpcPakSlots.length;
 
-      const subMembers = activeMembers.filter(
-        (m) =>
-          isDpdMatch(m.dpd, region.name) &&
-          isDpcMatch(m.dpc, sub.name) &&
-          (m.tingkatKepengurusan === 'DPC' ||
-            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
-      );
+      const subMembers = activeMembers.filter((m) => {
+        if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPC' ||
+          jLower.includes('dpc') ||
+          jLower.includes('cabang') ||
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+        );
+      });
 
       const subPimFilled = dpcPimSlots.filter((slot) =>
         subMembers.some(

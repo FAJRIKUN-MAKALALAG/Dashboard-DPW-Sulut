@@ -233,43 +233,62 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys();
     const template = getStructureTemplate(level);
 
-    // Filter existing members in this territory and level with strict hierarchical separation
+    // Filter existing members in this territory and level with robust hierarchical detection
     let matchedMembers: Member[] = [];
     if (level === 'DPW') {
       matchedMembers = members.filter(
         (m) =>
           m.tingkatKepengurusan === 'DPW' ||
           m.dpd === 'Sulawesi Utara' ||
+          m.dpd?.toLowerCase().includes('dpw') ||
           m.wilayahPenugasan === 'DPW' ||
           m.wilayahPenugasan?.includes('DPW') ||
-          (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
+          m.jabatan?.toLowerCase().includes('dpw') ||
+          m.jabatan?.toLowerCase().includes('wilayah') ||
+          (m.isPengurus && (!m.dpd || m.dpd === 'Sulawesi Utara'))
       );
     } else if (level === 'DPD') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          (m.tingkatKepengurusan === 'DPD' ||
-            m.dpc === 'Umum (DPD)' ||
-            m.dpc === 'Wilayah DPD' ||
-            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
-            (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPD' ||
+          jLower.includes('dpd') ||
+          jLower.includes('daerah') ||
+          m.dpc === 'Umum (DPD)' ||
+          m.dpc === 'Wilayah DPD' ||
+          !m.dpc ||
+          m.dpc === '-' ||
+          (m.isPengurus && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
+        );
+      });
     } else if (level === 'DPC') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          isDpcMatch(m.dpc, selectedDpc) &&
-          (m.tingkatKepengurusan === 'DPC' ||
-            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        return (
+          m.tingkatKepengurusan === 'DPC' ||
+          jLower.includes('dpc') ||
+          jLower.includes('cabang') ||
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+        );
+      });
     } else if (level === 'DPRt') {
-      matchedMembers = members.filter(
-        (m) =>
-          isDpdMatch(m.dpd, selectedDpd) &&
-          isDpcMatch(m.dpc, selectedDpc) &&
-          isDprtMatch(m.dprt, selectedDprt) &&
-          (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
-      );
+      matchedMembers = members.filter((m) => {
+        if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc) || !isDprtMatch(m.dprt, selectedDprt)) return false;
+        const jLower = (m.jabatan || '').toLowerCase();
+        return (
+          m.tingkatKepengurusan === 'DPRt' ||
+          jLower.includes('dprt') ||
+          jLower.includes('ranting') ||
+          m.isPengurus ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa')
+        );
+      });
     }
 
     const assignedMemberNiks = new Set<string>();

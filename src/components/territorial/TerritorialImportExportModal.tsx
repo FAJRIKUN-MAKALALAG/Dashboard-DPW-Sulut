@@ -83,32 +83,48 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
       return (
         m.tingkatKepengurusan === 'DPW' ||
         m.dpd === 'Sulawesi Utara' ||
+        m.dpd?.toLowerCase().includes('dpw') ||
         m.wilayahPenugasan === 'DPW' ||
         m.wilayahPenugasan?.includes('DPW') ||
-        (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
+        m.jabatan?.toLowerCase().includes('dpw') ||
+        m.jabatan?.toLowerCase().includes('wilayah') ||
+        (m.isPengurus && (!m.dpd || m.dpd === 'Sulawesi Utara'))
       );
     } else if (territoryContext.level === 'DPD') {
+      if (!isDpdMatch(m.dpd, territoryContext.dpd)) return false;
+      const jLower = (m.jabatan || '').toLowerCase();
+      const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
       return (
-        isDpdMatch(m.dpd, territoryContext.dpd) &&
-        (m.tingkatKepengurusan === 'DPD' ||
-          m.dpc === 'Umum (DPD)' ||
-          m.dpc === 'Wilayah DPD' ||
-          (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
-          (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
+        m.tingkatKepengurusan === 'DPD' ||
+        jLower.includes('dpd') ||
+        jLower.includes('daerah') ||
+        m.dpc === 'Umum (DPD)' ||
+        m.dpc === 'Wilayah DPD' ||
+        !m.dpc ||
+        m.dpc === '-' ||
+        (m.isPengurus && isNotOtherLevel) ||
+        (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
       );
     } else if (territoryContext.level === 'DPC') {
+      if (!isDpdMatch(m.dpd, territoryContext.dpd) || !isDpcMatch(m.dpc, territoryContext.dpc || '')) return false;
+      const jLower = (m.jabatan || '').toLowerCase();
+      const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
       return (
-        isDpdMatch(m.dpd, territoryContext.dpd) &&
-        isDpcMatch(m.dpc, territoryContext.dpc || '') &&
-        (m.tingkatKepengurusan === 'DPC' ||
-          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD'))
+        m.tingkatKepengurusan === 'DPC' ||
+        jLower.includes('dpc') ||
+        jLower.includes('cabang') ||
+        (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+        (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
       );
     } else if (territoryContext.level === 'DPRt') {
+      if (!isDpdMatch(m.dpd, territoryContext.dpd) || !isDpcMatch(m.dpc, territoryContext.dpc || '') || !isDprtMatch(m.dprt, territoryContext.dprt || '')) return false;
+      const jLower = (m.jabatan || '').toLowerCase();
       return (
-        isDpdMatch(m.dpd, territoryContext.dpd) &&
-        isDpcMatch(m.dpc, territoryContext.dpc || '') &&
-        isDprtMatch(m.dprt, territoryContext.dprt || '') &&
-        (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
+        m.tingkatKepengurusan === 'DPRt' ||
+        jLower.includes('dprt') ||
+        jLower.includes('ranting') ||
+        m.isPengurus ||
+        (m.jabatan && m.jabatan !== 'Anggota Biasa')
       );
     }
     return false;
