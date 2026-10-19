@@ -15,6 +15,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onExportExcel,
   onOpenPrintReport,
   onOpenUserManagement,
+  onOpenDownloadTemplate,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
 
