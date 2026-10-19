@@ -25,7 +25,9 @@ import {
   QrCode,
   Eye,
   AlertTriangle,
+  Award,
 } from 'lucide-react';
+import { getDewanWilayahInfo } from '../utils/structureReadinessUtils';
 
 interface MemberDetailModalProps {
   isOpen: boolean;
@@ -333,9 +335,39 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                     {member.namaLengkap}
                   </h2>
 
-                  <p className="text-amber-300 font-semibold text-xs sm:text-sm">
-                    {member.jabatan}
-                  </p>
+                  {(() => {
+                    const dewanInfo = getDewanWilayahInfo(member);
+                    if (dewanInfo.isDewan) {
+                      return (
+                        <div className="flex flex-wrap items-center gap-2 py-0.5">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold border shadow-xs ${
+                              dewanInfo.category === 'PERTIMBANGAN'
+                                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                                : 'bg-purple-500 text-white border-purple-400'
+                            }`}
+                          >
+                            {dewanInfo.category === 'PERTIMBANGAN' ? (
+                              <ShieldCheck className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                            ) : (
+                              <Award className="w-3.5 h-3.5 text-white shrink-0" />
+                            )}
+                            <span>{dewanInfo.councilName}</span>
+                            <span>·</span>
+                            <span className="font-extrabold">{dewanInfo.shortLocationLabel}</span>
+                          </span>
+                          <span className="text-amber-300 font-bold text-xs sm:text-sm">
+                            {member.jabatan}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-amber-300 font-semibold text-xs sm:text-sm">
+                        {member.jabatan}
+                      </p>
+                    );
+                  })()}
 
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
                     <span className="flex items-center gap-1">

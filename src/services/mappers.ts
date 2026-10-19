@@ -23,9 +23,15 @@ export function mapDbRowToMember(row: any): Member {
     dpd: row.dpd || '',
     dpc: row.dpc || '',
     dprt: row.dprt || '',
-    isPengurus: Boolean(row.is_pengurus),
+    isPengurus:
+      row.is_pengurus === true ||
+      row.is_pengurus === 'true' ||
+      row.is_pengurus === 1 ||
+      row.kategori === 'Pengurus' ||
+      row.kategori_kader === 'Pengurus' ||
+      Boolean(row.nomor_sk),
     tingkatKepengurusan: row.tingkat_kepengurusan || 'Bukan Pengurus',
-    wilayahPenugasan: row.wilayah_penugasan || undefined,
+    wilayahPenugasan: row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || undefined,
     nomorSK: row.nomor_sk || undefined,
     tanggalSK: row.tanggal_sk || undefined,
     kodeReferral: row.kode_referral || undefined,

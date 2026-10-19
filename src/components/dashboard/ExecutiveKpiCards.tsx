@@ -13,7 +13,7 @@ interface ExecutiveKpiCardsProps {
   countPengurusDpw: number;
   selectedDpdFilter: string;
   structureKpi: StructureKpiStats;
-  onNavigateToMembers: () => void;
+  onNavigateToMembers: (filterMembership?: 'ALL' | 'PENGURUS' | 'ANGGOTA') => void;
   onOpenStructureModal: (level: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
@@ -36,35 +36,75 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Metric 1: Anggota Aktif Riil */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
-          <span className="font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider text-[11px]">
-            Pengurus & Anggota Riil
-          </span>
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
-            <UserCheck className="w-4.5 h-4.5" />
+      {/* Metric 1: Pengurus & Anggota Riil (Terpisah Secara Spesifik) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
+            <span className="font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider text-[11px]">
+              Pengurus & Anggota Riil
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
+              <UserCheck className="w-4.5 h-4.5" />
+            </div>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span
+              className="text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight"
+              data-tabular="true"
+            >
+              {totalActive.toLocaleString('id-ID')}
+            </span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+              Total Kader
+            </span>
+          </div>
+
+          {/* Pemisahan Terpisah: Data Pengurus vs Data Anggota Biasa */}
+          <div className="grid grid-cols-2 gap-2 mt-3.5">
+            {/* Box 1: Pengurus Ber-SK */}
+            <div
+              onClick={() => onNavigateToMembers('PENGURUS')}
+              className="bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl p-2.5 cursor-pointer hover:border-blue-400 hover:shadow-xs transition-all group"
+              title="Klik untuk membuka data khusus Pengurus Ber-SK"
+            >
+              <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide flex items-center justify-between">
+                <span>Pengurus Ber-SK</span>
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <div className="text-xl font-black text-blue-800 dark:text-blue-200 font-mono mt-1" data-tabular="true">
+                {totalPengurusBerSk.toLocaleString('id-ID')}
+              </div>
+              <div className="text-[9.5px] text-blue-600/80 dark:text-blue-400 mt-0.5 font-medium">
+                Struktural SK Terbit
+              </div>
+            </div>
+
+            {/* Box 2: Anggota Biasa (Basis KTP) */}
+            <div
+              onClick={() => onNavigateToMembers('ANGGOTA')}
+              className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-2.5 cursor-pointer hover:border-emerald-400 hover:shadow-xs transition-all group"
+              title="Klik untuk membuka data khusus Anggota Biasa (Basis KTP)"
+            >
+              <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide flex items-center justify-between">
+                <span>Anggota Biasa</span>
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <div className="text-xl font-black text-emerald-800 dark:text-emerald-200 font-mono mt-1" data-tabular="true">
+                {totalAnggotaBiasa.toLocaleString('id-ID')}
+              </div>
+              <div className="text-[9.5px] text-emerald-600/80 dark:text-emerald-400 mt-0.5 font-medium">
+                Kader Basis KTP
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
-          <span
-            className="text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight"
-            data-tabular="true"
-          >
-            {totalActive.toLocaleString('id-ID')}
-          </span>
-          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-            Kader Aktif 
-          </span>
-        </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-          Terverifikasi aktif di lapangan: <strong>{totalPengurusBerSk}</strong> Pengurus Struktural - <strong>{totalAnggotaBiasa}</strong> Anggota.
-        </p>
+
         <button
-          onClick={onNavigateToMembers}
-          className="btn-white w-full justify-between mt-3.5 text-xs font-semibold px-3 py-2 rounded-xl flex items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
+          onClick={() => onNavigateToMembers('ALL')}
+          className="btn-white w-full justify-between mt-3 text-xs font-semibold px-3 py-2 rounded-xl flex items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
         >
-          <span>Buka Daftar Anggota Aktif</span>
+          <span>Buka Semua {totalActive.toLocaleString('id-ID')} Kader</span>
           <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />
         </button>
       </div>

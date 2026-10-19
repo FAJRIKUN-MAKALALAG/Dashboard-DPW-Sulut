@@ -8,7 +8,7 @@ import {
 } from '../data/structureTemplates';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch } from './structureReadinessUtils';
-import { isJobTitleMatch } from './jobMatchingUtils';
+import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
 import { GridRowItem } from '../components/matrix';
 
 export interface TerritoryContext {
@@ -65,6 +65,32 @@ export function getTerritoryFilename(ctx: TerritoryContext, prefix = 'TEMPLATE_P
     return `${prefix}_DPC_${clean(ctx.dpd)}_KEC_${clean(ctx.dpc)}.xlsx`;
   }
   return `${prefix}_DPRT_${clean(ctx.dpd)}_${clean(ctx.dpc)}_DESA_${clean(ctx.dprt)}.xlsx`;
+}
+
+/**
+ * Menyimpan dan mendownload berkas Excel secara langsung ke browser pengguna
+ * Menggunakan direct Blob URL yang 100% kompatibel dan handal di semua browser.
+ */
+export function saveWorkbookToExcel(wb: XLSX.WorkBook, filename: string): void {
+  try {
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 250);
+  } catch (err) {
+    console.warn('Fallback XLSX.writeFile:', err);
+    XLSX.writeFile(wb, filename);
+  }
 }
 
 /**
@@ -190,7 +216,7 @@ export function downloadTerritorialExcelTemplate(
   XLSX.utils.book_append_sheet(wb, wsInfo, 'Panduan Wilayah');
 
   const filename = getTerritoryFilename(ctx, 'TEMPLATE_INPUT_PENGURUS');
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -280,7 +306,7 @@ export function downloadAdvisoryOnlyExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_DEWAN_PERTIMBANGAN_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -370,7 +396,7 @@ export function downloadExpertOnlyExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_DEWAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -501,7 +527,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_PERTIMBANGAN_DAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -566,14 +592,23 @@ export async function parseTerritorialExcelFile(
   const membersToSave: Member[] = [];
   const occupiedNiks = new Set<string>(currentMembers.map((m) => m.nik));
 
-  const territoryDpd = ctx.dpd;
+  const territoryDpd = ctx.level === 'DPW' ? 'Sulawesi Utara' : ctx.dpd;
   const territoryDpc =
     ctx.level === 'DPW'
       ? 'Wilayah DPW'
       : ctx.level === 'DPD'
       ? 'Umum (DPD)'
       : ctx.dpc || 'Umum (DPD)';
-  const territoryDprt = ctx.level === 'DPRt' ? ctx.dprt || 'Pusat/Umum' : 'Pusat/Umum';
+  const territoryDprt = ctx.level === 'DPRt' ? ctx.dprt || 'Pusat' : 'Pusat/Umum';
+
+  const isValidNik = (nik?: string): boolean => {
+    if (!nik) return false;
+    const clean = String(nik).replace(/[^0-9]/g, '');
+    if (clean.length < 10) return false;
+    if (/^0+$/.test(clean)) return false;
+    if (/0{8,}/.test(clean)) return false;
+    return true;
+  };
 
   let filledCount = 0;
   let matchedPositions = 0;
@@ -618,22 +653,36 @@ export async function parseTerritorialExcelFile(
       const row = rawData[i] || [];
       const validCells = row.filter((c) => String(c || '').trim() !== '');
       if (validCells.length >= 2) {
+        // Abaikan baris judul formulir / petunjuk yang memiliki teks sangat panjang
+        const firstCell = String(row[0] || '').toLowerCase().trim();
+        if (
+          firstCell.includes('formulir') ||
+          firstCell.includes('panduan') ||
+          firstCell.includes('petunjuk') ||
+          firstCell.includes('wilayah:')
+        ) {
+          continue;
+        }
+
         const rowLower = row.map((c) => String(c || '').toLowerCase().trim());
         const hasJabatan = rowLower.some(
           (c) =>
-            c.includes('jabatan') ||
-            c.includes('posisi') ||
-            c.includes('tugas') ||
-            c.includes('struktur') ||
-            c.includes('peran')
+            c.length < 50 &&
+            (c.includes('jabatan') ||
+              c.includes('posisi') ||
+              c.includes('tugas') ||
+              c.includes('struktur') ||
+              c.includes('peran'))
         );
         const hasNama = rowLower.some(
           (c) =>
-            c.includes('nama') ||
-            c.includes('kader') ||
-            c.includes('pengurus') ||
-            c.includes('anggota') ||
-            c.includes('person')
+            c.length < 50 &&
+            !c.includes('jabatan') &&
+            !c.includes('posisi') &&
+            (c.includes('nama') ||
+              c.includes('kader') ||
+              c.includes('person') ||
+              c.includes('lengkap'))
         );
         if (hasJabatan && hasNama) {
           headerRowIdx = i;
@@ -644,7 +693,7 @@ export async function parseTerritorialExcelFile(
 
     // Fallback: Jika tidak ada baris header formal, periksa apakah baris awal langsung berisi nama jabatan
     if (headerRowIdx === -1) {
-      for (let i = 0; i < Math.min(5, rawData.length); i++) {
+      for (let i = 0; i < Math.min(6, rawData.length); i++) {
         const row = rawData[i] || [];
         const c0 = String(row[0] || '').toLowerCase().trim();
         const c1 = String(row[1] || '').toLowerCase().trim();
@@ -670,7 +719,6 @@ export async function parseTerritorialExcelFile(
     }
 
     if (headerRowIdx === -1 && rawData.length > 0) {
-      // Default ke baris 0 jika berkas memiliki data
       headerRowIdx = 0;
     }
 
@@ -679,43 +727,48 @@ export async function parseTerritorialExcelFile(
         String(h || '').toLowerCase().trim()
       );
 
-      colNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
+      colNo = headers.findIndex((h) => h === 'no' || h === 'nomor' || h === '#');
       colDpd = headers.findIndex(
         (h) =>
-          h === 'dpd' ||
-          h.includes('kabupaten') ||
-          h.includes('kota') ||
-          h.includes('daerah') ||
-          h.includes('wilayah') ||
-          h.includes('nama dpd')
+          (h === 'dpd' ||
+            h.includes('kabupaten') ||
+            h.includes('kota') ||
+            h.includes('nama dpd')) &&
+          !h.includes('sub') &&
+          !h.includes('organisasi')
       );
       colSubOrg = headers.findIndex(
         (h) =>
-          h.includes('sub organisasi') ||
-          h.includes('sub') ||
-          h.includes('organisasi') ||
-          h.includes('dewan') ||
-          h.includes('divisi') ||
-          h.includes('bidang')
+          (h.includes('sub organisasi') ||
+            h.includes('sub_organisasi') ||
+            h.includes('sub') ||
+            h.includes('organisasi') ||
+            h.includes('dewan') ||
+            h.includes('divisi') ||
+            h.includes('bidang')) &&
+          !h.includes('jabatan') &&
+          !h.includes('nama')
       );
       colJabatan = headers.findIndex(
         (h) =>
-          h.includes('jabatan') ||
-          h.includes('posisi') ||
-          h.includes('tugas') ||
-          h.includes('struktur') ||
-          h.includes('peran')
+          (h.includes('jabatan') ||
+            h.includes('posisi') ||
+            h.includes('tugas') ||
+            h.includes('struktur') ||
+            h.includes('peran')) &&
+          !h.includes('sub')
       );
       colNama = headers.findIndex(
         (h) =>
-          h.includes('nama') ||
-          h.includes('kader') ||
-          h.includes('pengurus') ||
-          h.includes('anggota') ||
-          h.includes('lengkap')
+          (h.includes('nama') ||
+            h.includes('kader') ||
+            h.includes('person') ||
+            h.includes('lengkap')) &&
+          !h.includes('jabatan') &&
+          !h.includes('posisi')
       );
       colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
-      colEkta = headers.findIndex((h) => h.includes('kta') || h.includes('ekta'));
+      colEkta = headers.findIndex((h) => (h.includes('kta') || h.includes('ekta')) && !h.includes('kontak'));
       colGender = headers.findIndex(
         (h) => h.includes('kelamin') || h.includes('gender') || h === 'jk' || h === 'sex'
       );
@@ -725,14 +778,15 @@ export async function parseTerritorialExcelFile(
           h.includes('wa') ||
           h.includes('telepon') ||
           h.includes('whatsapp') ||
-          h.includes('kontak')
+          h.includes('kontak') ||
+          h.includes('telp')
       );
       colEmail = headers.findIndex((h) => h.includes('email') || h.includes('surel') || h.includes('mail'));
       colAlamat = headers.findIndex((h) => h.includes('alamat') || h.includes('domisili'));
 
       // Jika belum ketemu, cari kolom pertama yang bukan nomor untuk jabatan dan nama
-      if (colJabatan === -1) colJabatan = 1;
-      if (colNama === -1) colNama = 2;
+      if (colJabatan === -1) colJabatan = colSubOrg !== -1 ? 2 : 1;
+      if (colNama === -1) colNama = colJabatan === 1 ? 2 : 3;
     }
 
     for (let i = headerRowIdx + 1; i < rawData.length; i++) {
@@ -752,16 +806,18 @@ export async function parseTerritorialExcelFile(
       const emailVal = colEmail !== -1 ? String(row[colEmail] || '').trim() : '';
       const alamatVal = colAlamat !== -1 ? String(row[colAlamat] || '').trim() : '';
 
-      // Periksa apakah baris ini memiliki spesifikasi DPD
+      // Tentukan wilayah & level baris ini
       let rowDpd = territoryDpd;
       let rowLevel = ctx.level;
-      if (colDpd !== -1) {
+      let rowDpc = territoryDpc;
+      let rowDprt = territoryDprt;
+
+      if (ctx.level === 'DPD' && colDpd !== -1) {
         const rawRowDpd = String(row[colDpd] || '').trim();
         if (rawRowDpd) {
           const foundReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, rawRowDpd));
           if (foundReg) {
             rowDpd = foundReg.name;
-            rowLevel = 'DPD';
           }
         }
       }
@@ -777,10 +833,18 @@ export async function parseTerritorialExcelFile(
       }
 
       const isFilled = namaVal.length > 0;
-      const finalSubOrg =
+      let finalSubOrg =
         subOrgVal ||
+        defaultSubOrg ||
         matchedSlot?.subOrg ||
-        (rowLevel === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${rowLevel}`);
+        (rowLevel === 'DPW'
+          ? 'DEWAN PIMPINAN WILAYAH'
+          : rowLevel === 'DPD'
+          ? 'III. DEWAN PIMPINAN DAERAH'
+          : rowLevel === 'DPC'
+          ? 'III. DEWAN PIMPINAN CABANG'
+          : 'DEWAN PIMPINAN RANTING');
+      finalSubOrg = normalizeSubOrgName(finalSubOrg, rowLevel);
 
       if (isFilled) {
         filledCount++;
@@ -793,9 +857,9 @@ export async function parseTerritorialExcelFile(
             isJobTitleMatch(m.jabatan, jabatanVal)
         );
 
-        // 2. Tentukan NIK: Jika kosong, gunakan NIK lama pada slot ini, atau generate NIK unik anti-tabrakan
-        if (!nikVal || nikVal.length < 10) {
-          if (existingSlotMember && existingSlotMember.nik) {
+        // 2. Tentukan NIK: Jika kosong, dummy/placeholder, atau sudah dipakai baris lain, generate NIK unik anti-tabrakan
+        if (!isValidNik(nikVal) || occupiedNiks.has(nikVal)) {
+          if (existingSlotMember && isValidNik(existingSlotMember.nik) && !occupiedNiks.has(existingSlotMember.nik)) {
             nikVal = existingSlotMember.nik;
           } else {
             nikVal = generateUniqueTerritoryNik(
@@ -805,9 +869,8 @@ export async function parseTerritorialExcelFile(
               occupiedNiks
             );
           }
-        } else {
-          occupiedNiks.add(nikVal);
         }
+        occupiedNiks.add(nikVal);
 
         const existingMember =
           existingSlotMember ||
@@ -821,7 +884,7 @@ export async function parseTerritorialExcelFile(
           nomorEKTA: ektaVal || existingMember?.nomorEKTA || nikVal,
           namaLengkap: namaVal,
           email: emailVal || existingMember?.email || undefined,
-          nomorHP: hpVal || existingMember?.nomorHP || '-',
+          nomorHP: hpVal && hpVal !== '-' ? hpVal : (existingMember?.nomorHP || '-'),
           alamatLengkap: alamatVal || existingMember?.alamatLengkap || undefined,
           jenisKelamin:
             genderVal.toUpperCase().startsWith('L') || genderVal.toLowerCase().includes('laki')
@@ -830,8 +893,8 @@ export async function parseTerritorialExcelFile(
               ? 'Perempuan'
               : existingMember?.jenisKelamin || 'Laki-laki',
           dpd: rowDpd,
-          dpc: rowLevel === 'DPW' ? 'Wilayah DPW' : territoryDpc,
-          dprt: territoryDprt,
+          dpc: rowDpc,
+          dprt: rowDprt,
           isPengurus: true,
           tingkatKepengurusan: rowLevel,
           wilayahPenugasan: finalSubOrg,

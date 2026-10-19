@@ -45,6 +45,7 @@ import {
 } from './components/modals';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
+import { TemplateDownloadHubModal } from './components/territorial/TemplateDownloadHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import { LoginPage } from './components/LoginPage';
@@ -57,6 +58,7 @@ import {
   Menu,
   Radio,
   ArrowLeft,
+  Download,
 } from 'lucide-react';
 
 export default function App() {
@@ -240,9 +242,11 @@ export default function App() {
   // Filter overrides when navigating from dashboard
   const [navDpdFilter, setNavDpdFilter] = useState<string | undefined>(undefined);
   const [navStatusFilter, setNavStatusFilter] = useState<MemberStatus | undefined>(undefined);
+  const [navMembershipFilter, setNavMembershipFilter] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
 
   // Modals state
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -459,22 +463,13 @@ export default function App() {
     // Masukkan data lama
     members.forEach((m) => membersMap.set(m.nik, m));
 
-    // Timpa / tambahkan data pengurus baru yang diedit
+    // Timpa / tambahkan data pengurus baru yang diedit (tanpa menghapus data anggota lain)
     incomingMembers.forEach((inc) => {
-      // Hapus data lama HANYA jika sebelumnya slot posisi yang sama terisi oleh NIK dummy/placeholder
-      for (const [oldNik, oldMem] of membersMap.entries()) {
-        if (
-          oldNik !== inc.nik &&
-          oldMem.dpd === inc.dpd &&
-          normalizeSubOrgName(oldMem.wilayahPenugasan, (oldMem.tingkatKepengurusan as any) || 'DPD') ===
-            normalizeSubOrgName(inc.wilayahPenugasan, (inc.tingkatKepengurusan as any) || 'DPD') &&
-          isJobTitleMatch(oldMem.jabatan, inc.jabatan) &&
-          (oldNik.startsWith('71002026') || oldNik.includes('-DPD-') || oldNik.includes('-DPW-') || oldNik.includes('new_row_'))
-        ) {
-          membersMap.delete(oldNik);
-        }
-      }
-      membersMap.set(inc.nik, inc);
+      const existing = membersMap.get(inc.nik);
+      membersMap.set(inc.nik, {
+        ...(existing || {}),
+        ...inc,
+      });
     });
 
     const combined = Array.from(membersMap.values());
@@ -750,9 +745,14 @@ export default function App() {
     showToast(`Beralih ke peran: ${newSession.jabatan}`);
   };
 
-  const handleNavigateFromDashboard = (filterDpd?: string, filterStatus?: MemberStatus) => {
+  const handleNavigateFromDashboard = (
+    filterDpd?: string,
+    filterStatus?: MemberStatus,
+    filterMembership: 'ALL' | 'PENGURUS' | 'ANGGOTA' = 'ALL'
+  ) => {
     setNavDpdFilter(filterDpd);
     setNavStatusFilter(filterStatus);
+    setNavMembershipFilter(filterMembership);
     setActiveTab('members');
   };
 
@@ -857,6 +857,16 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setIsTemplateHubOpen(true)}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Unduh Template Excel</span>
+              <span className="sm:hidden">Template</span>
+            </button>
+
+            <button
               onClick={() => setIsPrintReportOpen(true)}
               className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
               title="Cetak Laporan PDF Ringkasan Atasan"
@@ -876,6 +886,7 @@ export default function App() {
               session={session}
               onOpenPrintReport={() => setIsPrintReportOpen(true)}
               onOpenUserManagement={() => setIsUserManagementOpen(true)}
+              onOpenDownloadTemplate={() => setIsTemplateHubOpen(true)}
               onNavigateToMembers={handleNavigateFromDashboard}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
@@ -997,6 +1008,7 @@ export default function App() {
               session={session}
               initialDpdFilter={navDpdFilter}
               initialStatusFilter={navStatusFilter}
+              initialMembershipFilter={navMembershipFilter}
               onOpenAddModal={() => setIsAddModalOpen(true)}
               onOpenBulkImport={() => setIsBulkImportOpen(true)}
               onOpenStatusModal={(m) => {
@@ -1057,6 +1069,31 @@ export default function App() {
       </div>
 
       {/* Modals */}
+      <TemplateDownloadHubModal
+        isOpen={isTemplateHubOpen}
+        onClose={() => setIsTemplateHubOpen(false)}
+        session={session}
+        onOpenTerritorialMatrix={(dpd, dpc, level) => {
+          setIsTemplateHubOpen(false);
+          if (level === 'DPW') {
+            setActiveTab('dpw');
+          } else if (level === 'DPRt') {
+            if (dpd) setMatrixInitialDpd(dpd);
+            if (dpc) setMatrixInitialDpc(dpc);
+            setActiveTab('dprt');
+          } else if (level === 'DPC' || dpc) {
+            if (dpd) setMatrixInitialDpd(dpd);
+            if (dpc) setMatrixInitialDpc(dpc);
+            setActiveTab('dpc');
+          } else if (level === 'DPD' || dpd) {
+            if (dpd) setMatrixInitialDpd(dpd);
+            setActiveTab('dpd');
+          } else {
+            setActiveTab('dpd');
+          }
+        }}
+      />
+
       <BulkImportModal
         isOpen={isBulkImportOpen}
         onClose={() => setIsBulkImportOpen(false)}

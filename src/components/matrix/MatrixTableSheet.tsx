@@ -117,12 +117,24 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                     ) : (
                       <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
                     )}
-                    <h4 className="text-xs sm:text-sm font-black tracking-wider uppercase">
-                      {sec.subOrg}
-                    </h4>
-                    <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/20 font-semibold">
-                      {sec.filledCount} / {sec.rows.length} Terisi
-                    </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-black tracking-wider uppercase">
+                          {sec.subOrg}
+                        </h4>
+                        <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/20 font-semibold">
+                          {sec.filledCount} / {sec.rows.length} Terisi
+                        </span>
+                      </div>
+                      {(sec.isPertimbangan || sec.isPakar) && (
+                        <div className="text-[10.5px] font-medium text-amber-200/90 flex items-center gap-1.5 mt-0.5">
+                          <span>📍 Wilayah Teritorial:</span>
+                          <span className="font-bold underline text-white">
+                            {officialTitle.line2 || officialTitle.line1}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isEditMode && onAddNewRowForSubOrg && (

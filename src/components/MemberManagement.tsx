@@ -28,10 +28,13 @@ import {
   Building,
   Layers,
   ArrowLeft,
+  Users,
+  Award,
+  UserCheck,
 } from 'lucide-react';
 import { exportMembersToExcel, exportMembersToCsv } from '../utils/excelUtils';
 import { getInitials, getAvatarColor } from '../utils/imageUtils';
-import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch, getDewanWilayahInfo } from '../utils/structureReadinessUtils';
 
 type SearchCategory = 'ALL' | 'NIK' | 'NAMA' | 'DPC';
 
@@ -40,6 +43,7 @@ interface MemberManagementProps {
   session: UserSession;
   initialDpdFilter?: string;
   initialStatusFilter?: MemberStatus;
+  initialMembershipFilter?: 'ALL' | 'PENGURUS' | 'ANGGOTA';
   onOpenAddModal: () => void;
   onOpenBulkImport: () => void;
   onOpenStatusModal: (member: Member) => void;
@@ -56,6 +60,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   session,
   initialDpdFilter,
   initialStatusFilter,
+  initialMembershipFilter,
   onOpenAddModal,
   onOpenBulkImport,
   onOpenStatusModal,
@@ -91,6 +96,9 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   );
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatusFilter || 'ALL');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
+  const [membershipFilter, setMembershipFilter] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>(
+    initialMembershipFilter || 'ALL'
+  );
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 15;
 
@@ -110,6 +118,13 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
       setCurrentPage(1);
     }
   }, [initialStatusFilter]);
+
+  useEffect(() => {
+    if (initialMembershipFilter) {
+      setMembershipFilter(initialMembershipFilter);
+      setCurrentPage(1);
+    }
+  }, [initialMembershipFilter]);
 
   // Daftar DPD beserta jumlah data kader riil di database Supabase
   const dpdOptionsWithCount = useMemo(() => {
@@ -357,6 +372,39 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Hitung jumlah pengurus vs anggota biasa dalam cakupan wilayah yang sedang aktif
+  const territoryScopedMembers = useMemo(() => {
+    return members.filter((member) => {
+      if (session.role === 'ADMIN_DPD') {
+        if (session.dpdAccess !== 'ALL' && !isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPC') {
+        if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
+      } else if (session.role === 'ADMIN_DPRT') {
+        if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
+        if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
+        if (session.dprtAccess && !isDprtMatch(member.dprt, session.dprtAccess)) return false;
+      } else {
+        if (selectedDpd !== 'ALL' && !isDpdMatch(member.dpd, selectedDpd)) return false;
+        if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
+        if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
+      }
+      if (selectedStatus !== 'ALL' && member.status !== selectedStatus) return false;
+      return true;
+    });
+  }, [members, selectedDpd, selectedDpcFilter, selectedDprtFilter, selectedStatus, session]);
+
+  const countPengurusScope = useMemo(() => {
+    return territoryScopedMembers.filter((m) => m.isPengurus || Boolean(m.nomorSK)).length;
+  }, [territoryScopedMembers]);
+
+  const countAnggotaScope = useMemo(() => {
+    return territoryScopedMembers.filter((m) => !m.isPengurus && !m.nomorSK).length;
+  }, [territoryScopedMembers]);
+
   // Filter pipeline dengan pencocokan teritorial riil isDpdMatch, isDpcMatch, isDprtMatch
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
@@ -380,6 +428,14 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
       }
 
       if (selectedStatus !== 'ALL' && member.status !== selectedStatus) {
+        return false;
+      }
+
+      // Filter Pemisahan Pengurus vs Anggota Biasa
+      if (membershipFilter === 'PENGURUS' && !member.isPengurus && !member.nomorSK) {
+        return false;
+      }
+      if (membershipFilter === 'ANGGOTA' && (member.isPengurus || Boolean(member.nomorSK))) {
         return false;
       }
 
@@ -415,6 +471,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     selectedDpcFilter,
     selectedDprtFilter,
     selectedStatus,
+    membershipFilter,
     selectedRole,
     searchTerm,
     searchCategory,
@@ -992,6 +1049,94 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
         </div>
       )}
 
+      {/* SEPARATED TABS: PENGURUS STRUKTURAL VS ANGGOTA BIASA (BASIS KTP) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shadow-xs">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* Tab 1: Semua Kader */}
+          <button
+            onClick={() => {
+              setMembershipFilter('ALL');
+              setCurrentPage(1);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              membershipFilter === 'ALL'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Semua Kader</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10.5px] font-mono ${
+                membershipFilter === 'ALL'
+                  ? 'bg-white/20 dark:bg-black/20 text-white dark:text-slate-900'
+                  : 'bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              {territoryScopedMembers.length}
+            </span>
+          </button>
+
+          {/* Tab 2: Pengurus Ber-SK */}
+          <button
+            onClick={() => {
+              setMembershipFilter('PENGURUS');
+              setCurrentPage(1);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              membershipFilter === 'PENGURUS'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Pengurus Struktural (Ber-SK)</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10.5px] font-mono ${
+                membershipFilter === 'PENGURUS'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300'
+              }`}
+            >
+              {countPengurusScope}
+            </span>
+          </button>
+
+          {/* Tab 3: Anggota Biasa (Basis KTP) */}
+          <button
+            onClick={() => {
+              setMembershipFilter('ANGGOTA');
+              setCurrentPage(1);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              membershipFilter === 'ANGGOTA'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Anggota Biasa (Basis KTP)</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10.5px] font-mono ${
+                membershipFilter === 'ANGGOTA'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+              }`}
+            >
+              {countAnggotaScope}
+            </span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium px-2">
+          {membershipFilter === 'PENGURUS'
+            ? 'Menampilkan pejabat struktural & dewan ber-SK'
+            : membershipFilter === 'ANGGOTA'
+            ? 'Menampilkan kader & anggota riil basis KTP (non-SK)'
+            : 'Menampilkan gabungan seluruh kader & pengurus'}
+        </div>
+      </div>
+
       {/* Main High-Density Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs transition-colors">
         <div className="overflow-x-auto">
@@ -1164,26 +1309,69 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
                         </div>
                       </td>
 
-                      {/* Jabatan & SK */}
+                      {/* Jabatan & SK (Dilengkapi Label Wilayah Dewan Pakar / Pertimbangan & Pembeda Pengurus vs Anggota) */}
                       <td className="p-3 text-slate-800 dark:text-slate-300 font-medium">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {member.isPengurus && (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                              {member.tingkatKepengurusan || 'DPW'}
-                            </span>
-                          )}
-                          <span className="text-slate-900 dark:text-slate-200 font-semibold">{member.jabatan}</span>
-                        </div>
-                        {member.nomorSK && (
-                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            SK: {member.nomorSK}
-                          </div>
-                        )}
-                        {member.kodeReferral && (
-                          <div className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
-                            Ref: {member.kodeReferral}
-                          </div>
-                        )}
+                        {(() => {
+                          const dewanInfo = getDewanWilayahInfo(member);
+                          return (
+                            <div className="space-y-1">
+                              {/* 1. Label Khusus Dewan Pertimbangan & Dewan Pakar beserta wilayah DPW/DPD/DPC */}
+                              {dewanInfo.isDewan ? (
+                                <div className="flex flex-col items-start gap-1">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold border shadow-2xs ${
+                                      dewanInfo.category === 'PERTIMBANGAN'
+                                        ? 'bg-amber-100 text-amber-950 border-amber-300 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-700'
+                                        : 'bg-purple-100 text-purple-950 border-purple-300 dark:bg-purple-950/80 dark:text-purple-200 dark:border-purple-700'
+                                    }`}
+                                  >
+                                    {dewanInfo.category === 'PERTIMBANGAN' ? (
+                                      <ShieldCheck className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                    ) : (
+                                      <Award className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                                    )}
+                                    <span>{dewanInfo.councilName}</span>
+                                    <span className="opacity-60">·</span>
+                                    <span className="font-extrabold">{dewanInfo.shortLocationLabel}</span>
+                                  </span>
+
+                                  <div className="text-slate-900 dark:text-slate-200 font-bold text-xs">
+                                    {member.jabatan}
+                                  </div>
+                                </div>
+                              ) : member.isPengurus || Boolean(member.nomorSK) ? (
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                      Pengurus {member.tingkatKepengurusan || 'Struktural'}
+                                    </span>
+                                    <span className="text-slate-900 dark:text-slate-200 font-semibold">{member.jabatan}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                      Anggota Biasa (Basis KTP)
+                                    </span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-medium">{member.jabatan || 'Kader'}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {member.nomorSK && (
+                                <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                  SK: {member.nomorSK}
+                                </div>
+                              )}
+                              {member.kodeReferral && (
+                                <div className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                                  Ref: {member.kodeReferral}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Status Keanggotaan */}
