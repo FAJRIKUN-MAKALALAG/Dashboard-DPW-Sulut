@@ -16,7 +16,7 @@ export const DashboardScopeFilter: React.FC<DashboardScopeFilterProps> = ({
   onSelectDpdFilter,
   onReset,
 }) => {
-  const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
+  const canFilterAllSulut = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-4 py-3 rounded-xl shadow-xs transition-colors">
@@ -26,11 +26,11 @@ export const DashboardScopeFilter: React.FC<DashboardScopeFilterProps> = ({
           Lingkup Wilayah Pantauan:
         </span>
 
-        {!isSuperAdmin ? (
+        {!canFilterAllSulut ? (
           <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded">
             {session.jabatan} ({session.dpdAccess}
-            {session.dpcAccess ? ` › Kec. ${session.dpcAccess}` : ''}
-            {session.dprtAccess ? ` › ${session.dprtAccess}` : ''})
+            {session.dpcAccess && session.dpcAccess !== 'ALL' ? ` › Kec. ${session.dpcAccess}` : ''}
+            {session.dprtAccess && session.dprtAccess !== 'ALL' ? ` › ${session.dprtAccess}` : ''})
           </span>
         ) : (
           <select
@@ -48,7 +48,7 @@ export const DashboardScopeFilter: React.FC<DashboardScopeFilterProps> = ({
         )}
       </div>
 
-      {isSuperAdmin && selectedDpdFilter !== 'ALL' && (
+      {canFilterAllSulut && selectedDpdFilter !== 'ALL' && (
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded font-medium">
             Filter Terpasang: <strong>{selectedDpdFilter}</strong>

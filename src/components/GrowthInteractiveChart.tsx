@@ -110,8 +110,12 @@ export const GrowthInteractiveChart: React.FC<GrowthInteractiveChartProps> = ({
     return peakPoint && peakPoint.count > 0 ? peakPoint : dailyPoints[dailyPoints.length - 1] || null;
   }, [hoveredIndex, pinnedDate, dailyPoints, peakPoint]);
 
-  // Y-axis grid ticks
-  const yTicks = [0, Math.round(maxVal * 0.33), Math.round(maxVal * 0.66), maxVal];
+  // Y-axis grid ticks (deduplicated unique values sorted ascending)
+  const yTicks = useMemo(() => {
+    if (maxVal <= 0) return [0];
+    const raw = [0, Math.round(maxVal * 0.33), Math.round(maxVal * 0.66), maxVal];
+    return Array.from(new Set(raw)).sort((a, b) => a - b);
+  }, [maxVal]);
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xs hover:shadow-md transition-all space-y-5">
@@ -313,10 +317,10 @@ export const GrowthInteractiveChart: React.FC<GrowthInteractiveChartProps> = ({
               </defs>
 
               {/* Horizontal Grid Lines */}
-              {yTicks.map((val) => {
+              {yTicks.map((val, tickIdx) => {
                 const y = padTop + chartHeight - (val / maxVal) * chartHeight;
                 return (
-                  <g key={val} className="text-slate-300 dark:text-slate-800">
+                  <g key={`ytick-${val}-${tickIdx}`} className="text-slate-300 dark:text-slate-800">
                     <line
                       x1={padLeft}
                       y1={y}

@@ -324,9 +324,10 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                             {isEditMode && (
                               <td className="border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-center">
                                 <button
+                                  type="button"
                                   onClick={() => onDeleteRow(row.id)}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors cursor-pointer"
-                                  title="Hapus baris ini"
+                                  className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-lg transition-all duration-150 cursor-pointer shadow-xs border border-rose-200 dark:border-rose-900/50 hover:border-rose-600"
+                                  title={`Hapus baris jabatan: ${row.jabatan}`}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>

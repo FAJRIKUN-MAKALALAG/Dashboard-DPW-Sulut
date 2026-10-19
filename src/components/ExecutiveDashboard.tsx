@@ -27,6 +27,7 @@ interface ExecutiveDashboardProps {
   onOpenCardModal?: (member: Member) => void;
   onAddMembers?: (newMembers: Member[]) => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string) => void;
+  onOpenUserManagement?: () => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -37,6 +38,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   onOpenCardModal,
   onAddMembers,
   onOpenTerritorialMatrix,
+  onOpenUserManagement,
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
@@ -167,6 +169,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           exportMembersToExcel(activeMembers, `ANGGOTA_AKTIF_SULUT_${selectedDpdFilter}.xlsx`)
         }
         onOpenPrintReport={onOpenPrintReport}
+        onOpenUserManagement={onOpenUserManagement}
       />
 
       {/* 2. Scope & Territory Filter */}

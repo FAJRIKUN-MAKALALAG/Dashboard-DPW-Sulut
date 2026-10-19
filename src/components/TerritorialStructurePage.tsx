@@ -3,8 +3,18 @@ import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
+import {
+  downloadTerritorialExcelTemplate,
+  downloadAdvisoryOnlyExcelTemplate,
+  downloadExpertOnlyExcelTemplate,
+  downloadAdvisoryAndExpertExcelTemplate,
+  generateUniqueTerritoryNik,
+  TerritoryContext,
+} from '../utils/territorialExcelTemplateUtils';
+import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
 import {
   Building2,
   Building,
@@ -21,6 +31,9 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  FileSpreadsheet,
+  Printer,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
@@ -28,6 +41,7 @@ interface TerritorialStructurePageProps {
   members: Member[];
   session?: UserSession;
   onSaveMembersBatch: (updatedMembers: Member[]) => void;
+  onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
   initialDpd?: string;
   initialDpc?: string;
   initialDprt?: string;
@@ -40,54 +54,136 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   members,
   session,
   onSaveMembersBatch,
+  onDeleteMembersBatch,
   initialDpd,
   initialDpc,
   initialDprt,
 }) => {
+  const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
+
+  // Available regions scoped to session role & territory
+  const availableRegions = useMemo(() => {
+    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+      return SULUT_REGIONS;
+    }
+    if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+      const filtered = SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess));
+      return filtered.length > 0 ? filtered : SULUT_REGIONS;
+    }
+    return SULUT_REGIONS;
+  }, [session]);
+
   // Territory Selector State
   const [selectedDpd, setSelectedDpd] = useState<string>(() => {
+    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
+    }
     if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') return initialDpd;
-    if (session?.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
-    return 'Kabupaten Minahasa Selatan';
+    return availableRegions[0]?.name || 'Kabupaten Minahasa Selatan';
   });
 
   const currentRegion = useMemo(() => {
-    return SULUT_REGIONS.find((r) => isDpdMatch(r.name, selectedDpd)) || SULUT_REGIONS[0];
-  }, [selectedDpd]);
+    return availableRegions.find((r) => isDpdMatch(r.name, selectedDpd)) || availableRegions[0] || SULUT_REGIONS[0];
+  }, [availableRegions, selectedDpd]);
+
+  // Subdistricts scoped to session role & territory
+  const availableSubdistricts = useMemo(() => {
+    const subs = currentRegion?.subdistricts || [];
+    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
+      if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+        const filtered = subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
+        return filtered.length > 0 ? filtered : subs;
+      }
+    }
+    return subs;
+  }, [currentRegion, session]);
 
   const [selectedDpc, setSelectedDpc] = useState<string>(() => {
+    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
+      if (session.dpcAccess && session.dpcAccess !== 'ALL') return session.dpcAccess;
+    }
     if (initialDpc) return initialDpc;
-    return currentRegion?.subdistricts[0]?.name || 'TUMPAAN';
+    return availableSubdistricts[0]?.name || currentRegion?.subdistricts[0]?.name || 'TUMPAAN';
   });
 
   const currentSubdistrict = useMemo(() => {
     return (
-      currentRegion?.subdistricts.find((s) => isDpcMatch(s.name, selectedDpc)) ||
+      availableSubdistricts.find((s) => isDpcMatch(s.name, selectedDpc)) ||
+      availableSubdistricts[0] ||
       currentRegion?.subdistricts[0]
     );
-  }, [currentRegion, selectedDpc]);
+  }, [availableSubdistricts, currentRegion, selectedDpc]);
+
+  // Villages scoped to session role & territory
+  const availableVillages = useMemo(() => {
+    const vils = currentSubdistrict?.villages || [];
+    if (session?.role === 'ADMIN_DPRT') {
+      if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+        const filtered = vils.filter((v) => isDprtMatch(v, session.dprtAccess));
+        return filtered.length > 0 ? filtered : vils;
+      }
+    }
+    return vils;
+  }, [currentSubdistrict, session]);
 
   const [selectedDprt, setSelectedDprt] = useState<string>(() => {
+    if (session?.role === 'ADMIN_DPRT') {
+      if (session.dprtAccess && session.dprtAccess !== 'ALL') return session.dprtAccess;
+    }
     if (initialDprt) return initialDprt;
-    return currentSubdistrict?.villages[0] || 'Pusat';
+    return availableVillages[0] || currentSubdistrict?.villages[0] || 'Pusat';
   });
 
-  // Keep territory in sync if initial props change
+  // Keep territory in sync if initial props change or session territory updates
   useEffect(() => {
-    if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
-      setSelectedDpd(initialDpd);
+    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+        const matched = availableRegions.find((r) => isDpdMatch(r.name, session.dpdAccess));
+        if (matched) setSelectedDpd(matched.name);
+      }
+      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+          setSelectedDpc(session.dpcAccess);
+        }
+      }
+      if (session.role === 'ADMIN_DPRT') {
+        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+          setSelectedDprt(session.dprtAccess);
+        }
+      }
+    } else {
+      if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
+        setSelectedDpd(initialDpd);
+      }
+      if (initialDpc) {
+        setSelectedDpc(initialDpc);
+      }
+      if (initialDprt) {
+        setSelectedDprt(initialDprt);
+      }
     }
-    if (initialDpc) {
-      setSelectedDpc(initialDpc);
-    }
-    if (initialDprt) {
-      setSelectedDprt(initialDprt);
-    }
-  }, [initialDpd, initialDpc, initialDprt]);
+  }, [initialDpd, initialDpc, initialDprt, session, availableRegions]);
 
   // Edit Mode & Messages
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Modal Import Excel Teritorial
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  // Modal Cetak Dokumen Resmi Susunan Pengurus
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+
+  // Territory Context untuk Template Excel dan Import
+  const territoryContext: TerritoryContext = useMemo(() => ({
+    level,
+    dpd: selectedDpd,
+    dpc: level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined,
+    dprt: level === 'DPRt' ? selectedDprt : undefined,
+  }), [level, selectedDpd, selectedDpc, selectedDprt]);
+
+  const handleDownloadTemplateExcel = () => {
+    downloadTerritorialExcelTemplate(territoryContext, gridRows);
+  };
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -95,16 +191,55 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   // Matrix rows state
   const [gridRows, setGridRows] = useState<GridRowItem[]>([]);
+  // Tracking deleted members (NIKs) to delete from database upon saving
+  const [deletedMemberNiks, setDeletedMemberNiks] = useState<string[]>([]);
+
+  // Local storage key for custom deleted template slots per territory
+  const territoryKey = useMemo(() => {
+    return `nasdem_deleted_slots_${level}_${selectedDpd}_${selectedDpc || ''}_${selectedDprt || ''}`;
+  }, [level, selectedDpd, selectedDpc, selectedDprt]);
+
+  // Load deleted slot keys for current territory
+  const getStoredDeletedSlotKeys = (): Set<string> => {
+    try {
+      const saved = localStorage.getItem(territoryKey);
+      if (saved) {
+        return new Set<string>(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn('Failed to read deleted slots from localStorage:', e);
+    }
+    return new Set<string>();
+  };
+
+  const saveDeletedSlotKeys = (keys: Set<string>) => {
+    try {
+      localStorage.setItem(territoryKey, JSON.stringify(Array.from(keys)));
+    } catch (e) {
+      console.warn('Failed to save deleted slots to localStorage:', e);
+    }
+  };
+
+  // Helper to get unique slot key for template slots
+  const getSlotKey = (subOrg: string, no: number, jabatan: string) => {
+    return `${subOrg.trim().toLowerCase()}__${no}__${jabatan.trim().toLowerCase()}`;
+  };
 
   // Build matrix whenever territory changes or members change
-  const buildMatrixRows = () => {
+  const buildMatrixRows = (currentDeletedKeys?: Set<string>) => {
+    const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys();
     const template = getStructureTemplate(level);
 
     // Filter existing members in this territory and level with strict hierarchical separation
     let matchedMembers: Member[] = [];
     if (level === 'DPW') {
       matchedMembers = members.filter(
-        (m) => m.tingkatKepengurusan === 'DPW' || m.dpd === 'Sulawesi Utara'
+        (m) =>
+          m.tingkatKepengurusan === 'DPW' ||
+          m.dpd === 'Sulawesi Utara' ||
+          m.wilayahPenugasan === 'DPW' ||
+          m.wilayahPenugasan?.includes('DPW') ||
+          (m.isPengurus && (m.dpd === 'Sulawesi Utara' || !m.dpd))
       );
     } else if (level === 'DPD') {
       matchedMembers = members.filter(
@@ -113,8 +248,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           (m.tingkatKepengurusan === 'DPD' ||
             m.dpc === 'Umum (DPD)' ||
             m.dpc === 'Wilayah DPD' ||
-            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD')) ||
-            (m.isPengurus && (!m.dpc || m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)')))
+            (!m.tingkatKepengurusan && (m.dpc === 'Umum (DPD)' || m.dpc === 'Wilayah DPD' || !m.dpc || m.dpc === '-')) ||
+            (m.isPengurus && (m.dpc === 'Wilayah DPD' || m.dpc === 'Umum (DPD)' || !m.dpc || m.dpc === '-')))
       );
     } else if (level === 'DPC') {
       matchedMembers = members.filter(
@@ -134,78 +269,38 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       );
     }
 
-    // Normalizer helper
-    const cleanStr = (s: string) =>
-      s
-        .toLowerCase()
-        .replace(/bidang/g, 'bid')
-        .replace(/usaha mikro kecil dan menengah/g, 'umkm')
-        .replace(/&/g, 'dan')
-        .replace(/[^a-z0-9]/g, '');
-
     const assignedMemberNiks = new Set<string>();
 
-    const rows: GridRowItem[] = template.map((slot: PositionSlot, idx: number) => {
-      const slotClean = cleanStr(slot.jabatan);
-      const isSlotPertimbangan = slot.subOrg.toLowerCase().includes('pertimbangan');
-      const isSlotPakar = slot.subOrg.toLowerCase().includes('pakar');
-      const isSlotPimpinan = !isSlotPertimbangan && !isSlotPakar;
+    // Saring template yang tidak dihapus oleh pengguna
+    const activeTemplate = template.filter((slot) => {
+      const key = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
+      return !deletedKeys.has(key);
+    });
 
-      // Filter anggota yang relevan dengan sub-organisasi
-      const relevantMembers = matchedMembers.filter((m) => {
-        if (assignedMemberNiks.has(m.nik)) return false;
-        const jLower = m.jabatan?.toLowerCase() || '';
-        const wLower = m.wilayahPenugasan?.toLowerCase() || '';
-        const isMemPertimbangan = jLower.includes('pertimbangan') || wLower.includes('pertimbangan');
-        const isMemPakar = jLower.includes('pakar') || wLower.includes('pakar');
-
-        if (isSlotPertimbangan) return isMemPertimbangan;
-        if (isSlotPakar) return isMemPakar;
-        if (isSlotPimpinan) return !isMemPertimbangan && !isMemPakar;
-        return true;
-      });
-
-      let assignedMember = relevantMembers.find(
-        (m) => cleanStr(m.jabatan) === slotClean
+    const rows: GridRowItem[] = activeTemplate.map((slot: PositionSlot, idx: number) => {
+      // Pencocokan cerdas: mengenali singkatan Bid, HAM, OKK, & / dan, dsb.
+      // Serta mengubah nama jabatan di slot agar mengikuti jabatan asli yang diimpor
+      const { matchedMember, displayTitle } = matchMemberToSlot(
+        slot,
+        matchedMembers,
+        assignedMemberNiks
       );
 
-      if (!assignedMember && slotClean.includes('ketua')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('ketua') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-      if (!assignedMember && slotClean.includes('sekretaris')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('sekretaris') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-      if (!assignedMember && slotClean.includes('bendahara')) {
-        assignedMember = relevantMembers.find(
-          (m) =>
-            cleanStr(m.jabatan).startsWith('bendahara') &&
-            !cleanStr(m.jabatan).includes('wakil')
-        );
-      }
-
-      if (assignedMember) {
-        assignedMemberNiks.add(assignedMember.nik);
+      if (matchedMember) {
+        assignedMemberNiks.add(matchedMember.nik);
         return {
-          id: assignedMember.nik,
+          id: matchedMember.nik,
           no: slot.no,
           subOrg: slot.subOrg,
-          jabatan: assignedMember.jabatan || slot.jabatan,
-          namaLengkap: assignedMember.namaLengkap,
-          nik: assignedMember.nik,
-          nomorEKTA: assignedMember.nomorEKTA || '',
-          email: assignedMember.email || '',
-          nomorHP: assignedMember.nomorHP || '',
-          sosmed: assignedMember.sosmed || '',
+          jabatan: displayTitle,
+          namaLengkap: matchedMember.namaLengkap,
+          nik: matchedMember.nik,
+          nomorEKTA: matchedMember.nomorEKTA || '',
+          email: matchedMember.email || '',
+          nomorHP: matchedMember.nomorHP || '',
+          sosmed: matchedMember.sosmed || '',
           isExisting: true,
-          originalNik: assignedMember.nik,
+          originalNik: matchedMember.nik,
         };
       }
 
@@ -224,34 +319,22 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       };
     });
 
-    // Anggota ekstra yang belum masuk ke slot standar
+    // Anggota ekstra/tambahan dari database yang belum masuk ke slot standar template
     matchedMembers.forEach((m) => {
       if (!assignedMemberNiks.has(m.nik)) {
         const jLower = m.jabatan?.toLowerCase() || '';
         const wLower = m.wilayahPenugasan?.toLowerCase() || '';
-        let detectedSubOrg = m.wilayahPenugasan;
-        if (!detectedSubOrg) {
-          if (level === 'DPD') {
-            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
-              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
-            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
-              detectedSubOrg = 'II. DEWAN PAKAR';
-            } else {
-              detectedSubOrg = 'III. DEWAN PIMPINAN DAERAH';
-            }
-          } else if (level === 'DPC') {
-            if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) {
-              detectedSubOrg = 'I. DEWAN PERTIMBANGAN';
-            } else if (jLower.includes('pakar') || wLower.includes('pakar')) {
-              detectedSubOrg = 'II. DEWAN PAKAR';
-            } else {
-              detectedSubOrg = 'III. DEWAN PIMPINAN CABANG';
-            }
-          } else {
-            detectedSubOrg = level;
-          }
-        }
+        const detectedSubOrg = normalizeSubOrgName(
+          m.wilayahPenugasan ||
+            (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')
+              ? 'DEWAN PERTIMBANGAN'
+              : jLower.includes('pakar') || wLower.includes('pakar')
+              ? 'DEWAN PAKAR'
+              : undefined),
+          level
+        );
 
+        assignedMemberNiks.add(m.nik);
         rows.push({
           id: m.nik,
           no: rows.filter((r) => r.subOrg === detectedSubOrg).length + 1,
@@ -276,6 +359,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     buildMatrixRows();
     setIsEditMode(false);
     setSaveSuccessMsg(null);
+    setDeletedMemberNiks([]);
   }, [level, selectedDpd, selectedDpc, selectedDprt, members]);
 
   // Handle Input Changes
@@ -319,9 +403,40 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     setIsEditMode(true);
   };
 
-  // Delete dynamic row
+  // Delete row (works for template slot, custom added row, or existing member)
   const handleDeleteRow = (id: string) => {
+    const targetRow = gridRows.find((r) => r.id === id);
+    if (!targetRow) return;
+
+    // 1. Jika baris memiliki data pengurus riil di database, catat NIK-nya untuk dihapus
+    if (targetRow.originalNik) {
+      setDeletedMemberNiks((prev) => [...prev, targetRow.originalNik!]);
+    } else if (targetRow.nik && targetRow.isExisting) {
+      setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
+    }
+
+    // 2. Simpan tanda bahwa slot template ini dihapus permanen agar tidak muncul kembali saat reload
+    const slotKey = getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan);
+    const deletedKeys = getStoredDeletedSlotKeys();
+    deletedKeys.add(slotKey);
+    saveDeletedSlotKeys(deletedKeys);
+
+    // 3. Hapus baris dari state tabel langsung
     setGridRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  // Reset/Pulihkan semua slot template bawaan partai yang sempat dihapus
+  const handleResetTemplate = () => {
+    if (window.confirm(`Pulihkan seluruh susunan jabatan template standar untuk wilayah ${level} ${selectedDpd}?`)) {
+      try {
+        localStorage.removeItem(territoryKey);
+      } catch (e) {
+        console.warn(e);
+      }
+      buildMatrixRows(new Set<string>());
+      setSaveSuccessMsg('Template standar berhasil dipulihkan!');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    }
   };
 
   // Save changes to database
@@ -336,19 +451,52 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     const territoryDprt = level === 'DPRt' ? selectedDprt : 'Pusat/Umum';
 
     const updatedMembersList: Member[] = [];
+    const occupiedNiks = new Set<string>(members.map((m) => m.nik));
+    const niksToDelete: string[] = [...deletedMemberNiks];
+
+    // Deteksi jika ada baris lama (isExisting / originalNik) yang dihapus atau namanya dikosongkan oleh pengguna saat edit
+    const currentActiveOriginalNiks = new Set<string>();
+    gridRows.forEach((row) => {
+      if (row.originalNik && row.namaLengkap.trim()) {
+        currentActiveOriginalNiks.add(row.originalNik);
+      }
+    });
+
+    // Cari data pengurus yang sebelumnya ada di slot/wilayah ini namun sekarang dikosongkan
+    gridRows.forEach((row) => {
+      if (row.originalNik && !row.namaLengkap.trim()) {
+        niksToDelete.push(row.originalNik);
+      }
+    });
 
     gridRows.forEach((row, idx) => {
       const nama = row.namaLengkap.trim();
       if (!nama) return;
 
+      const existingMember = members.find(
+        (m) =>
+          (row.originalNik && m.nik === row.originalNik) ||
+          (row.nik && m.nik === row.nik.trim()) ||
+          (m.dpd === territoryDpd &&
+            (m.wilayahPenugasan || '').trim().toLowerCase() === (row.subOrg || '').trim().toLowerCase() &&
+            isJobTitleMatch(m.jabatan, row.jabatan))
+      );
+
       let nikClean = row.nik.replace(/[^0-9]/g, '').trim();
       if (!nikClean || nikClean.length < 10) {
-        nikClean = `71002026${String(10000000 + idx).slice(-8)}`;
+        if (existingMember && existingMember.nik) {
+          nikClean = existingMember.nik;
+        } else {
+          nikClean = generateUniqueTerritoryNik(territoryDpd, row.subOrg, idx + 1, occupiedNiks);
+        }
+      } else {
+        occupiedNiks.add(nikClean);
       }
 
-      const existingMember = members.find(
-        (m) => m.nik === row.originalNik || m.nik === nikClean
-      );
+      // Jika NIK diubah dari NIK lama, tandai NIK lama untuk dibersihkan
+      if (row.originalNik && row.originalNik !== nikClean) {
+        niksToDelete.push(row.originalNik);
+      }
 
       const updatedMember: Member = {
         ...(existingMember || {}),
@@ -376,9 +524,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       updatedMembersList.push(updatedMember);
     });
 
+    // Jika ada NIK yang dihapus/dikosongkan saat edit, hapus dari database
+    if (niksToDelete.length > 0 && onDeleteMembersBatch) {
+      onDeleteMembersBatch(niksToDelete, `${level} ${territoryDpd}`);
+    }
+
     onSaveMembersBatch(updatedMembersList);
     setSaveSuccessMsg(
-      `Berhasil menyimpan ${updatedMembersList.length} data pengurus ke database!`
+      `Berhasil menyimpan perubahan ${updatedMembersList.length} data pengurus ke database!`
     );
     setIsEditMode(false);
     setTimeout(() => setSaveSuccessMsg(null), 4000);
@@ -551,6 +704,26 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     };
   };
 
+  // Restriksi Akses: Level DPW HANYA untuk Super Admin dan Admin DPW
+  if (level === 'DPW' && !canAccessDpw) {
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center max-w-xl mx-auto shadow-sm my-12 animate-in fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto mb-4 font-bold border border-rose-200 dark:border-rose-800 shadow-sm">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          Akses Terbatas: Struktur Tingkat DPW
+        </h3>
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          Susunan Pengurus Tingkat Wilayah (DPW) Provinsi Sulawesi Utara hanya dapat diakses oleh Admin DPW dan Super Administrator.
+        </p>
+        <div className="mt-4 inline-block px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+          Hak Akses Anda: <strong>{session?.jabatan || session?.role}</strong> ({session?.dpdAccess})
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* 1. Header Banner & Territory Controls */}
@@ -594,18 +767,21 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDpd}
+                    disabled={availableRegions.length <= 1}
                     onChange={(e) => {
                       const newDpd = e.target.value;
                       setSelectedDpd(newDpd);
-                      const reg = SULUT_REGIONS.find((r) => r.name === newDpd);
+                      const reg = availableRegions.find((r) => r.name === newDpd);
                       if (reg && reg.subdistricts.length > 0) {
                         setSelectedDpc(reg.subdistricts[0].name);
                         setSelectedDprt(reg.subdistricts[0].villages[0] || 'Pusat');
                       }
                     }}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableRegions.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {SULUT_REGIONS.map((r) => (
+                    {availableRegions.map((r) => (
                       <option key={r.id} value={r.name} className="dark:bg-slate-900">
                         {r.name}
                       </option>
@@ -624,17 +800,20 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDpc}
+                    disabled={availableSubdistricts.length <= 1}
                     onChange={(e) => {
                       const newDpc = e.target.value;
                       setSelectedDpc(newDpc);
-                      const sub = currentRegion?.subdistricts.find((s) => s.name === newDpc);
+                      const sub = availableSubdistricts.find((s) => s.name === newDpc);
                       if (sub && sub.villages.length > 0) {
                         setSelectedDprt(sub.villages[0]);
                       }
                     }}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableSubdistricts.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {(currentRegion?.subdistricts || []).map((s) => (
+                    {availableSubdistricts.map((s) => (
                       <option key={s.name} value={s.name} className="dark:bg-slate-900">
                         {s.name}
                       </option>
@@ -653,10 +832,13 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDprt}
+                    disabled={availableVillages.length <= 1}
                     onChange={(e) => setSelectedDprt(e.target.value)}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableVillages.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {(currentSubdistrict?.villages || []).map((v) => (
+                    {availableVillages.map((v) => (
                       <option key={v} value={v} className="dark:bg-slate-900">
                         {v}
                       </option>
@@ -824,6 +1006,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                 <span>Simpan Perubahan</span>
               </button>
               <button
+                onClick={handleResetTemplate}
+                title="Pulihkan seluruh kolom/baris susunan pengurus ke template bawaan standar partai"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-400 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Reset Template</span>
+              </button>
+              <button
                 onClick={() => {
                   buildMatrixRows();
                   setIsEditMode(false);
@@ -844,27 +1034,62 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           )}
 
           <button
-            onClick={handleExportTemplateExcel}
-            title="Download Template Format Excel Resmi"
-            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+            onClick={handleDownloadTemplateExcel}
+            title={`Download Template Input Excel Lengkap Khusus ${level} (Daftar Seluruh Jabatan Resmi)`}
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 cursor-pointer transition-colors shadow-2xs"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Export Excel</span>
+            <span>Template Lengkap</span>
           </button>
 
-          <label
-            title="Import Susunan Pengurus dari Excel"
-            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+          {(level === 'DPW' || level === 'DPD') && (
+            <>
+              <button
+                onClick={() => downloadAdvisoryOnlyExcelTemplate(territoryContext, gridRows)}
+                title="Download Template MURNI Khusus Dewan Pertimbangan (Ketua, Wakil, Sekretaris, Anggota urut rapi tanpa tercampur)"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-700 dark:text-amber-300 hover:border-amber-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <span className="text-amber-600 dark:text-amber-400">🏛️</span>
+                <span>Template Pertimbangan</span>
+              </button>
+
+              <button
+                onClick={() => downloadExpertOnlyExcelTemplate(territoryContext, gridRows)}
+                title="Download Template MURNI Khusus Dewan Pakar (Ketua, Wakil, Sekretaris, Anggota urut rapi tanpa tercampur)"
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 hover:border-emerald-400 cursor-pointer transition-colors shadow-2xs"
+              >
+                <span className="text-emerald-600 dark:text-emerald-400">🎓</span>
+                <span>Template Pakar</span>
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            title="Import Susunan Pengurus dari Excel (Pra-tinjau & Validasi Otomatis)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
           >
             <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Import</span>
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleImportExcel}
-              className="hidden"
-            />
-          </label>
+            <span>Import Excel</span>
+          </button>
+
+          <button
+            onClick={() => setIsPrintModalOpen(true)}
+            title="Cetak Berkas Susunan Pengurus Resmi (Format Cetak / PDF dengan Kop Surat & Logo Resmi)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-800 dark:text-slate-200 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
+          >
+            <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Cetak / PDF</span>
+          </button>
+
+          <button
+            onClick={handleExportTemplateExcel}
+            title="Export Data Susunan Pengurus Saat Ini (.xlsx)"
+            className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+            <span>Ekspor Data</span>
+          </button>
         </div>
       </div>
 
@@ -879,6 +1104,30 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           onAddNewRowForSubOrg={handleAddNewRow}
         />
       </div>
+
+      {/* 5. Modal Import / Export Excel Teritorial Khusus */}
+      <TerritorialImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        territoryContext={territoryContext}
+        currentRows={gridRows}
+        currentMembers={members}
+        session={session}
+        onSaveMembersBatch={onSaveMembersBatch}
+        onDeleteMembersBatch={onDeleteMembersBatch}
+      />
+
+      {/* 6. Modal Cetak Dokumen Resmi Susunan Pengurus */}
+      <TerritorialStructurePrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        level={level}
+        dpd={selectedDpd}
+        dpc={selectedDpc}
+        dprt={selectedDprt}
+        gridRows={gridRows}
+        session={session}
+      />
     </div>
   );
 };

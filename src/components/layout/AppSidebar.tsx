@@ -19,6 +19,7 @@ import {
   LogOut,
   X,
   Sparkles,
+  KeyRound,
 } from 'lucide-react';
 
 export type MainNavTab = 'dashboard' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
@@ -38,6 +39,7 @@ interface AppSidebarProps {
   onOpenBulkImport: () => void;
   onOpenAuditModal: () => void;
   onOpenDeletionApproval: () => void;
+  onOpenUserManagement?: () => void;
   onLogout: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -58,6 +60,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenBulkImport,
   onOpenAuditModal,
   onOpenDeletionApproval,
+  onOpenUserManagement,
   onLogout,
   isMobileOpen,
   onCloseMobile,
@@ -66,6 +69,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     setActiveTab(tab);
     onCloseMobile();
   };
+
+  const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
+  const canAccessDpd =
+    session?.role === 'SUPER_ADMIN' ||
+    session?.role === 'ADMIN_DPW' ||
+    session?.role === 'ADMIN_DPD';
+  const canAccessDpc =
+    session?.role === 'SUPER_ADMIN' ||
+    session?.role === 'ADMIN_DPW' ||
+    session?.role === 'ADMIN_DPD' ||
+    session?.role === 'ADMIN_DPC';
+  const canAccessDprt = true;
 
   const navItemClass = (isActive: boolean) =>
     `group flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
@@ -127,21 +142,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             </button>
           </div>
 
-          {/* Cloud Status Pill */}
-          {isCloudConnected && (
-            <div className="px-4 pt-3 pb-1">
-              <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Supabase Live Cloud</span>
-                </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">
-                  Tersambung
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Navigation Links Scrollable Area */}
           <div className="px-3 py-3 space-y-5 overflow-y-auto max-h-[calc(100vh-280px)]">
             {/* Section 1: Dashboard & Struktur Organisasi */}
@@ -173,163 +173,177 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                             : 'text-slate-400 dark:text-slate-500'
                         }`}
                       >
-                        Ringkasan Eksekutif
+                        {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                          ? 'Ringkasan Eksekutif'
+                          : session?.dpdAccess}
                       </span>
                     </div>
                   </div>
                 </button>
 
-                {/* 2. Pengurus DPW */}
-                <button
-                  onClick={() => handleNavClick('dpw')}
-                  className={navItemClass(activeTab === 'dpw')}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={iconContainerClass(
-                        activeTab === 'dpw',
-                        'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
-                      )}
-                    >
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-none">Pengurus DPW</span>
-                      <span
-                        className={`text-[10px] block mt-0.5 leading-none ${
-                          activeTab === 'dpw'
-                            ? 'text-white/80'
-                            : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        Tingkat Provinsi Sulut
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'dpw'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
+                {/* 2. Pengurus DPW (HANYA SUPER_ADMIN & ADMIN_DPW) */}
+                {canAccessDpw && (
+                  <button
+                    onClick={() => handleNavClick('dpw')}
+                    className={navItemClass(activeTab === 'dpw')}
                   >
-                    70 Kuota
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={iconContainerClass(
+                          activeTab === 'dpw',
+                          'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+                        )}
+                      >
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Pengurus DPW</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'dpw'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          Tingkat Provinsi Sulut
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        activeTab === 'dpw'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      70 Kuota
+                    </span>
+                  </button>
+                )}
 
-                {/* 3. Pengurus DPD */}
-                <button
-                  onClick={() => handleNavClick('dpd')}
-                  className={navItemClass(activeTab === 'dpd')}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={iconContainerClass(
-                        activeTab === 'dpd',
-                        'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400'
-                      )}
-                    >
-                      <Building className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-none">Pengurus DPD</span>
-                      <span
-                        className={`text-[10px] block mt-0.5 leading-none ${
-                          activeTab === 'dpd'
-                            ? 'text-white/80'
-                            : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        15 Kab / Kota
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'dpd'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
+                {/* 3. Pengurus DPD (SUPER_ADMIN, ADMIN_DPW, ADMIN_DPD) */}
+                {canAccessDpd && (
+                  <button
+                    onClick={() => handleNavClick('dpd')}
+                    className={navItemClass(activeTab === 'dpd')}
                   >
-                    44 / DPD
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={iconContainerClass(
+                          activeTab === 'dpd',
+                          'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400'
+                        )}
+                      >
+                        <Building className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Pengurus DPD</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'dpd'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          {session?.role === 'ADMIN_DPD' ? session.dpdAccess : '15 Kab / Kota'}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        activeTab === 'dpd'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      44 / DPD
+                    </span>
+                  </button>
+                )}
 
-                {/* 4. Pengurus DPC */}
-                <button
-                  onClick={() => handleNavClick('dpc')}
-                  className={navItemClass(activeTab === 'dpc')}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={iconContainerClass(
-                        activeTab === 'dpc',
-                        'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                      )}
-                    >
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-none">Pengurus DPC</span>
-                      <span
-                        className={`text-[10px] block mt-0.5 leading-none ${
-                          activeTab === 'dpc'
-                            ? 'text-white/80'
-                            : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        Tingkat Kecamatan
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'dpc'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
+                {/* 4. Pengurus DPC (SUPER_ADMIN, ADMIN_DPW, ADMIN_DPD, ADMIN_DPC) */}
+                {canAccessDpc && (
+                  <button
+                    onClick={() => handleNavClick('dpc')}
+                    className={navItemClass(activeTab === 'dpc')}
                   >
-                    25 / DPC
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={iconContainerClass(
+                          activeTab === 'dpc',
+                          'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                        )}
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Pengurus DPC</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'dpc'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          {session?.role === 'ADMIN_DPC'
+                            ? `Kec. ${session.dpcAccess}`
+                            : 'Tingkat Kecamatan'}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        activeTab === 'dpc'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      25 / DPC
+                    </span>
+                  </button>
+                )}
 
-                {/* 5. Pengurus DPRt */}
-                <button
-                  onClick={() => handleNavClick('dprt')}
-                  className={navItemClass(activeTab === 'dprt')}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={iconContainerClass(
-                        activeTab === 'dprt',
-                        'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'
-                      )}
-                    >
-                      <Home className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-none">Pengurus DPRt</span>
-                      <span
-                        className={`text-[10px] block mt-0.5 leading-none ${
-                          activeTab === 'dprt'
-                            ? 'text-white/80'
-                            : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        Ranting Desa / Kelurahan
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === 'dprt'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
+                {/* 5. Pengurus DPRt (Semua Role dapat akses ke ranting wilayahnya) */}
+                {canAccessDprt && (
+                  <button
+                    onClick={() => handleNavClick('dprt')}
+                    className={navItemClass(activeTab === 'dprt')}
                   >
-                    9 / Ranting
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={iconContainerClass(
+                          activeTab === 'dprt',
+                          'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'
+                        )}
+                      >
+                        <Home className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Pengurus DPRt</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'dprt'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          {session?.role === 'ADMIN_DPRT'
+                            ? `Desa ${session.dprtAccess}`
+                            : 'Ranting Desa / Kelurahan'}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        activeTab === 'dprt'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      9 / Ranting
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -466,6 +480,31 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </span>
                   )}
                 </button>
+
+                {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
+                  <button
+                    onClick={() => {
+                      onOpenUserManagement();
+                      onCloseMobile();
+                    }}
+                    className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/15 to-amber-500/5 hover:from-amber-500/25 hover:to-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 transition-all cursor-pointer shadow-xs mt-1"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Manajemen Akun</span>
+                        <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-normal mt-0.5 block">
+                          Hak Akses Admin
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black uppercase">
+                      SUPER
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -475,27 +514,51 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/60">
           {/* User Info Card */}
           <div className="flex items-center justify-between mb-3 px-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-full text-white font-extrabold flex items-center justify-center text-xs shadow-2xs shrink-0 ${
+                session?.role === 'SUPER_ADMIN'
+                  ? 'bg-gradient-to-tr from-amber-500 to-rose-600 ring-2 ring-amber-400/50'
+                  : session?.role === 'ADMIN_DPW'
+                  ? 'bg-blue-600'
+                  : 'bg-slate-700'
+              }`}>
                 {session?.adminName ? session.adminName.charAt(0).toUpperCase() : 'A'}
               </div>
               <div className="leading-tight overflow-hidden">
-                <span className="font-bold text-xs text-slate-900 dark:text-white truncate block max-w-[130px]">
-                  {session?.adminName || 'Admin'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs text-slate-900 dark:text-white truncate block max-w-[110px]">
+                    {session?.adminName || 'Admin'}
+                  </span>
+                  {session?.role === 'SUPER_ADMIN' && (
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-white uppercase tracking-wider shrink-0">
+                      SUPER
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 block truncate max-w-[130px]">
-                  {session?.jabatan || 'Super Admin'}
+                  {session?.adminNik ? `NIK: ${session.adminNik}` : (session?.jabatan || 'Super Admin')}
                 </span>
               </div>
             </div>
 
-            <button
-              onClick={onOpenRoleModal}
-              title="Ganti Peran Hak Akses"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <Shield className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
+                <button
+                  onClick={onOpenUserManagement}
+                  title="Manajemen Akun & Hak Akses Admin"
+                  className="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/60 transition-colors cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={onOpenRoleModal}
+                title="Ganti Peran Hak Akses"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <Shield className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Action Row */}

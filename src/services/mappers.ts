@@ -1,0 +1,169 @@
+import { Member, AuditLog, DeletionRequest, MemberStatus, DeletionRequestStatus, AppUser, UserRole } from '../types';
+
+export function sanitizeDate(dateStr?: string | null): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  if (trimmed.includes('T')) return trimmed.split('T')[0];
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split('T')[0];
+  }
+  return null;
+}
+
+export function mapDbRowToMember(row: any): Member {
+  return {
+    nik: String(row.nik || ''),
+    nomorEKTA: row.nomor_ekta || '',
+    namaLengkap: row.nama_lengkap || '',
+    nomorHP: row.nomor_hp || '-',
+    email: row.email || undefined,
+    sosmed: row.sosmed || undefined,
+    dpd: row.dpd || '',
+    dpc: row.dpc || '',
+    dprt: row.dprt || '',
+    isPengurus: Boolean(row.is_pengurus),
+    tingkatKepengurusan: row.tingkat_kepengurusan || 'Bukan Pengurus',
+    wilayahPenugasan: row.wilayah_penugasan || undefined,
+    nomorSK: row.nomor_sk || undefined,
+    tanggalSK: row.tanggal_sk || undefined,
+    kodeReferral: row.kode_referral || undefined,
+    jabatan: row.jabatan || 'Anggota Biasa',
+    status: (row.status as MemberStatus) || 'Aktif',
+    tanggalBergabung: row.tanggal_bergabung || new Date().toISOString().split('T')[0],
+    catatanMutasi: row.catatan_mutasi || undefined,
+    terakhirDiubah: row.terakhir_diubah || undefined,
+    diubahOleh: row.diubah_oleh || undefined,
+    fotoProfilUrl: row.foto_profil_url || undefined,
+    fotoKtpUrl: row.foto_ktp_url || undefined,
+    jenisKelamin: row.jenis_kelamin || undefined,
+    tempatLahir: row.tempat_lahir || undefined,
+    tanggalLahir: row.tanggal_lahir || undefined,
+    alamatLengkap: row.alamat_lengkap || undefined,
+    agama: row.agama || undefined,
+    pekerjaan: row.pekerjaan || undefined,
+    statusKtpVerified: Boolean(row.status_ktp_verified),
+    kaderPerekrutNama: row.kader_perekrut_nama || undefined,
+    kaderPerekrutNik: row.kader_perekrut_nik || undefined,
+    kaderPerekrutEkta: row.kader_perekrut_ekta || undefined,
+    kaderPerekrutJabatan: row.kader_perekrut_jabatan || undefined,
+  };
+}
+
+export function mapMemberToDbPayload(m: Member): any {
+  return {
+    nik: String(m.nik).trim(),
+    nomor_ekta: m.nomorEKTA?.trim() || null,
+    nama_lengkap: m.namaLengkap.trim(),
+    nomor_hp: m.nomorHP?.trim() || null,
+    email: m.email?.trim() || null,
+    sosmed: m.sosmed?.trim() || null,
+    dpd: m.dpd,
+    dpc: m.dpc,
+    dprt: m.dprt,
+    is_pengurus: Boolean(m.isPengurus),
+    tingkat_kepengurusan: m.tingkatKepengurusan || 'Bukan Pengurus',
+    wilayah_penugasan: m.wilayahPenugasan || null,
+    nomor_sk: m.nomorSK?.trim() || null,
+    tanggal_sk: sanitizeDate(m.tanggalSK),
+    kode_referral: m.kodeReferral?.trim() || null,
+    jabatan: m.jabatan || 'Anggota Biasa',
+    status: m.status || 'Aktif',
+    tanggal_bergabung: sanitizeDate(m.tanggalBergabung) || new Date().toISOString().split('T')[0],
+    catatan_mutasi: m.catatanMutasi?.trim() || null,
+    terakhir_diubah: new Date().toISOString(),
+    diubah_oleh: m.diubahOleh || 'Sistem Realtime',
+    foto_profil_url: m.fotoProfilUrl || null,
+    foto_ktp_url: m.fotoKtpUrl || null,
+    status_ktp_verified: Boolean(m.statusKtpVerified),
+    jenis_kelamin: m.jenisKelamin || null,
+    tempat_lahir: m.tempatLahir?.trim() || null,
+    tanggal_lahir: sanitizeDate(m.tanggalLahir),
+    alamat_lengkap: m.alamatLengkap?.trim() || null,
+    agama: m.agama || null,
+    pekerjaan: m.pekerjaan || null,
+    kader_perekrut_nama: m.kaderPerekrutNama?.trim() || null,
+    kader_perekrut_nik: m.kaderPerekrutNik?.trim() || null,
+    kader_perekrut_ekta: m.kaderPerekrutEkta?.trim() || null,
+    kader_perekrut_jabatan: m.kaderPerekrutJabatan?.trim() || null,
+  };
+}
+
+export function mapDbRowToAuditLog(row: any): AuditLog {
+  const ts = row.timestamp || row.created_at || new Date().toISOString();
+  const formattedTime = ts.includes('T') ? ts.replace('T', ' ').substring(0, 16) : ts;
+
+  return {
+    id: String(row.id),
+    timestamp: formattedTime,
+    memberNik: row.member_nik || '',
+    memberName: row.member_name || '',
+    action: row.action || 'UPDATE',
+    previousStatus: row.previous_status || undefined,
+    newStatus: row.new_status || undefined,
+    reason: row.reason || '',
+    actor: row.actor || 'Admin',
+    dpd: row.dpd || 'Sulawesi Utara',
+  };
+}
+
+export function mapDbRowToDeletionRequest(row: any): DeletionRequest {
+  const reqAt = row.requested_at || row.created_at || new Date().toISOString();
+  const formattedReq = reqAt.includes('T') ? reqAt.replace('T', ' ').substring(0, 16) : reqAt;
+
+  return {
+    id: String(row.id),
+    memberNik: row.member_nik || '',
+    memberName: row.member_name || '',
+    memberNomorEKTA: row.member_nik || '',
+    dpd: row.dpd || '',
+    dpc: row.dpc || '',
+    dprt: row.dprt || '',
+    statusMember: 'Aktif',
+    requestedByRole: 'ADMIN_DPD',
+    requestedByName: row.requested_by || 'Admin Daerah',
+    requestedAt: formattedReq,
+    reason: row.reason || '',
+    status: (row.status as DeletionRequestStatus) || 'PENDING',
+    reviewedBy: row.reviewed_by || undefined,
+    reviewedAt: row.reviewed_at ? row.reviewed_at.replace('T', ' ').substring(0, 16) : undefined,
+    reviewNotes: row.review_notes || undefined,
+  };
+}
+
+export function mapDbRowToAppUser(row: any): AppUser {
+  return {
+    id: String(row.id),
+    memberNik: row.member_nik || undefined,
+    nomorEkta: row.nomor_ekta || undefined,
+    username: row.username || '',
+    password: row.password_hash || '',
+    fullName: row.full_name || '',
+    role: (row.role as UserRole) || 'ADMIN_DPD',
+    dpdAccess: row.dpd_access || 'ALL',
+    dpcAccess: row.dpc_access || 'ALL',
+    dprtAccess: row.dprt_access || 'ALL',
+    jabatan: row.jabatan || '',
+    isActive: row.is_active ?? true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapAppUserToDbPayload(user: Partial<AppUser>): any {
+  const payload: any = {};
+  if (user.memberNik !== undefined) payload.member_nik = user.memberNik;
+  if (user.nomorEkta !== undefined) payload.nomor_ekta = user.nomorEkta;
+  if (user.username !== undefined) payload.username = user.username.trim();
+  if (user.password !== undefined) payload.password_hash = user.password.trim();
+  if (user.fullName !== undefined) payload.full_name = user.fullName.trim();
+  if (user.role !== undefined) payload.role = user.role;
+  if (user.dpdAccess !== undefined) payload.dpd_access = user.dpdAccess;
+  if (user.dpcAccess !== undefined) payload.dpc_access = user.dpcAccess;
+  if (user.dprtAccess !== undefined) payload.dprt_access = user.dprtAccess;
+  if (user.jabatan !== undefined) payload.jabatan = user.jabatan;
+  if (user.isActive !== undefined) payload.is_active = user.isActive;
+  payload.updated_at = new Date().toISOString();
+  return payload;
+}

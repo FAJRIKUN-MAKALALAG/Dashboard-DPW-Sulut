@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Member, MemberStatus } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import { isDpdMatch } from '../utils/structureReadinessUtils';
+import { getMembersFromSupabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { loadMembers, saveMembers } from '../utils/storage';
 import {
   exportMembersToExcel,
   exportMembersToCsv,
@@ -9,6 +12,7 @@ import {
   DpdStatRow,
 } from '../utils/excelUtils';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
+import anniversaryLogo from '../assets/logo/Logo_15_Ultah.png';
 import {
   Printer,
   Download,
@@ -24,6 +28,8 @@ import {
   TrendingUp,
   UserX,
   FileText,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 
 interface ExecutiveReportPrintModalProps {
@@ -39,17 +45,64 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   members,
   initialDpd = 'ALL',
 }) => {
-  if (!isOpen) return null;
-
   // Report Type: 'STATISTICS' (ringkasan statistik per DPD) vs 'NOMINATIVE' (daftar rinci nama)
   const [reportType, setReportType] = useState<'STATISTICS' | 'NOMINATIVE'>('STATISTICS');
   const [filterDpd, setFilterDpd] = useState<string>(initialDpd);
   const [filterStatus, setFilterStatus] = useState<string>('Aktif');
 
-  // Compute 15 DPD Statistics
+  // Real-time Database Members State
+  const [liveMembers, setLiveMembers] = useState<Member[]>(members);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [dbStatusText, setDbStatusText] = useState<string>('Database Tersinkron');
+
+  // Keep liveMembers in sync with members prop
+  useEffect(() => {
+    if (members && members.length > 0) {
+      setLiveMembers(members);
+    }
+  }, [members]);
+
+  // Pull fresh data directly from Supabase / localStorage on demand
+  const refreshFromDatabase = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      if (isSupabaseConfigured()) {
+        const cloudMembers = await getMembersFromSupabase();
+        if (cloudMembers && cloudMembers.length > 0) {
+          setLiveMembers(cloudMembers);
+          saveMembers(cloudMembers);
+          setDbStatusText('Supabase Realtime Live');
+        } else {
+          const local = loadMembers();
+          if (local && local.length > 0) setLiveMembers(local);
+          setDbStatusText('Database Lokal');
+        }
+      } else {
+        const local = loadMembers();
+        if (local && local.length > 0) setLiveMembers(local);
+        setDbStatusText('Penyimpanan Lokal');
+      }
+    } catch (err) {
+      console.warn('Gagal sinkron database pada modal cetak:', err);
+      const local = loadMembers();
+      if (local && local.length > 0) setLiveMembers(local);
+      setDbStatusText('Database Lokal');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Sync automatically whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      refreshFromDatabase();
+    }
+  }, [isOpen, refreshFromDatabase]);
+
+  // Compute 15 DPD Statistics with robust isDpdMatch
   const dpdStats: DpdStatRow[] = useMemo(() => {
     return SULUT_REGIONS.map((region, idx) => {
-      const regMembers = members.filter((m) => m.dpd === region.name);
+      const regMembers = liveMembers.filter((m) => isDpdMatch(m.dpd, region.name));
       const total = regMembers.length;
       const aktif = regMembers.filter((m) => m.status === 'Aktif').length;
       const meninggal = regMembers.filter((m) => m.status === 'Non-Aktif (Meninggal)').length;
@@ -79,7 +132,7 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
         statusKesiapan,
       };
     });
-  }, [members]);
+  }, [liveMembers]);
 
   // Total summary of all 15 DPDs
   const grandTotal = useMemo(() => {
@@ -104,14 +157,14 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
     };
   }, [dpdStats]);
 
-  // Filter for nominative member list
+  // Filter for nominative member list with robust isDpdMatch
   const nominativeMembers = useMemo(() => {
-    return members.filter((m) => {
-      if (filterDpd !== 'ALL' && m.dpd !== filterDpd) return false;
+    return liveMembers.filter((m) => {
+      if (filterDpd !== 'ALL' && !isDpdMatch(m.dpd, filterDpd)) return false;
       if (filterStatus !== 'ALL' && m.status !== filterStatus) return false;
       return true;
     });
-  }, [members, filterDpd, filterStatus]);
+  }, [liveMembers, filterDpd, filterStatus]);
 
   const handlePrint = () => {
     window.print();
@@ -143,6 +196,8 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
     dateStyle: 'long',
   }).format(new Date());
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
@@ -161,16 +216,31 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                 <Printer className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                  Laporan Eksekutif Keanggotaan untuk Atasan (Siap Cetak / PDF)
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span>Laporan Eksekutif Keanggotaan untuk Atasan</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 font-mono">
+                    <Database className="w-3 h-3 text-emerald-600" />
+                    <span>{liveMembers.length.toLocaleString('id-ID')} Kader Riil</span>
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Pilih format Ringkasan Statistik 15 DPD atau Daftar Rinci Nominatif
+                  Data Terhubung Database: <strong className="text-blue-600 dark:text-blue-400 font-semibold">{dbStatusText}</strong> · Ringkasan 15 DPD & Nominatif
                 </p>
               </div>
             </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Sync Live Database Button */}
+            <button
+              onClick={refreshFromDatabase}
+              disabled={isRefreshing}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+              title="Tarik & sinkronkan data keanggotaan riil terbaru langsung dari database"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 dark:text-blue-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Menyinkronkan...' : 'Sinkron Database'}</span>
+            </button>
+
             {/* Report Mode Tabs */}
             <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs">
               <button
@@ -264,41 +334,47 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
         {/* Printable Official Document Body */}
         <div className="p-6 sm:p-10 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible">
           {/* Official Letterhead (Kop Surat Resmi DPW Partai NasDem Sulut) */}
-          <div className="border-b-4 border-double border-slate-900 pb-4 mb-5 flex items-center justify-between gap-4">
+          <div className="border-b-2 border-blue-900 pb-3 mb-1 flex items-center justify-between gap-4">
             <div className="w-20 h-20 flex items-center justify-center shrink-0">
               <img
                 src={nasdemLogo}
                 alt="Logo Resmi Partai NasDem"
-                className="max-h-20 max-w-full object-contain"
+                className="max-h-20 max-w-full object-contain drop-shadow-sm"
               />
             </div>
 
             <div className="text-center flex-1 px-3">
-              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight uppercase text-slate-950">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight uppercase text-blue-950 font-serif">
                 DEWAN PIMPINAN WILAYAH (DPW) PARTAI NASDEM
               </h1>
-              <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase text-slate-800">
+              <h2 className="text-xs sm:text-sm font-black tracking-wider uppercase text-amber-600">
                 PROVINSI SULAWESI UTARA
               </h2>
-              <h3 className="text-[11px] font-bold tracking-wide uppercase text-blue-900">
+              <h3 className="text-[11px] font-bold tracking-wide uppercase text-slate-800">
                 BADAN PEMENANGAN PEMILU (BAPPILU) & ORGANISASI KEANGGOTAAN KADERISASI (OKK)
               </h3>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-[10px] text-slate-600 mt-0.5">
                 Sekretariat: Jl. Lengkong Wuaya, Paal Dua / Jl. 17 Agustus, Manado, Sulawesi Utara · Telp/WA: (0431) 845201
               </p>
-              <p className="text-[10px] text-slate-500 italic">
+              <p className="text-[9.5px] text-slate-500 italic">
                 Gerakan Perubahan · Restorasi Indonesia · Shadow Database Keanggotaan Mandiri Daerah
               </p>
             </div>
 
-            <div className="w-24 text-right text-[10px] text-slate-500 font-mono shrink-0">
-              <span className="font-bold text-slate-800">DOKUMEN RESMI</span>
-              <br />
-              <span className="text-slate-600">No: 071/DPW-ND/SULUT</span>
-              <br />
-              <span className="text-emerald-700 font-bold">TERVALIDASI RIIL</span>
+            <div className="w-24 shrink-0 flex flex-col items-center justify-center text-center">
+              <img
+                src={anniversaryLogo}
+                alt="HUT NasDem"
+                className="h-14 object-contain mb-1 drop-shadow-sm"
+              />
+              <span className="text-[8.5px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                DOK. RESMI 071
+              </span>
             </div>
           </div>
+
+          {/* Decorative Tri-color Divider Bar */}
+          <div className="h-1 bg-gradient-to-r from-blue-900 via-amber-500 to-blue-900 mb-5 rounded-full" />
 
           {/* Document Title & Subtitle */}
           <div className="text-center mb-5">
@@ -546,11 +622,16 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                 </div>
               </div>
 
-              <div className="text-center w-52">
-                <div className="w-24 h-24 mx-auto border-2 border-dashed border-blue-400 rounded-full flex flex-col items-center justify-center text-[9px] text-blue-900 font-mono p-1">
-                  <span>STEMPEL RESMI</span>
-                  <span className="font-bold text-[10px] text-blue-950">DPW PARTAI NASDEM</span>
-                  <span className="text-[8px] text-slate-600">SULAWESI UTARA</span>
+              <div className="text-center w-52 flex flex-col items-center justify-center">
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full border-2 border-blue-800 p-0.5 flex items-center justify-center">
+                    <div className="w-full h-full rounded-full border border-dashed border-blue-800 flex flex-col items-center justify-center text-blue-900 p-1 text-center select-none rotate-[-6deg]">
+                      <span className="text-[8px] font-black uppercase tracking-wider">★ RESMI ★</span>
+                      <span className="text-[9px] font-black uppercase leading-tight">DPW PARTAI NASDEM</span>
+                      <span className="text-[7.5px] font-bold text-amber-700">SULAWESI UTARA</span>
+                      <span className="text-[6.5px] text-slate-500 font-mono mt-0.5">TERVALIDASI RIIL</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

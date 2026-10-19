@@ -47,15 +47,33 @@ export interface Member {
   kaderPerekrutKodeReferral?: string;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
 
 export interface UserSession {
   role: UserRole;
-  dpdAccess: string; // 'ALL' for Super Admin or specific DPD name
+  dpdAccess: string; // 'ALL' for Super Admin / DPW or specific DPD name
   dpcAccess?: string; // specific DPC (Kecamatan) name or undefined
   dprtAccess?: string; // specific DPRt (Kelurahan/Desa) name or undefined
   adminName: string;
+  adminNik?: string;
   jabatan: string;
+}
+
+export interface AppUser {
+  id: string;
+  memberNik?: string;
+  nomorEkta?: string;
+  username: string; // NIK, E-KTA, atau custom username
+  password?: string;
+  fullName: string;
+  role: UserRole;
+  dpdAccess: string; // 'ALL' atau nama DPD
+  dpcAccess?: string; // 'ALL' atau nama DPC
+  dprtAccess?: string; // 'ALL' atau nama DPRt
+  jabatan?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type DeletionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

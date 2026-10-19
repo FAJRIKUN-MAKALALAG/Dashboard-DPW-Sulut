@@ -72,12 +72,20 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   const [selectedNiks, setSelectedNiks] = useState<Set<string>>(new Set());
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
-    session.role !== 'SUPER_ADMIN' && session.dpdAccess !== 'ALL'
+    session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialDpdFilter || 'ALL'
   );
-  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>('ALL');
-  const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>('ALL');
+  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>(
+    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess && session.dpcAccess !== 'ALL'
+      ? session.dpcAccess
+      : 'ALL'
+  );
+  const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>(
+    session.role === 'ADMIN_DPRT' && session.dprtAccess && session.dprtAccess !== 'ALL'
+      ? session.dprtAccess
+      : 'ALL'
+  );
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatusFilter || 'ALL');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -100,9 +108,14 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     }
   }, [initialStatusFilter]);
 
-  // Daftar 15 DPD beserta jumlah data kader riil di database Supabase
+  // Daftar DPD beserta jumlah data kader riil di database Supabase
   const dpdOptionsWithCount = useMemo(() => {
-    return SULUT_REGIONS.map((region) => {
+    const baseRegions =
+      session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
+        ? SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess))
+        : SULUT_REGIONS;
+
+    return baseRegions.map((region) => {
       const count = members.filter((m) => isDpdMatch(m.dpd, region.name)).length;
       return {
         id: region.id,
@@ -110,7 +123,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
         count,
       };
     });
-  }, [members]);
+  }, [members, session]);
 
   // DPD aktif yang terpilih
   const activeRegion = useMemo(() => {
@@ -127,23 +140,60 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     if (!activeRegion) return { dpdLevelCount: 0, subdistricts: [] };
     const effectiveDpd = activeRegion.name;
 
-    // Anggota pengurus khusus tingkat DPD (yang dpc = 'Wilayah DPD' atau tingkat 'DPD')
+    // Anggota pengurus khusus tingkat DPD (yang dpc = 'Wilayah DPD' atau tingkat 'DPD' atau 'Umum (DPD)')
     const dpdLevelCount = members.filter(
       (m) =>
         isDpdMatch(m.dpd, effectiveDpd) &&
-        (isDpcMatch(m.dpc, 'Wilayah DPD') || m.tingkatKepengurusan === 'DPD')
+        (isDpcMatch(m.dpc, 'Wilayah DPD') ||
+          isDpcMatch(m.dpc, 'Umum (DPD)') ||
+          m.tingkatKepengurusan === 'DPD')
     ).length;
 
-    const subdistricts = activeRegion.subdistricts.map((sub) => {
-      const count = members.filter(
-        (m) => isDpdMatch(m.dpd, effectiveDpd) && isDpcMatch(m.dpc, sub.name)
-      ).length;
-      return {
+    // Ambil daftar kecamatan baku dari activeRegion
+    const subdistrictMap = new Map<string, { name: string; count: number; villages: string[] }>();
+    activeRegion.subdistricts.forEach((sub) => {
+      subdistrictMap.set(sub.name.toLowerCase().trim(), {
         name: sub.name,
-        count,
-        villages: sub.villages,
-      };
+        count: 0,
+        villages: [...sub.villages],
+      });
     });
+
+    // Tambahkan juga jika ada nama DPC riil anggota di database yang belum terdaftar di master
+    members.forEach((m) => {
+      if (isDpdMatch(m.dpd, effectiveDpd) && m.dpc && m.dpc.trim()) {
+        const cleanName = m.dpc.replace(/^(kecamatan|kec\.|kec)\s+/gi, '').trim();
+        const normKey = cleanName.toLowerCase();
+        if (
+          cleanName !== '-' &&
+          cleanName !== 'Wilayah DPD' &&
+          cleanName !== 'Umum (DPD)' &&
+          normKey !== 'wilayah dpd' &&
+          normKey !== 'umum (dpd)'
+        ) {
+          if (!Array.from(subdistrictMap.keys()).some((k) => isDpcMatch(k, cleanName))) {
+            subdistrictMap.set(normKey, {
+              name: cleanName,
+              count: 0,
+              villages: [],
+            });
+          }
+        }
+      }
+    });
+
+    const subdistricts = Array.from(subdistrictMap.values())
+      .map((sub) => {
+        const count = members.filter(
+          (m) => isDpdMatch(m.dpd, effectiveDpd) && isDpcMatch(m.dpc, sub.name)
+        ).length;
+        return {
+          name: sub.name,
+          count,
+          villages: sub.villages,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return {
       dpdLevelCount,
@@ -159,7 +209,10 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     const effectiveDpd = activeRegion.name;
     const subdistrict = activeRegion.subdistricts.find((s) => isDpcMatch(s.name, selectedDpcFilter));
 
-    const villageSet = new Set<string>(subdistrict?.villages || []);
+    const villageMap = new Map<string, string>(); // normalized -> original name
+    (subdistrict?.villages || []).forEach((v) => {
+      villageMap.set(v.toLowerCase().trim(), v);
+    });
 
     // Tambahkan desa riil anggota yang ada di database bila ada di luar daftar baku
     members.forEach((m) => {
@@ -167,15 +220,25 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
         isDpdMatch(m.dpd, effectiveDpd) &&
         isDpcMatch(m.dpc, selectedDpcFilter) &&
         m.dprt &&
-        m.dprt.trim() &&
-        m.dprt !== '-' &&
-        m.dprt !== 'Wilayah DPC'
+        m.dprt.trim()
       ) {
-        villageSet.add(m.dprt.trim());
+        const cleanVillage = m.dprt.replace(/^(desa|kelurahan|kel\.|kel|des)\s+/gi, '').trim();
+        const normKey = cleanVillage.toLowerCase();
+        if (
+          cleanVillage !== '-' &&
+          cleanVillage !== 'Wilayah DPC' &&
+          cleanVillage !== 'Pusat/Umum' &&
+          normKey !== 'wilayah dpc' &&
+          normKey !== 'pusat/umum'
+        ) {
+          if (!villageMap.has(normKey)) {
+            villageMap.set(normKey, cleanVillage);
+          }
+        }
       }
     });
 
-    return Array.from(villageSet)
+    return Array.from(villageMap.values())
       .sort((a, b) => a.localeCompare(b))
       .map((villageName) => {
         const count = members.filter(
