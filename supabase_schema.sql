@@ -115,8 +115,66 @@ CREATE POLICY "Akses Audit Tambah Bebas" ON public.audit_logs FOR INSERT WITH CH
 
 CREATE POLICY "Akses Deletion Requests Bebas" ON public.deletion_requests FOR ALL USING (true);
 
+-- 4B. TABEL PENGELOLAAN AKUN ADMIN (SUPER ADMIN, DPW, DPD, DPC, DPRT)
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_nik VARCHAR(50) REFERENCES public.members(nik) ON DELETE SET NULL,
+    nomor_ekta VARCHAR(50),
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'ADMIN_DPD',
+    dpd_access VARCHAR(100) DEFAULT 'ALL',
+    dpc_access VARCHAR(100) DEFAULT 'ALL',
+    dprt_access VARCHAR(100) DEFAULT 'ALL',
+    jabatan VARCHAR(150),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_users_username ON public.app_users (username);
+CREATE INDEX IF NOT EXISTS idx_app_users_member_nik ON public.app_users (member_nik);
+CREATE INDEX IF NOT EXISTS idx_app_users_role ON public.app_users (role);
+
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Akses App Users Bebas" ON public.app_users FOR ALL USING (true);
+
 -- 5. AKTIFKAN REPLIKASI REALTIME SUPABASE UNTUK SEMUA TABEL
 ALTER PUBLICATION supabase_realtime ADD TABLE public.members;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.deletion_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.app_users;
+
+-- SEED AKUN SUPER ADMIN UTAMA
+INSERT INTO public.app_users (
+    member_nik,
+    nomor_ekta,
+    username,
+    password_hash,
+    full_name,
+    role,
+    dpd_access,
+    dpc_access,
+    dprt_access,
+    jabatan,
+    is_active
+) VALUES (
+    '7106033003050001',
+    'KT-7106-2024-0001',
+    '7106033003050001',
+    'NasDem15',
+    'Super Admin Utama DPW NasDem',
+    'SUPER_ADMIN',
+    'ALL',
+    'ALL',
+    'ALL',
+    'Super Administrator DPW Partai NasDem Sulut',
+    TRUE
+)
+ON CONFLICT (username) DO UPDATE SET 
+    password_hash = EXCLUDED.password_hash,
+    role = EXCLUDED.role,
+    dpd_access = EXCLUDED.dpd_access,
+    is_active = TRUE;
 

@@ -2,8 +2,9 @@ import { UserSession } from '../types';
 
 export interface AuthAccount {
   id: string;
-  username: string;
-  password: string; // Dummy password for verification
+  username: string; // Bisa NIK atau username
+  nik?: string;
+  password: string; // Password login
   session: UserSession;
   label: string;
   badge: string;
@@ -12,19 +13,39 @@ export interface AuthAccount {
 
 export const DUMMY_ACCOUNTS: AuthAccount[] = [
   {
-    id: 'acc-dpw',
-    username: 'superadmin.dpw',
-    password: 'nasdem123',
-    label: 'Super Admin DPW Sulut',
-    badge: 'Tingkat Provinsi',
-    description: 'Akses penuh ke 15 Kabupaten/Kota, monitoring peta se-Sulut, dan hak persetujuan hapus data.',
+    id: 'acc-superadmin-utama',
+    username: '7106033003050001',
+    nik: '7106033003050001',
+    password: 'NasDem15',
+    label: 'Super Admin Utama',
+    badge: 'Super Administrator',
+    description: 'Akses tertinggi sistem: kontrol penuh 15 DPD se-Sulut, approval hapus data, SQL editor, dan manajemen akun.',
     session: {
       role: 'SUPER_ADMIN',
       dpdAccess: 'ALL',
       dpcAccess: 'ALL',
       dprtAccess: 'ALL',
-      adminName: 'Bappilu & OKK DPW NasDem Sulut',
+      adminName: 'Super Admin Utama NasDem',
+      adminNik: '7106033003050001',
       jabatan: 'Super Admin DPW Partai NasDem Sulut',
+    },
+  },
+  {
+    id: 'acc-dpw',
+    username: 'admin.dpw',
+    nik: '7100000000000001',
+    password: 'NasDem15',
+    label: 'Admin DPW Sulut',
+    badge: 'Tingkat Provinsi',
+    description: 'Akses tingkat provinsi: kelola kepengurusan DPW & DPD se-Sulut, dan permohonan persetujuan.',
+    session: {
+      role: 'ADMIN_DPW',
+      dpdAccess: 'ALL',
+      dpcAccess: 'ALL',
+      dprtAccess: 'ALL',
+      adminName: 'Sekretariat DPW NasDem Sulut',
+      adminNik: '7100000000000001',
+      jabatan: 'Admin Sekretariat DPW Sulut',
     },
   },
   {

@@ -1,17 +1,19 @@
 import React from 'react';
 import { UserSession } from '../../types';
-import { FileSpreadsheet, Printer } from 'lucide-react';
+import { FileSpreadsheet, Printer, KeyRound } from 'lucide-react';
 
 interface DashboardHeaderProps {
   session?: UserSession;
   onExportExcel: () => void;
   onOpenPrintReport: () => void;
+  onOpenUserManagement?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   session,
   onExportExcel,
   onOpenPrintReport,
+  onOpenUserManagement,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
 
@@ -19,12 +21,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-xs transition-colors">
       <div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            {!isSuperAdmin ? `Monitoring Teritorial · ${session.jabatan}` : 'Executive Briefing & Monitoring'}
-          </span>
+          {session?.role === 'SUPER_ADMIN' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500 to-rose-600 text-white uppercase tracking-wider shadow-xs">
+              ★ SUPER ADMINISTRATOR
+            </span>
+          ) : (
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              {!isSuperAdmin ? `Monitoring Teritorial · ${session?.jabatan}` : 'Executive Briefing & Monitoring'}
+            </span>
+          )}
           <span className="text-slate-400 dark:text-slate-600">·</span>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-            {!isSuperAdmin ? `DPD NasDem ${session.dpdAccess}` : 'DPW Partai NasDem Sulut · Shadow Database'}
+            {session?.role === 'SUPER_ADMIN'
+              ? (session?.adminNik ? `NIK Super Admin: ${session.adminNik}` : 'Akses Penuh 15 Kab/Kota')
+              : (!isSuperAdmin ? `DPD NasDem ${session?.dpdAccess}` : 'DPW Partai NasDem Sulut')}
           </span>
         </div>
         <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
@@ -40,6 +50,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
+          <button
+            onClick={onOpenUserManagement}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 cursor-pointer shadow-xs transition-colors"
+            title="Buka panel manajemen akun & hak akses admin se-Sulut"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Kelola Akun Admin</span>
+          </button>
+        )}
         <button
           onClick={onExportExcel}
           className="btn-white flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg cursor-pointer shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800"

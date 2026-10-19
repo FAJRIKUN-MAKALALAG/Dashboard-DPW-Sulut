@@ -11,9 +11,6 @@ import {
   downloadAdvisoryOnlyExcelTemplate,
   downloadExpertOnlyExcelTemplate,
   downloadAdvisoryAndExpertExcelTemplate,
-  downloadMassAdvisoryOnlyExcelTemplateAllDpds,
-  downloadMassExpertOnlyExcelTemplateAllDpds,
-  downloadMassAdvisoryAndExpertExcelTemplateAllDpds,
   generateUniqueTerritoryNik,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
@@ -36,6 +33,7 @@ import {
   Sparkles,
   FileSpreadsheet,
   Printer,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
@@ -61,46 +59,110 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   initialDpc,
   initialDprt,
 }) => {
+  const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
+
+  // Available regions scoped to session role & territory
+  const availableRegions = useMemo(() => {
+    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+      return SULUT_REGIONS;
+    }
+    if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+      const filtered = SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess));
+      return filtered.length > 0 ? filtered : SULUT_REGIONS;
+    }
+    return SULUT_REGIONS;
+  }, [session]);
+
   // Territory Selector State
   const [selectedDpd, setSelectedDpd] = useState<string>(() => {
+    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
+    }
     if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') return initialDpd;
-    if (session?.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
-    return 'Kabupaten Minahasa Selatan';
+    return availableRegions[0]?.name || 'Kabupaten Minahasa Selatan';
   });
 
   const currentRegion = useMemo(() => {
-    return SULUT_REGIONS.find((r) => isDpdMatch(r.name, selectedDpd)) || SULUT_REGIONS[0];
-  }, [selectedDpd]);
+    return availableRegions.find((r) => isDpdMatch(r.name, selectedDpd)) || availableRegions[0] || SULUT_REGIONS[0];
+  }, [availableRegions, selectedDpd]);
+
+  // Subdistricts scoped to session role & territory
+  const availableSubdistricts = useMemo(() => {
+    const subs = currentRegion?.subdistricts || [];
+    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
+      if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+        const filtered = subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
+        return filtered.length > 0 ? filtered : subs;
+      }
+    }
+    return subs;
+  }, [currentRegion, session]);
 
   const [selectedDpc, setSelectedDpc] = useState<string>(() => {
+    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
+      if (session.dpcAccess && session.dpcAccess !== 'ALL') return session.dpcAccess;
+    }
     if (initialDpc) return initialDpc;
-    return currentRegion?.subdistricts[0]?.name || 'TUMPAAN';
+    return availableSubdistricts[0]?.name || currentRegion?.subdistricts[0]?.name || 'TUMPAAN';
   });
 
   const currentSubdistrict = useMemo(() => {
     return (
-      currentRegion?.subdistricts.find((s) => isDpcMatch(s.name, selectedDpc)) ||
+      availableSubdistricts.find((s) => isDpcMatch(s.name, selectedDpc)) ||
+      availableSubdistricts[0] ||
       currentRegion?.subdistricts[0]
     );
-  }, [currentRegion, selectedDpc]);
+  }, [availableSubdistricts, currentRegion, selectedDpc]);
+
+  // Villages scoped to session role & territory
+  const availableVillages = useMemo(() => {
+    const vils = currentSubdistrict?.villages || [];
+    if (session?.role === 'ADMIN_DPRT') {
+      if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+        const filtered = vils.filter((v) => isDprtMatch(v, session.dprtAccess));
+        return filtered.length > 0 ? filtered : vils;
+      }
+    }
+    return vils;
+  }, [currentSubdistrict, session]);
 
   const [selectedDprt, setSelectedDprt] = useState<string>(() => {
+    if (session?.role === 'ADMIN_DPRT') {
+      if (session.dprtAccess && session.dprtAccess !== 'ALL') return session.dprtAccess;
+    }
     if (initialDprt) return initialDprt;
-    return currentSubdistrict?.villages[0] || 'Pusat';
+    return availableVillages[0] || currentSubdistrict?.villages[0] || 'Pusat';
   });
 
-  // Keep territory in sync if initial props change
+  // Keep territory in sync if initial props change or session territory updates
   useEffect(() => {
-    if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
-      setSelectedDpd(initialDpd);
+    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+        const matched = availableRegions.find((r) => isDpdMatch(r.name, session.dpdAccess));
+        if (matched) setSelectedDpd(matched.name);
+      }
+      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+          setSelectedDpc(session.dpcAccess);
+        }
+      }
+      if (session.role === 'ADMIN_DPRT') {
+        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+          setSelectedDprt(session.dprtAccess);
+        }
+      }
+    } else {
+      if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
+        setSelectedDpd(initialDpd);
+      }
+      if (initialDpc) {
+        setSelectedDpc(initialDpc);
+      }
+      if (initialDprt) {
+        setSelectedDprt(initialDprt);
+      }
     }
-    if (initialDpc) {
-      setSelectedDpc(initialDpc);
-    }
-    if (initialDprt) {
-      setSelectedDprt(initialDprt);
-    }
-  }, [initialDpd, initialDpc, initialDprt]);
+  }, [initialDpd, initialDpc, initialDprt, session, availableRegions]);
 
   // Edit Mode & Messages
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -642,6 +704,26 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     };
   };
 
+  // Restriksi Akses: Level DPW HANYA untuk Super Admin dan Admin DPW
+  if (level === 'DPW' && !canAccessDpw) {
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center max-w-xl mx-auto shadow-sm my-12 animate-in fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto mb-4 font-bold border border-rose-200 dark:border-rose-800 shadow-sm">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          Akses Terbatas: Struktur Tingkat DPW
+        </h3>
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          Susunan Pengurus Tingkat Wilayah (DPW) Provinsi Sulawesi Utara hanya dapat diakses oleh Admin DPW dan Super Administrator.
+        </p>
+        <div className="mt-4 inline-block px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+          Hak Akses Anda: <strong>{session?.jabatan || session?.role}</strong> ({session?.dpdAccess})
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* 1. Header Banner & Territory Controls */}
@@ -685,18 +767,21 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDpd}
+                    disabled={availableRegions.length <= 1}
                     onChange={(e) => {
                       const newDpd = e.target.value;
                       setSelectedDpd(newDpd);
-                      const reg = SULUT_REGIONS.find((r) => r.name === newDpd);
+                      const reg = availableRegions.find((r) => r.name === newDpd);
                       if (reg && reg.subdistricts.length > 0) {
                         setSelectedDpc(reg.subdistricts[0].name);
                         setSelectedDprt(reg.subdistricts[0].villages[0] || 'Pusat');
                       }
                     }}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableRegions.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {SULUT_REGIONS.map((r) => (
+                    {availableRegions.map((r) => (
                       <option key={r.id} value={r.name} className="dark:bg-slate-900">
                         {r.name}
                       </option>
@@ -715,17 +800,20 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDpc}
+                    disabled={availableSubdistricts.length <= 1}
                     onChange={(e) => {
                       const newDpc = e.target.value;
                       setSelectedDpc(newDpc);
-                      const sub = currentRegion?.subdistricts.find((s) => s.name === newDpc);
+                      const sub = availableSubdistricts.find((s) => s.name === newDpc);
                       if (sub && sub.villages.length > 0) {
                         setSelectedDprt(sub.villages[0]);
                       }
                     }}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableSubdistricts.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {(currentRegion?.subdistricts || []).map((s) => (
+                    {availableSubdistricts.map((s) => (
                       <option key={s.name} value={s.name} className="dark:bg-slate-900">
                         {s.name}
                       </option>
@@ -744,10 +832,13 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                   </span>
                   <select
                     value={selectedDprt}
+                    disabled={availableVillages.length <= 1}
                     onChange={(e) => setSelectedDprt(e.target.value)}
-                    className="bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+                    className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                      availableVillages.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
+                    }`}
                   >
-                    {(currentSubdistrict?.villages || []).map((v) => (
+                    {availableVillages.map((v) => (
                       <option key={v} value={v} className="dark:bg-slate-900">
                         {v}
                       </option>
@@ -971,17 +1062,6 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                 <span>Template Pakar</span>
               </button>
             </>
-          )}
-
-          {level === 'DPD' && (
-            <button
-              onClick={() => downloadMassAdvisoryAndExpertExcelTemplateAllDpds()}
-              title="Download Template Masal Dewan Pertimbangan & Pakar untuk SELURUH 15 DPD se-Sulawesi Utara dalam 1 Berkas (2 Sheet Terpisah)"
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-purple-700 dark:text-purple-300 hover:border-purple-400 cursor-pointer transition-colors shadow-2xs"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Masal 15 DPD</span>
-            </button>
           )}
 
           <button

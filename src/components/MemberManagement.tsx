@@ -72,12 +72,20 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   const [selectedNiks, setSelectedNiks] = useState<Set<string>>(new Set());
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
-    session.role !== 'SUPER_ADMIN' && session.dpdAccess !== 'ALL'
+    session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialDpdFilter || 'ALL'
   );
-  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>('ALL');
-  const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>('ALL');
+  const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>(
+    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess && session.dpcAccess !== 'ALL'
+      ? session.dpcAccess
+      : 'ALL'
+  );
+  const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>(
+    session.role === 'ADMIN_DPRT' && session.dprtAccess && session.dprtAccess !== 'ALL'
+      ? session.dprtAccess
+      : 'ALL'
+  );
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatusFilter || 'ALL');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -100,9 +108,14 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
     }
   }, [initialStatusFilter]);
 
-  // Daftar 15 DPD beserta jumlah data kader riil di database Supabase
+  // Daftar DPD beserta jumlah data kader riil di database Supabase
   const dpdOptionsWithCount = useMemo(() => {
-    return SULUT_REGIONS.map((region) => {
+    const baseRegions =
+      session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
+        ? SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess))
+        : SULUT_REGIONS;
+
+    return baseRegions.map((region) => {
       const count = members.filter((m) => isDpdMatch(m.dpd, region.name)).length;
       return {
         id: region.id,
@@ -110,7 +123,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
         count,
       };
     });
-  }, [members]);
+  }, [members, session]);
 
   // DPD aktif yang terpilih
   const activeRegion = useMemo(() => {

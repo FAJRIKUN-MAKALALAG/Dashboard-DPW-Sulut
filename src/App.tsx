@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from './types';
 import {
   loadMembers,
@@ -29,20 +29,24 @@ import {
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { MemberManagement } from './components/MemberManagement';
 import { SyncIdReconciliation } from './components/SyncIdReconciliation';
-import { BulkImportModal } from './components/BulkImportModal';
-import { ExecutiveReportPrintModal } from './components/ExecutiveReportPrintModal';
-import { StatusChangeModal } from './components/StatusChangeModal';
-import { AddMemberModal } from './components/AddMemberModal';
-import { EditMemberModal } from './components/EditMemberModal';
-import { EKtaCardModal } from './components/EKtaCardModal';
-import { MemberDetailModal } from './components/MemberDetailModal';
-import { RoleSwitcherModal } from './components/RoleSwitcherModal';
-import { AuditTrailModal } from './components/AuditTrailModal';
-import { DeletionRequestModal } from './components/DeletionRequestModal';
-import { DeletionApprovalModal } from './components/DeletionApprovalModal';
+import {
+  AddMemberModal,
+  EditMemberModal,
+  MemberDetailModal,
+  EKtaCardModal,
+  BulkImportModal,
+  StatusChangeModal,
+  DeletionRequestModal,
+  DeletionApprovalModal,
+  RoleSwitcherModal,
+  AuditTrailModal,
+  ExecutiveReportPrintModal,
+  UserManagementModal,
+} from './components/modals';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import { LoginPage } from './components/LoginPage';
 import {
   Printer,
@@ -257,7 +261,61 @@ export default function App() {
   const [isDeletionRequestOpen, setIsDeletionRequestOpen] = useState(false);
   const [deletionTargetMember, setDeletionTargetMember] = useState<Member | null>(null);
 
+  // User Management modal (Super Admin exclusive)
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+
   const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
+
+  // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt)
+  const accessibleMembers = useMemo(() => {
+    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+      return members;
+    }
+    return members.filter((m) => {
+      // 1. DPD level filter
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+        if (!isDpdMatch(m.dpd, session.dpdAccess)) {
+          return false;
+        }
+      }
+      // 2. DPC level filter
+      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+          if (!isDpcMatch(m.dpc, session.dpcAccess)) {
+            return false;
+          }
+        }
+      }
+      // 3. DPRt level filter
+      if (session.role === 'ADMIN_DPRT') {
+        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+          if (!isDprtMatch(m.dprt, session.dprtAccess)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+  }, [members, session]);
+
+  // Tab Guard: Cegah akses ke tingkatan kepengurusan di luar kewenangan peran
+  useEffect(() => {
+    if (session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW') {
+      if (activeTab === 'dpw') {
+        setActiveTab('dashboard');
+      }
+    }
+    if (session?.role === 'ADMIN_DPC') {
+      if (activeTab === 'dpw' || activeTab === 'dpd') {
+        setActiveTab('dpc');
+      }
+    }
+    if (session?.role === 'ADMIN_DPRT') {
+      if (activeTab === 'dpw' || activeTab === 'dpd' || activeTab === 'dpc') {
+        setActiveTab('dprt');
+      }
+    }
+  }, [session?.role, activeTab]);
 
   // Helper untuk menambah catatan audit ke database Supabase & local storage
   const recordAuditLog = async (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
@@ -717,7 +775,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         session={session}
-        totalMembersCount={members.length}
+        totalMembersCount={accessibleMembers.length}
         auditLogsCount={auditLogs.length}
         pendingDeletionCount={pendingDeletionCount}
         isCloudConnected={isCloudConnected}
@@ -728,6 +786,7 @@ export default function App() {
         onOpenBulkImport={() => setIsBulkImportOpen(true)}
         onOpenAuditModal={() => setIsAuditModalOpen(true)}
         onOpenDeletionApproval={() => setIsDeletionApprovalOpen(true)}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onLogout={handleLogout}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -801,9 +860,10 @@ export default function App() {
           {/* Tab 1: Executive Dashboard */}
           {activeTab === 'dashboard' && (
             <ExecutiveDashboard
-              members={members}
+              members={accessibleMembers}
               session={session}
               onOpenPrintReport={() => setIsPrintReportOpen(true)}
+              onOpenUserManagement={() => setIsUserManagementOpen(true)}
               onNavigateToMembers={handleNavigateFromDashboard}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
@@ -827,11 +887,11 @@ export default function App() {
             />
           )}
 
-          {/* Tab 2: Pengurus DPW */}
-          {activeTab === 'dpw' && (
+          {/* Tab 2: Pengurus DPW (HANYA SUPER ADMIN & ADMIN DPW) */}
+          {activeTab === 'dpw' && (session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
             <TerritorialStructurePage
               level="DPW"
-              members={members}
+              members={accessibleMembers}
               session={session}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
@@ -850,7 +910,7 @@ export default function App() {
           {activeTab === 'dpd' && (
             <TerritorialStructurePage
               level="DPD"
-              members={members}
+              members={accessibleMembers}
               session={session}
               initialDpd={matrixInitialDpd}
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
@@ -870,7 +930,7 @@ export default function App() {
           {activeTab === 'dpc' && (
             <TerritorialStructurePage
               level="DPC"
-              members={members}
+              members={accessibleMembers}
               session={session}
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
@@ -891,7 +951,7 @@ export default function App() {
           {activeTab === 'dprt' && (
             <TerritorialStructurePage
               level="DPRt"
-              members={members}
+              members={accessibleMembers}
               session={session}
               initialDpd={matrixInitialDpd}
               initialDpc={matrixInitialDpc}
@@ -911,7 +971,7 @@ export default function App() {
           {/* Tab 6: Member Management */}
           {activeTab === 'members' && (
             <MemberManagement
-              members={members}
+              members={accessibleMembers}
               session={session}
               initialDpdFilter={navDpdFilter}
               initialStatusFilter={navStatusFilter}
@@ -941,7 +1001,7 @@ export default function App() {
           {/* Tab 7: ID Synchronization & Cross Matching */}
           {activeTab === 'sync' && (
             <SyncIdReconciliation
-              members={members}
+              members={accessibleMembers}
               onBatchUpdateMembers={handleBatchUpdateMembers}
             />
           )}
@@ -1098,6 +1158,15 @@ export default function App() {
         session={session}
         onApprove={handleApproveDeletionRequest}
         onReject={handleRejectDeletionRequest}
+      />
+
+      {/* Manajemen Pengguna & Hak Akses Admin (Otoritas Eksklusif Super Admin) */}
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        members={members}
+        session={session}
+        onRecordAudit={(log) => recordAuditLog(log)}
       />
     </div>
   );

@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import { UserSession } from '../types';
-import { DUMMY_ACCOUNTS, AuthAccount } from '../data/dummyAccounts';
+import { UserService } from '../services/userService';
 import nasdem15Logo from '../assets/logo/Ultah15th.png';
 import {
-  Lock,
-  User,
   ArrowRight,
-  KeyRound,
   AlertCircle,
   Eye,
   EyeOff,
+  Loader2,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -24,30 +20,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showSimulations, setShowSimulations] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setIsLoading(true);
 
-    const found = DUMMY_ACCOUNTS.find(
-      (acc) =>
-        acc.username.toLowerCase() === username.trim().toLowerCase() &&
-        acc.password === password
-    );
-
-    if (found) {
-      onLoginSuccess(found.session);
-    } else {
-      setErrorMsg('Username atau password salah. Silakan coba lagi atau pilih akun simulasi di bawah.');
+    try {
+      const res = await UserService.authenticate(username, password);
+      if (res.success && res.session) {
+        onLoginSuccess(res.session);
+      } else {
+        setErrorMsg(res.message || 'NIK / Username atau Password salah. Silakan periksa kembali data login Anda.');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setErrorMsg('Terjadi kendala teknis saat memverifikasi akun. Silakan coba sesaat lagi.');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const handleQuickLogin = (account: AuthAccount) => {
-    setUsername(account.username);
-    setPassword(account.password);
-    setErrorMsg(null);
-    onLoginSuccess(account.session);
   };
 
   return (
@@ -90,26 +82,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </div>
               )}
 
-              {/* Username/Email Input */}
+              {/* NIK / Username Input */}
               <div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="fajrikunmakalalag@gmail.com / Username"
-                  className="w-full px-4 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
-                  required
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  NIK KTP / Username Admin
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Masukan E-kta"
+                    className="w-full px-4 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner font-mono"
+                    required
+                  />
+                </div>
               </div>
 
               {/* Password Input */}
               <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-0.5">
+                  Kata Sandi (Password)
+                </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Password"
+                    placeholder="Masukkan kata sandi..."
                     className="w-full pl-4 pr-10 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
                     required
                   />
@@ -136,79 +136,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-lg bg-[#0095f6] hover:bg-[#0084dc] active:bg-[#0074c2] text-white font-semibold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-150 mt-2"
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-lg bg-[#0095f6] hover:bg-[#0084dc] active:bg-[#0074c2] disabled:opacity-60 text-white font-semibold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-150 mt-2"
               >
-                <span>Login / Masuk</span>
-                <ArrowRight className="w-4 h-4" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memverifikasi...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Login / Masuk</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 
-            {/* Helper links matching the design reference */}
-            <div className="mt-5 pt-4 border-t border-slate-100 text-center text-xs text-slate-500 space-y-1">
-              <p>
-                Belum Jadi Kader NasDem?{' '}
-                <span className="text-[#0095f6] font-semibold cursor-pointer hover:underline">
-                  Daftar
-                </span>
-              </p>
-              <p>
-                Sudah Jadi Kader NasDem?{' '}
-                <span className="text-[#0095f6] font-semibold cursor-pointer hover:underline">
-                  Lupa E-KTA
-                </span>
-              </p>
-            </div>
-
-            {/* Quick Testing Accounts Section for Roles */}
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowSimulations(!showSimulations)}
-                className="w-full flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider hover:text-blue-600 transition-colors cursor-pointer py-1"
-              >
-                <span className="flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Akses Cepat Akun Simulasi</span>
-                </span>
-                {showSimulations ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              {showSimulations && (
-                <div className="mt-3 space-y-2">
-                  <div className="text-[10px] text-slate-400 font-mono text-right">
-                    Password default: nasdem123
-                  </div>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {DUMMY_ACCOUNTS.map((acc) => (
-                      <button
-                        key={acc.id}
-                        type="button"
-                        onClick={() => handleQuickLogin(acc)}
-                        className="text-left p-2.5 rounded-lg border border-slate-200/80 hover:border-blue-300 bg-slate-50 hover:bg-blue-50/50 transition-all cursor-pointer group flex items-center justify-between"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-800 group-hover:text-blue-700 transition-colors">
-                              {acc.label}
-                            </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200 font-medium">
-                              {acc.badge}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                            User: <strong className="text-slate-700 font-mono">{acc.username}</strong> &middot; {acc.description}
-                          </p>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Info Keamanan Super Admin */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Akses admin diterbitkan & dikelola oleh Super Administrator DPW</span>
             </div>
           </div>
         </div>

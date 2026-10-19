@@ -4,6 +4,7 @@ import {
   computeStructureReadiness,
   computeDpcReadinessForDpd,
   TerritoryReadiness,
+  getMemberSubOrgCategory,
 } from '../../utils/structureReadinessUtils';
 import {
   CheckCircle2,
@@ -102,7 +103,7 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
 
           <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-semibold">
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
                 Pengurus Ber-SK (Struktural):
               </span>
@@ -110,8 +111,29 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
                 {readinessSummary.totalPengurusBerSk} Org
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            {/* Rincian Organ: Pimpinan, Pertimbangan, Pakar */}
+            <div className="pl-5 space-y-1 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
+              <div className="flex items-center justify-between">
+                <span>&bull; Dewan Pimpinan:</span>
+                <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                  {members.filter((m) => m.status === 'Aktif' && m.isPengurus && getMemberSubOrgCategory(m) === 'PIMPINAN').length} Org
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                <span>&bull; Dewan Pertimbangan:</span>
+                <span className="font-mono font-bold">
+                  {members.filter((m) => m.status === 'Aktif' && m.isPengurus && getMemberSubOrgCategory(m) === 'PERTIMBANGAN').length} Org
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-purple-700 dark:text-purple-400">
+                <span>&bull; Dewan Pakar:</span>
+                <span className="font-mono font-bold">
+                  {members.filter((m) => m.status === 'Aktif' && m.isPengurus && getMemberSubOrgCategory(m) === 'PAKAR').length} Org
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-semibold">
                 <Users className="w-3.5 h-3.5 text-slate-400" />
                 Anggota Biasa (Basis KTP):
               </span>

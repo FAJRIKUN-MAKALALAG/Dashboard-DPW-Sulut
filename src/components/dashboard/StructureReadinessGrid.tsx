@@ -1,7 +1,7 @@
 import React from 'react';
 import { Member } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch } from '../../utils/structureReadinessUtils';
+import { isDpdMatch, getMemberSubOrgCategory } from '../../utils/structureReadinessUtils';
 import { Users, ChevronRight } from 'lucide-react';
 
 interface StructureReadinessGridProps {
@@ -55,6 +55,17 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
             regPengurus.filter((m) => m.tingkatKepengurusan === 'DPC').map((m) => m.dpc)
           ).size;
 
+          const dpdPengurus = regPengurus.filter(
+            (m) =>
+              m.tingkatKepengurusan === 'DPD' ||
+              !m.dpc ||
+              m.dpc === 'Umum (DPD)' ||
+              m.dpc === 'Wilayah DPD'
+          );
+          const countPim = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PIMPINAN').length;
+          const countPert = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN').length;
+          const countPak = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PAKAR').length;
+
           return (
             <div
               key={region.id}
@@ -76,7 +87,7 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                 </span>
               </div>
 
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1.5">
                 <div className="flex justify-between">
                   <span>Cakupan DPC Kecamatan:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
@@ -87,6 +98,19 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                   <span>Total Kader Aktif:</span>
                   <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
                     {regMembers.length} Kader
+                  </span>
+                </div>
+
+                {/* Breakdown Organ DPD */}
+                <div className="pt-1 flex flex-wrap items-center gap-1 text-[9.5px]">
+                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                    Pimpinan: <strong>{countPim}/36</strong>
+                  </span>
+                  <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/60 dark:border-amber-900/40">
+                    Pertimbangan: <strong>{countPert}/4</strong>
+                  </span>
+                  <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-900/40">
+                    Pakar: <strong>{countPak}/4</strong>
                   </span>
                 </div>
               </div>
