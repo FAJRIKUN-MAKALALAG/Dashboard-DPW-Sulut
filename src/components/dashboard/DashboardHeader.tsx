@@ -23,7 +23,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <div className="flex items-center gap-2">
           {session?.role === 'SUPER_ADMIN' ? (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500 to-rose-600 text-white uppercase tracking-wider shadow-xs">
-              ★ SUPER ADMINISTRATOR
+              SUPER ADMIN
             </span>
           ) : (
             <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -40,12 +40,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
           {!isSuperAdmin
             ? `Dashboard Keanggotaan DPD ${session.dpdAccess}`
-            : 'Dashboard Eksekutif Keanggotaan & Struktur DPW Sulut'}
+            : 'Dashboard Keanggotaan dan struktur Partai NasDem Sulawesi Utara'}
         </h2>
         <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
           {!isSuperAdmin
             ? `Memantau kekuatan kader aktif riil, sebaran anggota per kecamatan (DPC), dan kelengkapan pengurus di wilayah ${session.dpdAccess}.`
-            : 'Pusat komando eksekutif DPW Partai NasDem Sulut: memantau kekuatan kader aktif riil, kelengkapan struktur (DPW → DPD → DPC → DPRt), dan pemetaan teritorial berbasis KTP.'}
+            : 'Pusat komando eksekutif DPW Partai NasDem Sulut: memantau kekuatan kader aktif riil, kelengkapan struktur (DPW → DPD → DPC → DPRt).'}
         </p>
       </div>
 

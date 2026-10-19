@@ -872,13 +872,19 @@ export default function App() {
               onAddMembers={(newMembers) => {
                 handleImportSuccess(newMembers, newMembers.length);
               }}
-              onOpenTerritorialMatrix={(dpd, dpc) => {
-                if (dpc) {
-                  setMatrixInitialDpd(dpd);
-                  setMatrixInitialDpc(dpc);
+              onOpenTerritorialMatrix={(dpd, dpc, level) => {
+                if (level === 'DPW') {
+                  setActiveTab('dpw');
+                } else if (level === 'DPRt') {
+                  if (dpd) setMatrixInitialDpd(dpd);
+                  if (dpc) setMatrixInitialDpc(dpc);
+                  setActiveTab('dprt');
+                } else if (level === 'DPC' || dpc) {
+                  if (dpd) setMatrixInitialDpd(dpd);
+                  if (dpc) setMatrixInitialDpc(dpc);
                   setActiveTab('dpc');
-                } else if (dpd) {
-                  setMatrixInitialDpd(dpd);
+                } else if (level === 'DPD' || dpd) {
+                  if (dpd) setMatrixInitialDpd(dpd);
                   setActiveTab('dpd');
                 } else {
                   setActiveTab('dpd');

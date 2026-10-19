@@ -15,6 +15,7 @@ import {
   Search,
   ExternalLink,
   Award,
+  Table,
 } from 'lucide-react';
 
 interface StructureDrilldownModalProps {
@@ -27,6 +28,7 @@ interface StructureDrilldownModalProps {
     dpd?: string;
   };
   onSelectMember?: (member: Member) => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 
 export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = ({
@@ -36,6 +38,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
   session,
   initialFilter,
   onSelectMember,
+  onOpenTerritorialMatrix,
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt'>(
     initialFilter?.level || 'ALL'
@@ -46,6 +49,19 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
   const [selectedSubOrg, setSelectedSubOrg] = useState<'ALL' | 'PIMPINAN' | 'PERTIMBANGAN' | 'PAKAR'>('ALL');
   const [selectedJabatan, setSelectedJabatan] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Sinkronisasi state saat initialFilter atau modal dibuka kembali
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedLevel(initialFilter?.level || 'ALL');
+      setSelectedDpd(
+        initialFilter?.dpd || (session.role !== 'SUPER_ADMIN' ? session.dpdAccess : 'ALL')
+      );
+      setSelectedSubOrg('ALL');
+      setSelectedJabatan('ALL');
+      setSearchTerm('');
+    }
+  }, [isOpen, initialFilter, session]);
 
   // Dropdown jabatan dinamis berdasarkan level struktur & data riil di database
   const availableJabatanOptionsWithCount = useMemo(() => {
@@ -156,10 +172,33 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     });
   }, [baseScopeMembers, selectedSubOrg, selectedJabatan, searchTerm]);
 
-  const countDpw = members.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPW').length;
-  const countDpd = members.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPD').length;
-  const countDpc = members.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPC').length;
-  const countDprt = members.filter((m) => m.status === 'Aktif' && m.tingkatKepengurusan === 'DPRt').length;
+  // Anggota ber-SK yang tersaring berdasarkan wilayah yang sedang dipilih
+  const dpdScopedMembers = useMemo(() => {
+    return members.filter((m) => {
+      if (m.status !== 'Aktif' || !m.isPengurus) return false;
+      if (selectedDpd !== 'ALL' && !isDpdMatch(m.dpd, selectedDpd)) return false;
+      return true;
+    });
+  }, [members, selectedDpd]);
+
+  const countDpw = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPW').length;
+  const countDpd = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPD').length;
+  const countDpc = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPC').length;
+  const countDprt = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPRt').length;
+
+  const modalTitle = useMemo(() => {
+    if (selectedDpd !== 'ALL') {
+      if (selectedLevel === 'DPC') return `Pengurus DPC di ${selectedDpd}`;
+      if (selectedLevel === 'DPRt') return `Pengurus DPRt di ${selectedDpd}`;
+      if (selectedLevel === 'DPD') return `Susunan Pengurus DPD ${selectedDpd}`;
+      return `Daftar Pengurus Ber-SK ${selectedDpd}`;
+    }
+    if (selectedLevel === 'DPW') return 'Susunan Pengurus DPW Partai NasDem Sulut';
+    if (selectedLevel === 'DPD') return 'Daftar Pengurus DPD Se-Sulawesi Utara';
+    if (selectedLevel === 'DPC') return 'Daftar Pengurus DPC Kecamatan Se-Sulut';
+    if (selectedLevel === 'DPRt') return 'Daftar Pengurus DPRt Basis Desa Se-Sulut';
+    return 'Daftar Pengurus & Pejabat Struktural';
+  }, [selectedDpd, selectedLevel]);
 
   if (!isOpen) return null;
 
@@ -175,32 +214,55 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
           {/* Drawer Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
                 <Building className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                    Daftar Pengurus & Pejabat Struktural
+                    {modalTitle}
                   </h3>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold">
-                    {filteredList.length} Kader
+                    {filteredList.length} Pengurus Terdata
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Partai NasDem Sulut &middot; Legalitas SK, kode referral & basis domisili KTP
+                  {selectedDpd !== 'ALL'
+                    ? `Wilayah: ${selectedDpd} · Menampilkan pengurus ber-SK resmi`
+                    : 'Partai NasDem Sulut · Legalitas SK, kode referral & basis domisili KTP'}
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              title="Tutup Panel"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              {onOpenTerritorialMatrix && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenTerritorialMatrix(
+                      selectedDpd !== 'ALL' ? selectedDpd : undefined,
+                      undefined,
+                      selectedLevel === 'ALL' ? 'DPD' : selectedLevel
+                    );
+                  }}
+                  className="hidden sm:flex btn-white text-xs font-semibold px-3 py-1.5 rounded-lg items-center gap-1.5 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer shadow-2xs"
+                  title="Buka tabel matriks untuk menginput atau mengedit jabatan"
+                >
+                  <Table className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>Input Matriks Jabatan</span>
+                </button>
+              )}
+
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                title="Tutup Panel"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Level Selector Badges */}
@@ -214,18 +276,20 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                Semua Tingkat ({members.filter((m) => m.status === 'Aktif' && m.isPengurus).length})
+                Semua Tingkat ({dpdScopedMembers.length})
               </button>
-              <button
-                onClick={() => setSelectedLevel('DPW')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  selectedLevel === 'DPW'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                Tingkat DPW Sulut ({countDpw})
-              </button>
+              {(selectedDpd === 'ALL' || selectedDpd === 'Sulawesi Utara') && (
+                <button
+                  onClick={() => setSelectedLevel('DPW')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    selectedLevel === 'DPW'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Tingkat DPW Sulut ({countDpw})
+                </button>
+              )}
               <button
                 onClick={() => setSelectedLevel('DPD')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${

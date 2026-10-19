@@ -69,6 +69,6 @@ export function subscribeToAllRealtime(callbacks: RealtimeCallbacks): () => void
     });
 
   return () => {
-    supabase.removeChannel(channel);
+    supabase?.removeChannel(channel);
   };
 }

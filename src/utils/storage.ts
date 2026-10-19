@@ -1,5 +1,4 @@
 import { Member, AuditLog, UserSession, DeletionRequest } from '../types';
-import { INITIAL_MEMBERS } from '../data/seedMembers';
 
 const STORAGE_KEYS = {
   MEMBERS: 'nasdem_sulut_ekta_members_real_v1',
