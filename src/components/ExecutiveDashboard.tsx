@@ -32,6 +32,7 @@ interface ExecutiveDashboardProps {
   onAddMembers?: (newMembers: Member[]) => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onOpenUserManagement?: () => void;
+  onOpenDownloadTemplate?: () => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -43,6 +44,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   onAddMembers,
   onOpenTerritorialMatrix,
   onOpenUserManagement,
+  onOpenDownloadTemplate,
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
@@ -174,6 +176,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         }
         onOpenPrintReport={onOpenPrintReport}
         onOpenUserManagement={onOpenUserManagement}
+        onOpenDownloadTemplate={onOpenDownloadTemplate}
       />
 
       {/* 2. Scope & Territory Filter */}

@@ -68,6 +68,32 @@ export function getTerritoryFilename(ctx: TerritoryContext, prefix = 'TEMPLATE_P
 }
 
 /**
+ * Menyimpan dan mendownload berkas Excel secara langsung ke browser pengguna
+ * Menggunakan direct Blob URL yang 100% kompatibel dan handal di semua browser.
+ */
+export function saveWorkbookToExcel(wb: XLSX.WorkBook, filename: string): void {
+  try {
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 250);
+  } catch (err) {
+    console.warn('Fallback XLSX.writeFile:', err);
+    XLSX.writeFile(wb, filename);
+  }
+}
+
+/**
  * 2. Menghasilkan dan mendownload Template Excel khusus untuk wilayah terpilih
  * Template sudah otomatis berisi daftar seluruh slot jabatan resmi partai NasDem
  * sehingga pengguna hanya perlu mengisi Nama Lengkap dan NIK tanpa repot mengetik satu per satu.
@@ -190,7 +216,7 @@ export function downloadTerritorialExcelTemplate(
   XLSX.utils.book_append_sheet(wb, wsInfo, 'Panduan Wilayah');
 
   const filename = getTerritoryFilename(ctx, 'TEMPLATE_INPUT_PENGURUS');
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -280,7 +306,7 @@ export function downloadAdvisoryOnlyExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_DEWAN_PERTIMBANGAN_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -370,7 +396,7 @@ export function downloadExpertOnlyExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_DEWAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**
@@ -501,7 +527,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
 
   const cleanDpd = (ctx.dpd || '').trim().replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const filename = `TEMPLATE_KHUSUS_PERTIMBANGAN_DAN_PAKAR_${ctx.level}_${cleanDpd}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  saveWorkbookToExcel(wb, filename);
 }
 
 /**

@@ -45,6 +45,7 @@ import {
 } from './components/modals';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
+import { TemplateDownloadHubModal } from './components/territorial/TemplateDownloadHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import { LoginPage } from './components/LoginPage';
@@ -57,6 +58,7 @@ import {
   Menu,
   Radio,
   ArrowLeft,
+  Download,
 } from 'lucide-react';
 
 export default function App() {
@@ -244,6 +246,7 @@ export default function App() {
 
   // Modals state
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -854,6 +857,16 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setIsTemplateHubOpen(true)}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Unduh Template Excel</span>
+              <span className="sm:hidden">Template</span>
+            </button>
+
+            <button
               onClick={() => setIsPrintReportOpen(true)}
               className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
               title="Cetak Laporan PDF Ringkasan Atasan"
@@ -873,6 +886,7 @@ export default function App() {
               session={session}
               onOpenPrintReport={() => setIsPrintReportOpen(true)}
               onOpenUserManagement={() => setIsUserManagementOpen(true)}
+              onOpenDownloadTemplate={() => setIsTemplateHubOpen(true)}
               onNavigateToMembers={handleNavigateFromDashboard}
               onOpenCardModal={(m) => {
                 setSelectedMember(m);
@@ -1055,6 +1069,31 @@ export default function App() {
       </div>
 
       {/* Modals */}
+      <TemplateDownloadHubModal
+        isOpen={isTemplateHubOpen}
+        onClose={() => setIsTemplateHubOpen(false)}
+        session={session}
+        onOpenTerritorialMatrix={(dpd, dpc, level) => {
+          setIsTemplateHubOpen(false);
+          if (level === 'DPW') {
+            setActiveTab('dpw');
+          } else if (level === 'DPRt') {
+            if (dpd) setMatrixInitialDpd(dpd);
+            if (dpc) setMatrixInitialDpc(dpc);
+            setActiveTab('dprt');
+          } else if (level === 'DPC' || dpc) {
+            if (dpd) setMatrixInitialDpd(dpd);
+            if (dpc) setMatrixInitialDpc(dpc);
+            setActiveTab('dpc');
+          } else if (level === 'DPD' || dpd) {
+            if (dpd) setMatrixInitialDpd(dpd);
+            setActiveTab('dpd');
+          } else {
+            setActiveTab('dpd');
+          }
+        }}
+      />
+
       <BulkImportModal
         isOpen={isBulkImportOpen}
         onClose={() => setIsBulkImportOpen(false)}

@@ -1,12 +1,13 @@
 import React from 'react';
 import { UserSession } from '../../types';
-import { FileSpreadsheet, Printer, KeyRound } from 'lucide-react';
+import { FileSpreadsheet, Printer, KeyRound, Download } from 'lucide-react';
 
 interface DashboardHeaderProps {
   session?: UserSession;
   onExportExcel: () => void;
   onOpenPrintReport: () => void;
   onOpenUserManagement?: () => void;
+  onOpenDownloadTemplate?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -58,6 +59,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <KeyRound className="w-3.5 h-3.5" />
             <span>Kelola Akun Admin</span>
+          </button>
+        )}
+        {onOpenDownloadTemplate && (
+          <button
+            onClick={onOpenDownloadTemplate}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs transition-colors"
+            title="Unduh format template resmi Excel untuk DPW, DPD, DPC, atau DPRt"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Unduh Template Excel</span>
           </button>
         )}
         <button
