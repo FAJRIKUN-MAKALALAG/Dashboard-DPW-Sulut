@@ -1,5 +1,16 @@
 import React, { useMemo } from 'react';
-import { Trash2, Plus, ShieldCheck, Award, Building2 } from 'lucide-react';
+import {
+  Trash2,
+  Plus,
+  ShieldCheck,
+  Award,
+  Building2,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Sparkles,
+  FileSpreadsheet,
+} from 'lucide-react';
 
 export interface GridRowItem {
   id: string;
@@ -33,6 +44,12 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   onDeleteRow,
   onAddNewRowForSubOrg,
 }) => {
+  // Hitung metrik keseluruhan
+  const totalRows = gridRows.length;
+  const totalFilled = gridRows.filter((r) => r.namaLengkap.trim() !== '').length;
+  const totalEmpty = totalRows - totalFilled;
+  const completionPercentage = totalRows > 0 ? Math.round((totalFilled / totalRows) * 100) : 0;
+
   // Kelompokkan baris berdasarkan subOrg agar Dewan Pertimbangan dan Dewan Pakar menjadi tabel terpisah di paling atas
   const sections = useMemo(() => {
     const map = new Map<string, GridRowItem[]>();
@@ -47,7 +64,13 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
       const t = title.toUpperCase();
       if (t.includes('PERTIMBANGAN')) return 1;
       if (t.includes('PAKAR')) return 2;
-      if (t.includes('PIMPINAN') || t.includes('DPD') || t.includes('DPW') || t.includes('CABANG') || t.includes('RANTING'))
+      if (
+        t.includes('PIMPINAN') ||
+        t.includes('DPD') ||
+        t.includes('DPW') ||
+        t.includes('CABANG') ||
+        t.includes('RANTING')
+      )
         return 3;
       return 4;
     };
@@ -63,6 +86,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
           subOrg: subOrgName,
           rows,
           filledCount,
+          emptyCount: rows.length - filledCount,
           isPertimbangan,
           isPakar,
         };
@@ -71,79 +95,136 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
 
   return (
     <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-100/70 dark:bg-slate-950/70">
-      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-lg p-6 max-w-full">
-        {/* Official Header */}
-        <div className="text-center mb-6 pb-4 border-b-2 border-slate-900 dark:border-white">
-          <h2 className="text-base sm:text-lg font-black tracking-wider text-slate-900 dark:text-white uppercase font-sans">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-xl p-5 sm:p-7 max-w-full space-y-6">
+        {/* 1. Official Header & Title */}
+        <div className="text-center pb-5 border-b-2 border-slate-900 dark:border-white">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider mb-1.5 border border-blue-200 dark:border-blue-800">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Matriks Resmi Susunan Pengurus Partai NasDem</span>
+          </div>
+          <h2 className="text-lg sm:text-xl font-black tracking-wider text-slate-900 dark:text-white uppercase font-sans">
             {officialTitle.line1}
           </h2>
-          <h3 className="text-sm sm:text-base font-bold tracking-wider text-blue-900 dark:text-blue-400 uppercase mt-0.5 font-sans">
+          <h3 className="text-sm sm:text-base font-bold tracking-wider text-blue-700 dark:text-blue-400 uppercase mt-0.5 font-sans">
             {officialTitle.line2}
           </h3>
         </div>
 
+        {/* 2. Visual Guide & Status Legend Bar (Memudahkan Pembacaan & Input Excel) */}
+        <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50/80 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-slate-900/40 space-y-3 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Panduan Visual Input Matriks & Sinkronisasi Excel
+                </h4>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  Warna dan badge baris diselaraskan langsung dengan format template Excel:
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Status Legend Badges */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Terisi: {totalFilled} Posisi</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Lowong: {totalEmpty} Posisi</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-blue-100 text-blue-900 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-300 dark:border-blue-800 shadow-2xs">
+                <span>Total Formasi: {totalRows}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              💡 <strong>Tips Cepat:</strong> Baris bergaris oranye (⚡ <strong>LOWONG</strong>) menandakan jabatan formasi yang belum terisi di SK. Anda dapat mengunduh <strong>Template Excel</strong> di atas untuk diisi bersama tim, lalu klik <strong>Import Excel</strong>, atau klik <strong>Mode Edit</strong> untuk mengetik langsung.
+            </span>
+            <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
+              Kelengkapan: {completionPercentage}%
+            </span>
+          </div>
+        </div>
+
+        {/* 3. Section Tables Rendering */}
         {sections.length === 0 ? (
           <div className="p-8 text-center text-slate-400 italic border border-slate-300 dark:border-slate-700 rounded-lg">
             Belum ada data untuk wilayah ini. Klik Tambah Baris atau Edit Tabel untuk mulai mengisi.
           </div>
         ) : (
-          sections.map((sec, secIdx) => {
+          sections.map((sec) => {
             return (
               <div
                 key={sec.subOrg}
-                className={`mb-8 last:mb-0 rounded-xl overflow-hidden border ${
+                className={`mb-8 last:mb-0 rounded-2xl overflow-hidden border shadow-sm transition-all ${
                   sec.isPertimbangan
-                    ? 'border-indigo-300 dark:border-indigo-800/80 shadow-md'
+                    ? 'border-indigo-300 dark:border-indigo-800/80 shadow-indigo-100/30'
                     : sec.isPakar
-                    ? 'border-amber-300 dark:border-amber-800/80 shadow-md'
-                    : 'border-blue-300 dark:border-blue-900 shadow-md'
+                    ? 'border-purple-300 dark:border-purple-800/80 shadow-purple-100/30'
+                    : 'border-blue-300 dark:border-blue-900 shadow-blue-100/30'
                 }`}
               >
                 {/* Section Header Card */}
                 <div
-                  className={`px-4 py-3 flex flex-wrap items-center justify-between gap-2.5 ${
+                  className={`px-4.5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-white ${
                     sec.isPertimbangan
-                      ? 'bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 text-white'
+                      ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900'
                       : sec.isPakar
-                      ? 'bg-gradient-to-r from-amber-950 via-slate-900 to-slate-900 text-white'
-                      : 'bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white'
+                      ? 'bg-gradient-to-r from-purple-950 via-slate-900 to-purple-900'
+                      : 'bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {sec.isPertimbangan ? (
-                      <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-                    ) : sec.isPakar ? (
-                      <Award className="w-4 h-4 text-amber-400 shrink-0" />
-                    ) : (
-                      <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
-                    )}
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-white/10 border border-white/20">
+                      {sec.isPertimbangan ? (
+                        <ShieldCheck className="w-5 h-5 text-indigo-300 shrink-0" />
+                      ) : sec.isPakar ? (
+                        <Award className="w-5 h-5 text-purple-300 shrink-0" />
+                      ) : (
+                        <Building2 className="w-5 h-5 text-blue-300 shrink-0" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-black tracking-wider uppercase">
                           {sec.subOrg}
                         </h4>
-                        <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/20 font-semibold">
+                        <span className="text-[10px] sm:text-xs font-mono px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 font-semibold text-white">
                           {sec.filledCount} / {sec.rows.length} Terisi
                         </span>
-                      </div>
-                      {(sec.isPertimbangan || sec.isPakar) && (
-                        <div className="text-[10.5px] font-medium text-amber-200/90 flex items-center gap-1.5 mt-0.5">
-                          <span>📍 Wilayah Teritorial:</span>
-                          <span className="font-bold underline text-white">
-                            {officialTitle.line2 || officialTitle.line1}
+                        {sec.emptyCount > 0 ? (
+                          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/90 text-amber-950 border border-amber-300">
+                            ⚡ {sec.emptyCount} Lowong
                           </span>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/90 text-emerald-950 border border-emerald-300">
+                            ✓ 100% Lengkap
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-300 flex items-center gap-1.5 mt-0.5">
+                        <span>Wilayah Teritorial:</span>
+                        <span className="font-bold underline text-white">
+                          {officialTitle.line2 || officialTitle.line1}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   {isEditMode && onAddNewRowForSubOrg && (
                     <button
                       onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
-                      className="text-[11px] font-semibold bg-white/15 hover:bg-white/25 text-white px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer border border-white/20"
+                      className="text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
                       title={`Tambah baris jabatan baru di ${sec.subOrg}`}
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 text-blue-600" />
                       <span>Tambah Baris</span>
                     </button>
                   )}
@@ -157,29 +238,32 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                         <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-12">
                           NO
                         </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 w-28 text-center">
+                          STATUS
+                        </th>
                         <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[210px] text-left">
                           JABATAN PENGURUS
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[220px] text-left">
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[230px] text-left">
                           NAMA LENGKAP (SESUAI KTP)
                         </th>
                         <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[150px]">
-                          NO. NIK
+                          NO. NIK KTP
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[150px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[140px]">
                           E-KTA NASDEM
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[160px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[130px]">
+                          NO TELEPON / WA
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[150px]">
                           EMAIL
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[130px]">
-                          NO TELEPON
-                        </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[130px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[120px]">
                           SOSIAL MEDIA
                         </th>
                         {isEditMode && (
-                          <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-12 text-center bg-rose-800 text-white">
+                          <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-14 text-center bg-rose-800 text-white">
                             AKSI
                           </th>
                         )}
@@ -194,19 +278,32 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                             key={row.id}
                             className={`transition-colors text-[11px] ${
                               !isFilled
-                                ? 'bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-50/40'
-                                : idx % 2 === 0
-                                ? 'bg-white dark:bg-slate-900 hover:bg-blue-50/30'
-                                : 'bg-slate-50/60 dark:bg-slate-950/40 hover:bg-blue-50/30'
+                                ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-4 border-l-amber-500 hover:bg-amber-100/60 dark:hover:bg-amber-950/40'
+                                : 'bg-white dark:bg-slate-900 border-l-4 border-l-emerald-500 hover:bg-blue-50/30 dark:hover:bg-slate-800/30'
                             }`}
                           >
                             {/* 1. NO */}
-                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-semibold text-slate-600 dark:text-slate-400">
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
                               {idx + 1}
                             </td>
 
-                            {/* 2. JABATAN PENGURUS */}
-                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                            {/* 2. STATUS FORMASI */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-center">
+                              {isFilled ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                  <span>TERISI</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700 shadow-2xs">
+                                  <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                  <span>LOWONG</span>
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 3. JABATAN PENGURUS */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-semibold">
                               {isEditMode ? (
                                 <input
                                   type="text"
@@ -218,38 +315,49 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                 <div className="flex items-center gap-1.5">
                                   <span
                                     className={`w-2 h-2 rounded-full shrink-0 ${
-                                      isFilled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                                      isFilled ? 'bg-emerald-500' : 'bg-amber-500'
                                     }`}
                                   ></span>
-                                  <span className="truncate">{row.jabatan}</span>
+                                  <span
+                                    className={
+                                      isFilled
+                                        ? 'text-slate-800 dark:text-slate-200 font-semibold'
+                                        : 'text-amber-950 dark:text-amber-200 font-bold'
+                                    }
+                                  >
+                                    {row.jabatan}
+                                  </span>
                                 </div>
                               )}
                             </td>
 
-                            {/* 3. NAMA LENGKAP */}
+                            {/* 4. NAMA LENGKAP */}
                             <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-medium">
                               {isEditMode ? (
                                 <input
                                   type="text"
-                                  placeholder="Masukkan Nama Sesuai KTP..."
+                                  placeholder="👉 Masukkan Nama KTP..."
                                   value={row.namaLengkap}
                                   onChange={(e) => onCellChange(row.id, 'namaLengkap', e.target.value)}
-                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              ) : (
-                                <span
-                                  className={
+                                  className={`w-full rounded px-2.5 py-1 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 ${
                                     isFilled
-                                      ? 'font-bold text-slate-900 dark:text-white'
-                                      : 'text-slate-400 dark:text-slate-600 italic'
-                                  }
-                                >
-                                  {row.namaLengkap || '(Belum Terisi)'}
+                                      ? 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:ring-blue-500'
+                                      : 'bg-amber-50/90 dark:bg-amber-950/60 border-2 border-amber-400 dark:border-amber-500 placeholder-amber-700/60 dark:placeholder-amber-400/60 focus:ring-amber-500'
+                                  }`}
+                                />
+                              ) : isFilled ? (
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {row.namaLengkap}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-white/80 dark:bg-slate-900 text-amber-900 dark:text-amber-300 border border-dashed border-amber-400 dark:border-amber-700 shadow-2xs">
+                                  <span className="text-amber-600 font-extrabold">+</span>
+                                  <span>Lowong (Siap Diisi)</span>
                                 </span>
                               )}
                             </td>
 
-                            {/* 4. NO. NIK */}
+                            {/* 5. NO. NIK */}
                             <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center">
                               {isEditMode ? (
                                 <input
@@ -266,7 +374,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               )}
                             </td>
 
-                            {/* 5. E-KTA NASDEM */}
+                            {/* 6. E-KTA NASDEM */}
                             <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center">
                               {isEditMode ? (
                                 <input
@@ -283,7 +391,22 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               )}
                             </td>
 
-                            {/* 6. EMAIL */}
+                            {/* 7. NO TELEPON / WA */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center text-slate-700 dark:text-slate-300">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder="08xxxxxxxxxx"
+                                  value={row.nomorHP}
+                                  onChange={(e) => onCellChange(row.id, 'nomorHP', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                <span>{row.nomorHP || '-'}</span>
+                              )}
+                            </td>
+
+                            {/* 8. EMAIL */}
                             <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-600 dark:text-slate-400">
                               {isEditMode ? (
                                 <input
@@ -300,22 +423,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               )}
                             </td>
 
-                            {/* 7. NO TELEPON */}
-                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center text-slate-700 dark:text-slate-300">
-                              {isEditMode ? (
-                                <input
-                                  type="text"
-                                  placeholder="08xxxxxxxxxx"
-                                  value={row.nomorHP}
-                                  onChange={(e) => onCellChange(row.id, 'nomorHP', e.target.value)}
-                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              ) : (
-                                <span>{row.nomorHP || '-'}</span>
-                              )}
-                            </td>
-
-                            {/* 8. SOSIAL MEDIA */}
+                            {/* 9. SOSIAL MEDIA */}
                             <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-600 dark:text-slate-400">
                               {isEditMode ? (
                                 <input

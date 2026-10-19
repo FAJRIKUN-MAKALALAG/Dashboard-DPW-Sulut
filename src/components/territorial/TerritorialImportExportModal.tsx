@@ -37,6 +37,7 @@ import {
 } from '../../utils/territorialExcelTemplateUtils';
 import { parseSqlInsertQuery } from '../../utils/sqlQueryParser';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
+import { cleanDataWithGeminiAi } from '../../services/aiDataCleanerService';
 
 interface TerritorialImportExportModalProps {
   isOpen: boolean;
@@ -74,6 +75,15 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isAiCleaning, setIsAiCleaning] = useState(false);
+  const [aiStats, setAiStats] = useState<{
+    total: number;
+    pertimbanganCount: number;
+    pakarCount: number;
+    pimpinanCount: number;
+    matchedCount: number;
+    correctedCount: number;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +179,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     setParseError(null);
     setParseResult(null);
     setSubmitSuccess(null);
+    setAiStats(null);
 
     try {
       const result = parseSqlInsertQuery(
@@ -248,6 +259,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     setParseError(null);
     setParseResult(null);
     setSubmitSuccess(null);
+    setAiStats(null);
 
     try {
       const result = await parseTerritorialExcelFile(
@@ -262,6 +274,59 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
       setParseError(err?.message || 'Gagal membaca berkas Excel. Pastikan format tabel sesuai panduan.');
     } finally {
       setIsParsing(false);
+    }
+  };
+
+  // Bersihkan & Cluster dengan Gemini AI (Supabase Edge Function)
+  const handleAiCleanAndCluster = async () => {
+    if (!parseResult || parseResult.rows.length === 0) return;
+    setIsAiCleaning(true);
+    setParseError(null);
+    try {
+      const res = await cleanDataWithGeminiAi(parseResult.rows, territoryContext);
+      if (res.success && res.items.length > 0) {
+        const updatedRows = parseResult.rows.map((origRow, i) => {
+          const aiItem = res.items[i];
+          if (!aiItem) return origRow;
+          return {
+            ...origRow,
+            subOrg: aiItem.subOrg || origRow.subOrg,
+            jabatanExcel: aiItem.canonicalJabatan || origRow.jabatanExcel,
+            jabatanMatched: aiItem.canonicalJabatan || origRow.jabatanMatched,
+            isMatched: aiItem.isMatched,
+            namaLengkap: aiItem.namaLengkap || origRow.namaLengkap,
+          };
+        });
+
+        const updatedMembersToSave = parseResult.membersToSave.map((origMember, i) => {
+          const aiItem = res.items[i];
+          if (!aiItem) return origMember;
+          return {
+            ...origMember,
+            wilayahPenugasan: aiItem.subOrg || origMember.wilayahPenugasan,
+            jabatan: aiItem.canonicalJabatan || origMember.jabatan,
+            namaLengkap: aiItem.namaLengkap || origMember.namaLengkap,
+          };
+        });
+
+        setParseResult({
+          ...parseResult,
+          rows: updatedRows,
+          membersToSave: updatedMembersToSave,
+          stats: {
+            ...parseResult.stats,
+            matchedPositions: res.stats.matchedCount,
+            customPositions: Math.max(0, res.stats.total - res.stats.matchedCount),
+          },
+        });
+
+        setAiStats(res.stats);
+      }
+    } catch (err: any) {
+      console.error('Error during AI clean:', err);
+      setParseError('Gagal memproses dengan AI: ' + (err?.message || 'Terjadi kesalahan sistem.'));
+    } finally {
+      setIsAiCleaning(false);
     }
   };
 
@@ -692,6 +757,70 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                   </span>
                 </div>
               </div>
+
+              {/* AI Smart Clean & Cluster Action Banner */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-indigo-600 text-white shrink-0 shadow-xs">
+                    <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <span>Pembersihan Cerdas & Clustering (Gemini AI)</span>
+                      <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded">
+                        Opsi B (Supabase Edge)
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-tight mt-0.5">
+                      Otomatis memisahkan Dewan Pertimbangan & Dewan Pakar, menormalkan typo jabatan ke 36 slot baku, dan merapikan nama pengurus.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAiCleanAndCluster}
+                  disabled={isAiCleaning || !parseResult || parseResult.rows.length === 0}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer transition-colors disabled:opacity-50 shrink-0"
+                  title="Jalankan pembersihan dan clustering data dengan Gemini AI"
+                >
+                  {isAiCleaning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sedang Memproses AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{aiStats ? '✓ Bersihkan Ulang dengan AI' : '✨ Bersihkan & Cluster dengan AI'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Status Hasil AI */}
+              {aiStats && (
+                <div className="p-3 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>AI Berhasil Mengelompokkan Data:</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">
+                      🏛️ {aiStats.pertimbanganCount} Dewan Pertimbangan
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200">
+                      🎓 {aiStats.pakarCount} Dewan Pakar
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-200">
+                      👔 {aiStats.pimpinanCount} Dewan Pimpinan
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
+                      ✓ {aiStats.matchedCount} Cocok Slot Baku
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Filter & Search Bar Tabel Preview */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
