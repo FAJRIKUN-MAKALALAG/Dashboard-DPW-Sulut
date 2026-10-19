@@ -49,6 +49,8 @@ interface TerritorialStructurePageProps {
   onOpenCardModal?: (member: Member) => void;
   onOpenDetailModal?: (member: Member) => void;
   onBackToDashboard?: () => void;
+  onRefreshCloud?: () => Promise<void> | void;
+  isRefreshingCloud?: boolean;
 }
 
 export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> = ({
@@ -61,6 +63,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   initialDpc,
   initialDprt,
   onBackToDashboard,
+  onRefreshCloud,
+  isRefreshingCloud = false,
 }) => {
   const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
 
@@ -412,7 +416,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         ? 'Anggota Dewan Pertimbangan'
         : defaultSubOrg.includes('PAKAR')
         ? 'Anggota Dewan Pakar'
-        : 'Pengurus Tambahan / Anggota',
+        : 'Pengurus Tambahan Bidang',
       namaLengkap: '',
       nik: '',
       nomorEKTA: '',
@@ -533,6 +537,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         isPengurus: true,
         tingkatKepengurusan: level,
         wilayahPenugasan: row.subOrg,
+        nomorSK: existingMember?.nomorSK || `SK-${level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
         jabatan: row.jabatan.trim() || 'Pengurus',
         status: existingMember?.status || 'Aktif',
         statusKtpVerified: existingMember ? existingMember.statusKtpVerified : true,
@@ -1011,6 +1016,18 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
                 <span>Template Pakar</span>
               </button>
             </>
+          )}
+
+          {onRefreshCloud && (
+            <button
+              onClick={onRefreshCloud}
+              disabled={isRefreshingCloud}
+              title="Tarik & sinkronkan ulang seluruh data susunan pengurus langsung dari Supabase live"
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 dark:text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+              <span>{isRefreshingCloud ? 'Menarik...' : 'Tarik Data Supabase'}</span>
+            </button>
           )}
 
           <button

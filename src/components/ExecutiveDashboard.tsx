@@ -33,6 +33,8 @@ interface ExecutiveDashboardProps {
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onOpenUserManagement?: () => void;
   onOpenDownloadTemplate?: () => void;
+  onRefreshCloud?: () => Promise<void> | void;
+  isRefreshingCloud?: boolean;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -45,6 +47,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   onOpenTerritorialMatrix,
   onOpenUserManagement,
   onOpenDownloadTemplate,
+  onRefreshCloud,
+  isRefreshingCloud = false,
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
@@ -177,6 +181,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenPrintReport={onOpenPrintReport}
         onOpenUserManagement={onOpenUserManagement}
         onOpenDownloadTemplate={onOpenDownloadTemplate}
+        onRefreshCloud={onRefreshCloud}
+        isRefreshingCloud={isRefreshingCloud}
       />
 
       {/* 2. Scope & Territory Filter */}

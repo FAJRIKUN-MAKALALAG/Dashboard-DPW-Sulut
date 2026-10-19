@@ -21,15 +21,32 @@ export function mapDbRowToMember(row: any): Member {
   const dprt = (row.dprt || '').trim();
   const wil = (row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || '').toUpperCase();
 
-  // Deteksi apakah kader merupakan pengurus jika diinput massal lewat SQL editor tanpa set is_pengurus
+  // Deteksi apakah penugasan atau jabatannya merupakan bagian dari struktur kepengurusan partai
+  const isCouncilOrStructure =
+    wil.includes('PERTIMBANGAN') ||
+    wil.includes('PAKAR') ||
+    wil.includes('PIMPINAN') ||
+    wil.includes('DEWAN') ||
+    wil.includes('BIDANG') ||
+    wil.includes('SAYAP') ||
+    wil.includes('BADAN') ||
+    jUpper.includes('PERTIMBANGAN') ||
+    jUpper.includes('PAKAR') ||
+    jUpper.includes('WANHAT') ||
+    jUpper.includes('WANTIM') ||
+    jUpper.includes('WANPAK') ||
+    ['DPW', 'DPD', 'DPC', 'DPRT'].includes(rawTingkat.toUpperCase());
+
+  // Hanya dianggap anggota biasa murni jika bukan dari struktur kepengurusan dan jabatannya non-struktural
   const isOrdinary =
-    !rawJabatan ||
-    rawJabatan === '-' ||
-    jUpper === 'ANGGOTA BIASA' ||
-    jUpper === 'ANGGOTA' ||
-    jUpper === 'BUKAN PENGURUS' ||
-    jUpper === 'SIMPATISAN' ||
-    jUpper === 'KADER';
+    !isCouncilOrStructure &&
+    (!rawJabatan ||
+      rawJabatan === '-' ||
+      jUpper === 'ANGGOTA BIASA' ||
+      jUpper === 'ANGGOTA' ||
+      jUpper === 'BUKAN PENGURUS' ||
+      jUpper === 'SIMPATISAN' ||
+      jUpper === 'KADER');
 
   const isPengurus =
     row.is_pengurus === true ||
@@ -38,6 +55,7 @@ export function mapDbRowToMember(row: any): Member {
     row.kategori === 'Pengurus' ||
     row.kategori_kader === 'Pengurus' ||
     Boolean(row.nomor_sk) ||
+    isCouncilOrStructure ||
     !isOrdinary;
 
   // Deteksi tingkat kepengurusan cerdas

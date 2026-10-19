@@ -21,10 +21,10 @@ export const MemberService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
+        // Query Supabase dengan primary key 'nik' atau tanpa sorting berisiko
         const { data, error, status } = await supabase
           .from('members')
           .select('*')
-          .order('nama_lengkap', { ascending: true })
           .range(from, to);
 
         if (error) {
@@ -32,7 +32,7 @@ export const MemberService = {
             console.warn('[Supabase] Tabel "public.members" belum aktif.');
             return [];
           }
-          console.warn('Peringatan membaca data Supabase:', error.message || error);
+          console.error('[Supabase Fetch Error]:', error.message || error);
           break;
         }
 
@@ -48,6 +48,7 @@ export const MemberService = {
         }
       }
 
+      console.log(`[Supabase Fetch Sukses] Berhasil menarik ${allRows.length} data anggota.`);
       return allRows.map(mapDbRowToMember);
     } catch (err) {
       console.error('Supabase getMembers query failed:', err);
