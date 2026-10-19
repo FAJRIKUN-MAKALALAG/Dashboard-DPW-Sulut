@@ -407,24 +407,18 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   };
 
   // Delete row (works for template slot, custom added row, or existing member)
+  // Delete row (removes slot without deleting member record from DB)
   const handleDeleteRow = (id: string) => {
     const targetRow = gridRows.find((r) => r.id === id);
     if (!targetRow) return;
 
-    // 1. Jika baris memiliki data pengurus riil di database, catat NIK-nya untuk dihapus
-    if (targetRow.originalNik) {
-      setDeletedMemberNiks((prev) => [...prev, targetRow.originalNik!]);
-    } else if (targetRow.nik && targetRow.isExisting) {
-      setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
-    }
-
-    // 2. Simpan tanda bahwa slot template ini dihapus permanen agar tidak muncul kembali saat reload
+    // 1. Simpan tanda bahwa slot template ini dihapus permanen dari tampilan agar tidak muncul kembali saat reload
     const slotKey = getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan);
     const deletedKeys = getStoredDeletedSlotKeys();
     deletedKeys.add(slotKey);
     saveDeletedSlotKeys(deletedKeys);
 
-    // 3. Hapus baris dari state tabel langsung
+    // 2. Hapus baris dari state tabel (data kader di DB tidak dihapus, tetap terjaga)
     setGridRows((prev) => prev.filter((r) => r.id !== id));
   };
 
@@ -442,7 +436,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     }
   };
 
-  // Save changes to database
+  // Save changes to database (ANTI DATA-LOSS: Data lama tidak akan terhapus / hilang saat tambah atau edit)
   const handleSaveToDatabase = () => {
     const territoryDpd = level === 'DPW' ? 'Sulawesi Utara' : selectedDpd;
     const territoryDpc =
@@ -455,34 +449,38 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     const updatedMembersList: Member[] = [];
     const occupiedNiks = new Set<string>(members.map((m) => m.nik));
-    const niksToDelete: string[] = [...deletedMemberNiks];
+    const niksToDelete: string[] = [];
 
-    // Deteksi jika ada baris lama (isExisting / originalNik) yang dihapus atau namanya dikosongkan oleh pengguna saat edit
-    const currentActiveOriginalNiks = new Set<string>();
-    gridRows.forEach((row) => {
-      if (row.originalNik && row.namaLengkap.trim()) {
-        currentActiveOriginalNiks.add(row.originalNik);
-      }
-    });
-
-    // Cari data pengurus yang sebelumnya ada di slot/wilayah ini namun sekarang dikosongkan
+    // 1. Tangani anggota yang dikosongkan namanya di slot (Slot dikosongkan)
+    // PENTING: Data kader TIDAK DIHAPUS dari sistem, melainkan dialihkan menjadi Anggota Biasa (Basis KTP)
     gridRows.forEach((row) => {
       if (row.originalNik && !row.namaLengkap.trim()) {
-        niksToDelete.push(row.originalNik);
+        const prevMember = members.find((m) => m.nik === row.originalNik);
+        if (prevMember) {
+          updatedMembersList.push({
+            ...prevMember,
+            isPengurus: false,
+            jabatan: 'Anggota / Kader',
+            wilayahPenugasan: undefined,
+            tingkatKepengurusan: undefined,
+            terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            diubahOleh: session?.adminName || 'Admin Matriks Organisasi',
+          });
+        }
       }
     });
 
+    // 2. Simpan setiap baris yang terisi nama
     gridRows.forEach((row, idx) => {
       const nama = row.namaLengkap.trim();
       if (!nama) return;
 
+      // Pencocokan ketat HANYA berdasarkan NIK asli atau NIK yang diinput
+      // JANGAN PERNAH mencocokkan fallback berdasarkan jabatan karena bisa menimpa data anggota lain dengan jabatan serupa!
       const existingMember = members.find(
         (m) =>
           (row.originalNik && m.nik === row.originalNik) ||
-          (row.nik && m.nik === row.nik.trim()) ||
-          (m.dpd === territoryDpd &&
-            (m.wilayahPenugasan || '').trim().toLowerCase() === (row.subOrg || '').trim().toLowerCase() &&
-            isJobTitleMatch(m.jabatan, row.jabatan))
+          (row.nik && m.nik === row.nik.trim())
       );
 
       let nikClean = row.nik.replace(/[^0-9]/g, '').trim();
@@ -496,7 +494,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         occupiedNiks.add(nikClean);
       }
 
-      // Jika NIK diubah dari NIK lama, tandai NIK lama untuk dibersihkan
+      // HANYA jika NIK diubah secara eksplisit dari NIK lama (misal update dari placeholder ke NIK KTP riil),
+      // tandai NIK lama untuk dibersihkan agar tidak ada duplikasi data
       if (row.originalNik && row.originalNik !== nikClean) {
         niksToDelete.push(row.originalNik);
       }
@@ -504,11 +503,11 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       const updatedMember: Member = {
         ...(existingMember || {}),
         nik: nikClean,
-        nomorEKTA: row.nomorEKTA.trim() || nikClean,
+        nomorEKTA: row.nomorEKTA.trim() || (existingMember?.nomorEKTA || nikClean),
         namaLengkap: nama,
-        email: row.email?.trim() || undefined,
-        nomorHP: row.nomorHP.trim() || '-',
-        sosmed: row.sosmed?.trim() || undefined,
+        email: row.email?.trim() || existingMember?.email || undefined,
+        nomorHP: row.nomorHP.trim() || existingMember?.nomorHP || '-',
+        sosmed: row.sosmed?.trim() || existingMember?.sosmed || undefined,
         dpd: territoryDpd,
         dpc: territoryDpc,
         dprt: territoryDprt,
@@ -517,7 +516,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         wilayahPenugasan: row.subOrg,
         jabatan: row.jabatan.trim() || 'Pengurus',
         status: existingMember?.status || 'Aktif',
-        statusKtpVerified: true,
+        statusKtpVerified: existingMember ? existingMember.statusKtpVerified : true,
         tanggalBergabung:
           existingMember?.tanggalBergabung || new Date().toISOString().substring(0, 10),
         terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
@@ -527,7 +526,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       updatedMembersList.push(updatedMember);
     });
 
-    // Jika ada NIK yang dihapus/dikosongkan saat edit, hapus dari database
+    // Jika ada NIK placeholder yang digantikan oleh NIK baru untuk kader yang sama
     if (niksToDelete.length > 0 && onDeleteMembersBatch) {
       onDeleteMembersBatch(niksToDelete, `${level} ${territoryDpd}`);
     }

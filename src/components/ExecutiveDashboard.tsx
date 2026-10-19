@@ -23,7 +23,11 @@ interface ExecutiveDashboardProps {
   members: Member[];
   session?: UserSession;
   onOpenPrintReport: () => void;
-  onNavigateToMembers: (filterDpd?: string, filterStatus?: MemberStatus) => void;
+  onNavigateToMembers: (
+    filterDpd?: string,
+    filterStatus?: MemberStatus,
+    filterMembership?: 'ALL' | 'PENGURUS' | 'ANGGOTA'
+  ) => void;
   onOpenCardModal?: (member: Member) => void;
   onAddMembers?: (newMembers: Member[]) => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
@@ -199,8 +203,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         countPengurusDpw={countPengurusDpw}
         selectedDpdFilter={selectedDpdFilter}
         structureKpi={structureKpi}
-        onNavigateToMembers={() =>
-          onNavigateToMembers(selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter, 'Aktif')
+        onNavigateToMembers={(membership) =>
+          onNavigateToMembers(
+            selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter,
+            'Aktif',
+            membership || 'ALL'
+          )
         }
         onOpenStructureModal={(level) => handleOpenStructureModal(selectedDpdFilter, level)}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}

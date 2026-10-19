@@ -240,6 +240,7 @@ export default function App() {
   // Filter overrides when navigating from dashboard
   const [navDpdFilter, setNavDpdFilter] = useState<string | undefined>(undefined);
   const [navStatusFilter, setNavStatusFilter] = useState<MemberStatus | undefined>(undefined);
+  const [navMembershipFilter, setNavMembershipFilter] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
 
   // Modals state
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -459,22 +460,13 @@ export default function App() {
     // Masukkan data lama
     members.forEach((m) => membersMap.set(m.nik, m));
 
-    // Timpa / tambahkan data pengurus baru yang diedit
+    // Timpa / tambahkan data pengurus baru yang diedit (tanpa menghapus data anggota lain)
     incomingMembers.forEach((inc) => {
-      // Hapus data lama HANYA jika sebelumnya slot posisi yang sama terisi oleh NIK dummy/placeholder
-      for (const [oldNik, oldMem] of membersMap.entries()) {
-        if (
-          oldNik !== inc.nik &&
-          oldMem.dpd === inc.dpd &&
-          normalizeSubOrgName(oldMem.wilayahPenugasan, (oldMem.tingkatKepengurusan as any) || 'DPD') ===
-            normalizeSubOrgName(inc.wilayahPenugasan, (inc.tingkatKepengurusan as any) || 'DPD') &&
-          isJobTitleMatch(oldMem.jabatan, inc.jabatan) &&
-          (oldNik.startsWith('71002026') || oldNik.includes('-DPD-') || oldNik.includes('-DPW-') || oldNik.includes('new_row_'))
-        ) {
-          membersMap.delete(oldNik);
-        }
-      }
-      membersMap.set(inc.nik, inc);
+      const existing = membersMap.get(inc.nik);
+      membersMap.set(inc.nik, {
+        ...(existing || {}),
+        ...inc,
+      });
     });
 
     const combined = Array.from(membersMap.values());
@@ -750,9 +742,14 @@ export default function App() {
     showToast(`Beralih ke peran: ${newSession.jabatan}`);
   };
 
-  const handleNavigateFromDashboard = (filterDpd?: string, filterStatus?: MemberStatus) => {
+  const handleNavigateFromDashboard = (
+    filterDpd?: string,
+    filterStatus?: MemberStatus,
+    filterMembership: 'ALL' | 'PENGURUS' | 'ANGGOTA' = 'ALL'
+  ) => {
     setNavDpdFilter(filterDpd);
     setNavStatusFilter(filterStatus);
+    setNavMembershipFilter(filterMembership);
     setActiveTab('members');
   };
 
@@ -997,6 +994,7 @@ export default function App() {
               session={session}
               initialDpdFilter={navDpdFilter}
               initialStatusFilter={navStatusFilter}
+              initialMembershipFilter={navMembershipFilter}
               onOpenAddModal={() => setIsAddModalOpen(true)}
               onOpenBulkImport={() => setIsBulkImportOpen(true)}
               onOpenStatusModal={(m) => {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS, LEVEL_PARTY_ROLES, PARTY_ROLES } from '../data/sulutRegions';
-import { isDpdMatch, getMemberSubOrgCategory, SubOrgCategory } from '../utils/structureReadinessUtils';
+import { isDpdMatch, getMemberSubOrgCategory, getDewanWilayahInfo, SubOrgCategory } from '../utils/structureReadinessUtils';
 import {
   X,
   Building,
@@ -461,28 +461,37 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex flex-wrap items-center gap-1 mb-1">
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            {m.tingkatKepengurusan || 'DPW'}
-                          </span>
-                          {getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              <Award className="w-2.5 h-2.5 text-amber-600" />
-                              Dewan Pertimbangan
-                            </span>
-                          )}
-                          {getMemberSubOrgCategory(m) === 'PAKAR' && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                              <Award className="w-2.5 h-2.5 text-purple-600" />
-                              Dewan Pakar
-                            </span>
-                          )}
-                          {getMemberSubOrgCategory(m) === 'PIMPINAN' && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                              Dewan Pimpinan
-                            </span>
-                          )}
-                        </div>
+                        {(() => {
+                          const dewan = getDewanWilayahInfo(m);
+                          if (dewan.isDewan) {
+                            return (
+                              <div className="flex flex-wrap items-center gap-1 mb-1">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-bold border ${
+                                    dewan.category === 'PERTIMBANGAN'
+                                      ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                                      : 'bg-purple-100 dark:bg-purple-950/80 text-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-700'
+                                  }`}
+                                >
+                                  <Award className="w-3 h-3 text-current" />
+                                  <span>{dewan.councilName}</span>
+                                  <span className="opacity-50">·</span>
+                                  <span className="font-extrabold">{dewan.shortLocationLabel}</span>
+                                </span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-wrap items-center gap-1 mb-1">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                {m.tingkatKepengurusan || 'DPW'}
+                              </span>
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                Dewan Pimpinan
+                              </span>
+                            </div>
+                          );
+                        })()}
                         <div className="font-medium text-slate-800 dark:text-slate-200">
                           {m.jabatan}
                         </div>

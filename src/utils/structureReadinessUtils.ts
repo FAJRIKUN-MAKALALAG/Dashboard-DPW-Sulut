@@ -400,6 +400,96 @@ export function getSlotSubOrgCategory(slot: { subOrg: string }): SubOrgCategory 
   return 'PIMPINAN';
 }
 
+export interface DewanWilayahInfo {
+  isDewan: boolean;
+  category: 'PERTIMBANGAN' | 'PAKAR' | null;
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'UNKNOWN';
+  councilName: string; // "Dewan Pertimbangan" | "Dewan Pakar"
+  shortLocationLabel: string; // e.g. "DPW Sulut", "DPD Kab. Minahasa Selatan", "DPC Kec. Amurang"
+  badgeText: string; // e.g. "Dewan Pertimbangan · DPW Sulut"
+  detailedTerritory: string; // e.g. "Tingkat DPW Sulawesi Utara", "DPD Kab. Minahasa Selatan", "DPC Kec. Amurang, Kab. Minahasa Selatan"
+}
+
+/**
+ * Mendeteksi apakah anggota merupakan Dewan Pakar / Dewan Pertimbangan
+ * dan menghasilkan label wilayah teritorial yang sangat jelas (DPW, DPD mana, atau DPC mana).
+ */
+export function getDewanWilayahInfo(m: Member): DewanWilayahInfo {
+  const cat = getMemberSubOrgCategory(m);
+  if (cat !== 'PERTIMBANGAN' && cat !== 'PAKAR') {
+    return {
+      isDewan: false,
+      category: null,
+      level: 'UNKNOWN',
+      councilName: '',
+      shortLocationLabel: '',
+      badgeText: '',
+      detailedTerritory: '',
+    };
+  }
+
+  const councilName = cat === 'PERTIMBANGAN' ? 'Dewan Pertimbangan' : 'Dewan Pakar';
+
+  // Deteksi Tingkat Kepengurusan
+  const tingkat = m.tingkatKepengurusan?.toUpperCase() || '';
+  const wil = (m.wilayahPenugasan || '').toUpperCase();
+  const dpd = (m.dpd || '').trim();
+  const dpc = (m.dpc || '').trim();
+  const dprt = (m.dprt || '').trim();
+
+  let level: 'DPW' | 'DPD' | 'DPC' | 'DPRt' = 'DPD';
+
+  if (
+    tingkat === 'DPW' ||
+    wil.includes('DPW') ||
+    dpd === 'Sulawesi Utara' ||
+    dpd === 'DPW Sulut' ||
+    (!dpd && !dpc)
+  ) {
+    level = 'DPW';
+  } else if (
+    tingkat === 'DPC' ||
+    wil.includes('DPC') ||
+    wil.includes('CABANG') ||
+    (dpc && dpc !== '-' && dpc !== 'Wilayah DPD' && dpc !== 'Umum (DPD)' && dpc !== 'Pusat/Umum')
+  ) {
+    level = 'DPC';
+  } else if (tingkat === 'DPRT' || wil.includes('RANTING') || (dprt && dprt !== '-' && dprt !== 'Pusat/Umum')) {
+    level = 'DPRt';
+  } else {
+    level = 'DPD';
+  }
+
+  let shortLocationLabel = '';
+  let detailedTerritory = '';
+
+  if (level === 'DPW') {
+    shortLocationLabel = 'DPW Sulut';
+    detailedTerritory = 'Tingkat Provinsi / DPW Sulawesi Utara';
+  } else if (level === 'DPD') {
+    const cleanDpd = dpd || 'Sulawesi Utara';
+    shortLocationLabel = cleanDpd.startsWith('DPD') ? cleanDpd : `DPD ${cleanDpd}`;
+    detailedTerritory = cleanDpd.startsWith('DPD') ? cleanDpd : `DPD ${cleanDpd}`;
+  } else if (level === 'DPC') {
+    const cleanKec = dpc ? dpc.replace(/^(kecamatan|kec\.|kec)\s+/gi, '') : 'Cabang';
+    shortLocationLabel = `DPC Kec. ${cleanKec}`;
+    detailedTerritory = `DPC Kec. ${cleanKec}${dpd ? `, ${dpd}` : ''}`;
+  } else {
+    shortLocationLabel = `DPRt ${dprt}`;
+    detailedTerritory = `DPRt ${dprt}${dpc ? `, Kec. ${dpc}` : ''}${dpd ? `, ${dpd}` : ''}`;
+  }
+
+  return {
+    isDewan: true,
+    category: cat,
+    level,
+    councilName,
+    shortLocationLabel,
+    badgeText: `${councilName} · ${shortLocationLabel}`,
+    detailedTerritory,
+  };
+}
+
 export interface SubOrgBreakdown {
   pimpinanRequired: number;
   pimpinanFilled: number;
