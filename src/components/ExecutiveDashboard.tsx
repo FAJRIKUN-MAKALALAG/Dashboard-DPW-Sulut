@@ -26,7 +26,7 @@ interface ExecutiveDashboardProps {
   onNavigateToMembers: (filterDpd?: string, filterStatus?: MemberStatus) => void;
   onOpenCardModal?: (member: Member) => void;
   onAddMembers?: (newMembers: Member[]) => void;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string) => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onOpenUserManagement?: () => void;
 }
 
@@ -203,6 +203,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           onNavigateToMembers(selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter, 'Aktif')
         }
         onOpenStructureModal={(level) => handleOpenStructureModal(selectedDpdFilter, level)}
+        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
       {/* 4. Executive Leadership Answers (Menjawab Pertanyaan Pimpinan DPW: Daerah Lengkap vs Belum) */}
@@ -217,6 +218,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         members={members}
         onOpenStructureModal={(dpdName) => handleOpenStructureModal(dpdName, 'ALL')}
         onOpenAllStructureModal={() => handleOpenStructureModal('ALL', 'ALL')}
+        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
       {/* 6. Cadre-Driven Recruitment Analytics */}
@@ -273,6 +275,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           }
         }
         initialFilter={structureModalFilter}
+        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
     </div>
   );

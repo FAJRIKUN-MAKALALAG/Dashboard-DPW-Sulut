@@ -1,7 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../config/database';
 import { AppUser, UserSession, UserRole } from '../types';
 import { mapDbRowToAppUser, mapAppUserToDbPayload } from './mappers';
-import { DUMMY_ACCOUNTS } from '../data/dummyAccounts';
 
 const LOCAL_STORAGE_USERS_KEY = 'nasdem_sulut_app_users_v1';
 
@@ -280,21 +279,6 @@ export const UserService = {
           adminNik: foundLocal.memberNik || foundLocal.username,
           jabatan: foundLocal.jabatan || `Admin ${foundLocal.role}`,
         },
-      };
-    }
-
-    // 4. Fallback Simulasi Demo Accounts (untuk kemudahan testing)
-    const foundDummy = DUMMY_ACCOUNTS.find(
-      (acc) =>
-        (acc.username.toLowerCase() === cleanInput ||
-          (acc.nik && acc.nik.toLowerCase() === cleanInput)) &&
-        acc.password === cleanPass
-    );
-
-    if (foundDummy) {
-      return {
-        success: true,
-        session: foundDummy.session,
       };
     }
 

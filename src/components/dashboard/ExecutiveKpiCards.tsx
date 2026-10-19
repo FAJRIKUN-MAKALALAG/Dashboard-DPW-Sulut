@@ -15,6 +15,7 @@ interface ExecutiveKpiCardsProps {
   structureKpi: StructureKpiStats;
   onNavigateToMembers: () => void;
   onOpenStructureModal: (level: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 
 export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
@@ -29,6 +30,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
   structureKpi,
   onNavigateToMembers,
   onOpenStructureModal,
+  onOpenTerritorialMatrix,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
 
@@ -38,7 +40,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider text-[11px]">
-            Kekuatan Riil Lapangan
+            Pengurus & Anggota Riil
           </span>
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
             <UserCheck className="w-4.5 h-4.5" />
@@ -52,11 +54,11 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             {totalActive.toLocaleString('id-ID')}
           </span>
           <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-            Kader Aktif Riil
+            Kader Aktif 
           </span>
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-          Terverifikasi aktif di lapangan: <strong>{totalPengurusBerSk}</strong> Pengurus Struktural + <strong>{totalAnggotaBiasa}</strong> Anggota Basis.
+          Terverifikasi aktif di lapangan: <strong>{totalPengurusBerSk}</strong> Pengurus Struktural - <strong>{totalAnggotaBiasa}</strong> Anggota.
         </p>
         <button
           onClick={onNavigateToMembers}
@@ -75,7 +77,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
       >
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-blue-800 dark:text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <span>Tingkat Keterisian Struktur Riil</span>
+            <span>Keterisian Struktur Riil</span>
             <span className="text-[10px] text-blue-600 dark:text-blue-400 opacity-80 group-hover:underline">
               (Klik Rincian)
             </span>
@@ -130,9 +132,23 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
           {/* Breakdown Per Tingkatan & Badan (Pimpinan, Pertimbangan, Pakar) */}
           <div className="space-y-1.5 pt-1">
             {structureKpi.isAllSulut && (
-              <div className="bg-slate-50 dark:bg-slate-800/70 p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[10px]">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onOpenTerritorialMatrix) {
+                    onOpenTerritorialMatrix(undefined, undefined, 'DPW');
+                  } else {
+                    onOpenStructureModal('DPW');
+                  }
+                }}
+                className="bg-slate-50 hover:bg-indigo-50 dark:bg-slate-800/70 dark:hover:bg-indigo-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-indigo-300 dark:border-slate-700/60 dark:hover:border-indigo-700/60 text-[10px] cursor-pointer transition-colors group/row"
+                title="Buka Halaman Susunan Pengurus DPW Sulut"
+              >
                 <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                  <span className="text-blue-700 dark:text-blue-300">Tingkat DPW Sulut:</span>
+                  <span className="text-blue-700 dark:text-blue-300 group-hover/row:underline flex items-center gap-1">
+                    <span>Tingkat DPW Sulut</span>
+                    <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                  </span>
                   <span className="font-mono">{structureKpi.dpwFilled}/{structureKpi.dpwRequired}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
@@ -149,9 +165,23 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               </div>
             )}
 
-            <div className="bg-slate-50 dark:bg-slate-800/70 p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[10px]">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenTerritorialMatrix) {
+                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPD');
+                } else {
+                  onOpenStructureModal('DPD');
+                }
+              }}
+              className="bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/70 dark:hover:bg-blue-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-blue-300 dark:border-slate-700/60 dark:hover:border-blue-700/60 text-[10px] cursor-pointer transition-colors group/row"
+              title="Buka Halaman Susunan Pengurus DPD Kab/Kota"
+            >
               <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                <span className="text-blue-700 dark:text-blue-300">Tingkat DPD Kab/Kota:</span>
+                <span className="text-blue-700 dark:text-blue-300 group-hover/row:underline flex items-center gap-1">
+                  <span>Tingkat DPD Kab/Kota</span>
+                  <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                </span>
                 <span className="font-mono">{structureKpi.dpdFilled}/{structureKpi.dpdRequired}</span>
               </div>
               <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
@@ -167,9 +197,23 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               </div>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-800/70 p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[10px]">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenTerritorialMatrix) {
+                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPC');
+                } else {
+                  onOpenStructureModal('DPC');
+                }
+              }}
+              className="bg-slate-50 hover:bg-emerald-50 dark:bg-slate-800/70 dark:hover:bg-emerald-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-emerald-300 dark:border-slate-700/60 dark:hover:border-emerald-700/60 text-[10px] cursor-pointer transition-colors group/row"
+              title="Buka Halaman Susunan Pengurus DPC Kecamatan"
+            >
               <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                <span className="text-blue-700 dark:text-blue-300">Tingkat DPC Kecamatan:</span>
+                <span className="text-emerald-700 dark:text-emerald-400 group-hover/row:underline flex items-center gap-1">
+                  <span>Tingkat DPC Kecamatan</span>
+                  <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                </span>
                 <span className="font-mono">{structureKpi.dpcFilled}/{structureKpi.dpcRequired}</span>
               </div>
               <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
@@ -185,8 +229,22 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/70 px-2 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[10px]">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Tingkat DPRt (Basis Desa/Kel):</span>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenTerritorialMatrix) {
+                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPRt');
+                } else {
+                  onOpenStructureModal('DPRt');
+                }
+              }}
+              className="flex items-center justify-between bg-slate-50 hover:bg-purple-50 dark:bg-slate-800/70 dark:hover:bg-purple-950/40 px-2 py-1.5 rounded-lg border border-slate-200/60 hover:border-purple-300 dark:border-slate-700/60 dark:hover:border-purple-700/60 text-[10px] cursor-pointer transition-colors group/row"
+              title="Buka Halaman Susunan Pengurus DPRt Ranting Desa"
+            >
+              <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover/row:text-purple-700 dark:group-hover/row:text-purple-300 flex items-center gap-1">
+                <span>Tingkat DPRt (Basis Desa/Kel)</span>
+                <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+              </span>
               <span className="font-mono font-bold text-slate-900 dark:text-white">{structureKpi.dprtFilled}/{structureKpi.dprtRequired}</span>
             </div>
           </div>
@@ -201,9 +259,15 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
 
       {/* Metric 3: Struktur DPW & Pengurus Ber-SK */}
       <div
-        onClick={() => onOpenStructureModal('DPW')}
+        onClick={() => {
+          if (onOpenTerritorialMatrix) {
+            onOpenTerritorialMatrix(undefined, undefined, 'DPW');
+          } else {
+            onOpenStructureModal('DPW');
+          }
+        }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-indigo-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-        title="Klik untuk melihat susunan pengurus DPW"
+        title="Klik untuk membuka susunan pengurus DPW Sulut"
       >
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider text-[11px]">
@@ -229,7 +293,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             15 DPD &middot; 167 DPC &middot; DPRt Basis Desa
           </p>
           <p className="text-indigo-600 dark:text-indigo-400 group-hover:underline text-[10px] font-semibold">
-            Klik untuk melihat susunan pengurus DPW &raquo;
+            Buka Halaman Susunan Pengurus DPW &raquo;
           </p>
         </div>
         <div className="mt-3 pt-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 p-2 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">

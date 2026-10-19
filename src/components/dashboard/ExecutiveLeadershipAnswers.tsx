@@ -55,17 +55,16 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               <Sparkles className="w-3 h-3 text-indigo-500" />
-              Executive Briefing · Pemetaan Keterisian Wilayah
+              Pemetaan Keterisian Wilayah
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
             <span className="text-xs text-slate-500 font-mono">Sulawesi Utara</span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
-            Jawaban Eksekutif: Status Keterisian Struktur & Keaktifan Kader
+            Struktur Keanggotaan dan pengurus
           </h3>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-4xl leading-relaxed">
-            Menjawab secara langsung pertanyaan pimpinan DPW: jumlah anggota aktif riil (anggota biasa vs pengurus ber-SK),
-            serta memetakan daerah mana saja (DPD Kab/Kota, DPC Kecamatan, DPRt Desa) yang strukturnya sudah{' '}
+            Pemetakan daerah (DPD Kab/Kota, DPC Kecamatan, DPRt Desa) yang strukturnya sudah{' '}
             <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Lengkap</strong>,{' '}
             <strong className="text-amber-600 dark:text-amber-400 font-semibold">Sebagian</strong>, atau{' '}
             <strong className="text-rose-600 dark:text-rose-400 font-semibold">Belum Terisi</strong>.
