@@ -40,7 +40,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider text-[11px]">
-            Pengurus & Anggota Riil Lapangan
+            Pengurus & Anggota Riil
           </span>
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
             <UserCheck className="w-4.5 h-4.5" />

@@ -56,6 +56,7 @@ import {
   Moon,
   Menu,
   Radio,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function App() {
@@ -805,6 +806,17 @@ export default function App() {
               <Menu className="w-5 h-5" />
             </button>
 
+            {activeTab !== 'dashboard' && (
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs mr-1"
+                title="Kembali ke Dashboard Utama"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline">Kembali</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
                 Menu &raquo;
@@ -909,6 +921,7 @@ export default function App() {
                 setSelectedMember(m);
                 setIsDetailModalOpen(true);
               }}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
@@ -929,6 +942,7 @@ export default function App() {
                 setSelectedMember(m);
                 setIsDetailModalOpen(true);
               }}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
@@ -950,6 +964,7 @@ export default function App() {
                 setSelectedMember(m);
                 setIsDetailModalOpen(true);
               }}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
@@ -971,6 +986,7 @@ export default function App() {
                 setSelectedMember(m);
                 setIsDetailModalOpen(true);
               }}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
@@ -1001,6 +1017,7 @@ export default function App() {
               }}
               onOpenDeletionRequest={handleOpenDeletionRequest}
               onDirectDelete={handleDirectDeleteMember}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
@@ -1009,6 +1026,7 @@ export default function App() {
             <SyncIdReconciliation
               members={accessibleMembers}
               onBatchUpdateMembers={handleBatchUpdateMembers}
+              onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
         </main>

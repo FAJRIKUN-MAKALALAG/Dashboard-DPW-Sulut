@@ -10,17 +10,20 @@ import {
   Key,
   RefreshCw,
   ExternalLink,
+  ArrowLeft,
 } from 'lucide-react';
 import { exportMembersToExcel } from '../utils/excelUtils';
 
 interface SyncIdReconciliationProps {
   members: Member[];
   onBatchUpdateMembers: (updated: Member[]) => void;
+  onBackToDashboard?: () => void;
 }
 
 export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
   members,
   onBatchUpdateMembers,
+  onBackToDashboard,
 }) => {
   const [searchKey, setSearchKey] = useState<string>('');
   const [reconcileFilter, setReconcileFilter] = useState<'all' | 'needs_ekta' | 'synced'>('all');
@@ -90,6 +93,16 @@ export const SyncIdReconciliation: React.FC<SyncIdReconciliationProps> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-5 rounded-xl shadow-2xs transition-colors">
         <div>
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="btn-white text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs mb-2.5 self-start"
+              title="Kembali ke Dashboard Utama"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Kembali ke Dashboard Utama</span>
+            </button>
+          )}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               Modul Sinkronisasi & Validasi ID NasDem
