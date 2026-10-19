@@ -179,9 +179,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   // Territory Context untuk Template Excel dan Import
   const territoryContext: TerritoryContext = useMemo(() => ({
     level,
-    dpd: selectedDpd,
-    dpc: level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined,
-    dprt: level === 'DPRt' ? selectedDprt : undefined,
+    dpd: level === 'DPW' ? 'Sulawesi Utara' : selectedDpd,
+    dpc: level === 'DPC' || level === 'DPRt' ? selectedDpc : (level === 'DPW' ? 'Wilayah DPW' : 'Umum (DPD)'),
+    dprt: level === 'DPRt' ? selectedDprt : 'Pusat/Umum',
   }), [level, selectedDpd, selectedDpc, selectedDprt]);
 
   const handleDownloadTemplateExcel = () => {
@@ -568,89 +568,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     XLSX.writeFile(wb, `SUSUNAN_PENGURUS_${level}_${territoryName}.xlsx`);
   };
 
-  // Import from Excel file
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
-
-        if (data.length <= 1) return;
-
-        let headerRowIdx = 0;
-        for (let i = 0; i < Math.min(5, data.length); i++) {
-          const rowStr = (data[i] || []).join(' ').toLowerCase();
-          if (rowStr.includes('jabatan') || rowStr.includes('nama')) {
-            headerRowIdx = i;
-            break;
-          }
-        }
-
-        const headers = (data[headerRowIdx] || []).map((h: any) =>
-          String(h || '').toLowerCase().trim()
-        );
-        const colJabatan = headers.findIndex((h: string) => h.includes('jabatan'));
-        const colNama = headers.findIndex((h: string) => h.includes('nama'));
-        const colNik = headers.findIndex((h: string) => h.includes('nik'));
-        const colEkta = headers.findIndex((h: string) => h.includes('kta') || h.includes('ekta'));
-        const colEmail = headers.findIndex((h: string) => h.includes('email'));
-        const colHp = headers.findIndex((h: string) =>
-          h.includes('telepon') || h.includes('hp') || h.includes('wa')
-        );
-        const colSosmed = headers.findIndex((h: string) =>
-          h.includes('sosmed') || h.includes('sosial')
-        );
-
-        const importedRows: GridRowItem[] = [];
-        for (let i = headerRowIdx + 1; i < data.length; i++) {
-          const row = data[i];
-          if (!row || row.length === 0) continue;
-
-          const jabatan = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
-          const nama = colNama !== -1 ? String(row[colNama] || '').trim() : '';
-          const nik = colNik !== -1 ? String(row[colNik] || '').trim() : '';
-          const ekta = colEkta !== -1 ? String(row[colEkta] || '').trim() : '';
-          const email = colEmail !== -1 ? String(row[colEmail] || '').trim() : '';
-          const hp = colHp !== -1 ? String(row[colHp] || '').trim() : '';
-          const sosmed = colSosmed !== -1 ? String(row[colSosmed] || '').trim() : '';
-
-          if (nama || jabatan) {
-            importedRows.push({
-              id: `imported_${i}_${Date.now()}`,
-              no: importedRows.length + 1,
-              subOrg: level === 'DPD' ? 'III. DEWAN PIMPINAN DAERAH' : `DEWAN PIMPINAN ${level}`,
-              jabatan: jabatan || 'Pengurus',
-              namaLengkap: nama,
-              nik,
-              nomorEKTA: ekta,
-              email,
-              nomorHP: hp,
-              sosmed,
-              isExisting: false,
-            });
-          }
-        }
-
-        if (importedRows.length > 0) {
-          setGridRows(importedRows);
-          setIsEditMode(true);
-          setSaveSuccessMsg(
-            `Berhasil membaca ${importedRows.length} baris dari berkas Excel. Silakan periksa & klik Simpan!`
-          );
-        }
-      } catch (err) {
-        console.error('Failed to parse excel:', err);
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
 
   // Metrics
   const totalRows = gridRows.length;
@@ -1127,6 +1045,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         session={session}
         onSaveMembersBatch={onSaveMembersBatch}
         onDeleteMembersBatch={onDeleteMembersBatch}
+        onSuccessRefresh={() => {
+          buildMatrixRows();
+        }}
       />
 
       {/* 6. Modal Cetak Dokumen Resmi Susunan Pengurus */}
