@@ -1094,13 +1094,26 @@ export async function parseTerritorialExcelFile(
       if (validCells.length >= 2) {
         // Abaikan baris judul formulir / petunjuk yang memiliki teks sangat panjang
         const firstCell = String(row[0] || '').toLowerCase().trim();
+        const joinedRow = row.map((c) => String(c || '').toLowerCase().trim()).join(' ');
+
         if (
           firstCell.includes('formulir') ||
           firstCell.includes('panduan') ||
           firstCell.includes('petunjuk') ||
           firstCell.includes('wilayah:') ||
-          firstCell.includes('partai') ||
-          firstCell.includes('dewan pimpinan')
+          firstCell.includes('susunan pengurus') ||
+          joinedRow.includes('susunan pengurus') ||
+          firstCell.includes('partai nasdem')
+        ) {
+          continue;
+        }
+
+        // Jangan jadikan baris cluster ("I. DEWAN PERTIMBANGAN") sebagai header kolom tabel!
+        if (
+          validCells.length <= 2 &&
+          (joinedRow.includes('dewan pertimbangan') ||
+            joinedRow.includes('dewan pakar') ||
+            joinedRow.includes('dewan pimpinan'))
         ) {
           continue;
         }
@@ -1134,7 +1147,7 @@ export async function parseTerritorialExcelFile(
 
     // Fallback: Jika tidak ada baris header formal, periksa apakah baris awal langsung berisi nama jabatan
     if (headerRowIdx === -1) {
-      for (let i = 0; i < Math.min(6, rawData.length); i++) {
+      for (let i = 0; i < Math.min(10, rawData.length); i++) {
         const row = rawData[i] || [];
         const c0 = String(row[0] || '').toLowerCase().trim();
         const c1 = String(row[1] || '').toLowerCase().trim();
@@ -1230,13 +1243,42 @@ export async function parseTerritorialExcelFile(
       if (colNama === -1) colNama = colJabatan === 1 ? 2 : 3;
     }
 
+    let currentSectionSubOrg = defaultSubOrg;
+
     for (let i = headerRowIdx + 1; i < rawData.length; i++) {
       const row = rawData[i];
       if (!row || row.length === 0) continue;
 
+      // 1. Cek apakah baris ini merupakan Baris Pemisah / Judul Cluster (Section Header)
+      // Contoh dokumen user: "I. DEWAN PERTIMBANGAN", "II. DEWAN PAKAR", "III. DEWAN PIMPINAN DAERAH"
+      const nonBlankCells = row.map((c) => String(c || '').trim()).filter(Boolean);
+      const rowJoined = nonBlankCells.join(' ').toUpperCase();
+
+      if (
+        rowJoined.includes('DEWAN PERTIMBANGAN') ||
+        rowJoined.includes('DEWAN PAKAR') ||
+        rowJoined.includes('DEWAN PIMPINAN')
+      ) {
+        if (rowJoined.includes('PERTIMBANGAN')) {
+          currentSectionSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+        } else if (rowJoined.includes('PAKAR')) {
+          currentSectionSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+        } else if (rowJoined.includes('PIMPINAN')) {
+          currentSectionSubOrg =
+            ctx.level === 'DPW'
+              ? 'DEWAN PIMPINAN WILAYAH'
+              : ctx.level === 'DPD'
+              ? 'III. DEWAN PIMPINAN DAERAH'
+              : ctx.level === 'DPC'
+              ? 'III. DEWAN PIMPINAN CABANG'
+              : 'DEWAN PIMPINAN RANTING';
+        }
+        continue; // Lewati baris judul cluster agar tidak masuk sebagai baris pengurus
+      }
+
       const noVal = colNo !== -1 ? Number(row[colNo]) || parsedRows.length + 1 : parsedRows.length + 1;
       let subOrgVal = colSubOrg !== -1 ? String(row[colSubOrg] || '').trim() : '';
-      if (!subOrgVal && defaultSubOrg) subOrgVal = defaultSubOrg;
+      if (!subOrgVal) subOrgVal = currentSectionSubOrg || defaultSubOrg;
 
       const jabatanVal = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
       const namaVal = colNama !== -1 ? String(row[colNama] || '').trim() : '';
@@ -1274,9 +1316,20 @@ export async function parseTerritorialExcelFile(
       }
 
       const isFilled = namaVal.length > 0;
+      
+      // Deteksi final subOrg: keyword jabatan lebih prioritas dari sectionFallback
+      let sectionFallback = currentSectionSubOrg || defaultSubOrg;
+      const jLow = jabatanVal.toLowerCase();
+      // Override jika jabatan mengandung kata kunci dewan yang eksplisit
+      if (jLow.includes('pertimbangan') || jLow.includes('wanhat') || jLow.includes('wantim')) {
+        sectionFallback = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+      } else if (jLow.includes('pakar') || jLow.includes('wanpak')) {
+        sectionFallback = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+      }
+
       let finalSubOrg =
         subOrgVal ||
-        defaultSubOrg ||
+        sectionFallback ||
         matchedSlot?.subOrg ||
         (rowLevel === 'DPW'
           ? 'DEWAN PIMPINAN WILAYAH'

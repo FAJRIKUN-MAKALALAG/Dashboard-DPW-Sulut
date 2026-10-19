@@ -97,6 +97,39 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
     return Array.from(map.entries()).sort(([a], [b]) => sortPriority(a) - sortPriority(b));
   }, [rowsToPrint, level]);
 
+  // Ambil Ketua & Sekretaris definitif dari gridRows untuk tanda tangan resmi
+  const ketuaRow = useMemo(() => {
+    return (
+      gridRows.find(
+        (r) =>
+          r.namaLengkap.trim() !== '' &&
+          (r.subOrg.includes('PIMPINAN') || r.subOrg.includes(level)) &&
+          r.jabatan.trim().toLowerCase() === 'ketua'
+      ) ||
+      gridRows.find(
+        (r) =>
+          r.namaLengkap.trim() !== '' &&
+          r.jabatan.trim().toLowerCase() === 'ketua'
+      )
+    );
+  }, [gridRows, level]);
+
+  const sekretarisRow = useMemo(() => {
+    return (
+      gridRows.find(
+        (r) =>
+          r.namaLengkap.trim() !== '' &&
+          (r.subOrg.includes('PIMPINAN') || r.subOrg.includes(level)) &&
+          r.jabatan.trim().toLowerCase() === 'sekretaris'
+      ) ||
+      gridRows.find(
+        (r) =>
+          r.namaLengkap.trim() !== '' &&
+          r.jabatan.trim().toLowerCase() === 'sekretaris'
+      )
+    );
+  }, [gridRows, level]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -321,11 +354,11 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
           </div>
 
           {/* Tabel Susunan Pengurus */}
-          <div className="mb-6 space-y-5">
+          <div className="mb-6 space-y-5 print:space-y-4">
             {groupedRows.map(([subOrgName, rows], groupIdx) => (
-              <div key={groupIdx} className="border border-slate-300 rounded-lg overflow-hidden">
+              <div key={groupIdx} className="border border-slate-300 rounded-lg overflow-hidden print:rounded-none print:border-slate-400 print-break-inside-avoid">
                 {/* Sub Organisasi Header Banner */}
-                <div className="bg-slate-800 text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-slate-800 print:bg-slate-900 text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
                   <span>{subOrgName}</span>
                   <span className="text-[10px] font-mono text-slate-300 font-normal">
                     {rows.filter((r) => r.namaLengkap.trim() !== '').length} / {rows.length} Terisi
@@ -334,16 +367,16 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
 
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-900 font-bold text-[11px] border-b border-slate-300">
-                      <th className="p-2 border-r border-slate-300 text-center w-8">No</th>
-                      <th className="p-2 border-r border-slate-300 w-1/3">Jabatan Pengurus</th>
-                      <th className="p-2 border-r border-slate-300 w-1/3">Nama Lengkap & Gelar</th>
-                      <th className="p-2 border-r border-slate-300">Nomor KTA / NIK</th>
-                      <th className="p-2 border-r border-slate-300">No. WhatsApp / HP</th>
+                    <tr className="bg-slate-100 print:bg-slate-200 text-slate-900 font-bold text-[11px] border-b border-slate-300 print:border-slate-400">
+                      <th className="p-2 border-r border-slate-300 print:border-slate-400 text-center w-8">No</th>
+                      <th className="p-2 border-r border-slate-300 print:border-slate-400 w-1/3">Jabatan Pengurus</th>
+                      <th className="p-2 border-r border-slate-300 print:border-slate-400 w-1/3">Nama Lengkap & Gelar</th>
+                      <th className="p-2 border-r border-slate-300 print:border-slate-400">Nomor KTA / NIK</th>
+                      <th className="p-2 border-r border-slate-300 print:border-slate-400">No. WhatsApp / HP</th>
                       <th className="p-2 text-center w-24">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                  <tbody className="divide-y divide-slate-200 print:divide-slate-300 text-slate-800">
                     {rows.map((row, rIdx) => {
                       const isFilled = row.namaLengkap.trim() !== '';
                       return (
@@ -351,19 +384,19 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                           key={row.id || rIdx}
                           className={
                             !isFilled
-                              ? 'bg-amber-50/50'
+                              ? 'bg-amber-50/50 print:bg-slate-50'
                               : rIdx % 2 === 0
                               ? 'bg-white'
-                              : 'bg-slate-50/60'
+                              : 'bg-slate-50/60 print:bg-slate-100/50'
                           }
                         >
-                          <td className="p-2 border-r border-slate-200 text-center font-mono text-[11px] text-slate-500">
+                          <td className="p-2 border-r border-slate-200 print:border-slate-300 text-center font-mono text-[11px] text-slate-500">
                             {rIdx + 1}
                           </td>
-                          <td className="p-2 border-r border-slate-200 font-semibold text-slate-900">
+                          <td className="p-2 border-r border-slate-200 print:border-slate-300 font-semibold text-slate-900">
                             {row.jabatan}
                           </td>
-                          <td className="p-2 border-r border-slate-200">
+                          <td className="p-2 border-r border-slate-200 print:border-slate-300">
                             {isFilled ? (
                               <span className="font-bold text-slate-950">{row.namaLengkap}</span>
                             ) : (
@@ -372,19 +405,19 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                               </span>
                             )}
                           </td>
-                          <td className="p-2 border-r border-slate-200 font-mono text-[11px] text-slate-600">
+                          <td className="p-2 border-r border-slate-200 print:border-slate-300 font-mono text-[11px] text-slate-600">
                             {row.nomorEKTA || (row.nik && !row.nik.startsWith('71002026') ? row.nik : '-')}
                           </td>
-                          <td className="p-2 border-r border-slate-200 text-slate-700 text-[11px]">
+                          <td className="p-2 border-r border-slate-200 print:border-slate-300 text-slate-700 text-[11px]">
                             {row.nomorHP && row.nomorHP !== '-' ? row.nomorHP : '-'}
                           </td>
                           <td className="p-2 text-center">
                             {isFilled ? (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 print:border-emerald-600">
                                 Aktif
                               </span>
                             ) : (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 print:border-amber-600">
                                 Lowong
                               </span>
                             )}
@@ -413,12 +446,16 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                 </div>
                 <div>
                   <p className="font-bold underline text-sm text-slate-950">
-                    {level === 'DPW'
-                      ? 'Dr. Ir. GS Vicky Lumentut, SH, M.Si'
-                      : 'SEKRETARIS DAERAH DEFINITIF'}
+                    {sekretarisRow?.namaLengkap ||
+                      (level === 'DPW'
+                        ? 'Dr. Ir. GS Vicky Lumentut, SH, M.Si'
+                        : 'SEKRETARIS DAERAH DEFINITIF')}
                   </p>
                   <p className="text-[10px] text-slate-600 font-mono">
-                    No. e-KTA: {level === 'DPW' ? 'ND-7100-2024-0002' : 'TERDAFTAR PUSAT'}
+                    No. e-KTA / NIK:{' '}
+                    {sekretarisRow?.nomorEKTA ||
+                      sekretarisRow?.nik ||
+                      (level === 'DPW' ? 'ND-7100-2024-0002' : 'TERDAFTAR PUSAT')}
                   </p>
                 </div>
               </div>
@@ -459,12 +496,16 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
                 </div>
                 <div>
                   <p className="font-bold underline text-sm text-slate-950">
-                    {level === 'DPW'
-                      ? 'Dr. J. Victor Mailangkay, SH, MH'
-                      : 'KETUA DAERAH DEFINITIF'}
+                    {ketuaRow?.namaLengkap ||
+                      (level === 'DPW'
+                        ? 'Dr. J. Victor Mailangkay, SH, MH'
+                        : 'KETUA DAERAH DEFINITIF')}
                   </p>
                   <p className="text-[10px] text-slate-600 font-mono">
-                    No. e-KTA: {level === 'DPW' ? 'ND-7100-2024-0001' : 'TERDAFTAR PUSAT'}
+                    No. e-KTA / NIK:{' '}
+                    {ketuaRow?.nomorEKTA ||
+                      ketuaRow?.nik ||
+                      (level === 'DPW' ? 'ND-7100-2024-0001' : 'TERDAFTAR PUSAT')}
                   </p>
                 </div>
               </div>
