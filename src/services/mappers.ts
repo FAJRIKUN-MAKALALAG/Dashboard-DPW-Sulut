@@ -1,4 +1,5 @@
 import { Member, AuditLog, DeletionRequest, MemberStatus, DeletionRequestStatus, AppUser, UserRole } from '../types';
+import { normalizeSubOrgName } from '../utils/jobMatchingUtils';
 
 export function sanitizeDate(dateStr?: string | null): string | null {
   if (!dateStr || !dateStr.trim()) return null;
@@ -88,6 +89,25 @@ export function mapDbRowToMember(row: any): Member {
     }
   }
 
+  // Normalisasi cerdas Sub-Organisasi (Dewan Pertimbangan, Dewan Pakar, Dewan Pimpinan)
+  const rawWil = (row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || '').trim();
+  let finalWilayahPenugasan: string | undefined = undefined;
+
+  if (rawWil) {
+    finalWilayahPenugasan = normalizeSubOrgName(
+      rawWil,
+      tingkatKepengurusan === 'Bukan Pengurus' ? 'DPD' : (tingkatKepengurusan as any)
+    );
+  } else if (isCouncilOrStructure) {
+    if (jUpper.includes('PERTIMBANGAN') || jUpper.includes('WANHAT') || jUpper.includes('WANTIM')) {
+      finalWilayahPenugasan = tingkatKepengurusan === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+    } else if (jUpper.includes('PAKAR') || jUpper.includes('WANPAK')) {
+      finalWilayahPenugasan = tingkatKepengurusan === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+    } else if (isPengurus && tingkatKepengurusan !== 'Bukan Pengurus') {
+      finalWilayahPenugasan = normalizeSubOrgName(undefined, tingkatKepengurusan as any);
+    }
+  }
+
   return {
     nik: String(row.nik || ''),
     nomorEKTA: row.nomor_ekta || '',
@@ -100,7 +120,7 @@ export function mapDbRowToMember(row: any): Member {
     dprt: row.dprt || '',
     isPengurus,
     tingkatKepengurusan,
-    wilayahPenugasan: row.wilayah_penugasan || row.sub_organisasi || row.badan_sayap || undefined,
+    wilayahPenugasan: finalWilayahPenugasan,
     nomorSK: row.nomor_sk || undefined,
     tanggalSK: row.tanggal_sk || undefined,
     kodeReferral: row.kode_referral || undefined,

@@ -48,8 +48,8 @@ export interface SulutStructureSummary {
 
 /**
  * Standard position count targets based on official templates:
- * - DPW: 34 jabatan inti dewan pimpinan wilayah
- * - DPD: 34 jabatan susunan pengurus kabupaten/kota
+ * - DPW: 36 jabatan inti dewan pimpinan wilayah
+ * - DPD: 36 jabatan susunan pengurus kabupaten/kota
  * - DPC: 17 jabatan pengurus kecamatan
  * - DPRt: 9 jabatan pengurus ranting desa/kelurahan
  */

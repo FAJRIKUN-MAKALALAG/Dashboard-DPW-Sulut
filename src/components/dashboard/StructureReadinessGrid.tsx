@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Member } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch, getMemberSubOrgCategory } from '../../utils/structureReadinessUtils';
+import { isDpdMatch, getMemberSubOrgCategory, REQUIRED_POSITIONS } from '../../utils/structureReadinessUtils';
 import {
   Users,
   ChevronRight,
@@ -49,7 +49,7 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
             Status Struktur Kepengurusan DPW &rarr; DPD &rarr; DPC &rarr; DPRt
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Sistem pendataan terintegrasi: memantau legalitas SK, keterisian 34 jabatan DPD, 17 jabatan DPC kecamatan, dan DPRt desa.
+            Sistem pendataan terintegrasi: memantau legalitas SK, keterisian 36 jabatan DPD, 17 jabatan DPC kecamatan, dan DPRt desa.
           </p>
         </div>
 
@@ -112,17 +112,17 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
               </ul>
             </div>
 
-            {/* Box 2: Struktur DPD (34 Jabatan) */}
+            {/* Box 2: Struktur DPD (36 Jabatan) */}
             <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-blue-900/40 space-y-1.5 shadow-2xs">
               <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[11px] text-indigo-700 dark:text-indigo-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                2. Susunan 34 Jabatan DPD
+                2. Susunan 36 Jabatan DPD
               </span>
               <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-disc list-inside">
                 <li><strong>KSB Inti</strong> (Ketua, Sekretaris, Bendahara)</li>
-                <li><strong>26 Wakil Ketua Bidang</strong> (Bappilu, OKK, dll)</li>
+                <li><strong>27 Wakil Ketua Bidang</strong> (Bappilu, OKK, dll)</li>
                 <li>Wakil Sekretaris & Bendahara</li>
-                <li><strong>Dewan Pertimbangan & Pakar</strong> (4 org)</li>
+                <li><strong>Dewan Pertimbangan & Pakar</strong></li>
               </ul>
             </div>
 
@@ -178,8 +178,8 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
           const countPert = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN').length;
           const countPak = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PAKAR').length;
           const totalDpdFilled = countPim + countPert + countPak;
-          const dpdTarget = 34; // Standar formasi SK DPD
-          const dpdPercent = Math.min(100, Math.round((totalDpdFilled / dpdTarget) * 100));
+          const dpdTarget = REQUIRED_POSITIONS.DPD; // Standar formasi SK DPD (36 Jabatan)
+          const dpdPercent = Math.min(100, Math.round((countPim / dpdTarget) * 100));
 
           const countDprt = regPengurus.filter((m) => m.tingkatKepengurusan === 'DPRt').length;
 
@@ -202,17 +202,21 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
 
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      totalDpdFilled >= dpdTarget
+                      countPim >= dpdTarget
                         ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                        : totalDpdFilled > 0
+                        : countPim > 0
                         ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                        : totalDpdFilled > 0
+                        ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
                         : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
                     }`}
                   >
-                    {totalDpdFilled >= dpdTarget
-                      ? '✓ Lengkap 100%'
+                    {countPim >= dpdTarget
+                      ? '✓ Lengkap 36/36'
+                      : countPim > 0
+                      ? `${countPim}/${dpdTarget} Terisi`
                       : totalDpdFilled > 0
-                      ? `${totalDpdFilled}/${dpdTarget} Terisi`
+                      ? `${totalDpdFilled} Pengurus`
                       : 'Belum Ada SK'}
                   </span>
                 </div>
@@ -220,9 +224,9 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                 {/* Progress Bar Keterisian DPD */}
                 <div className="space-y-1 mb-3">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-slate-500">Keterisian Jabatan DPD:</span>
+                    <span className="text-slate-500">Keterisian Formasi DPD:</span>
                     <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                      {dpdPercent}% ({totalDpdFilled}/{dpdTarget})
+                      {dpdPercent}% ({countPim}/{dpdTarget})
                     </span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -244,7 +248,7 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                   <div className="flex justify-between items-center">
                     <span className="font-medium">1. Struktur DPD (Kab/Kota):</span>
                     <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {totalDpdFilled} / {dpdTarget} Posisi
+                      {countPim} / {dpdTarget} Posisi
                     </span>
                   </div>
                   <div className="pl-3 flex flex-wrap items-center gap-1 text-[9.5px]">
@@ -252,10 +256,10 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                       Pimpinan: <strong>{countPim}/36</strong>
                     </span>
                     <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/60 dark:border-amber-900/40">
-                      Pertimbangan: <strong>{countPert}/4</strong>
+                      Pertimbangan: <strong>{countPert > 0 ? `${countPert} Org` : '0'}</strong>
                     </span>
                     <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-900/40">
-                      Pakar: <strong>{countPak}/4</strong>
+                      Pakar: <strong>{countPak > 0 ? `${countPak} Org` : '0'}</strong>
                     </span>
                   </div>
 

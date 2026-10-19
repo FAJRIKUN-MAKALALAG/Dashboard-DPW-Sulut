@@ -165,7 +165,7 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
             <div className="flex items-center justify-between">
               <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Lengkap (34 Jabatan):
+                Lengkap (36 Jabatan):
               </span>
               <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                 {readinessSummary.fullyCompletedDpds.length} DPD
@@ -353,7 +353,7 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
                   {dpd.status === 'LENGKAP' ? (
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
-                      Semua 34 jabatan terisi lengkap
+                      Semua 36 jabatan terisi lengkap
                     </span>
                   ) : dpd.status === 'SEBAGIAN' ? (
                     <span>

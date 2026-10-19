@@ -339,3 +339,20 @@ export function normalizeSubOrgName(
   }
 }
 
+/**
+ * Menentukan urutan hierarki jabatan dalam Dewan Pertimbangan / Dewan Pakar
+ * (Ketua -> Wakil Ketua -> Sekretaris -> Wakil Sekretaris -> Bendahara -> Wakil Bendahara -> Anggota -> lainnya)
+ */
+export function getCouncilRank(jabatan?: string): number {
+  if (!jabatan) return 99;
+  const j = jabatan.toLowerCase().trim();
+  if (j === 'ketua' || (j.startsWith('ketua') && !j.includes('wakil'))) return 1;
+  if (j.includes('wakil ketua')) return 2;
+  if (j === 'sekretaris' || (j.startsWith('sekretaris') && !j.includes('wakil'))) return 3;
+  if (j.includes('wakil sekretaris')) return 4;
+  if (j === 'bendahara' || (j.startsWith('bendahara') && !j.includes('wakil'))) return 5;
+  if (j.includes('wakil bendahara')) return 6;
+  if (j.includes('anggota')) return 7;
+  return 10;
+}
+
