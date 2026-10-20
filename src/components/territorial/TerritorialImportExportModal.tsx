@@ -37,7 +37,7 @@ import {
 } from '../../utils/territorialExcelTemplateUtils';
 import { parseSqlInsertQuery } from '../../utils/sqlQueryParser';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
-import { cleanDataWithGeminiAi } from '../../services/aiDataCleanerService';
+import { cleanDataWithGeminiAi, AiProgressUpdate } from '../../services/aiDataCleanerService';
 
 interface TerritorialImportExportModalProps {
   isOpen: boolean;
@@ -84,6 +84,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     matchedCount: number;
     correctedCount: number;
   } | null>(null);
+  const [aiProgress, setAiProgress] = useState<AiProgressUpdate | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -282,8 +283,13 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     if (!parseResult || parseResult.rows.length === 0) return;
     setIsAiCleaning(true);
     setParseError(null);
+    setAiProgress(null);
     try {
-      const res = await cleanDataWithGeminiAi(parseResult.rows, territoryContext);
+      const res = await cleanDataWithGeminiAi(
+        parseResult.rows,
+        territoryContext,
+        (progress) => setAiProgress(progress)
+      );
       if (res.success && res.items.length > 0) {
         const updatedRows = parseResult.rows.map((origRow, i) => {
           const aiItem = res.items[i];
@@ -581,6 +587,69 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                     </div>
                   </div>
                 </div>
+
+                {/* Tombol Pembersihan/Hard Delete Data Wilayah sebelum Import Excel */}
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800">
+                  <div className="text-xs text-slate-600 dark:text-slate-400">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Hard Delete / Bersihkan Wilayah:</span>
+                    <span className="ml-1 text-[11px]">Hapus data pengurus lama di {territoryDisplayName} agar import Excel menjadi bersih tanpa data duplikat/ganda.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmClear(true)}
+                    disabled={isClearing || isParsing || existingTerritoryMembers.length === 0}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={`Hapus semua data ${existingTerritoryMembers.length} pengurus di ${territoryDisplayName} agar bersih sebelum import baru`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>Hapus Semua Data Wilayah Ini ({existingTerritoryMembers.length})</span>
+                  </button>
+                </div>
+
+                {/* Dialog Konfirmasi Hapus Bersih Data Wilayah (Mode Excel) */}
+                {showConfirmClear && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-rose-300 dark:border-rose-900/80 bg-rose-50/90 dark:bg-rose-950/50 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      <div className="text-xs text-rose-900 dark:text-rose-200">
+                        <p className="font-bold">
+                          Konfirmasi Hard Delete Seluruh Data Pengurus {territoryDisplayName}?
+                        </p>
+                        <p className="text-[11px] text-rose-800 dark:text-rose-300 mt-0.5">
+                          Tindakan ini akan menghapus <strong>{existingTerritoryMembers.length} pengurus</strong> di {territoryDisplayName} dari database (melalui backend) dan layar matriks. Gunakan untuk memastikan tidak ada pengurus duplikat saat mengunggah file Excel baru.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmClear(false)}
+                        disabled={isClearing}
+                        className="px-3 py-1 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllTerritoryData}
+                        disabled={isClearing}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {isClearing ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Menghapus...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3 h-3" />
+                            <span>Ya, Hapus Semua Data Wilayah Ini</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Konten Tab 2: Tempel Query SQL Editor */
@@ -797,6 +866,31 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                   )}
                 </button>
               </div>
+
+              {/* Progress Bar untuk Pemrosesan Massal (Ratusan hingga 2.000+ data) */}
+              {isAiCleaning && aiProgress && (
+                <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-100">
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
+                      <span>{aiProgress.currentLabel}</span>
+                    </span>
+                    <span className="text-indigo-700 dark:text-indigo-300 font-mono font-black">
+                      {aiProgress.percentage}% ({aiProgress.current}/{aiProgress.total})
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${aiProgress.percentage}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>Batch {aiProgress.currentBatch} dari {aiProgress.totalBatches}</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">Auto-Chunking 2.000+ data anti-timeout aktif ⚡</span>
+                  </div>
+                </div>
+              )}
 
               {/* Status Hasil AI */}
               {aiStats && (

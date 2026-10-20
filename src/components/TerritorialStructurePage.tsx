@@ -3,7 +3,7 @@ import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
 import { isDpdMatch, isDpcMatch, isDprtMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from '../utils/structureReadinessUtils';
-import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch, getCouncilRank } from '../utils/jobMatchingUtils';
+import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch, getCouncilRank, getPimpinanRank } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
 import {
@@ -295,6 +295,11 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       });
     }
 
+    // Urutan sesuai berkas Excel (anggota tanpa urutan tetap di belakang, urutan relatifnya dipertahankan)
+    matchedMembers = [...matchedMembers].sort(
+      (a, b) => (a.urutan ?? Number.MAX_SAFE_INTEGER) - (b.urutan ?? Number.MAX_SAFE_INTEGER)
+    );
+
     const assignedMemberNiks = new Set<string>();
 
     // Saring template yang tidak dihapus secara eksplisit oleh pengguna
@@ -438,38 +443,39 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     }
 
     // =========================================================================
-    // 3. DEWAN PIMPINAN (PENGURUS DPD 36 JABATAN / DPW 36 / DPC 17 / DPRt 9)
-    // Sesuai permintaan user:
-    // "kalau ada data yang di masukan tapi di sistem baca pada bagian jabatan x itu
-    // belum ada yang menduduki jabatan x itu, maka data di jabatan x itu tetap ada
-    // dan dikasih kosong.. agar nnti ketika ingin menambahkan data sendiri dari
-    // matriks table itu gampang.."
+    // 3. DEWAN PIMPINAN (PENGURUS DPD / DPW / DPC / DPRT)
+    // Fleksibel mengikuti data riil hasil import (berapapun jumlahnya, misal 20, 36, atau 40).
+    // Keduanya (nama dan jabatan asli) ditarik lengkap, dan urutannya tertata rapi
+    // dari Ketua -> Para Wakil Ketua -> Sekretaris -> Para Wakil Sekretaris -> Bendahara -> Para Wakil Bendahara -> Lainnya.
     // =========================================================================
-    pimpinanTemplateSlots.forEach((slot, idx) => {
-      const { matchedMember, displayTitle } = matchMemberToSlot(
-        slot,
-        pimpinanMembers,
-        assignedMemberNiks
-      );
+    if (pimpinanMembers.length > 0) {
+      const sortedPimpinan = [...pimpinanMembers].sort((a, b) => {
+        const rankA = getPimpinanRank(a.jabatan, pimpinanTemplateSlots);
+        const rankB = getPimpinanRank(b.jabatan, pimpinanTemplateSlots);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.urutan ?? 999) - (b.urutan ?? 999);
+      });
 
-      if (matchedMember) {
-        assignedMemberNiks.add(matchedMember.nik);
+      sortedPimpinan.forEach((m, idx) => {
+        assignedMemberNiks.add(m.nik);
         rows.push({
-          id: matchedMember.nik,
-          no: slot.no,
-          subOrg: slot.subOrg,
-          jabatan: displayTitle,
-          namaLengkap: matchedMember.namaLengkap,
-          nik: matchedMember.nik,
-          nomorEKTA: matchedMember.nomorEKTA || '',
-          email: matchedMember.email || '',
-          nomorHP: matchedMember.nomorHP || '',
-          sosmed: matchedMember.sosmed || '',
+          id: m.nik,
+          no: idx + 1,
+          subOrg: pimpinanSubOrgName,
+          jabatan: m.jabatan || 'Pengurus',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
           isExisting: true,
-          originalNik: matchedMember.nik,
+          originalNik: m.nik,
         });
-      } else {
-        // Jabatan resmi formasi SK belum ada yang menduduki: tetap ada dan dikasih kosong
+      });
+    } else if (pimpinanTemplateSlots.length > 0) {
+      // Jika belum ada data riil diimpor, sediakan slot template kosong siap isi
+      pimpinanTemplateSlots.forEach((slot, idx) => {
         rows.push({
           id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
           no: slot.no,
@@ -483,8 +489,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           sosmed: '',
           isExisting: false,
         });
-      }
-    });
+      });
+    }
+
 
     // =========================================================================
     // 4. ANGGOTA EKSTRA/TAMBAHAN (ANTI DATA-LOSS)
@@ -583,6 +590,51 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     // 2. Hapus baris dari state tabel (data kader di DB tidak dihapus, tetap terjaga)
     setGridRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  // Hard Delete baris-baris yang dipilih langsung dari database dan matriks
+  const handleDeleteSelectedRows = (selectedIds: string[]) => {
+    if (selectedIds.length === 0) return;
+
+    const idSet = new Set(selectedIds);
+    const niksToDelete: string[] = [];
+
+    gridRows.forEach((r) => {
+      if (idSet.has(r.id)) {
+        const nikTarget = r.originalNik || (r.nik && !r.id.startsWith('empty_') ? r.nik : '');
+        if (nikTarget) {
+          niksToDelete.push(nikTarget);
+        }
+      }
+    });
+
+    // Panggil delete batch ke database melalui onDeleteMembersBatch (backend API)
+    if (niksToDelete.length > 0 && onDeleteMembersBatch) {
+      const territoryLabel = level === 'DPW' ? 'DPW Sulawesi Utara' : `${level} ${selectedDpd}`;
+      onDeleteMembersBatch(niksToDelete, territoryLabel);
+    }
+
+    // Perbarui slot di tampilan (jika template slot, simpan agar dikosongkan/dibersihkan)
+    setGridRows((prev) =>
+      prev.map((row) => {
+        if (!idSet.has(row.id)) return row;
+        // Kosongkan nama & data kader pada baris template
+        return {
+          ...row,
+          namaLengkap: '',
+          nik: '',
+          nomorEKTA: '',
+          email: '',
+          nomorHP: '',
+          sosmed: '',
+          isExisting: false,
+          originalNik: undefined,
+        };
+      })
+    );
+
+    setSaveSuccessMsg(`Berhasil hard delete ${niksToDelete.length} data pengurus dari database!`);
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
   // Reset/Pulihkan semua slot template bawaan partai yang sempat dihapus
@@ -1207,6 +1259,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           officialTitle={getOfficialTitle()}
           onCellChange={handleCellChange}
           onDeleteRow={handleDeleteRow}
+          onDeleteSelectedRows={handleDeleteSelectedRows}
           onAddNewRowForSubOrg={handleAddNewRow}
         />
       </div>

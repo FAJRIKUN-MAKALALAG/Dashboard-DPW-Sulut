@@ -9,6 +9,7 @@ import {
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch } from './structureReadinessUtils';
 import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
+import { makeGeneratedEkta, isGeneratedNik, isGeneratedEkta } from './generatedIds';
 import { GridRowItem } from '../components/matrix';
 
 export interface TerritoryContext {
@@ -533,42 +534,114 @@ export function downloadTerritorialExcelTemplate(
   ];
 
   let dataCount = 0;
-  if (currentRows && currentRows.length > 0) {
-    dataCount = currentRows.length;
-    currentRows.forEach((r, idx) => {
-      const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
-      sheetData.push([
-        idx + 1,
-        r.subOrg || `DEWAN PIMPINAN ${ctx.level}`,
-        r.jabatan || 'Pengurus',
-        r.namaLengkap || '',
-        r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
-        r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
-        '',
-        r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
-        r.email || '',
-        '',
-        isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
-      ]);
-    });
-  } else {
-    dataCount = slots.length;
-    slots.forEach((s, idx) => {
-      sheetData.push([
-        idx + 1,
-        s.subOrg,
-        s.jabatan,
-        '', // Kosong dengan highlight kuning di Excel
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '⚡ LOWONG (Silakan Diisi)',
-      ]);
-    });
-  }
+
+  // Kelompokkan dewan resmi agar template selalu mencakup:
+  // I. Dewan Pertimbangan (Wankar), II. Dewan Pakar (Wangan), dan III. Dewan Pimpinan Daerah (36 Jabatan)
+  const pertimbanganSlots = slots.filter((s) => s.subOrg.toUpperCase().includes('PERTIMBANGAN'));
+  const pakarSlots = slots.filter((s) => s.subOrg.toUpperCase().includes('PAKAR'));
+  const pimpinanSlots = slots.filter(
+    (s) =>
+      !s.subOrg.toUpperCase().includes('PERTIMBANGAN') &&
+      !s.subOrg.toUpperCase().includes('PAKAR')
+  );
+
+  const currentPertimbangan = (currentRows || []).filter(
+    (r) => (r.subOrg || '').toUpperCase().includes('PERTIMBANGAN') || (r.subOrg || '').toUpperCase().includes('WANKAR')
+  );
+  const currentPakar = (currentRows || []).filter(
+    (r) => (r.subOrg || '').toUpperCase().includes('PAKAR') || (r.subOrg || '').toUpperCase().includes('WANGAN')
+  );
+  const currentPimpinan = (currentRows || []).filter(
+    (r) =>
+      !(r.subOrg || '').toUpperCase().includes('PERTIMBANGAN') &&
+      !(r.subOrg || '').toUpperCase().includes('WANKAR') &&
+      !(r.subOrg || '').toUpperCase().includes('PAKAR') &&
+      !(r.subOrg || '').toUpperCase().includes('WANGAN')
+  );
+
+  const addRowsForCouncil = (
+    councilSubOrg: string,
+    existingRows: GridRowItem[],
+    defaultSlots: PositionSlot[]
+  ) => {
+    if (existingRows.length > 0) {
+      existingRows.forEach((r, idx) => {
+        dataCount++;
+        const isRowFilled = Boolean(r.namaLengkap && r.namaLengkap.trim() !== '');
+        sheetData.push([
+          idx + 1,
+          r.subOrg || councilSubOrg,
+          r.jabatan || 'Pengurus',
+          r.namaLengkap || '',
+          r.nik && !isGeneratedNik(r.nik) ? r.nik : '',
+          r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+          '',
+          r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
+          r.email || '',
+          '',
+          isRowFilled ? '✓ TERISI (Aktif)' : '⚡ LOWONG (Silakan Diisi)',
+        ]);
+      });
+    } else {
+      defaultSlots.forEach((s, idx) => {
+        dataCount++;
+        sheetData.push([
+          idx + 1,
+          s.subOrg,
+          s.jabatan,
+          '', // Kosong dengan highlight kuning di Excel
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '⚡ LOWONG (Silakan Diisi)',
+        ]);
+      });
+    }
+  };
+
+  // 1. Seksi I: Dewan Pertimbangan (Wankar)
+  addRowsForCouncil(
+    ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN',
+    currentPertimbangan,
+    pertimbanganSlots.length > 0
+      ? pertimbanganSlots
+      : [
+          { no: 1, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Ketua' },
+          { no: 2, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Wakil Ketua' },
+          { no: 3, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Sekretaris' },
+          { no: 4, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Anggota' },
+        ]
+  );
+
+  // 2. Seksi II: Dewan Pakar (Wangan)
+  addRowsForCouncil(
+    ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR',
+    currentPakar,
+    pakarSlots.length > 0
+      ? pakarSlots
+      : [
+          { no: 1, subOrg: 'II. DEWAN PAKAR', jabatan: 'Ketua' },
+          { no: 2, subOrg: 'II. DEWAN PAKAR', jabatan: 'Wakil Ketua' },
+          { no: 3, subOrg: 'II. DEWAN PAKAR', jabatan: 'Sekretaris' },
+          { no: 4, subOrg: 'II. DEWAN PAKAR', jabatan: 'Anggota' },
+        ]
+  );
+
+  // 3. Seksi III: Dewan Pimpinan (Pimpinan DPD / DPW 36 Jabatan Baku)
+  addRowsForCouncil(
+    ctx.level === 'DPW'
+      ? 'DEWAN PIMPINAN WILAYAH'
+      : ctx.level === 'DPD'
+      ? 'III. DEWAN PIMPINAN DAERAH'
+      : ctx.level === 'DPC'
+      ? 'III. DEWAN PIMPINAN CABANG'
+      : 'DEWAN PIMPINAN RANTING',
+    currentPimpinan,
+    pimpinanSlots
+  );
 
   // Baris panduan visual di bagian bawah
   sheetData.push(
@@ -670,8 +743,8 @@ export function downloadAdvisoryOnlyExcelTemplate(
           r.subOrg,
           r.jabatan || 'Pengurus',
           r.namaLengkap || '',
-          r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
-          r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+          r.nik && !isGeneratedNik(r.nik) ? r.nik : '',
+          r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
           '',
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
@@ -769,8 +842,8 @@ export function downloadExpertOnlyExcelTemplate(
           r.subOrg,
           r.jabatan || 'Pengurus',
           r.namaLengkap || '',
-          r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
-          r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+          r.nik && !isGeneratedNik(r.nik) ? r.nik : '',
+          r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
           '',
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
@@ -871,8 +944,8 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.subOrg,
         r.jabatan || 'Pengurus',
         r.namaLengkap || '',
-        r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
-        r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+        r.nik && !isGeneratedNik(r.nik) ? r.nik : '',
+        r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
         '',
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
@@ -927,8 +1000,8 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.subOrg,
         r.jabatan || 'Pengurus',
         r.namaLengkap || '',
-        r.nik && !r.nik.startsWith('71002026') ? r.nik : '',
-        r.nomorEKTA && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
+        r.nik && !isGeneratedNik(r.nik) ? r.nik : '',
+        r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026') ? r.nomorEKTA : '',
         '',
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
@@ -1043,7 +1116,7 @@ export async function parseTerritorialExcelFile(
   const isValidNik = (nik?: string): boolean => {
     if (!nik) return false;
     const clean = String(nik).replace(/[^0-9]/g, '');
-    if (clean.length < 10) return false;
+    if (clean.length !== 16) return false; // backend mewajibkan NIK tepat 16 digit
     if (/^0+$/.test(clean)) return false;
     if (/0{8,}/.test(clean)) return false;
     return true;
@@ -1052,6 +1125,15 @@ export async function parseTerritorialExcelFile(
   let filledCount = 0;
   let matchedPositions = 0;
   let customPositions = 0;
+
+  // Urutan baris Excel per (DPD + sub-organisasi): dipakai agar susunan tidak acak setelah disimpan
+  const urutanCounter = new Map<string, number>();
+  const nextUrutan = (dpd: string, subOrg: string): number => {
+    const key = `${dpd}|${subOrg}`.toLowerCase();
+    const next = (urutanCounter.get(key) || 0) + 1;
+    urutanCounter.set(key, next);
+    return next;
+  };
 
   // Baca seluruh sheet yang relevan dalam berkas Excel
   for (const sheetName of wb.SheetNames) {
@@ -1230,16 +1312,60 @@ export async function parseTerritorialExcelFile(
       if (colNama === -1) colNama = colJabatan === 1 ? 2 : 3;
     }
 
+    let activeSectionSubOrg =
+      defaultSubOrg ||
+      (ctx.level === 'DPW'
+        ? 'DEWAN PIMPINAN WILAYAH'
+        : ctx.level === 'DPD'
+        ? 'III. DEWAN PIMPINAN DAERAH'
+        : ctx.level === 'DPC'
+        ? 'III. DEWAN PIMPINAN CABANG'
+        : 'DEWAN PIMPINAN RANTING');
+
     for (let i = headerRowIdx + 1; i < rawData.length; i++) {
       const row = rawData[i];
       if (!row || row.length === 0) continue;
 
+      // Cek apakah baris ini adalah baris pemisah / judul seksi (misal: "I. DEWAN PERTIMBANGAN", "DEWAN PAKAR", dll)
+      const allRowCells = row.map((c) => String(c || '').toLowerCase().trim());
+      const rowCombined = allRowCells.join(' ');
+      const rawNama = colNama !== -1 ? String(row[colNama] || '').trim() : '';
+
+      // Jika kolom nama kosong dan ada indikator nama dewan, switch seksi aktif otomatis
+      if (!rawNama) {
+        if (rowCombined.includes('pertimbangan') || rowCombined.includes('wankar')) {
+          activeSectionSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+          continue;
+        } else if (rowCombined.includes('pakar') || rowCombined.includes('wangan')) {
+          activeSectionSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+          continue;
+        } else if (
+          rowCombined.includes('pimpinan') ||
+          rowCombined.includes('dewan pimpinan daerah') ||
+          rowCombined.includes('pengurus harian') ||
+          rowCombined.includes('pengurus dpd')
+        ) {
+          activeSectionSubOrg =
+            ctx.level === 'DPW'
+              ? 'DEWAN PIMPINAN WILAYAH'
+              : ctx.level === 'DPD'
+              ? 'III. DEWAN PIMPINAN DAERAH'
+              : 'III. DEWAN PIMPINAN CABANG';
+          continue;
+        } else if (
+          rowCombined.includes('panduan') ||
+          rowCombined.includes('petunjuk') ||
+          rowCombined.includes('catatan') ||
+          rowCombined.includes('legend')
+        ) {
+          continue;
+        }
+      }
+
       const noVal = colNo !== -1 ? Number(row[colNo]) || parsedRows.length + 1 : parsedRows.length + 1;
       let subOrgVal = colSubOrg !== -1 ? String(row[colSubOrg] || '').trim() : '';
-      if (!subOrgVal && defaultSubOrg) subOrgVal = defaultSubOrg;
-
       const jabatanVal = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
-      const namaVal = colNama !== -1 ? String(row[colNama] || '').trim() : '';
+      const namaVal = rawNama;
       let nikVal = colNik !== -1 ? String(row[colNik] || '').replace(/[^0-9]/g, '').trim() : '';
       const ektaVal = colEkta !== -1 ? String(row[colEkta] || '').replace(/[^0-9]/g, '').trim() : '';
       const genderVal = colGender !== -1 ? String(row[colGender] || '').trim() : '';
@@ -1265,27 +1391,55 @@ export async function parseTerritorialExcelFile(
 
       if (!jabatanVal && !namaVal) continue;
 
-      const matchedSlot = slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan));
+      // 1. Klasifikasi Sub-Organisasi secara cerdas & otomatis
+      let finalSubOrg = '';
+      const rawSubLower = (subOrgVal || '').toLowerCase();
+      const jabLower = (jabatanVal || '').toLowerCase();
+
+      if (rawSubLower.includes('pertimbangan') || rawSubLower.includes('wankar')) {
+        finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+        activeSectionSubOrg = finalSubOrg;
+      } else if (rawSubLower.includes('pakar') || rawSubLower.includes('wangan')) {
+        finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+        activeSectionSubOrg = finalSubOrg;
+      } else if (
+        rawSubLower.includes('pimpinan') ||
+        rawSubLower.includes('dpd') ||
+        rawSubLower.includes('wilayah') ||
+        rawSubLower.includes('cabang')
+      ) {
+        finalSubOrg =
+          ctx.level === 'DPW'
+            ? 'DEWAN PIMPINAN WILAYAH'
+            : ctx.level === 'DPD'
+            ? 'III. DEWAN PIMPINAN DAERAH'
+            : 'III. DEWAN PIMPINAN CABANG';
+        activeSectionSubOrg = finalSubOrg;
+      } else if (jabLower.includes('pertimbangan') || jabLower.includes('wankar')) {
+        finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+      } else if (jabLower.includes('pakar') || jabLower.includes('wangan')) {
+        finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+      } else {
+        finalSubOrg = activeSectionSubOrg;
+      }
+
+      finalSubOrg = normalizeSubOrgName(finalSubOrg, rowLevel);
+
+      // 2. Cocokkan jabatan dengan slot baku di sub-organisasi yang sama terlebih dahulu
+      const matchedSlot =
+        slots.find(
+          (s) =>
+            normalizeSubOrgName(s.subOrg, rowLevel) === finalSubOrg &&
+            isJobTitleMatch(jabatanVal, s.jabatan, s.subOrg)
+        ) ||
+        slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan, s.subOrg));
+
       const isMatched = !!matchedSlot;
       if (isMatched) {
         matchedPositions++;
       } else if (jabatanVal) {
         customPositions++;
       }
-
-      const isFilled = namaVal.length > 0;
-      let finalSubOrg =
-        subOrgVal ||
-        defaultSubOrg ||
-        matchedSlot?.subOrg ||
-        (rowLevel === 'DPW'
-          ? 'DEWAN PIMPINAN WILAYAH'
-          : rowLevel === 'DPD'
-          ? 'III. DEWAN PIMPINAN DAERAH'
-          : rowLevel === 'DPC'
-          ? 'III. DEWAN PIMPINAN CABANG'
-          : 'DEWAN PIMPINAN RANTING');
-      finalSubOrg = normalizeSubOrgName(finalSubOrg, rowLevel);
 
       if (isFilled) {
         filledCount++;
@@ -1322,7 +1476,7 @@ export async function parseTerritorialExcelFile(
         const memberObj: Member = {
           ...(existingMember || {}),
           nik: nikVal,
-          nomorEKTA: ektaVal || existingMember?.nomorEKTA || nikVal,
+          nomorEKTA: ektaVal || existingMember?.nomorEKTA || makeGeneratedEkta(nikVal),
           namaLengkap: namaVal,
           email: emailVal || existingMember?.email || undefined,
           nomorHP: hpVal && hpVal !== '-' ? hpVal : (existingMember?.nomorHP || '-'),
@@ -1339,6 +1493,7 @@ export async function parseTerritorialExcelFile(
           isPengurus: true,
           tingkatKepengurusan: rowLevel,
           wilayahPenugasan: finalSubOrg,
+          urutan: nextUrutan(rowDpd, finalSubOrg),
           nomorSK:
             existingMember?.nomorSK ||
             `SK-${rowLevel}-${rowDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,

@@ -25,7 +25,10 @@ import {
   insertDeletionRequestToSupabase,
   updateDeletionRequestInSupabase,
   subscribeToAllRealtime,
-} from './utils/supabaseClient';
+  getToken,
+  clearToken,
+  AUTH_EXPIRED_EVENT,
+} from './utils/backendClient';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { MemberManagement } from './components/MemberManagement';
 import { SyncIdReconciliation } from './components/SyncIdReconciliation';
@@ -69,7 +72,7 @@ export default function App() {
   );
   const [session, setSession] = useState<UserSession>(() => loadSession());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('nasdem_sulut_authenticated') === 'true';
+    return localStorage.getItem('nasdem_sulut_authenticated') === 'true' && Boolean(getToken());
   });
   const [activeTab, setActiveTab] = useState<MainNavTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -87,47 +90,44 @@ export default function App() {
   }, []);
 
   // ============================================================================
-  // REALTIME DATABASE SYNCHRONIZATION (SUPABASE LIVE + WEBSOCKETS)
+  // 1. Initial Load from Supabase (Members, Audit Logs, Deletion Requests)
+  const loadInitialCloudData = useCallback(async () => {
+    try {
+      const [cloudMembers, cloudLogs, cloudRequests] = await Promise.all([
+        getMembersFromSupabase(),
+        getAuditLogsFromSupabase(),
+        getDeletionRequestsFromSupabase(),
+      ]);
+
+      if (cloudMembers && cloudMembers.length > 0) {
+        setMembers(cloudMembers);
+        saveMembers(cloudMembers);
+      }
+      if (cloudLogs && cloudLogs.length > 0) {
+        setAuditLogs(cloudLogs);
+        saveAuditLogs(cloudLogs);
+      }
+      if (cloudRequests && cloudRequests.length > 0) {
+        setDeletionRequests(cloudRequests);
+        saveDeletionRequests(cloudRequests);
+      }
+
+      setIsCloudConnected(true);
+    } catch (err) {
+      console.error('Gagal sinkronisasi data dengan backend/Supabase:', err);
+    }
+  }, []);
+
+  // ============================================================================
+  // REALTIME DATABASE SYNCHRONIZATION (SUPABASE LIVE + WEBSOCKETS / POLLING)
   // ============================================================================
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setIsCloudConnected(false);
-      return;
-    }
-
     let isMounted = true;
 
-    // 1. Initial Load from Supabase (Members, Audit Logs, Deletion Requests)
-    async function loadInitialCloudData() {
-      try {
-        const [cloudMembers, cloudLogs, cloudRequests] = await Promise.all([
-          getMembersFromSupabase(),
-          getAuditLogsFromSupabase(),
-          getDeletionRequestsFromSupabase(),
-        ]);
-
-        if (!isMounted) return;
-
-        if (cloudMembers && cloudMembers.length > 0) {
-          setMembers(cloudMembers);
-          saveMembers(cloudMembers);
-        }
-        if (cloudLogs && cloudLogs.length > 0) {
-          setAuditLogs(cloudLogs);
-          saveAuditLogs(cloudLogs);
-        }
-        if (cloudRequests && cloudRequests.length > 0) {
-          setDeletionRequests(cloudRequests);
-          saveDeletionRequests(cloudRequests);
-        }
-
-        setIsCloudConnected(true);
-      } catch (err) {
-        console.error('Gagal sinkronisasi awal dengan Supabase:', err);
-      }
+    // Muat data jika user sudah terautentikasi
+    if (isAuthenticated) {
+      loadInitialCloudData();
     }
-
-    loadInitialCloudData();
 
     // 2. Realtime WebSocket Subscription on all 3 tables
     const unsubscribe = subscribeToAllRealtime({
@@ -203,14 +203,10 @@ export default function App() {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [isAuthenticated, loadInitialCloudData]);
 
   // 1b. Manual Cloud Sync Trigger (Tarik & Perbarui Data Langsung dari Supabase)
   const handleRefreshFromSupabase = async () => {
-    if (!isSupabaseConfigured()) {
-      showToast('⚠️ Supabase belum terkonfigurasi di file .env.');
-      return;
-    }
     setIsRefreshingCloud(true);
     showToast('Sedang menarik seluruh data terbaru dari database Supabase...');
     try {
@@ -220,7 +216,7 @@ export default function App() {
         saveMembers(cloudMembers);
         showToast(`✅ Berhasil menarik ${cloudMembers.length} data kader langsung dari Supabase live!`);
       } else {
-        showToast('⚠️ Gagal menarik data dari Supabase. Periksa koneksi internet.');
+        showToast('⚠️ Gagal menarik data dari Supabase / Backend. Pastikan backend aktif.');
       }
     } catch (e: any) {
       console.error('Error saat refresh cloud:', e);
@@ -236,11 +232,27 @@ export default function App() {
     setIsAuthenticated(true);
     localStorage.setItem('nasdem_sulut_authenticated', 'true');
     showToast(`Selamat datang, ${userSession.adminName}`);
+    loadInitialCloudData();
   };
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setIsAuthenticated(false);
+      localStorage.removeItem('nasdem_sulut_authenticated');
+      clearToken();
+      showToast('⚠️ Sesi login telah berakhir atau belum terautentikasi. Silakan masuk kembali.');
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, [showToast]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('nasdem_sulut_authenticated');
+    clearToken();
   };
 
   // Theme state: default to 'light' for natural white background, with full toggle to 'dark'

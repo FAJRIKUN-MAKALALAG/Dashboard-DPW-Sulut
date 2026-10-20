@@ -399,15 +399,15 @@ export type SubOrgCategory = 'PERTIMBANGAN' | 'PAKAR' | 'PIMPINAN';
 export function getMemberSubOrgCategory(m: Member): SubOrgCategory {
   const jLower = (m.jabatan || '').toLowerCase();
   const wLower = (m.wilayahPenugasan || '').toLowerCase();
-  if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan')) return 'PERTIMBANGAN';
-  if (jLower.includes('pakar') || wLower.includes('pakar')) return 'PAKAR';
+  if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan') || jLower.includes('wankar') || wLower.includes('wankar')) return 'PERTIMBANGAN';
+  if (jLower.includes('pakar') || wLower.includes('pakar') || jLower.includes('wangan') || wLower.includes('wangan')) return 'PAKAR';
   return 'PIMPINAN';
 }
 
 export function getSlotSubOrgCategory(slot: { subOrg: string }): SubOrgCategory {
   const sLower = slot.subOrg.toLowerCase();
-  if (sLower.includes('pertimbangan')) return 'PERTIMBANGAN';
-  if (sLower.includes('pakar')) return 'PAKAR';
+  if (sLower.includes('pertimbangan') || sLower.includes('wankar')) return 'PERTIMBANGAN';
+  if (sLower.includes('pakar') || sLower.includes('wangan')) return 'PAKAR';
   return 'PIMPINAN';
 }
 

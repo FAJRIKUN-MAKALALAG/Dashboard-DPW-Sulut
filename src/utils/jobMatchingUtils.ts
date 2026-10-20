@@ -322,19 +322,19 @@ export function normalizeSubOrgName(
 ): string {
   const str = (rawSubOrg || '').toLowerCase().trim();
   if (level === 'DPW') {
-    if (str.includes('pertimbangan')) return 'DEWAN PERTIMBANGAN WILAYAH';
-    if (str.includes('pakar')) return 'DEWAN PAKAR WILAYAH';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'DEWAN PERTIMBANGAN WILAYAH';
+    if (str.includes('pakar') || str.includes('wangan')) return 'DEWAN PAKAR WILAYAH';
     return 'DEWAN PIMPINAN WILAYAH';
   } else if (level === 'DPC') {
-    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
-    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar') || str.includes('wangan')) return 'II. DEWAN PAKAR';
     return 'III. DEWAN PIMPINAN CABANG';
   } else if (level === 'DPRt') {
     return 'DEWAN PIMPINAN RANTING';
   } else {
     // DPD
-    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
-    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar') || str.includes('wangan')) return 'II. DEWAN PAKAR';
     return 'III. DEWAN PIMPINAN DAERAH';
   }
 }
@@ -355,4 +355,33 @@ export function getCouncilRank(jabatan?: string): number {
   if (j.includes('anggota')) return 7;
   return 10;
 }
+
+/**
+ * Menentukan urutan hierarki jabatan Dewan Pimpinan (DPW / DPD / DPC / DPRt)
+ * Mengikuti urutan resmi template: Ketua (1) -> Para Wakil Ketua (2..28) -> Sekretaris (29) -> Para Wakil Sekretaris (30..33) -> Bendahara (34) -> Para Wakil Bendahara (35..36) -> Lainnya.
+ */
+export function getPimpinanRank(jabatan?: string, slots?: PositionSlot[]): number {
+  if (!jabatan) return 999;
+  const j = jabatan.toLowerCase().trim();
+
+  // 1. Cek kecocokan dengan slot template resmi jika tersedia
+  if (slots && slots.length > 0) {
+    const matched = slots.find((s) => isJobTitleMatch(jabatan, s.jabatan, s.subOrg));
+    if (matched) {
+      return matched.no * 10;
+    }
+  }
+
+  // 2. Fallback hierarki berbasis kata kunci jabatan
+  if (j === 'ketua' || (j.startsWith('ketua') && !j.includes('wakil'))) return 10;
+  if (j.includes('wakil ketua')) return 285; // Di kelompok wakil ketua
+  if (j === 'sekretaris' || (j.startsWith('sekretaris') && !j.includes('wakil'))) return 290;
+  if (j.includes('wakil sekretaris')) return 335; // Di kelompok wakil sekretaris
+  if (j === 'bendahara' || (j.startsWith('bendahara') && !j.includes('wakil'))) return 340;
+  if (j.includes('wakil bendahara')) return 365; // Di kelompok wakil bendahara
+  if (j.includes('koordinator') || j.includes('ketua bidang') || j.includes('kepala')) return 400;
+  if (j.includes('anggota') || j.includes('pengurus')) return 500;
+  return 600;
+}
+
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Member, MemberStatus } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch } from '../utils/structureReadinessUtils';
-import { getMembersFromSupabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { getMembersFromApi as getMembersFromSupabase, isBackendConfigured as isSupabaseConfigured } from '../utils/backendClient';
 import { loadMembers, saveMembers } from '../utils/storage';
 import {
   exportMembersToExcel,

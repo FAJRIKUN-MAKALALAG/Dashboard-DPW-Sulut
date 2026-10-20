@@ -45,6 +45,8 @@ export interface Member {
   kaderPerekrutJabatan?: string;
   kaderPerekrutDpd?: string;
   kaderPerekrutKodeReferral?: string;
+  // Urutan tampil dalam matriks (sesuai urutan baris berkas Excel saat import)
+  urutan?: number;
 }
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
