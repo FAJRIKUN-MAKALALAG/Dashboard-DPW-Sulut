@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   Trash2,
   Plus,
@@ -10,6 +10,11 @@ import {
   Info,
   Sparkles,
   FileSpreadsheet,
+  Skull,
+  CheckSquare,
+  Square,
+  X,
+  Minus,
 } from 'lucide-react';
 
 export interface GridRowItem {
@@ -33,6 +38,11 @@ interface MatrixTableSheetProps {
   officialTitle: { line1: string; line2: string };
   onCellChange: (id: string, field: keyof GridRowItem, value: string) => void;
   onDeleteRow: (id: string) => void;
+  onHardDeleteRow?: (row: GridRowItem) => void;
+  /** Bulk soft-delete: hapus baris dari tampilan (data DB aman) */
+  onBulkSoftDelete?: (ids: string[]) => void;
+  /** Bulk hard-delete: hapus permanen dari database */
+  onBulkHardDelete?: (rows: GridRowItem[]) => void;
   onAddNewRowForSubOrg?: (subOrg: string) => void;
 }
 
@@ -42,8 +52,51 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   officialTitle,
   onCellChange,
   onDeleteRow,
+  onHardDeleteRow,
+  onBulkSoftDelete,
+  onBulkHardDelete,
   onAddNewRowForSubOrg,
 }) => {
+  // ── Selection State ──────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllInSection = useCallback((rows: GridRowItem[], checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      rows.forEach((r) => (checked ? next.add(r.id) : next.delete(r.id)));
+      return next;
+    });
+  }, []);
+
+  const selectAllGlobal = useCallback((checked: boolean) => {
+    setSelectedIds(checked ? new Set(gridRows.map((r) => r.id)) : new Set());
+  }, [gridRows]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectedRows = useMemo(
+    () => gridRows.filter((r) => selectedIds.has(r.id)),
+    [gridRows, selectedIds]
+  );
+
+  // Baris yang valid untuk hard-delete (punya NIK/data anggota)
+  const selectedDeletableRows = useMemo(
+    () => selectedRows.filter((r) => r.isExisting || r.originalNik || (r.nik && r.nik.length >= 10)),
+    [selectedRows]
+  );
+
+  const isAllSelected = gridRows.length > 0 && gridRows.every((r) => selectedIds.has(r.id));
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
+
   // Hitung metrik keseluruhan
   const totalRows = gridRows.length;
   const totalFilled = gridRows.filter((r) => r.namaLengkap.trim() !== '').length;
@@ -96,6 +149,111 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   return (
     <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-100/70 dark:bg-slate-950/70">
       <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-xl p-5 sm:p-7 max-w-full space-y-6">
+
+        {/* ── Floating Bulk Action Bar (muncul saat ada baris dipilih) ── */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-950 border border-slate-600 shadow-2xl text-white animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Kiri: Info seleksi */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Global select-all toggle */}
+              <button
+                onClick={() => selectAllGlobal(!isAllSelected)}
+                className="flex items-center gap-1.5 text-xs font-semibold hover:text-blue-300 transition-colors cursor-pointer"
+                title={isAllSelected ? 'Batalkan semua pilihan' : 'Pilih semua baris'}
+              >
+                {isAllSelected ? (
+                  <CheckSquare className="w-4 h-4 text-blue-400" />
+                ) : isSomeSelected ? (
+                  <Minus className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-400" />
+                )}
+                <span className="text-slate-300">
+                  {isAllSelected ? 'Batal semua' : 'Pilih semua'}
+                </span>
+              </button>
+
+              <span className="text-slate-400">|</span>
+
+              <span className="text-sm font-bold text-white">
+                <span className="text-blue-400">{selectedIds.size}</span> baris dipilih
+                {selectedDeletableRows.length > 0 && (
+                  <span className="text-slate-400 text-xs font-normal ml-1.5">
+                    ({selectedDeletableRows.length} ada data anggota)
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Kanan: Aksi bulk */}
+            <div className="flex items-center gap-2">
+              {/* Soft Delete bulk */}
+              <button
+                onClick={() => {
+                  const ids = Array.from(selectedIds);
+                  if (onBulkSoftDelete) {
+                    onBulkSoftDelete(ids);
+                  } else {
+                    ids.forEach((id) => onDeleteRow(id));
+                  }
+                  clearSelection();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-700 hover:bg-rose-600 text-white border border-rose-500 transition-all cursor-pointer shadow-sm"
+                title="Sembunyikan baris yang dipilih dari tampilan (data di database tetap aman)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sembunyikan ({selectedIds.size})</span>
+              </button>
+
+              {/* Hard Delete bulk — hanya aktif jika ada baris dengan data anggota */}
+              {selectedDeletableRows.length > 0 && (onBulkHardDelete || onHardDeleteRow) && (
+                <button
+                  onClick={() => {
+                    const count = selectedDeletableRows.length;
+                    const names = selectedDeletableRows
+                      .slice(0, 5)
+                      .map((r) => `• ${r.namaLengkap || r.jabatan}`)
+                      .join('\n');
+                    const more = count > 5 ? `\n  ...dan ${count - 5} lainnya` : '';
+                    const confirmed = window.confirm(
+                      `⚠️ HAPUS PERMANEN ${count} DATA ANGGOTA\n\n` +
+                      `${names}${more}\n\n` +
+                      `Semua data ini akan dihapus PERMANEN dari database Supabase.\n` +
+                      `Tindakan ini TIDAK DAPAT DIBATALKAN.\n\n` +
+                      `Yakin melanjutkan?`
+                    );
+                    if (!confirmed) return;
+
+                    if (onBulkHardDelete) {
+                      onBulkHardDelete(selectedDeletableRows);
+                    } else if (onHardDeleteRow) {
+                      // fallback: satu per satu tanpa konfirmasi ulang
+                      selectedDeletableRows.forEach((r) => onHardDeleteRow(r));
+                    }
+                    // Soft-delete semua baris terpilih dari UI (sudah dihapus dari DB)
+                    Array.from(selectedIds).forEach((id) => onDeleteRow(id));
+                    clearSelection();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-red-900 hover:bg-red-800 text-white border border-red-600 transition-all cursor-pointer shadow-sm"
+                  title={`Hapus PERMANEN ${selectedDeletableRows.length} anggota dari database Supabase`}
+                >
+                  <Skull className="w-3.5 h-3.5" />
+                  <span>Hapus Permanen ({selectedDeletableRows.length})</span>
+                </button>
+              )}
+
+              {/* Tutup / Batal seleksi */}
+              <button
+                onClick={clearSelection}
+                className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer border border-slate-700"
+                title="Batalkan seleksi"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 1. Official Header & Title */}
         <div className="text-center pb-5 border-b-2 border-slate-900 dark:border-white">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider mb-1.5 border border-blue-200 dark:border-blue-800">
@@ -235,6 +393,25 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-800 dark:bg-slate-950 text-white text-[11px] font-bold uppercase tracking-wider text-center">
+                        {/* Checkbox select-all untuk section ini */}
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-9 text-center bg-slate-700">
+                          <button
+                            onClick={() => {
+                              const allInSec = sec.rows.every((r) => selectedIds.has(r.id));
+                              selectAllInSection(sec.rows, !allInSec);
+                            }}
+                            className="flex items-center justify-center w-full cursor-pointer"
+                            title={sec.rows.every((r) => selectedIds.has(r.id)) ? 'Batal pilih semua di bagian ini' : 'Pilih semua di bagian ini'}
+                          >
+                            {sec.rows.every((r) => selectedIds.has(r.id)) ? (
+                              <CheckSquare className="w-4 h-4 text-blue-400" />
+                            ) : sec.rows.some((r) => selectedIds.has(r.id)) ? (
+                              <Minus className="w-4 h-4 text-amber-400" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-400" />
+                            )}
+                          </button>
+                        </th>
                         <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-12">
                           NO
                         </th>
@@ -263,8 +440,15 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                           SOSIAL MEDIA
                         </th>
                         {isEditMode && (
-                          <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-14 text-center bg-rose-800 text-white">
-                            AKSI
+                          <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-24 text-center bg-rose-900 text-white">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-[10px] font-black tracking-wider">AKSI</span>
+                              <div className="flex items-center gap-1 text-[9px] font-normal opacity-80">
+                                <span title="Sembunyikan baris (data DB aman)">🗑️=hide</span>
+                                <span>|</span>
+                                <span title="Hapus permanen dari database">💀=hapus</span>
+                              </div>
+                            </div>
                           </th>
                         )}
                       </tr>
@@ -277,11 +461,28 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                           <tr
                             key={row.id}
                             className={`transition-colors text-[11px] ${
-                              !isFilled
+                              selectedIds.has(row.id)
+                                ? 'bg-blue-100/80 dark:bg-blue-950/40 border-l-4 border-l-blue-500 ring-1 ring-inset ring-blue-400/30'
+                                : !isFilled
                                 ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-4 border-l-amber-500 hover:bg-amber-100/60 dark:hover:bg-amber-950/40'
                                 : 'bg-white dark:bg-slate-900 border-l-4 border-l-emerald-500 hover:bg-blue-50/30 dark:hover:bg-slate-800/30'
                             }`}
                           >
+                            {/* 0. CHECKBOX SELECT */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center">
+                              <button
+                                onClick={() => toggleSelect(row.id)}
+                                className="flex items-center justify-center w-full cursor-pointer"
+                                title={selectedIds.has(row.id) ? 'Batalkan pilihan baris ini' : 'Pilih baris ini'}
+                              >
+                                {selectedIds.has(row.id) ? (
+                                  <CheckSquare className="w-4 h-4 text-blue-500" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
+                                )}
+                              </button>
+                            </td>
+
                             {/* 1. NO */}
                             <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
                               {idx + 1}
@@ -443,14 +644,29 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                             {/* Action Column (Edit Mode) */}
                             {isEditMode && (
                               <td className="border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => onDeleteRow(row.id)}
-                                  className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-lg transition-all duration-150 cursor-pointer shadow-xs border border-rose-200 dark:border-rose-900/50 hover:border-rose-600"
-                                  title={`Hapus baris jabatan: ${row.jabatan}`}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {/* SOFT DELETE: Hapus baris dari tampilan (data DB aman) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteRow(row.id)}
+                                    className="inline-flex items-center justify-center p-1.5 text-rose-400 hover:text-white hover:bg-rose-500 dark:hover:bg-rose-600 rounded-lg transition-all duration-150 cursor-pointer shadow-xs border border-rose-200 dark:border-rose-900/50 hover:border-rose-500"
+                                    title={`Sembunyikan baris jabatan: ${row.jabatan} (data di DB tetap aman)`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {/* HARD DELETE: Hapus permanen dari database — hanya untuk baris yang punya data anggota */}
+                                  {onHardDeleteRow && (row.isExisting || row.originalNik || (row.nik && row.nik.length >= 10)) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onHardDeleteRow(row)}
+                                      className="inline-flex items-center justify-center p-1.5 text-red-700 dark:text-red-400 hover:text-white hover:bg-red-800 dark:hover:bg-red-900 rounded-lg transition-all duration-150 cursor-pointer shadow-xs border border-red-400 dark:border-red-900/70 hover:border-red-800 bg-red-50 dark:bg-red-950/30"
+                                      title={`⚠️ HAPUS PERMANEN dari Database: ${row.namaLengkap || row.jabatan} — Tidak dapat dibatalkan!`}
+                                    >
+                                      <Skull className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             )}
                           </tr>

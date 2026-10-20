@@ -672,8 +672,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     setIsEditMode(true);
   };
 
-  // Delete row (works for template slot, custom added row, or existing member)
-  // Delete row (removes slot without deleting member record from DB)
+  // Soft-Delete row: sembunyikan dari tampilan, data DB tetap aman
   const handleDeleteRow = (id: string) => {
     const targetRow = gridRows.find((r) => r.id === id);
     if (!targetRow) return;
@@ -686,6 +685,92 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
     // 2. Hapus baris dari state tabel (data kader di DB tidak dihapus, tetap terjaga)
     setGridRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  // Hard-Delete row: hapus data anggota permanen dari database Supabase
+  const handleHardDeleteRow = (row: GridRowItem) => {
+    const nikToDelete = row.originalNik || row.nik;
+    const namaDisplay = row.namaLengkap?.trim() || row.jabatan;
+    const territoryLabel = level === 'DPW' ? 'DPW Sulawesi Utara' : `${level} ${selectedDpd}`;
+
+    if (!nikToDelete || nikToDelete.trim() === '') {
+      // Tidak ada NIK valid → hanya hapus dari tampilan
+      setGridRows((prev) => prev.filter((r) => r.id !== row.id));
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `⚠️ HAPUS PERMANEN\n\n` +
+      `Nama   : ${namaDisplay}\n` +
+      `Jabatan: ${row.jabatan}\n` +
+      `NIK    : ${nikToDelete}\n` +
+      `Wilayah: ${territoryLabel}\n\n` +
+      `Data anggota ini akan dihapus PERMANEN dari database Supabase.\n` +
+      `Tindakan ini TIDAK DAPAT DIBATALKAN.\n\n` +
+      `Yakin ingin melanjutkan?`
+    );
+
+    if (!confirmed) return;
+
+    // 1. Panggil callback untuk hapus dari Supabase
+    if (onDeleteMembersBatch) {
+      onDeleteMembersBatch([nikToDelete], territoryLabel);
+    }
+
+    // 2. Hapus slot dari localStorage agar tidak muncul kembali
+    const slotKey = getSlotKey(row.subOrg, row.no, row.jabatan);
+    const deletedKeys = getStoredDeletedSlotKeys();
+    deletedKeys.add(slotKey);
+    saveDeletedSlotKeys(deletedKeys);
+
+    // 3. Hapus baris dari state UI secara langsung
+    setGridRows((prev) => prev.filter((r) => r.id !== row.id));
+
+    setSaveSuccessMsg(`✅ Anggota "${namaDisplay}" berhasil dihapus permanen dari database.`);
+    setTimeout(() => setSaveSuccessMsg(null), 5000);
+  };
+
+  // Bulk Soft-Delete: sembunyikan beberapa baris sekaligus dari tampilan (data DB aman)
+  const handleBulkSoftDelete = (ids: string[]) => {
+    const deletedKeys = getStoredDeletedSlotKeys();
+    ids.forEach((id) => {
+      const row = gridRows.find((r) => r.id === id);
+      if (!row) return;
+      deletedKeys.add(getSlotKey(row.subOrg, row.no, row.jabatan));
+    });
+    saveDeletedSlotKeys(deletedKeys);
+    setGridRows((prev) => prev.filter((r) => !ids.includes(r.id)));
+    setSaveSuccessMsg(`🗑️ ${ids.length} baris berhasil disembunyikan dari tampilan.`);
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  // Bulk Hard-Delete: hapus beberapa anggota permanen dari Supabase sekaligus
+  const handleBulkHardDelete = (rows: GridRowItem[]) => {
+    const territoryLabel = level === 'DPW' ? 'DPW Sulawesi Utara' : `${level} ${selectedDpd}`;
+    const niksToDelete = rows
+      .map((r) => r.originalNik || r.nik)
+      .filter((nik): nik is string => !!nik && nik.trim() !== '');
+
+    if (niksToDelete.length === 0) return;
+
+    // Hapus dari Supabase (satu batch call)
+    if (onDeleteMembersBatch) {
+      onDeleteMembersBatch(niksToDelete, territoryLabel);
+    }
+
+    // Simpan slot keys ke localStorage
+    const deletedKeys = getStoredDeletedSlotKeys();
+    rows.forEach((row) => {
+      deletedKeys.add(getSlotKey(row.subOrg, row.no, row.jabatan));
+    });
+    saveDeletedSlotKeys(deletedKeys);
+
+    // Hapus dari state UI
+    const rowIds = new Set(rows.map((r) => r.id));
+    setGridRows((prev) => prev.filter((r) => !rowIds.has(r.id)));
+
+    setSaveSuccessMsg(`✅ ${niksToDelete.length} anggota berhasil dihapus permanen dari database.`);
+    setTimeout(() => setSaveSuccessMsg(null), 5000);
   };
 
   // Reset/Pulihkan semua slot template bawaan partai yang sempat dihapus
@@ -1310,6 +1395,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           officialTitle={getOfficialTitle()}
           onCellChange={handleCellChange}
           onDeleteRow={handleDeleteRow}
+          onHardDeleteRow={handleHardDeleteRow}
+          onBulkSoftDelete={handleBulkSoftDelete}
+          onBulkHardDelete={handleBulkHardDelete}
           onAddNewRowForSubOrg={handleAddNewRow}
         />
       </div>
