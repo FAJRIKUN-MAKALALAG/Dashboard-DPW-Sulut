@@ -239,7 +239,7 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                       className="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
                     >
                       {subdistricts.map((s) => (
-                        <option key={s.id} value={s.name}>
+                        <option key={s.name} value={s.name}>
                           Kec. {s.name}
                         </option>
                       ))}

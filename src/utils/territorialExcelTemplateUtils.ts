@@ -1366,6 +1366,13 @@ export async function parseTerritorialExcelFile(
       let subOrgVal = colSubOrg !== -1 ? String(row[colSubOrg] || '').trim() : '';
       const jabatanVal = colJabatan !== -1 ? String(row[colJabatan] || '').trim() : '';
       const namaVal = rawNama;
+      const isFilled =
+        !!namaVal &&
+        namaVal.trim() !== '' &&
+        namaVal.trim() !== '-' &&
+        namaVal.trim() !== '—' &&
+        !namaVal.toLowerCase().includes('lowong') &&
+        !namaVal.toLowerCase().includes('kosong');
       let nikVal = colNik !== -1 ? String(row[colNik] || '').replace(/[^0-9]/g, '').trim() : '';
       const ektaVal = colEkta !== -1 ? String(row[colEkta] || '').replace(/[^0-9]/g, '').trim() : '';
       const genderVal = colGender !== -1 ? String(row[colGender] || '').trim() : '';
