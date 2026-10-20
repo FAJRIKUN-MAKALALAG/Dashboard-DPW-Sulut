@@ -34,6 +34,8 @@ import {
   downloadAdvisoryAndExpertExcelTemplate,
   parseTerritorialExcelFile,
   getTerritoryFilename,
+  alignAndCheckWithTemplate,
+  AiTemplateCheckStats,
 } from '../../utils/territorialExcelTemplateUtils';
 import { parseSqlInsertQuery } from '../../utils/sqlQueryParser';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
@@ -84,6 +86,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     matchedCount: number;
     correctedCount: number;
   } | null>(null);
+  const [aiCheckStats, setAiCheckStats] = useState<AiTemplateCheckStats | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgressUpdate | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +184,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     setParseResult(null);
     setSubmitSuccess(null);
     setAiStats(null);
+    setAiCheckStats(null);
 
     try {
       const result = parseSqlInsertQuery(
@@ -261,6 +265,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     setParseResult(null);
     setSubmitSuccess(null);
     setAiStats(null);
+    setAiCheckStats(null);
 
     try {
       const result = await parseTerritorialExcelFile(
@@ -278,59 +283,35 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     }
   };
 
-  // Bersihkan & Cluster dengan Gemini AI (Supabase Edge Function)
+  // Periksa & Selaraskan Format Template dengan AI / Intelligent Engine (Check & Clear Data)
   const handleAiCleanAndCluster = async () => {
     if (!parseResult || parseResult.rows.length === 0) return;
     setIsAiCleaning(true);
     setParseError(null);
-    setAiProgress(null);
     try {
-      const res = await cleanDataWithGeminiAi(
-        parseResult.rows,
-        territoryContext,
-        (progress) => setAiProgress(progress)
+      const checkRes = alignAndCheckWithTemplate(
+        parseResult,
+        currentMembers,
+        session?.adminName || 'Admin'
       );
-      if (res.success && res.items.length > 0) {
-        const updatedRows = parseResult.rows.map((origRow, i) => {
-          const aiItem = res.items[i];
-          if (!aiItem) return origRow;
-          return {
-            ...origRow,
-            subOrg: aiItem.subOrg || origRow.subOrg,
-            jabatanExcel: aiItem.canonicalJabatan || origRow.jabatanExcel,
-            jabatanMatched: aiItem.canonicalJabatan || origRow.jabatanMatched,
-            isMatched: aiItem.isMatched,
-            namaLengkap: aiItem.namaLengkap || origRow.namaLengkap,
-          };
-        });
 
-        const updatedMembersToSave = parseResult.membersToSave.map((origMember, i) => {
-          const aiItem = res.items[i];
-          if (!aiItem) return origMember;
-          return {
-            ...origMember,
-            wilayahPenugasan: aiItem.subOrg || origMember.wilayahPenugasan,
-            jabatan: aiItem.canonicalJabatan || origMember.jabatan,
-            namaLengkap: aiItem.namaLengkap || origMember.namaLengkap,
-          };
-        });
+      setParseResult({
+        ...parseResult,
+        rows: checkRes.rows,
+        membersToSave: checkRes.membersToSave,
+        stats: {
+          totalRows: checkRes.stats.totalRows,
+          filledRows: checkRes.stats.filledRows,
+          emptyRows: checkRes.stats.vacantSlotsCount,
+          matchedPositions: checkRes.stats.matchedCount,
+          customPositions: checkRes.stats.extraRowsCount,
+        },
+      });
 
-        setParseResult({
-          ...parseResult,
-          rows: updatedRows,
-          membersToSave: updatedMembersToSave,
-          stats: {
-            ...parseResult.stats,
-            matchedPositions: res.stats.matchedCount,
-            customPositions: Math.max(0, res.stats.total - res.stats.matchedCount),
-          },
-        });
-
-        setAiStats(res.stats);
-      }
+      setAiCheckStats(checkRes.stats);
     } catch (err: any) {
-      console.error('Error during AI clean:', err);
-      setParseError('Gagal memproses dengan AI: ' + (err?.message || 'Terjadi kesalahan sistem.'));
+      console.error('Error during AI template check:', err);
+      setParseError('Gagal memeriksa format template: ' + (err?.message || 'Terjadi kesalahan sistem.'));
     } finally {
       setIsAiCleaning(false);
     }
@@ -850,18 +831,18 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                   type="button"
                   onClick={handleAiCleanAndCluster}
                   disabled={isAiCleaning || !parseResult || parseResult.rows.length === 0}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer transition-colors disabled:opacity-50 shrink-0"
-                  title="Jalankan pembersihan dan clustering data dengan Gemini AI"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white shadow-xs cursor-pointer transition-all disabled:opacity-50 shrink-0"
+                  title="Pengecek & Perapih Template: Memadankan 36 jabatan DPD baku, menetapkan slot kosong jika kurang, dan merapikan urutan Dewan Pertimbangan & Pakar"
                 >
                   {isAiCleaning ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sedang Memproses AI...</span>
+                      <span>Sedang Memeriksa & Menyelaraskan Template...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>{aiStats ? '✓ Bersihkan Ulang dengan AI' : '✨ Bersihkan & Cluster dengan AI'}</span>
+                      <span>{aiCheckStats ? '✓ Cek & Rapikan Ulang Format Template' : '✨ AI Check & Clear: Paskan Urutan Sesuai Template'}</span>
                     </>
                   )}
                 </button>
@@ -892,26 +873,33 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                 </div>
               )}
 
-              {/* Status Hasil AI */}
-              {aiStats && (
-                <div className="p-3 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 font-semibold">
+              {/* Status Hasil AI Check & Clear Format */}
+              {aiCheckStats && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50/90 to-blue-50/90 dark:from-emerald-950/40 dark:to-blue-950/40 border border-emerald-300 dark:border-emerald-800/60 space-y-2 text-xs animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 font-bold">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>AI Berhasil Mengelompokkan Data:</span>
+                    <span>Hasil Pemeriksaan & Penyelarasan Template:</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
                     <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">
-                      🏛️ {aiStats.pertimbanganCount} Dewan Pertimbangan
+                      🏛️ {aiCheckStats.pertimbanganCount} Dewan Pertimbangan (Terurut)
                     </span>
                     <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200">
-                      🎓 {aiStats.pakarCount} Dewan Pakar
+                      🎓 {aiCheckStats.pakarCount} Dewan Pakar (Terurut)
                     </span>
                     <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-200">
-                      👔 {aiStats.pimpinanCount} Dewan Pimpinan
+                      👔 {aiCheckStats.standardSlotsTarget - aiCheckStats.vacantSlotsCount} / {aiCheckStats.standardSlotsTarget} Dewan Pimpinan Baku Terisi
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
-                      ✓ {aiStats.matchedCount} Cocok Slot Baku
-                    </span>
+                    {aiCheckStats.vacantSlotsCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-900 dark:bg-rose-900/50 dark:text-rose-200">
+                        ⚠️ {aiCheckStats.vacantSlotsCount} Jabatan Kurang (Disisipkan Kosong Sesuai Urutan Baku)
+                      </span>
+                    )}
+                    {aiCheckStats.extraRowsCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 dark:bg-indigo-900/50 dark:text-indigo-200">
+                        ➕ {aiCheckStats.extraRowsCount} Jabatan Tambahan (Urutan 37+)
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -986,23 +974,40 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                       filteredRows.map((r, idx) => (
                         <tr
                           key={idx}
-                          className={r.isFilled ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-900/40 text-slate-400'}
+                          className={
+                            r.isVacantSlot
+                              ? 'bg-amber-50/60 dark:bg-amber-950/25 border-l-3 border-amber-500'
+                              : r.isFilled
+                              ? 'bg-white dark:bg-slate-900'
+                              : 'bg-slate-50/50 dark:bg-slate-900/40 text-slate-400'
+                          }
                         >
-                          <td className="py-2 px-3 font-mono text-[11px] text-slate-400">
+                          <td className="py-2 px-3 font-mono text-[11px] font-bold text-slate-500">
                             {r.no}
                           </td>
                           <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200">
                             <div>
-                              <span>{r.jabatanExcel}</span>
+                              <span className={r.isVacantSlot ? 'font-semibold text-amber-900 dark:text-amber-200' : ''}>
+                                {r.jabatanExcel}
+                              </span>
                               {r.dpd && (
                                 <span className="block text-[10px] text-blue-600 dark:text-blue-400 font-normal">
                                   {r.dpd} · {r.subOrg}
                                 </span>
                               )}
+                              {r.aiNote && (
+                                <span className={`block text-[9.5px] font-mono mt-0.5 ${r.isVacantSlot ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {r.aiNote}
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="py-2 px-3">
-                            {r.namaLengkap ? (
+                            {r.isVacantSlot ? (
+                              <span className="italic font-medium text-amber-600 dark:text-amber-400">
+                                (Slot Kosong / Belum Terisi)
+                              </span>
+                            ) : r.namaLengkap && r.namaLengkap !== '-' ? (
                               <span className="font-semibold text-blue-700 dark:text-blue-300">
                                 {r.namaLengkap}
                               </span>
@@ -1014,13 +1019,17 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                             {r.nik || '-'}
                           </td>
                           <td className="py-2 px-3">
-                            {r.isMatched ? (
+                            {r.isVacantSlot ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">
+                                ⚠️ Slot Kosong #{r.no}
+                              </span>
+                            ) : r.isMatched ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
-                                <Check className="w-3 h-3" /> Cocok Template
+                                <Check className="w-3 h-3" /> Cocok Slot #{r.no}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400">
-                                <Sparkles className="w-3 h-3" /> Posisi Kustom
+                                <Sparkles className="w-3 h-3" /> Tambahan #{r.no}
                               </span>
                             )}
                           </td>

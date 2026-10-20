@@ -7,7 +7,7 @@ import {
   DPW_STRUCTURE_TEMPLATE,
 } from '../data/structureTemplates';
 import { SULUT_REGIONS } from '../data/sulutRegions';
-import { isDpdMatch } from './structureReadinessUtils';
+import { isDpdMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from './structureReadinessUtils';
 import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
 import { makeGeneratedEkta, isGeneratedNik, isGeneratedEkta } from './generatedIds';
 import { GridRowItem } from '../components/matrix';
@@ -35,6 +35,8 @@ export interface ParsedTerritoryRow {
   alamat?: string;
   status: string;
   isFilled: boolean;
+  aiNote?: string;
+  isVacantSlot?: boolean;
 }
 
 export interface ParseTerritoryExcelResult {
@@ -1554,5 +1556,314 @@ export async function parseTerritorialExcelFile(
       customPositions,
     },
     filename: file.name,
+  };
+}
+
+export interface AiTemplateCheckStats {
+  totalRows: number;
+  filledRows: number;
+  vacantSlotsCount: number;
+  standardSlotsTarget: number;
+  extraRowsCount: number;
+  pertimbanganCount: number;
+  pakarCount: number;
+  pimpinanCount: number;
+  matchedCount: number;
+}
+
+export interface AiTemplateCheckResult {
+  success: boolean;
+  rows: ParsedTerritoryRow[];
+  membersToSave: Member[];
+  stats: AiTemplateCheckStats;
+  message: string;
+}
+
+/**
+ * AI / Intelligent Template Format Checker & Aligner (Check & Clear Data).
+ * - Menyelaraskan data pengurus sesuai urutan baku template (36 jabatan DPD, Pertimbangan, Pakar).
+ * - Jika ada jabatan baku yang kurang (misal < 36), otomatis mendeteksi jabatan mana yang kurang,
+ *   menetapkannya sebagai slot KOSONG, dan menjaga urutan nomor tetap presisi sesuai template.
+ * - Jika ada data yang lebih (> 36), tidak dibuang melainkan dirapikan di urutan setelahnya (37, 38, dst).
+ */
+export function alignAndCheckWithTemplate(
+  currentResult: ParseTerritoryExcelResult,
+  currentMembers: Member[],
+  adminName = 'Admin Teritorial'
+): AiTemplateCheckResult {
+  const ctx = currentResult.territoryContext;
+  const territoryDpd = ctx.level === 'DPW' ? 'Sulawesi Utara' : ctx.dpd;
+  const territoryDpc =
+    ctx.level === 'DPW'
+      ? 'Wilayah DPW'
+      : ctx.level === 'DPD'
+      ? 'Umum (DPD)'
+      : ctx.dpc || 'Umum (DPD)';
+  const territoryDprt = ctx.level === 'DPRt' ? ctx.dprt || 'Pusat' : 'Pusat/Umum';
+
+  const allSlots = getStructureTemplate(ctx.level);
+  const pertimbanganSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
+  const pakarSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
+  const pimpinanSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
+
+  // Pisahkan baris input berdasarkan 3 kategori dewan
+  const pertimbanganRows: ParsedTerritoryRow[] = [];
+  const pakarRows: ParsedTerritoryRow[] = [];
+  const pimpinanRows: ParsedTerritoryRow[] = [];
+
+  for (const row of currentResult.rows) {
+    const cat = getMemberSubOrgCategory({
+      jabatan: row.jabatanExcel,
+      wilayahPenugasan: row.subOrg,
+    } as Member);
+    if (cat === 'PERTIMBANGAN') {
+      pertimbanganRows.push(row);
+    } else if (cat === 'PAKAR') {
+      pakarRows.push(row);
+    } else {
+      pimpinanRows.push(row);
+    }
+  }
+
+  // 1. ALIGNMENT DEWAN PERTIMBANGAN
+  const alignedPertimbanganRows: ParsedTerritoryRow[] = [];
+  let pertimbanganNo = 1;
+
+  const rankPertimbangan = (j: string): number => {
+    const l = j.toLowerCase();
+    if (l.startsWith('ketua') && !l.includes('wakil')) return 1;
+    if (l.includes('wakil ketua')) return 2;
+    if (l.startsWith('sekretaris') && !l.includes('wakil')) return 3;
+    if (l.includes('wakil sekretaris')) return 4;
+    if (l.includes('bendahara')) return 5;
+    return 6;
+  };
+
+  const sortedPertimbangan = [...pertimbanganRows].sort(
+    (a, b) => rankPertimbangan(a.jabatanExcel) - rankPertimbangan(b.jabatanExcel)
+  );
+
+  for (const r of sortedPertimbangan) {
+    const sub = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+    alignedPertimbanganRows.push({
+      ...r,
+      no: pertimbanganNo++,
+      subOrg: normalizeSubOrgName(sub, ctx.level),
+      isMatched: true,
+      aiNote: `✓ Dewan Pertimbangan Urutan #${pertimbanganNo - 1}`,
+    });
+  }
+
+  // 2. ALIGNMENT DEWAN PAKAR
+  const alignedPakarRows: ParsedTerritoryRow[] = [];
+  let pakarNo = 1;
+
+  const sortedPakar = [...pakarRows].sort(
+    (a, b) => rankPertimbangan(a.jabatanExcel) - rankPertimbangan(b.jabatanExcel)
+  );
+
+  for (const r of sortedPakar) {
+    const sub = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+    alignedPakarRows.push({
+      ...r,
+      no: pakarNo++,
+      subOrg: normalizeSubOrgName(sub, ctx.level),
+      isMatched: true,
+      aiNote: `✓ Dewan Pakar Urutan #${pakarNo - 1}`,
+    });
+  }
+
+  // 3. ALIGNMENT DEWAN PIMPINAN (36 JABATAN DPD / DPW / DPC / DPRt)
+  const alignedPimpinanRows: ParsedTerritoryRow[] = [];
+  const usedPimpinanIdx = new Set<number>();
+  let vacantSlotsCount = 0;
+  let filledStandardCount = 0;
+
+  // Cocokkan persis slot 1 s/d 36 (atau jumlah baku pimpinanSlots)
+  for (const slot of pimpinanSlots) {
+    let matchedIdx = -1;
+
+    // Tahap 1: Pencocokan nama jabatan
+    for (let i = 0; i < pimpinanRows.length; i++) {
+      if (usedPimpinanIdx.has(i)) continue;
+      const r = pimpinanRows[i];
+      if (isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg)) {
+        matchedIdx = i;
+        break;
+      }
+    }
+
+    // Tahap 2: Jika belum ketemu, cek nomor urut sama & jabatan mendekati
+    if (matchedIdx === -1) {
+      for (let i = 0; i < pimpinanRows.length; i++) {
+        if (usedPimpinanIdx.has(i)) continue;
+        const r = pimpinanRows[i];
+        if (r.no === slot.no && isJobTitleMatch(r.jabatanExcel, slot.jabatan)) {
+          matchedIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (matchedIdx !== -1) {
+      // Ada pengurus untuk slot baku ini
+      usedPimpinanIdx.add(matchedIdx);
+      const r = pimpinanRows[matchedIdx];
+      filledStandardCount++;
+      alignedPimpinanRows.push({
+        ...r,
+        no: slot.no, // Pastikan nomor urut tepat nomor slot baku (1 s/d 36)
+        subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+        jabatanMatched: slot.jabatan,
+        isMatched: true,
+        aiNote: `✓ Sesuai Slot Template #${slot.no} (${slot.jabatan})`,
+      });
+    } else {
+      // Jabatan ini KURANG di file Excel import
+      // AI menetapkan posisi ini KOSONG dan tetap mempertahankan slot urutan template
+      vacantSlotsCount++;
+      alignedPimpinanRows.push({
+        no: slot.no,
+        dpd: territoryDpd,
+        subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+        jabatanExcel: slot.jabatan,
+        jabatanMatched: slot.jabatan,
+        isMatched: true,
+        namaLengkap: '-',
+        nik: '',
+        nomorEKTA: '',
+        jenisKelamin: '',
+        nomorHP: '',
+        email: '',
+        alamat: '',
+        status: 'Kosong / Lowong',
+        isFilled: false,
+        isVacantSlot: true,
+        aiNote: `⚠️ Jabatan belum terisi di Excel (ditetapkan Kosong No. #${slot.no})`,
+      });
+    }
+  }
+
+  // Tahap 3: Pengurus Tambahan di luar 36 Jabatan Baku (jika ada lebih dari 36)
+  let extraCounter = pimpinanSlots.length + 1;
+  let extraRowsCount = 0;
+  for (let i = 0; i < pimpinanRows.length; i++) {
+    if (!usedPimpinanIdx.has(i)) {
+      const r = pimpinanRows[i];
+      extraRowsCount++;
+      alignedPimpinanRows.push({
+        ...r,
+        no: extraCounter++,
+        subOrg: normalizeSubOrgName(r.subOrg || pimpinanSlots[0]?.subOrg || 'III. DEWAN PIMPINAN DAERAH', ctx.level),
+        isMatched: false,
+        aiNote: `➕ Jabatan tambahan (di luar ${pimpinanSlots.length} struktur baku)`,
+      });
+    }
+  }
+
+  // Gabungkan seluruh baris yang sudah ter-align
+  const finalRows: ParsedTerritoryRow[] = [
+    ...alignedPertimbanganRows,
+    ...alignedPakarRows,
+    ...alignedPimpinanRows,
+  ];
+
+  // Re-generate membersToSave (hanya baris terisi nama riil)
+  const occupiedNiks = new Set<string>();
+  const newMembersToSave: Member[] = [];
+
+  const isValidNikHelper = (nik?: string): boolean => {
+    if (!nik) return false;
+    const clean = String(nik).replace(/[^0-9]/g, '');
+    if (clean.length !== 16) return false;
+    if (/^0+$/.test(clean) || /0{8,}/.test(clean)) return false;
+    return true;
+  };
+
+  for (const r of finalRows) {
+    if (!r.isFilled || !r.namaLengkap || r.namaLengkap === '-' || r.isVacantSlot) {
+      continue;
+    }
+
+    let nikVal = r.nik;
+    const existingSlotMember = currentMembers.find(
+      (m) =>
+        isDpdMatch(m.dpd, r.dpd || territoryDpd) &&
+        (m.wilayahPenugasan || '').trim().toLowerCase() === r.subOrg.trim().toLowerCase() &&
+        isJobTitleMatch(m.jabatan, r.jabatanExcel)
+    );
+
+    if (!isValidNikHelper(nikVal) || occupiedNiks.has(nikVal)) {
+      if (existingSlotMember && isValidNikHelper(existingSlotMember.nik) && !occupiedNiks.has(existingSlotMember.nik)) {
+        nikVal = existingSlotMember.nik;
+      } else {
+        nikVal = generateUniqueTerritoryNik(
+          r.dpd || territoryDpd,
+          r.subOrg,
+          r.no,
+          occupiedNiks
+        );
+      }
+    }
+    occupiedNiks.add(nikVal);
+
+    const existingMember =
+      existingSlotMember ||
+      currentMembers.find((m) => m.nik === nikVal || (r.nomorEKTA && m.nomorEKTA === r.nomorEKTA));
+
+    const memberObj: Member = {
+      ...(existingMember || {}),
+      nik: nikVal,
+      nomorEKTA: r.nomorEKTA || existingMember?.nomorEKTA || makeGeneratedEkta(nikVal),
+      namaLengkap: r.namaLengkap,
+      email: r.email || existingMember?.email || undefined,
+      nomorHP: r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : (existingMember?.nomorHP || '-'),
+      alamatLengkap: r.alamat || existingMember?.alamatLengkap || undefined,
+      jenisKelamin:
+        r.jenisKelamin?.toUpperCase().startsWith('L') || r.jenisKelamin?.toLowerCase().includes('laki')
+          ? 'Laki-laki'
+          : r.jenisKelamin?.toUpperCase().startsWith('P') || r.jenisKelamin?.toLowerCase().includes('perem')
+          ? 'Perempuan'
+          : existingMember?.jenisKelamin || 'Laki-laki',
+      dpd: r.dpd || territoryDpd,
+      dpc: territoryDpc,
+      dprt: territoryDprt,
+      isPengurus: true,
+      tingkatKepengurusan: ctx.level,
+      wilayahPenugasan: r.subOrg,
+      urutan: r.no, // Urutan tepat sesuai slot hasil alignment!
+      nomorSK:
+        existingMember?.nomorSK ||
+        `SK-${ctx.level}-${(r.dpd || territoryDpd).replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
+      jabatan: r.jabatanMatched || r.jabatanExcel,
+      status: 'Aktif',
+      statusKtpVerified: true,
+      tanggalBergabung: existingMember?.tanggalBergabung || new Date().toISOString().substring(0, 10),
+      terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      diubahOleh: `${adminName} (AI Check & Clear Format Template)`,
+    };
+
+    newMembersToSave.push(memberObj);
+  }
+
+  const filledCount = newMembersToSave.length;
+  const matchedPositions = finalRows.filter((r) => r.isMatched).length;
+
+  return {
+    success: true,
+    rows: finalRows,
+    membersToSave: newMembersToSave,
+    stats: {
+      totalRows: finalRows.length,
+      filledRows: filledCount,
+      vacantSlotsCount,
+      standardSlotsTarget: pimpinanSlots.length,
+      extraRowsCount,
+      pertimbanganCount: alignedPertimbanganRows.length,
+      pakarCount: alignedPakarRows.length,
+      pimpinanCount: alignedPimpinanRows.length,
+      matchedCount: matchedPositions,
+    },
+    message: `Format berhasil diperiksa & dirapikan: ${filledStandardCount}/${pimpinanSlots.length} jabatan baku terisi, ${vacantSlotsCount} slot kosong ditetapkan, ${extraRowsCount} jabatan tambahan dirapikan.`,
   };
 }
