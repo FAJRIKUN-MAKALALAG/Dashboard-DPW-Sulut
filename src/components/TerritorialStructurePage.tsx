@@ -14,7 +14,11 @@ import {
   generateUniqueTerritoryNik,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
-import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
+import {
+  TerritorialImportExportModal,
+  TerritorialStructurePrintModal,
+  TerritorialAiCheckerModal,
+} from './territorial';
 import {
   Building2,
   Building,
@@ -179,6 +183,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   // Modal Cetak Dokumen Resmi Susunan Pengurus
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+  // Modal AI Format Checker & Auto-Align Langsung
+  const [isAiCheckerModalOpen, setIsAiCheckerModalOpen] = useState<boolean>(false);
 
   // Territory Context untuk Template Excel dan Import
   const territoryContext: TerritoryContext = useMemo(() => ({
@@ -1223,6 +1229,15 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           )}
 
           <button
+            onClick={() => setIsAiCheckerModalOpen(true)}
+            title="AI Format Checker: Periksa kelengkapan 36 jabatan DPD baku, deteksi posisi kosong, dan selaraskan urutan secara otomatis tanpa harus import"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white shadow-2xs hover:shadow-xs cursor-pointer transition-all shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>AI Format Checker</span>
+          </button>
+
+          <button
             onClick={() => setIsImportModalOpen(true)}
             title="Import Susunan Pengurus dari Excel (Pra-tinjau & Validasi Otomatis)"
             className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
@@ -1289,6 +1304,18 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         dprt={selectedDprt}
         gridRows={gridRows}
         session={session}
+      />
+
+      {/* 7. Modal AI Format Checker & Auto-Align Langsung Tanpa Perlu Import */}
+      <TerritorialAiCheckerModal
+        isOpen={isAiCheckerModalOpen}
+        onClose={() => setIsAiCheckerModalOpen(false)}
+        territoryContext={territoryContext}
+        currentMembers={members}
+        onSaveMembersBatch={onSaveMembersBatch}
+        onSuccessRefresh={() => {
+          buildMatrixRows();
+        }}
       />
     </div>
   );
