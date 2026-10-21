@@ -89,6 +89,49 @@ export const UserService = {
     }
   },
 
+  /** Cek apakah NIK terdaftar sebagai pengurus untuk aktivasi akun mandiri (Opsi 1) */
+  async checkPengurus(nik: string): Promise<{
+    found: boolean;
+    nik: string;
+    nomorEkta: string;
+    namaLengkap: string;
+    jabatan: string;
+    tingkatKepengurusan: string;
+    dpd: string;
+    dpc: string;
+    dprt: string;
+    hasCustomPassword: boolean;
+    defaultPasswordHint: string;
+  }> {
+    return apiFetch('/auth/check-pengurus', {
+      method: 'POST',
+      auth: false,
+      body: { nik: nik.trim() },
+    });
+  },
+
+  /** Aktivasi akun atau buat kata sandi baru untuk pengurus */
+  async activatePengurus(
+    nik: string,
+    newPassword: string
+  ): Promise<{ success: boolean; session?: UserSession; message?: string }> {
+    try {
+      const res = await apiFetch<{ token: string; session: UserSession; message: string }>(
+        '/auth/activate-pengurus',
+        {
+          method: 'POST',
+          auth: false,
+          body: { nik: nik.trim(), newPassword: newPassword.trim() },
+        }
+      );
+      setToken(res.token);
+      return { success: true, session: res.session, message: res.message };
+    } catch (err: any) {
+      if (err instanceof ApiError) return { success: false, message: err.message };
+      return { success: false, message: err.message || 'Gagal mengaktivasi akun pengurus.' };
+    }
+  },
+
   /** Keluar: hapus token sesi. */
   logout(): void {
     clearToken();
