@@ -6,6 +6,7 @@ import {
   canManageUsers,
   isReferralApplicable,
   canAccessStructureTab,
+  canAccessAnalytics,
 } from '../../utils/permissionUtils';
 import {
   LayoutDashboard,
@@ -26,9 +27,11 @@ import {
   Sparkles,
   KeyRound,
   UserCheck,
+  BarChart3,
+  Tv,
 } from 'lucide-react';
 
-export type MainNavTab = 'dashboard' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
+export type MainNavTab = 'dashboard' | 'analytics' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -80,6 +83,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   // Hak Akses Berdasarkan Peran & Posisi Jabatan
   const hasDashboard = canAccessDashboard(session);
+  const showAnalytics = canAccessAnalytics(session);
   const showReferral = isReferralApplicable(session);
   const showUserMgmt = canManageUsers(session);
 
@@ -206,6 +210,42 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         </span>
                       </div>
                     </div>
+                  </button>
+                )}
+
+                {/* 1.5 Pusat Visualisasi & Monitoring (HANYA SUPER ADMIN & KETUA DPW) */}
+                {showAnalytics && (
+                  <button
+                    onClick={() => handleNavClick('analytics')}
+                    className={navItemClass(activeTab === 'analytics')}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={iconContainerClass(activeTab === 'analytics')}>
+                        <BarChart3 className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none">Visualisasi &amp; Analitik</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'analytics'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          Monitoring 15 Kab/Kota
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                        activeTab === 'analytics'
+                          ? 'bg-amber-400 text-slate-900 font-extrabold'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                      }`}
+                    >
+                      <Tv className="w-2.5 h-2.5" />
+                      WAR ROOM
+                    </span>
                   </button>
                 )}
 

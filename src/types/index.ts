@@ -43,6 +43,7 @@ export interface Member {
   kaderPerekrutNik?: string;
   kaderPerekrutEkta?: string;
   kaderPerekrutJabatan?: string;
+  kaderPerekrutDpd?: string;
   kaderPerekrutKodeReferral?: string;
   // Atribusi Ketua Langsung (Hierarkis berdasarkan struktur organisasi)
   ketuaLangsungNik?: string;

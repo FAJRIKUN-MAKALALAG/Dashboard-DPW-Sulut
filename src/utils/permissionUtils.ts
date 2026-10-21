@@ -42,6 +42,17 @@ export function canManageUsers(session?: UserSession): boolean {
 }
 
 /**
+ * Hak Akses Pusat Visualisasi & Analisis Monitoring (Command Center Multi-Layar):
+ * HANYA untuk SUPER_ADMIN dan KETUA DPW (role ADMIN_DPW + Jabatan Ketua).
+ */
+export function canAccessAnalytics(session?: UserSession): boolean {
+  if (!session) return false;
+  if (session.role === 'SUPER_ADMIN') return true;
+  if (session.role === 'ADMIN_DPW' && isLeaderPosition(session.jabatan)) return true;
+  return false;
+}
+
+/**
  * Aturan Kode Referral:
  * Super Admin TIDAK memakai kode referral (karena Super Admin adalah administrator teknis).
  * Semua pengurus & ketua lapangan (DPW, DPD, DPC, DPRt) memakai kode referral.

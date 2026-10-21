@@ -49,6 +49,7 @@ import {
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { PengurusPortalPage } from './components/PengurusPortalPage';
+import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
 import { TemplateDownloadHubModal } from './components/territorial/TemplateDownloadHubModal';
 import { ReferralHubModal } from './components/referral/ReferralHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
@@ -59,6 +60,7 @@ import {
   isReferralApplicable,
   getDefaultActiveTab,
   canAccessStructureTab,
+  canAccessAnalytics,
   getUserTerritoryLabel,
 } from './utils/permissionUtils';
 import { LoginPage } from './components/LoginPage';
@@ -85,7 +87,20 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true' && Boolean(getToken());
   });
-  const [activeTab, setActiveTab] = useState<MainNavTab>(() => getDefaultActiveTab(loadSession()));
+  const [cleanScreenParam] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('screen');
+  });
+  const [isCleanMode] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('clean') === 'true';
+  });
+  const [activeTab, setActiveTab] = useState<MainNavTab>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'analytics') return 'analytics';
+    return getDefaultActiveTab(loadSession());
+  });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
   const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
@@ -360,6 +375,12 @@ export default function App() {
     // 1. Jika tidak memiliki hak akses dashboard (pengurus biasa / ketua DPRt), arahkan ke portal
     if (!canAccessDashboard(session) && activeTab === 'dashboard') {
       setActiveTab('portal');
+      return;
+    }
+
+    // 1.5 Proteksi tab analitik & visualisasi data: HANYA Super Admin dan Ketua DPW
+    if (activeTab === 'analytics' && !canAccessAnalytics(session)) {
+      setActiveTab(getDefaultActiveTab(session));
       return;
     }
 
@@ -821,6 +842,20 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // Standalone Clean Video Wall Mode (khusus monitor layar terpisah tanpa sidebar/header)
+  if (isCleanMode && canAccessAnalytics(session) && activeTab === 'analytics') {
+    return (
+      <SulutAnalyticsPage
+        members={members}
+        session={session}
+        onRefreshCloud={handleRefreshFromSupabase}
+        isRefreshingCloud={isRefreshingCloud}
+        initialScreen={cleanScreenParam}
+        isCleanMode={true}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex font-sans transition-colors duration-150">
       {/* Toast Notification */}
@@ -884,6 +919,7 @@ export default function App() {
               </span>
               <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
+                {activeTab === 'analytics' && 'Pusat Analisis & Visualisasi Data Teritorial (Command Center)'}
                 {activeTab === 'portal' && 'Portal Kerja Mandiri Pengurus & Rekrutmen'}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
@@ -962,7 +998,13 @@ export default function App() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main
+          className={`flex-1 w-full mx-auto ${
+            activeTab === 'analytics'
+              ? 'max-w-[1850px] px-2 sm:px-4 py-4'
+              : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'
+          }`}
+        >
           {/* Tab 1: Executive Dashboard */}
           {activeTab === 'dashboard' && (
             <ExecutiveDashboard
@@ -1000,6 +1042,18 @@ export default function App() {
                   setActiveTab('dpd');
                 }
               }}
+            />
+          )}
+
+          {/* Tab 1.2: Pusat Analisis & Visualisasi Data (HANYA SUPER ADMIN & KETUA DPW) */}
+          {activeTab === 'analytics' && canAccessAnalytics(session) && (
+            <SulutAnalyticsPage
+              members={members}
+              session={session}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
+              initialScreen={cleanScreenParam}
+              isCleanMode={false}
             />
           )}
 
