@@ -386,7 +386,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
     const chartRight = svgWidth - 30;
     const chartWidth = chartRight - chartLeft;
     const barSlotWidth = chartWidth / bars.length;
-    const barWidth = Math.min(barSlotWidth * 0.52, 40);
+    const barWidth = Math.min(barSlotWidth * 0.65, 48);
 
     return (
       <div className={`relative bg-white border border-slate-200 rounded-xl p-6 shadow-2xs flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
@@ -645,6 +645,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   // 2. CHART 2: DRILLDOWN DETAIL KECAMATAN (CLEAN WHITE)
   const renderDrilldownChart = (isSolo = false) => {
     const { dpdName, totalCount, pengurusCount, anggotaCount, subdistricts, maxSubCount } = drilldownData;
+    const barHeightClass = isSolo ? 'h-11 sm:h-12' : 'h-9 sm:h-10';
+    const maxListHeight = isSolo ? 'max-h-[calc(100vh-270px)]' : 'max-h-[520px]';
+    const listSpacingClass = isSolo ? 'space-y-3.5' : 'space-y-2.5';
 
     return (
       <div className={`bg-white border border-slate-200 rounded-xl p-6 shadow-2xs flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
@@ -663,7 +666,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-wide uppercase">
                   Rincian Kecamatan: {dpdName}
                 </h2>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   {fmt(totalCount)} Kader
                 </span>
               </div>
@@ -679,7 +682,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               <select
                 value={selectedDrilldownDpd}
                 onChange={(e) => setSelectedDrilldownDpd(e.target.value)}
-                className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer appearance-none"
+                className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer appearance-none shadow-2xs"
               >
                 {SULUT_15_KABKOTA.map((item) => (
                   <option key={item.key} value={item.label}>
@@ -710,8 +713,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </div>
         </div>
 
-        {/* Subdistrict Bars List */}
-        <div className="space-y-3 my-2 max-h-[520px] overflow-y-auto pr-2">
+        {/* Subdistrict Bars List with Thick Substantial Bars */}
+        <div className={`${listSpacingClass} my-2 ${maxListHeight} overflow-y-auto pr-2`}>
           {subdistricts.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               Belum ada data kader yang terpetakan untuk kecamatan di wilayah {dpdName}.
@@ -719,39 +722,91 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           ) : (
             subdistricts.map((sub, idx) => {
               const barPercent = maxSubCount > 0 ? (sub.count / maxSubCount) * 100 : 0;
+              const isTop1 = idx === 0 && sub.count > 0;
+              const isTop3 = idx < 3 && sub.count > 0;
+
               return (
-                <div key={sub.name} className="group flex items-center gap-3 text-xs">
-                  {/* Rank Index */}
-                  <span className="w-6 text-slate-400 font-mono font-bold text-right shrink-0">
+                <div
+                  key={sub.name}
+                  className={`group flex items-center gap-3 sm:gap-4 p-2 sm:p-2.5 rounded-xl border transition-all ${
+                    isTop1
+                      ? 'bg-amber-50/50 hover:bg-amber-50/80 border-amber-200/80 shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200/80'
+                  }`}
+                >
+                  {/* Rank Index Badge */}
+                  <div
+                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center font-mono font-bold text-xs sm:text-sm shrink-0 border transition-colors ${
+                      isTop1
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                        : isTop3
+                        ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
                     {String(idx + 1).padStart(2, '0')}
-                  </span>
+                  </div>
 
-                  {/* Kecamatan Name */}
-                  <span className="w-36 sm:w-44 truncate font-semibold text-slate-700 group-hover:text-slate-900 shrink-0">
-                    Kec. {sub.name}
-                  </span>
+                  {/* Kecamatan Details */}
+                  <div className={`${isSolo ? 'w-48 sm:w-60' : 'w-40 sm:w-48'} shrink-0 truncate`}>
+                    <span className={`font-bold text-xs sm:text-sm block truncate transition-colors ${
+                      isTop1 ? 'text-amber-950' : 'text-slate-800 group-hover:text-blue-700'
+                    }`}>
+                      Kec. {sub.name}
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono block mt-0.5">
+                      {sub.count > 0 ? `${sub.percentage.toFixed(1)}% total ${dpdName}` : 'Belum ada kader'}
+                    </span>
+                  </div>
 
-                  {/* Progress Bar Container */}
-                  <div className="flex-1 h-5 bg-slate-100 rounded overflow-hidden p-0.5 border border-slate-200 relative flex items-center">
+                  {/* Thick Substantial Progress Bar Container */}
+                  <div className={`flex-1 ${barHeightClass} bg-slate-100/90 rounded-lg overflow-hidden p-1 border border-slate-200 relative flex items-center shadow-inner`}>
+                    {/* The Filled Bar */}
                     <div
-                      className="h-full rounded-xs transition-all duration-300 bg-blue-600"
+                      className={`h-full rounded-md transition-all duration-500 relative flex items-center shadow-xs ${
+                        isTop1
+                          ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700'
+                          : 'bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500'
+                      }`}
                       style={{
-                        width: `${Math.max(barPercent, sub.count > 0 ? 3 : 0)}%`,
+                        width: `${Math.max(barPercent, sub.count > 0 ? (isSolo ? 6 : 8) : 0)}%`,
                       }}
-                    />
-                    {sub.count > 0 && (
-                      <span className="absolute left-2.5 text-[10.5px] font-mono font-bold text-white drop-shadow-xs">
-                        {fmt(sub.count)}
+                    >
+                      {/* Top glossy highlight line */}
+                      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-white/30 rounded-t-md pointer-events-none" />
+                    </div>
+
+                    {/* Value Badge inside / beside bar */}
+                    {sub.count > 0 ? (
+                      <div className="absolute inset-y-0 left-3 sm:left-4 flex items-center pointer-events-none">
+                        <span
+                          className={`font-mono font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors ${
+                            barPercent > 20
+                              ? 'text-white drop-shadow-xs'
+                              : 'text-slate-800 font-extrabold ml-1'
+                          }`}
+                        >
+                          <span>{fmt(sub.count)}</span>
+                          <span className="text-[10px] sm:text-xs font-sans font-semibold opacity-90 uppercase tracking-wider">
+                            Kader
+                          </span>
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="absolute left-3 sm:left-4 text-xs font-mono text-slate-400 italic">
+                        0 kader
                       </span>
                     )}
                   </div>
 
                   {/* Exact Number & % */}
-                  <div className="w-20 text-right shrink-0">
-                    <span className="font-mono font-bold text-slate-900 text-xs block leading-none">
+                  <div className="w-24 sm:w-28 text-right shrink-0">
+                    <span className="font-mono font-bold text-slate-900 text-sm sm:text-base block leading-none">
                       {fmt(sub.count)}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                    <span className={`text-[11px] sm:text-xs font-mono font-semibold block mt-1 ${
+                      isTop1 ? 'text-amber-700' : 'text-blue-700'
+                    }`}>
                       {sub.percentage.toFixed(1)}%
                     </span>
                   </div>
@@ -1020,7 +1075,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 </div>
 
                 {/* Relative progress bar */}
-                <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden p-0.5 border border-slate-200">
+                <div className="flex-1 h-3.5 sm:h-4 bg-slate-100 rounded-md overflow-hidden p-0.5 border border-slate-200">
                   <div
                     className={`h-full rounded-xs transition-all duration-300 ${
                       isRank1 ? 'bg-amber-500' : 'bg-blue-600'
@@ -1208,8 +1263,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   <span className="text-blue-700">Laki-laki</span>
                   <span className="font-mono text-slate-900">{fmt(maleCount)} ({malePct.toFixed(1)}%)</span>
                 </div>
-                <div className="h-2 bg-slate-200 rounded overflow-hidden">
-                  <div className="h-full bg-blue-600 rounded-xs" style={{ width: `${malePct}%` }} />
+                <div className="h-3.5 bg-slate-200 rounded-md overflow-hidden p-0.5 border border-slate-300">
+                  <div className="h-full bg-blue-600 rounded-xs transition-all duration-300" style={{ width: `${malePct}%` }} />
                 </div>
               </div>
               <div>
@@ -1217,8 +1272,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   <span className="text-amber-700">Perempuan</span>
                   <span className="font-mono text-slate-900">{fmt(femaleCount)} ({femalePct.toFixed(1)}%)</span>
                 </div>
-                <div className="h-2 bg-slate-200 rounded overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-xs" style={{ width: `${femalePct}%` }} />
+                <div className="h-3.5 bg-slate-200 rounded-md overflow-hidden p-0.5 border border-slate-300">
+                  <div className="h-full bg-amber-500 rounded-xs transition-all duration-300" style={{ width: `${femalePct}%` }} />
                 </div>
               </div>
             </div>
