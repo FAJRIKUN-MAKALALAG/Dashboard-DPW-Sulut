@@ -7,7 +7,7 @@ import {
   DPW_STRUCTURE_TEMPLATE,
 } from '../data/structureTemplates';
 import { SULUT_REGIONS } from '../data/sulutRegions';
-import { isDpdMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from './structureReadinessUtils';
+import { isDpdMatch, isDpcMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from './structureReadinessUtils';
 import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
 import { makeGeneratedEkta, isGeneratedNik, isGeneratedEkta } from './generatedIds';
 import { GridRowItem } from '../components/matrix';
@@ -39,6 +39,15 @@ export interface ParsedTerritoryRow {
   isVacantSlot?: boolean;
 }
 
+export interface DpdImportComplianceInfo {
+  totalRequired: number; // 36
+  filledCount: number;
+  vacantCount: number;
+  isComplete: boolean;
+  vacantSlots: Array<{ no: number; jabatan: string; subOrg: string }>;
+  filledSlots: Array<{ no: number; jabatan: string; namaLengkap: string }>;
+}
+
 export interface ParseTerritoryExcelResult {
   territoryContext: TerritoryContext;
   rows: ParsedTerritoryRow[];
@@ -51,6 +60,7 @@ export interface ParseTerritoryExcelResult {
     customPositions: number;
   };
   filename: string;
+  dpdPimpinanCompliance?: DpdImportComplianceInfo;
 }
 
 /**
@@ -1060,24 +1070,11 @@ export function generateUniqueTerritoryNik(
   seq: number,
   occupiedNiks: Set<string>
 ): string {
-  const regIdx = SULUT_REGIONS.findIndex((r) => isDpdMatch(r.name, dpdName));
-  const dpdCode = regIdx !== -1 ? String(regIdx + 1).padStart(2, '0') : '00';
-
-  const subLower = (subOrg || '').toLowerCase();
-  let councilCode = '33'; // Default Dewan Pimpinan
-  if (subLower.includes('pertimbangan')) {
-    councilCode = '11';
-  } else if (subLower.includes('pakar')) {
-    councilCode = '22';
-  } else if (subLower.includes('cabang') || subLower.includes('ranting')) {
-    councilCode = '44';
-  }
-
   let counter = Math.max(1, seq);
   let candidate = '';
   do {
-    const seqStr = String(counter).padStart(6, '0').slice(-6);
-    candidate = `71${dpdCode}${councilCode}2026${seqStr}`;
+    // Format template NIK 16 digit angka: 0000000000000001, 0000000000000002, dst.
+    candidate = String(counter).padStart(16, '0');
     counter++;
   } while (occupiedNiks.has(candidate));
 
@@ -1104,7 +1101,8 @@ export async function parseTerritorialExcelFile(
   const slots = getStructureTemplate(ctx.level);
   const parsedRows: ParsedTerritoryRow[] = [];
   const membersToSave: Member[] = [];
-  const occupiedNiks = new Set<string>(currentMembers.map((m) => m.nik));
+  const allExistingNiks = new Set<string>(currentMembers.map((m) => m.nik));
+  const batchAssignedNiks = new Set<string>();
 
   const territoryDpd = ctx.level === 'DPW' ? 'Sulawesi Utara' : ctx.dpd;
   const territoryDpc =
@@ -1119,8 +1117,7 @@ export async function parseTerritorialExcelFile(
     if (!nik) return false;
     const clean = String(nik).replace(/[^0-9]/g, '');
     if (clean.length !== 16) return false; // backend mewajibkan NIK tepat 16 digit
-    if (/^0+$/.test(clean)) return false;
-    if (/0{8,}/.test(clean)) return false;
+    if (/^0{6,}/.test(clean)) return false; // NIK resmi tidak diawali banyak angka 0
     return true;
   };
 
@@ -1209,7 +1206,11 @@ export async function parseTerritorialExcelFile(
               c.includes('person') ||
               c.includes('lengkap'))
         );
-        if (hasJabatan && hasNama) {
+        const hasNik = rowLower.some((c) => {
+          const clean = c.replace(/[^a-z0-9]/g, '');
+          return !c.includes('nama') && (clean.includes('nik') || c.includes('ktp'));
+        });
+        if ((hasJabatan && hasNama) || (hasNama && hasNik) || (hasJabatan && hasNik)) {
           headerRowIdx = i;
           break;
         }
@@ -1252,7 +1253,10 @@ export async function parseTerritorialExcelFile(
         String(h || '').toLowerCase().trim()
       );
 
-      colNo = headers.findIndex((h) => h === 'no' || h === 'nomor' || h === '#');
+      colNo = headers.findIndex((h) => {
+        const clean = h.replace(/[^a-z0-9]/g, '');
+        return clean === 'no' || clean === 'nomor' || h === '#';
+      });
       colDpd = headers.findIndex(
         (h) =>
           (h === 'dpd' ||
@@ -1290,10 +1294,21 @@ export async function parseTerritorialExcelFile(
             h.includes('person') ||
             h.includes('lengkap')) &&
           !h.includes('jabatan') &&
-          !h.includes('posisi')
+          !h.includes('posisi') &&
+          !h.replace(/[^a-z0-9]/g, '').includes('nik')
       );
-      colNik = headers.findIndex((h) => h.includes('nik') || h.includes('ktp'));
-      colEkta = headers.findIndex((h) => (h.includes('kta') || h.includes('ekta')) && !h.includes('kontak'));
+      // Deteksi kolom NIK (misal: "No. NIK", "No.Nik", "NIK KTP", dll)
+      // PENTING: Jangan sampai tertukar dengan kolom "Nama Lengkap (Sesuai KTP)"!
+      colNik = headers.findIndex((h) => {
+        if (h.includes('nama') || h.includes('name')) return false;
+        const clean = h.replace(/[^a-z0-9]/g, '');
+        return clean.includes('nik') || h.includes('ktp');
+      });
+      colEkta = headers.findIndex((h) => {
+        if (h.includes('kontak') || h.includes('nama') || h.includes('nik')) return false;
+        const clean = h.replace(/[^a-z0-9]/g, '');
+        return clean.includes('kta') || clean.includes('ekta');
+      });
       colGender = headers.findIndex(
         (h) => h.includes('kelamin') || h.includes('gender') || h === 'jk' || h === 'sex'
       );
@@ -1375,7 +1390,25 @@ export async function parseTerritorialExcelFile(
         namaVal.trim() !== '—' &&
         !namaVal.toLowerCase().includes('lowong') &&
         !namaVal.toLowerCase().includes('kosong');
-      let nikVal = colNik !== -1 ? String(row[colNik] || '').replace(/[^0-9]/g, '').trim() : '';
+      let nikVal = '';
+      if (colNik !== -1 && row[colNik] !== undefined && row[colNik] !== null) {
+        const cell = row[colNik];
+        if (typeof cell === 'number') {
+          nikVal = Math.floor(cell).toLocaleString('fullwide', { useGrouping: false });
+        } else {
+          const str = String(cell).trim();
+          if (/[eE]\+?/.test(str)) {
+            const num = Number(str);
+            if (!isNaN(num) && isFinite(num)) {
+              nikVal = Math.floor(num).toLocaleString('fullwide', { useGrouping: false });
+            } else {
+              nikVal = str.replace(/[^0-9]/g, '');
+            }
+          } else {
+            nikVal = str.replace(/[^0-9]/g, '');
+          }
+        }
+      }
       const ektaVal = colEkta !== -1 ? String(row[colEkta] || '').replace(/[^0-9]/g, '').trim() : '';
       const genderVal = colGender !== -1 ? String(row[colGender] || '').trim() : '';
       const hpVal = colHp !== -1 ? String(row[colHp] || '').trim() : '';
@@ -1428,6 +1461,24 @@ export async function parseTerritorialExcelFile(
         finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
       } else if (jabLower.includes('pakar') || jabLower.includes('wangan')) {
         finalSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+      } else if (
+        // Jabatan pimpinan bidang (misal: "Wakil Ketua Bid...", "Wakil Sekretaris", "Wakil Bendahara", dll)
+        // secara mutlak HANYA ada di Dewan Pimpinan (DPD/DPW/DPC)
+        jabLower.includes('bidang') ||
+        jabLower.includes('bid') ||
+        jabLower.includes('wakil sekretaris') ||
+        jabLower.includes('wasek') ||
+        jabLower.includes('wakil bendahara') ||
+        jabLower.includes('wabendum') ||
+        jabLower.includes('wabend')
+      ) {
+        finalSubOrg =
+          ctx.level === 'DPW'
+            ? 'DEWAN PIMPINAN WILAYAH'
+            : ctx.level === 'DPD'
+            ? 'III. DEWAN PIMPINAN DAERAH'
+            : 'III. DEWAN PIMPINAN CABANG';
+        activeSectionSubOrg = finalSubOrg;
       } else {
         finalSubOrg = activeSectionSubOrg;
       }
@@ -1443,6 +1494,15 @@ export async function parseTerritorialExcelFile(
         ) ||
         slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan, s.subOrg));
 
+      // Jika cocok di subOrg pimpinan, pastikan finalSubOrg selaras
+      if (matchedSlot && matchedSlot.subOrg) {
+        finalSubOrg = normalizeSubOrgName(matchedSlot.subOrg, rowLevel);
+      }
+
+      // Standarkan nama jabatan jika cocok dengan slot resmi template partai
+      // (contoh: "Wakil Ketua Bid Pendidikan & Kebudayaan" -> "Wakil Ketua Bidang Pendidikan dan Kebudayaan")
+      const standardizedJabatan = matchedSlot ? matchedSlot.jabatan : (jabatanVal || 'Pengurus');
+
       const isMatched = !!matchedSlot;
       if (isMatched) {
         matchedPositions++;
@@ -1457,24 +1517,41 @@ export async function parseTerritorialExcelFile(
         const existingSlotMember = currentMembers.find(
           (m) =>
             isDpdMatch(m.dpd, rowDpd) &&
+            (rowLevel !== 'DPC' || isDpcMatch(m.dpc, rowDpc)) &&
             (m.wilayahPenugasan || '').trim().toLowerCase() === finalSubOrg.trim().toLowerCase() &&
             isJobTitleMatch(m.jabatan, jabatanVal)
         );
 
-        // 2. Tentukan NIK: Jika kosong, dummy/placeholder, atau sudah dipakai baris lain, generate NIK unik anti-tabrakan
-        if (!isValidNik(nikVal) || occupiedNiks.has(nikVal)) {
-          if (existingSlotMember && isValidNik(existingSlotMember.nik) && !occupiedNiks.has(existingSlotMember.nik)) {
+        // 2. Tentukan NIK:
+        // Jika Excel memiliki NIK 16 digit yang valid:
+        const hasValidExcelNik = isValidNik(nikVal) && !batchAssignedNiks.has(nikVal);
+
+        if (hasValidExcelNik) {
+          // Gunakan NIK riil dari Excel langsung!
+          batchAssignedNiks.add(nikVal);
+          allExistingNiks.add(nikVal);
+        } else {
+          // Jika di Excel NIK kosong atau tidak valid:
+          // Cek apakah kader di slot ini sebelumnya sudah punya NIK asli di database
+          if (
+            existingSlotMember &&
+            isValidNik(existingSlotMember.nik) &&
+            !isGeneratedNik(existingSlotMember.nik) &&
+            !batchAssignedNiks.has(existingSlotMember.nik)
+          ) {
             nikVal = existingSlotMember.nik;
+            batchAssignedNiks.add(nikVal);
           } else {
+            // Buat template NIK 16 digit (contoh: 0000000000000001 dst)
             nikVal = generateUniqueTerritoryNik(
               rowDpd,
               finalSubOrg,
               parsedRows.length + 1,
-              occupiedNiks
+              allExistingNiks
             );
+            batchAssignedNiks.add(nikVal);
           }
         }
-        occupiedNiks.add(nikVal);
 
         const existingMember =
           existingSlotMember ||
@@ -1506,7 +1583,7 @@ export async function parseTerritorialExcelFile(
           nomorSK:
             existingMember?.nomorSK ||
             `SK-${rowLevel}-${rowDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
-          jabatan: jabatanVal || matchedSlot?.jabatan || 'Pengurus',
+          jabatan: standardizedJabatan,
           status: 'Aktif',
           statusKtpVerified: true,
           tanggalBergabung:
@@ -1522,7 +1599,7 @@ export async function parseTerritorialExcelFile(
         no: noVal,
         dpd: rowDpd,
         subOrg: finalSubOrg,
-        jabatanExcel: jabatanVal || 'Pengurus',
+        jabatanExcel: standardizedJabatan,
         jabatanMatched: matchedSlot?.jabatan,
         isMatched,
         namaLengkap: namaVal,
@@ -1544,6 +1621,53 @@ export async function parseTerritorialExcelFile(
     );
   }
 
+  // Hitung kepatuhan formasi DPD Bagian A (Dewan Pimpinan Daerah / 36 Jabatan Baku)
+  let dpdPimpinanCompliance: DpdImportComplianceInfo | undefined = undefined;
+  if (ctx.level === 'DPD') {
+    const pimpinanSlots = DPD_STRUCTURE_TEMPLATE.filter(
+      (s) => getSlotSubOrgCategory(s) === 'PIMPINAN'
+    );
+    const filledSlots: Array<{ no: number; jabatan: string; namaLengkap: string }> = [];
+    const vacantSlots: Array<{ no: number; jabatan: string; subOrg: string }> = [];
+
+    const usedIndices = new Set<number>();
+    for (const slot of pimpinanSlots) {
+      const idx = parsedRows.findIndex(
+        (r, i) =>
+          !usedIndices.has(i) &&
+          r.isFilled &&
+          !r.isVacantSlot &&
+          !r.subOrg.toUpperCase().includes('PERTIMBANGAN') &&
+          !r.subOrg.toUpperCase().includes('PAKAR') &&
+          (isJobTitleMatch(r.jabatanExcel, slot.jabatan) || isJobTitleMatch(r.jabatanMatched || '', slot.jabatan))
+      );
+
+      if (idx !== -1) {
+        usedIndices.add(idx);
+        filledSlots.push({
+          no: slot.no,
+          jabatan: slot.jabatan,
+          namaLengkap: parsedRows[idx].namaLengkap,
+        });
+      } else {
+        vacantSlots.push({
+          no: slot.no,
+          jabatan: slot.jabatan,
+          subOrg: slot.subOrg,
+        });
+      }
+    }
+
+    dpdPimpinanCompliance = {
+      totalRequired: pimpinanSlots.length || 36,
+      filledCount: filledSlots.length,
+      vacantCount: vacantSlots.length,
+      isComplete: filledSlots.length >= (pimpinanSlots.length || 36),
+      vacantSlots,
+      filledSlots,
+    };
+  }
+
   return {
     territoryContext: ctx,
     rows: parsedRows,
@@ -1556,6 +1680,7 @@ export async function parseTerritorialExcelFile(
       customPositions,
     },
     filename: file.name,
+    dpdPimpinanCompliance,
   };
 }
 
@@ -1577,6 +1702,7 @@ export interface AiTemplateCheckResult {
   membersToSave: Member[];
   stats: AiTemplateCheckStats;
   message: string;
+  dpdPimpinanCompliance?: DpdImportComplianceInfo;
 }
 
 /**
@@ -1687,7 +1813,10 @@ export function alignAndCheckWithTemplate(
     for (let i = 0; i < pimpinanRows.length; i++) {
       if (usedPimpinanIdx.has(i)) continue;
       const r = pimpinanRows[i];
-      if (isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg)) {
+      if (
+        isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg) ||
+        isJobTitleMatch(r.jabatanMatched || '', slot.jabatan, slot.subOrg)
+      ) {
         matchedIdx = i;
         break;
       }
@@ -1698,7 +1827,11 @@ export function alignAndCheckWithTemplate(
       for (let i = 0; i < pimpinanRows.length; i++) {
         if (usedPimpinanIdx.has(i)) continue;
         const r = pimpinanRows[i];
-        if (r.no === slot.no && isJobTitleMatch(r.jabatanExcel, slot.jabatan)) {
+        if (
+          r.no === slot.no &&
+          (isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg) ||
+            isJobTitleMatch(r.jabatanMatched || '', slot.jabatan, slot.subOrg))
+        ) {
           matchedIdx = i;
           break;
         }
@@ -1714,6 +1847,7 @@ export function alignAndCheckWithTemplate(
         ...r,
         no: slot.no, // Pastikan nomor urut tepat nomor slot baku (1 s/d 36)
         subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+        jabatanExcel: slot.jabatan, // Standarkan ke nama resmi partai (menghilangkan singkatan)
         jabatanMatched: slot.jabatan,
         isMatched: true,
         aiNote: `✓ Sesuai Slot Template #${slot.no} (${slot.jabatan})`,
@@ -1769,14 +1903,15 @@ export function alignAndCheckWithTemplate(
   ];
 
   // Re-generate membersToSave (hanya baris terisi nama riil)
-  const occupiedNiks = new Set<string>();
+  const allExistingNiksHelper = new Set<string>(currentMembers.map((m) => m.nik));
+  const batchAssignedNiksHelper = new Set<string>();
   const newMembersToSave: Member[] = [];
 
   const isValidNikHelper = (nik?: string): boolean => {
     if (!nik) return false;
     const clean = String(nik).replace(/[^0-9]/g, '');
     if (clean.length !== 16) return false;
-    if (/^0+$/.test(clean) || /0{8,}/.test(clean)) return false;
+    if (/^0{6,}/.test(clean)) return false;
     return true;
   };
 
@@ -1789,23 +1924,35 @@ export function alignAndCheckWithTemplate(
     const existingSlotMember = currentMembers.find(
       (m) =>
         isDpdMatch(m.dpd, r.dpd || territoryDpd) &&
+        (ctx.level !== 'DPC' || isDpcMatch(m.dpc, territoryDpc)) &&
         (m.wilayahPenugasan || '').trim().toLowerCase() === r.subOrg.trim().toLowerCase() &&
         isJobTitleMatch(m.jabatan, r.jabatanExcel)
     );
 
-    if (!isValidNikHelper(nikVal) || occupiedNiks.has(nikVal)) {
-      if (existingSlotMember && isValidNikHelper(existingSlotMember.nik) && !occupiedNiks.has(existingSlotMember.nik)) {
+    const hasValidExcelNik = isValidNikHelper(nikVal) && !batchAssignedNiksHelper.has(nikVal);
+
+    if (hasValidExcelNik) {
+      batchAssignedNiksHelper.add(nikVal);
+      allExistingNiksHelper.add(nikVal);
+    } else {
+      if (
+        existingSlotMember &&
+        isValidNikHelper(existingSlotMember.nik) &&
+        !isGeneratedNik(existingSlotMember.nik) &&
+        !batchAssignedNiksHelper.has(existingSlotMember.nik)
+      ) {
         nikVal = existingSlotMember.nik;
+        batchAssignedNiksHelper.add(nikVal);
       } else {
         nikVal = generateUniqueTerritoryNik(
           r.dpd || territoryDpd,
           r.subOrg,
           r.no,
-          occupiedNiks
+          allExistingNiksHelper
         );
+        batchAssignedNiksHelper.add(nikVal);
       }
     }
-    occupiedNiks.add(nikVal);
 
     const existingMember =
       existingSlotMember ||
@@ -1849,6 +1996,43 @@ export function alignAndCheckWithTemplate(
   const filledCount = newMembersToSave.length;
   const matchedPositions = finalRows.filter((r) => r.isMatched).length;
 
+  let dpdPimpinanCompliance: DpdImportComplianceInfo | undefined = undefined;
+  if (ctx.level === 'DPD') {
+    const filledSlots: Array<{ no: number; jabatan: string; namaLengkap: string }> = [];
+    const vacantSlots: Array<{ no: number; jabatan: string; subOrg: string }> = [];
+
+    for (const slot of pimpinanSlots) {
+      const row = alignedPimpinanRows.find(
+        (r) =>
+          (isJobTitleMatch(r.jabatanMatched || r.jabatanExcel, slot.jabatan) || r.no === slot.no) &&
+          r.isFilled &&
+          !r.isVacantSlot
+      );
+      if (row) {
+        filledSlots.push({
+          no: slot.no,
+          jabatan: slot.jabatan,
+          namaLengkap: row.namaLengkap,
+        });
+      } else {
+        vacantSlots.push({
+          no: slot.no,
+          jabatan: slot.jabatan,
+          subOrg: slot.subOrg,
+        });
+      }
+    }
+
+    dpdPimpinanCompliance = {
+      totalRequired: pimpinanSlots.length || 36,
+      filledCount: filledSlots.length,
+      vacantCount: vacantSlots.length,
+      isComplete: filledSlots.length >= (pimpinanSlots.length || 36),
+      vacantSlots,
+      filledSlots,
+    };
+  }
+
   return {
     success: true,
     rows: finalRows,
@@ -1865,5 +2049,6 @@ export function alignAndCheckWithTemplate(
       matchedCount: matchedPositions,
     },
     message: `Format berhasil diperiksa & dirapikan: ${filledStandardCount}/${pimpinanSlots.length} jabatan baku terisi, ${vacantSlotsCount} slot kosong ditetapkan, ${extraRowsCount} jabatan tambahan dirapikan.`,
+    dpdPimpinanCompliance,
   };
 }

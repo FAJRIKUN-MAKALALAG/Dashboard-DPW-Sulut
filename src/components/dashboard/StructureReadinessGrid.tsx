@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Member } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch, getMemberSubOrgCategory, REQUIRED_POSITIONS } from '../../utils/structureReadinessUtils';
+import { isDpdMatch, getMemberSubOrgCategory, REQUIRED_POSITIONS, getDpdPimpinanCompliance } from '../../utils/structureReadinessUtils';
 import {
   Users,
   ChevronRight,
@@ -174,12 +174,14 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
               m.dpc === 'Umum (DPD)' ||
               m.dpc === 'Wilayah DPD'
           );
-          const countPim = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PIMPINAN').length;
+          const compliance = getDpdPimpinanCompliance(region.name, members);
+          const countPim = compliance.filledCount;
+          const dpdTarget = compliance.totalRequired; // 36
+          const dpdPercent = compliance.percentage;
           const countPert = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN').length;
           const countPak = dpdPengurus.filter((m) => getMemberSubOrgCategory(m) === 'PAKAR').length;
           const totalDpdFilled = countPim + countPert + countPak;
-          const dpdTarget = REQUIRED_POSITIONS.DPD; // Standar formasi SK DPD (36 Jabatan)
-          const dpdPercent = Math.min(100, Math.round((countPim / dpdTarget) * 100));
+          const vacantPositions = compliance.vacantSlots.map((s) => s.jabatan);
 
           const countDprt = regPengurus.filter((m) => m.tingkatKepengurusan === 'DPRt').length;
 
@@ -284,6 +286,42 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Daftar Jabatan Belum Terisi (Langsung Kelihatan di Kartu) */}
+                {vacantPositions.length > 0 && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>DPD Bagian A: {countPim}/36 ({vacantPositions.length} Lowong):</span>
+                      </span>
+                      <button
+                        onClick={() => onOpenStructureModal(region.name)}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-semibold"
+                      >
+                        Buka Detail &rarr;
+                      </button>
+                    </div>
+                    <div className="space-y-1 max-h-24 overflow-y-auto pr-0.5">
+                      {vacantPositions.map((pos, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-1.5 rounded bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/60 text-[11px]"
+                        >
+                          <span
+                            className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1"
+                            title={pos}
+                          >
+                            {pos}
+                          </span>
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0 ml-1">
+                            ⚡ Lowong
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons: Navigasi Langsung Spesifik Wilayah */}

@@ -2,7 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { getStructureTemplate, PositionSlot } from '../data/structureTemplates';
-import { isDpdMatch, isDpcMatch, isDprtMatch, getMemberSubOrgCategory, getSlotSubOrgCategory } from '../utils/structureReadinessUtils';
+import {
+  isDpdMatch,
+  isDpcMatch,
+  isDprtMatch,
+  getMemberSubOrgCategory,
+  getSlotSubOrgCategory,
+  getDpdPimpinanCompliance,
+} from '../utils/structureReadinessUtils';
 import { matchMemberToSlot, normalizeSubOrgName, isJobTitleMatch, getCouncilRank, getPimpinanRank } from '../utils/jobMatchingUtils';
 import * as XLSX from 'xlsx';
 import { MatrixTableSheet, GridRowItem } from './matrix';
@@ -14,11 +21,7 @@ import {
   generateUniqueTerritoryNik,
   TerritoryContext,
 } from '../utils/territorialExcelTemplateUtils';
-import {
-  TerritorialImportExportModal,
-  TerritorialStructurePrintModal,
-  TerritorialAiCheckerModal,
-} from './territorial';
+import { TerritorialImportExportModal, TerritorialStructurePrintModal } from './territorial';
 import {
   Building2,
   Building,
@@ -39,6 +42,9 @@ import {
   Printer,
   ShieldAlert,
   ArrowLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
@@ -183,8 +189,6 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   // Modal Cetak Dokumen Resmi Susunan Pengurus
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
-  // Modal AI Format Checker & Auto-Align Langsung
-  const [isAiCheckerModalOpen, setIsAiCheckerModalOpen] = useState<boolean>(false);
 
   // Territory Context untuk Template Excel dan Import
   const territoryContext: TerritoryContext = useMemo(() => ({
@@ -206,6 +210,13 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   const [gridRows, setGridRows] = useState<GridRowItem[]>([]);
   // Tracking deleted members (NIKs) to delete from database upon saving
   const [deletedMemberNiks, setDeletedMemberNiks] = useState<string[]>([]);
+  const [showVacantModal, setShowVacantModal] = useState<boolean>(false);
+
+  // Kepatuhan formasi 36 jabatan DPD Bagian A (Dewan Pimpinan Daerah)
+  const dpdPimpinanCompliance = useMemo(() => {
+    if (level !== 'DPD') return null;
+    return getDpdPimpinanCompliance(selectedDpd, members);
+  }, [level, selectedDpd, members]);
 
   // Local storage key for custom deleted template slots per territory
   const territoryKey = useMemo(() => {
@@ -454,15 +465,79 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     // Keduanya (nama dan jabatan asli) ditarik lengkap, dan urutannya tertata rapi
     // dari Ketua -> Para Wakil Ketua -> Sekretaris -> Para Wakil Sekretaris -> Bendahara -> Para Wakil Bendahara -> Lainnya.
     // =========================================================================
-    if (pimpinanMembers.length > 0) {
-      const sortedPimpinan = [...pimpinanMembers].sort((a, b) => {
-        const rankA = getPimpinanRank(a.jabatan, pimpinanTemplateSlots);
-        const rankB = getPimpinanRank(b.jabatan, pimpinanTemplateSlots);
-        if (rankA !== rankB) return rankA - rankB;
-        return (a.urutan ?? 999) - (b.urutan ?? 999);
+    if (pimpinanTemplateSlots.length > 0) {
+      // Petakan anggota ke slot baku pimpinan (1 s/d 36 untuk DPD/DPW, 1 s/d 17 untuk DPC, 1 s/d 9 untuk DPRt)
+      const usedMemberNiksInPimpinan = new Set<string>();
+
+      pimpinanTemplateSlots.forEach((slot) => {
+        // Cari kader yang cocok dengan slot ini (toleran terhadap singkatan seperti Bid., Bid, &, dll)
+        const matched = pimpinanMembers.find(
+          (m) =>
+            !usedMemberNiksInPimpinan.has(m.nik) &&
+            isJobTitleMatch(m.jabatan, slot.jabatan, slot.subOrg)
+        );
+
+        if (matched) {
+          usedMemberNiksInPimpinan.add(matched.nik);
+          assignedMemberNiks.add(matched.nik);
+          rows.push({
+            id: matched.nik,
+            no: slot.no,
+            subOrg: pimpinanSubOrgName,
+            // Standarkan nama jabatan ke nama resmi partai (menghilangkan singkatan kasar seperti "Bid", "Bid.", "&")
+            jabatan: slot.jabatan,
+            namaLengkap: matched.namaLengkap,
+            nik: matched.nik,
+            nomorEKTA: matched.nomorEKTA || '',
+            email: matched.email || '',
+            nomorHP: matched.nomorHP || '',
+            sosmed: matched.sosmed || '',
+            isExisting: true,
+            originalNik: matched.nik,
+          });
+        } else {
+          // Posisi baku belum terisi -> tampilkan sebagai slot kosong siap diisi langsung di matriks
+          rows.push({
+            id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}`,
+            no: slot.no,
+            subOrg: pimpinanSubOrgName,
+            jabatan: slot.jabatan,
+            namaLengkap: '',
+            nik: '',
+            nomorEKTA: '',
+            email: '',
+            nomorHP: '',
+            sosmed: '',
+            isExisting: false,
+          });
+        }
       });
 
-      sortedPimpinan.forEach((m, idx) => {
+      // Pengurus pimpinan tambahan di luar slot baku resmi (urutan 37, 38, dst)
+      let extraPimpinanNo = pimpinanTemplateSlots.length + 1;
+      pimpinanMembers.forEach((m) => {
+        if (!usedMemberNiksInPimpinan.has(m.nik)) {
+          usedMemberNiksInPimpinan.add(m.nik);
+          assignedMemberNiks.add(m.nik);
+          rows.push({
+            id: m.nik,
+            no: extraPimpinanNo++,
+            subOrg: pimpinanSubOrgName,
+            jabatan: m.jabatan || 'Pengurus',
+            namaLengkap: m.namaLengkap,
+            nik: m.nik,
+            nomorEKTA: m.nomorEKTA || '',
+            email: m.email || '',
+            nomorHP: m.nomorHP || '',
+            sosmed: m.sosmed || '',
+            isExisting: true,
+            originalNik: m.nik,
+          });
+        }
+      });
+    } else if (pimpinanMembers.length > 0) {
+      // Fallback jika tidak ada template
+      pimpinanMembers.forEach((m, idx) => {
         assignedMemberNiks.add(m.nik);
         rows.push({
           id: m.nik,
@@ -477,23 +552,6 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           sosmed: m.sosmed || '',
           isExisting: true,
           originalNik: m.nik,
-        });
-      });
-    } else if (pimpinanTemplateSlots.length > 0) {
-      // Jika belum ada data riil diimpor, sediakan slot template kosong siap isi
-      pimpinanTemplateSlots.forEach((slot, idx) => {
-        rows.push({
-          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
-          no: slot.no,
-          subOrg: slot.subOrg,
-          jabatan: slot.jabatan,
-          namaLengkap: '',
-          nik: '',
-          nomorEKTA: '',
-          email: '',
-          nomorHP: '',
-          sosmed: '',
-          isExisting: false,
         });
       });
     }
@@ -1081,6 +1139,67 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
             style={{ width: `${Math.max(2, Math.min(completionPercentage, 100))}%` }}
           />
         </div>
+
+        {/* Banner Kepatuhan Formasi DPD Bagian A (Dewan Pimpinan Daerah - 36 Jabatan Baku) */}
+        {level === 'DPD' && dpdPimpinanCompliance && (
+          <div
+            className={`mt-4 p-4 rounded-xl border transition-all ${
+              dpdPimpinanCompliance.isComplete
+                ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800'
+                : 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    dpdPimpinanCompliance.isComplete
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-600 text-white'
+                  }`}
+                >
+                  {dpdPimpinanCompliance.isComplete ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                      Status Formasi DPD Bagian A (Dewan Pimpinan Daerah):
+                    </h4>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                        dpdPimpinanCompliance.isComplete
+                          ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
+                          : 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                      }`}
+                    >
+                      {dpdPimpinanCompliance.filledCount}/36 Jabatan Terisi
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                    {dpdPimpinanCompliance.isComplete
+                      ? `Seluruh 36 formasi resmi pengurus harian DPD ${selectedDpd} telah lengkap terisi.`
+                      : `Data pengurus DPD ${selectedDpd} baru mengisi ${dpdPimpinanCompliance.filledCount} dari 36 formasi resmi. Terdapat ${dpdPimpinanCompliance.vacantCount} jabatan yang belum terisi (lowong).`}
+                  </p>
+                </div>
+              </div>
+
+              {dpdPimpinanCompliance.vacantCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowVacantModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer transition-colors shrink-0"
+                >
+                  <span>Buka {dpdPimpinanCompliance.vacantCount} Jabatan Belum Terisi</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Interactive Toolbar & Controls */}
@@ -1229,15 +1348,6 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
           )}
 
           <button
-            onClick={() => setIsAiCheckerModalOpen(true)}
-            title="AI Format Checker: Periksa kelengkapan 36 jabatan DPD baku, deteksi posisi kosong, dan selaraskan urutan secara otomatis tanpa harus import"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white shadow-2xs hover:shadow-xs cursor-pointer transition-all shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>AI Format Checker</span>
-          </button>
-
-          <button
             onClick={() => setIsImportModalOpen(true)}
             title="Import Susunan Pengurus dari Excel (Pra-tinjau & Validasi Otomatis)"
             className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 hover:border-blue-400 cursor-pointer transition-colors shadow-2xs"
@@ -1306,17 +1416,126 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         session={session}
       />
 
-      {/* 7. Modal AI Format Checker & Auto-Align Langsung Tanpa Perlu Import */}
-      <TerritorialAiCheckerModal
-        isOpen={isAiCheckerModalOpen}
-        onClose={() => setIsAiCheckerModalOpen(false)}
-        territoryContext={territoryContext}
-        currentMembers={members}
-        onSaveMembersBatch={onSaveMembersBatch}
-        onSuccessRefresh={() => {
-          buildMatrixRows();
-        }}
-      />
+      {/* 7. Modal Rincian Jabatan DPD Bagian A Yang Belum Terisi */}
+      {showVacantModal && dpdPimpinanCompliance && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    Rincian Formasi DPD Bagian A Belum Terisi
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    DPD Partai NasDem {selectedDpd} &middot;{' '}
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      Terisi {dpdPimpinanCompliance.filledCount}/36 Jabatan ({dpdPimpinanCompliance.vacantCount} Lowong)
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVacantModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List / Table Content */}
+            <div className="p-4 overflow-y-auto space-y-3">
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200">
+                Berikut adalah <strong>{dpdPimpinanCompliance.vacantCount} jabatan pimpinan daerah</strong> dari 36 formasi resmi yang masih kosong dan perlu diisi kader/pengurus ber-SK:
+              </div>
+
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="py-2.5 px-3 w-12 text-center">No</th>
+                      <th className="py-2.5 px-3">Nama Jabatan Baku (36 Formasi Resmi)</th>
+                      <th className="py-2.5 px-3 text-center w-28">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {dpdPimpinanCompliance.slots.map((slot) => (
+                      <tr
+                        key={slot.no}
+                        className={
+                          slot.isFilled
+                            ? 'bg-slate-50/40 dark:bg-slate-900/40'
+                            : 'bg-amber-50/30 dark:bg-amber-950/20'
+                        }
+                      >
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500">
+                          #{slot.no}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">
+                            {slot.jabatan}
+                          </div>
+                          {slot.isFilled && slot.member ? (
+                            <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              ✓ Terisi: {slot.member.namaLengkap}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-rose-500 dark:text-rose-400 font-medium">
+                              ⚡ Belum ada nama pengurus yang terdata
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {slot.isFilled ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Terisi</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 animate-pulse">
+                              <span>Lowong</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Pilih "Mode Edit" di tabel matriks untuk langsung mengisi posisi yang lowong.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowVacantModal(false)}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVacantModal(false);
+                    setIsEditMode(true);
+                  }}
+                  className="px-4 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer"
+                >
+                  Isi Langsung di Tabel Matriks
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
