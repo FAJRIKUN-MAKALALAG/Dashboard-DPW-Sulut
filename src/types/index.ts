@@ -134,6 +134,7 @@ export interface DirectLeaderInfo {
   nama: string;
   jabatan: string;
   tingkat: string;
+  kodeReferral?: string;
 }
 
 export interface ReferralValidationResult {

@@ -20,9 +20,10 @@ import {
   X,
   Sparkles,
   KeyRound,
+  UserCheck,
 } from 'lucide-react';
 
-export type MainNavTab = 'dashboard' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
+export type MainNavTab = 'dashboard' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -181,6 +182,44 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       </span>
                     </div>
                   </div>
+                </button>
+
+                {/* 1.5 Portal Mandiri Pengurus & Rekrutmen (DPW s/d DPRt) */}
+                <button
+                  onClick={() => handleNavClick('portal')}
+                  className={navItemClass(activeTab === 'portal')}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={iconContainerClass(
+                        activeTab === 'portal',
+                        'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+                      )}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block leading-none">Portal Pengurus</span>
+                      <span
+                        className={`text-[10px] block mt-0.5 leading-none ${
+                          activeTab === 'portal'
+                            ? 'text-white/80'
+                            : 'text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
+                        Profil &amp; Rekrutmen
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                      activeTab === 'portal'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400'
+                    }`}
+                  >
+                    KTA/SK
+                  </span>
                 </button>
 
                 {/* 2. Pengurus DPW (HANYA SUPER_ADMIN & ADMIN_DPW) */}

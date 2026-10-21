@@ -48,6 +48,7 @@ import {
 } from './components/modals';
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
+import { PengurusPortalPage } from './components/PengurusPortalPage';
 import { TemplateDownloadHubModal } from './components/territorial/TemplateDownloadHubModal';
 import { ReferralHubModal } from './components/referral/ReferralHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
@@ -866,6 +867,7 @@ export default function App() {
               </span>
               <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
+                {activeTab === 'portal' && 'Portal Mandiri Pengurus & Rekrutmen Kader'}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
@@ -968,6 +970,17 @@ export default function App() {
                   setActiveTab('dpd');
                 }
               }}
+            />
+          )}
+
+          {/* Tab 1.5: Portal Mandiri Pengurus (DPW, DPD, DPC, DPRt) */}
+          {activeTab === 'portal' && (
+            <PengurusPortalPage
+              members={accessibleMembers}
+              session={session}
+              onAddMember={handleAddMember}
+              onRefreshCloud={handleRefreshFromSupabase}
+              isRefreshingCloud={isRefreshingCloud}
             />
           )}
 

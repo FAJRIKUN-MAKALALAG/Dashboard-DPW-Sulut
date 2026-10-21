@@ -16,6 +16,14 @@ export const referralService = {
   },
 
   /**
+   * Mengambil profil referral pengurus tertentu berdasarkan NIK
+   * (untuk simulasi peran pengurus DPRt/DPC/DPD).
+   */
+  async getReferralPreviewByNik(nik: string): Promise<MyReferralProfile> {
+    return apiFetch<MyReferralProfile>(`/referrals/preview-by-nik/${encodeURIComponent(nik)}`);
+  },
+
+  /**
    * Validasi real-time kode referral saat calon anggota mendaftar.
    * Mengembalikan validitas, data perekrut, dan ketua langsungnya.
    */
