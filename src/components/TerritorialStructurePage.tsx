@@ -107,7 +107,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   const availableSubdistricts = useMemo(() => {
     const subs = currentRegion?.subdistricts || [];
     if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
-      if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
         const filtered = subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
         return filtered.length > 0 ? filtered : subs;
       }
@@ -117,9 +117,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   const [selectedDpc, setSelectedDpc] = useState<string>(() => {
     if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
-      if (session.dpcAccess && session.dpcAccess !== 'ALL') return session.dpcAccess;
+      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') return session.dpcAccess;
     }
-    if (initialDpc) return initialDpc;
+    if (initialDpc && initialDpc !== 'ALL' && initialDpc !== 'Umum (DPD)') return initialDpc;
     return availableSubdistricts[0]?.name || currentRegion?.subdistricts[0]?.name || 'TUMPAAN';
   });
 
@@ -135,7 +135,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   const availableVillages = useMemo(() => {
     const vils = currentSubdistrict?.villages || [];
     if (session?.role === 'ADMIN_DPRT') {
-      if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
         const filtered = vils.filter((v) => isDprtMatch(v, session.dprtAccess));
         return filtered.length > 0 ? filtered : vils;
       }
@@ -145,9 +145,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   const [selectedDprt, setSelectedDprt] = useState<string>(() => {
     if (session?.role === 'ADMIN_DPRT') {
-      if (session.dprtAccess && session.dprtAccess !== 'ALL') return session.dprtAccess;
+      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') return session.dprtAccess;
     }
-    if (initialDprt) return initialDprt;
+    if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') return initialDprt;
     return availableVillages[0] || currentSubdistrict?.villages[0] || 'Pusat';
   });
 
@@ -159,12 +159,12 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         if (matched) setSelectedDpd(matched.name);
       }
       if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
-        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
+        if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
           setSelectedDpc(session.dpcAccess);
         }
       }
       if (session.role === 'ADMIN_DPRT') {
-        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
+        if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
           setSelectedDprt(session.dprtAccess);
         }
       }
@@ -172,10 +172,10 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
         setSelectedDpd(initialDpd);
       }
-      if (initialDpc) {
+      if (initialDpc && initialDpc !== 'ALL' && initialDpc !== 'Umum (DPD)') {
         setSelectedDpc(initialDpc);
       }
-      if (initialDprt) {
+      if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') {
         setSelectedDprt(initialDprt);
       }
     }
@@ -288,26 +288,39 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     } else if (level === 'DPC') {
       matchedMembers = members.filter((m) => {
         if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc)) return false;
+        // JANGAN izinkan pengurus tingkat DPD, DPW, atau DPRt masuk ke struktur DPC
+        if (m.tingkatKepengurusan === 'DPD' || m.tingkatKepengurusan === 'DPW' || m.tingkatKepengurusan === 'DPRt') {
+          return false;
+        }
         const jLower = (m.jabatan || '').toLowerCase();
-        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        if (jLower.includes('dpd') || jLower.includes('dpw') || jLower.includes('daerah') || jLower.includes('wilayah') || jLower.includes('dprt') || jLower.includes('ranting')) {
+          return false;
+        }
         return (
           m.tingkatKepengurusan === 'DPC' ||
           jLower.includes('dpc') ||
           jLower.includes('cabang') ||
-          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
-          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD') ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD')
         );
       });
     } else if (level === 'DPRt') {
       matchedMembers = members.filter((m) => {
         if (!isDpdMatch(m.dpd, selectedDpd) || !isDpcMatch(m.dpc, selectedDpc) || !isDprtMatch(m.dprt, selectedDprt)) return false;
+        // JANGAN izinkan pengurus tingkat DPD, DPC, atau DPW masuk ke struktur DPRt
+        if (m.tingkatKepengurusan === 'DPD' || m.tingkatKepengurusan === 'DPC' || m.tingkatKepengurusan === 'DPW') {
+          return false;
+        }
         const jLower = (m.jabatan || '').toLowerCase();
+        if (jLower.includes('dpd') || jLower.includes('dpc') || jLower.includes('dpw') || jLower.includes('daerah') || jLower.includes('cabang') || jLower.includes('wilayah')) {
+          return false;
+        }
         return (
           m.tingkatKepengurusan === 'DPRt' ||
           jLower.includes('dprt') ||
           jLower.includes('ranting') ||
-          m.isPengurus ||
-          (m.jabatan && m.jabatan !== 'Anggota Biasa')
+          (m.isPengurus && m.dprt && m.dprt !== 'Pusat/Umum' && m.dprt !== '-') ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && m.dprt && m.dprt !== 'Pusat/Umum' && m.dprt !== '-')
         );
       });
     }

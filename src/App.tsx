@@ -1066,7 +1066,14 @@ export default function App() {
               members={accessibleMembers}
               session={session}
               initialDpd={session?.dpdAccess && session?.dpdAccess !== 'ALL' ? session.dpdAccess : matrixInitialDpd}
-              initialDpc={session?.dpcAccess && session?.dpcAccess !== 'ALL' ? session.dpcAccess : matrixInitialDpc}
+              initialDpc={
+                (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') &&
+                session?.dpcAccess &&
+                session?.dpcAccess !== 'ALL' &&
+                session?.dpcAccess !== 'Umum (DPD)'
+                  ? session.dpcAccess
+                  : matrixInitialDpc
+              }
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onRefreshCloud={handleRefreshFromSupabase}
@@ -1090,8 +1097,22 @@ export default function App() {
               members={accessibleMembers}
               session={session}
               initialDpd={session?.dpdAccess && session?.dpdAccess !== 'ALL' ? session.dpdAccess : matrixInitialDpd}
-              initialDpc={session?.dpcAccess && session?.dpcAccess !== 'ALL' ? session.dpcAccess : matrixInitialDpc}
-              initialDprt={session?.dprtAccess && session?.dprtAccess !== 'ALL' ? session.dprtAccess : undefined}
+              initialDpc={
+                (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') &&
+                session?.dpcAccess &&
+                session?.dpcAccess !== 'ALL' &&
+                session?.dpcAccess !== 'Umum (DPD)'
+                  ? session.dpcAccess
+                  : matrixInitialDpc
+              }
+              initialDprt={
+                session?.role === 'ADMIN_DPRT' &&
+                session?.dprtAccess &&
+                session?.dprtAccess !== 'ALL' &&
+                session?.dprtAccess !== 'Pusat/Umum'
+                  ? session.dprtAccess
+                  : undefined
+              }
               onSaveMembersBatch={handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={handleBatchDeleteTerritorialMembers}
               onRefreshCloud={handleRefreshFromSupabase}
