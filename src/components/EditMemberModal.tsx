@@ -15,7 +15,10 @@ import {
   Sparkles,
   User,
   Save,
+  Loader2,
+  Shield,
 } from 'lucide-react';
+import { referralService } from '../services/referralService';
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -98,9 +101,66 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       setKaderPerekrutNama(member.kaderPerekrutNama || '');
       setKaderPerekrutJabatan(member.kaderPerekrutJabatan || 'Pengurus DPW/DPD NasDem');
       setKaderPerekrutKodeReferral(member.kaderPerekrutKodeReferral || '');
+      setKaderPerekrutNik(member.kaderPerekrutNik || '');
+      setKetuaLangsungInfo(
+        member.ketuaLangsungNama
+          ? {
+              nik: member.ketuaLangsungNik || '-',
+              nama: member.ketuaLangsungNama,
+              jabatan: member.ketuaLangsungJabatan || 'Ketua',
+              tingkat: member.ketuaLangsungTingkat || 'DPD',
+            }
+          : null
+      );
+      setRefValidation(
+        member.kaderPerekrutKodeReferral
+          ? { loading: false, valid: true }
+          : null
+      );
       setErrorMsg(null);
     }
   }, [member, isOpen]);
+
+  const [kaderPerekrutNik, setKaderPerekrutNik] = useState<string>('');
+  const [ketuaLangsungInfo, setKetuaLangsungInfo] = useState<{ nik: string; nama: string; jabatan: string; tingkat: string } | null>(null);
+  const [refValidation, setRefValidation] = useState<{ loading: boolean; valid?: boolean; error?: string } | null>(null);
+
+  // Live validation for referral code
+  useEffect(() => {
+    const clean = kaderPerekrutKodeReferral.trim().toUpperCase();
+    if (!clean || clean.length < 4) {
+      setRefValidation(null);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setRefValidation({ loading: true });
+      try {
+        const res = await referralService.validateReferralCode(clean);
+        if (!active) return;
+        if (res.valid && res.recruiter) {
+          setRefValidation({ loading: false, valid: true });
+          setKaderPerekrutNama(res.recruiter.namaLengkap);
+          setKaderPerekrutJabatan(res.recruiter.jabatan);
+          setKaderPerekrutNik(res.recruiter.nik);
+          if (res.directLeader) {
+            setKetuaLangsungInfo(res.directLeader);
+          }
+        } else {
+          setRefValidation({ loading: false, valid: false, error: res.error || 'Kode referral tidak ditemukan' });
+        }
+      } catch (e: any) {
+        if (!active) return;
+        setRefValidation({ loading: false, valid: false, error: 'Gagal memvalidasi kode' });
+      }
+    }, 450);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [kaderPerekrutKodeReferral]);
 
   const currentRegion = SULUT_REGIONS.find((r) => r.name === dpd);
   const availableSubdistricts = currentRegion ? currentRegion.subdistricts : [];
@@ -236,8 +296,13 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       statusKtpVerified: !!fotoKtpUrl || Boolean(member.statusKtpVerified),
       kaderPerekrutNama: kaderPerekrutNama.trim() || undefined,
       kaderPerekrutJabatan: kaderPerekrutNama.trim() ? kaderPerekrutJabatan.trim() : undefined,
+      kaderPerekrutNik: kaderPerekrutNik.trim() || undefined,
       kaderPerekrutDpd: dpd,
       kaderPerekrutKodeReferral: kaderPerekrutKodeReferral.trim() || undefined,
+      ketuaLangsungNik: ketuaLangsungInfo?.nik || undefined,
+      ketuaLangsungNama: ketuaLangsungInfo?.nama || undefined,
+      ketuaLangsungJabatan: ketuaLangsungInfo?.jabatan || undefined,
+      ketuaLangsungTingkat: ketuaLangsungInfo?.tingkat || undefined,
     };
 
     onSave(updatedMember, originalNik);
@@ -729,12 +794,22 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                 </div>
               </div>
 
-              {/* Kader Pengusung / Perekrut */}
-              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl space-y-2">
-                <span className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Kader Perekrut (Referral Pengurus Ber-SK)</span>
-                </span>
+              {/* Kader Pengusung / Perekrut (Sistem Referral Berjenjang) */}
+              <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Kader Perekrut (Referral Pengurus Berjenjang)</span>
+                  </span>
+
+                  {refValidation?.loading && (
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Memvalidasi kode...</span>
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
@@ -743,19 +818,9 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                     <input
                       type="text"
                       value={kaderPerekrutKodeReferral}
-                      onChange={(e) => {
-                        const code = e.target.value.toUpperCase();
-                        setKaderPerekrutKodeReferral(code);
-                        const matched = existingMembers.find(
-                          (m) => m.kodeReferral && m.kodeReferral.toUpperCase() === code
-                        );
-                        if (matched) {
-                          setKaderPerekrutNama(matched.namaLengkap);
-                          setKaderPerekrutJabatan(matched.jabatan);
-                        }
-                      }}
-                      placeholder="Contoh: REF-DPW-001"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs font-mono font-bold text-blue-600 dark:text-blue-400 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      onChange={(e) => setKaderPerekrutKodeReferral(e.target.value.toUpperCase())}
+                      placeholder="Contoh: NSD-DPC-5ZXF"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs font-mono font-bold text-amber-600 dark:text-amber-400 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400 uppercase tracking-wide"
                     />
                   </div>
                   <div>
@@ -766,8 +831,8 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                       type="text"
                       value={kaderPerekrutNama}
                       onChange={(e) => setKaderPerekrutNama(e.target.value)}
-                      placeholder="Nama pengurus perekrut"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      placeholder="Otomatis dari kode referral"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
                     />
                   </div>
                   <div>
@@ -779,10 +844,35 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                       value={kaderPerekrutJabatan}
                       onChange={(e) => setKaderPerekrutJabatan(e.target.value)}
                       placeholder="Jabatan di partai"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
                     />
                   </div>
                 </div>
+
+                {/* Status Validasi Real-time & Info Ketua Langsung */}
+                {refValidation?.valid && (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-1.5 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Kode Sah: {kaderPerekrutNama} ({kaderPerekrutJabatan})</span>
+                    </div>
+                    {ketuaLangsungInfo && (
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pl-5 font-medium">
+                        <Shield className="w-3.5 h-3.5 text-amber-500" />
+                        <span>
+                          Ketua Langsung Terkait: <strong>{ketuaLangsungInfo.nama}</strong> ({ketuaLangsungInfo.jabatan}) — Perekrutan otomatis diatribusikan ke perekrut & dilaporkan ke pimpinan.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {refValidation?.valid === false && (
+                  <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
+                    <span>{refValidation.error || 'Kode referral tidak ditemukan di database resmi.'}</span>
+                  </div>
+                )}
               </div>
             </div>
 

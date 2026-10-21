@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSession } from '../../types';
-import { FileSpreadsheet, Printer, KeyRound, Download, RefreshCw } from 'lucide-react';
+import { FileSpreadsheet, Printer, KeyRound, Download, RefreshCw, Sparkles } from 'lucide-react';
 
 interface DashboardHeaderProps {
   session?: UserSession;
@@ -10,6 +10,7 @@ interface DashboardHeaderProps {
   onOpenDownloadTemplate?: () => void;
   onRefreshCloud?: () => void;
   isRefreshingCloud?: boolean;
+  onOpenReferralHub?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -20,6 +21,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenDownloadTemplate,
   onRefreshCloud,
   isRefreshingCloud = false,
+  onOpenReferralHub,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
 
@@ -56,6 +58,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        {onOpenReferralHub && (
+          <button
+            onClick={onOpenReferralHub}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 cursor-pointer shadow-md shadow-amber-500/20 transition-all active:scale-95"
+            title="Buka panel kode referral pengurus, bagikan ke WhatsApp, dan pantau rekrutmen"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Kode Referral Saya</span>
+          </button>
+        )}
         {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
           <button
             onClick={onOpenUserManagement}

@@ -49,6 +49,7 @@ import {
 import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { TemplateDownloadHubModal } from './components/territorial/TemplateDownloadHubModal';
+import { ReferralHubModal } from './components/referral/ReferralHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import { LoginPage } from './components/LoginPage';
@@ -62,6 +63,7 @@ import {
   Radio,
   ArrowLeft,
   Download,
+  Sparkles,
 } from 'lucide-react';
 
 export default function App() {
@@ -305,6 +307,9 @@ export default function App() {
 
   // User Management modal (Super Admin exclusive)
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+
+  // Referral Hub Modal (Kode Referral & Rekrutmen Pengurus)
+  const [isReferralHubOpen, setIsReferralHubOpen] = useState(false);
 
   const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
 
@@ -825,6 +830,7 @@ export default function App() {
         onOpenAuditModal={() => setIsAuditModalOpen(true)}
         onOpenDeletionApproval={() => setIsDeletionApprovalOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
+        onOpenReferralHub={() => setIsReferralHubOpen(true)}
         onLogout={handleLogout}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -894,6 +900,15 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setIsReferralHubOpen(true)}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+              title="Pusat Kode Referral & Rekrutmen Kader Partai NasDem Sulut"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Kode Referral</span>
+            </button>
+
+            <button
               onClick={() => setIsTemplateHubOpen(true)}
               className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
               title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
@@ -924,6 +939,7 @@ export default function App() {
               onOpenPrintReport={() => setIsPrintReportOpen(true)}
               onOpenUserManagement={() => setIsUserManagementOpen(true)}
               onOpenDownloadTemplate={() => setIsTemplateHubOpen(true)}
+              onOpenReferralHub={() => setIsReferralHubOpen(true)}
               onRefreshCloud={handleRefreshFromSupabase}
               isRefreshingCloud={isRefreshingCloud}
               onNavigateToMembers={handleNavigateFromDashboard}
@@ -1275,6 +1291,13 @@ export default function App() {
         members={members}
         session={session}
         onRecordAudit={(log) => recordAuditLog(log)}
+      />
+
+      {/* Modal Pusat Kode Referral & Rekrutmen Kader Berjenjang */}
+      <ReferralHubModal
+        isOpen={isReferralHubOpen}
+        onClose={() => setIsReferralHubOpen(false)}
+        session={session}
       />
     </div>
   );

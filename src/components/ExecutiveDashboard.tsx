@@ -35,6 +35,7 @@ interface ExecutiveDashboardProps {
   onOpenDownloadTemplate?: () => void;
   onRefreshCloud?: () => Promise<void> | void;
   isRefreshingCloud?: boolean;
+  onOpenReferralHub?: () => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -49,6 +50,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   onOpenDownloadTemplate,
   onRefreshCloud,
   isRefreshingCloud = false,
+  onOpenReferralHub,
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
@@ -183,6 +185,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenDownloadTemplate={onOpenDownloadTemplate}
         onRefreshCloud={onRefreshCloud}
         isRefreshingCloud={isRefreshingCloud}
+        onOpenReferralHub={onOpenReferralHub}
       />
 
       {/* 2. Scope & Territory Filter */}

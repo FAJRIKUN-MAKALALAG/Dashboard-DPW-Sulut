@@ -43,8 +43,12 @@ export interface Member {
   kaderPerekrutNik?: string;
   kaderPerekrutEkta?: string;
   kaderPerekrutJabatan?: string;
-  kaderPerekrutDpd?: string;
   kaderPerekrutKodeReferral?: string;
+  // Atribusi Ketua Langsung (Hierarkis berdasarkan struktur organisasi)
+  ketuaLangsungNik?: string;
+  ketuaLangsungNama?: string;
+  ketuaLangsungJabatan?: string;
+  ketuaLangsungTingkat?: string;
   // Urutan tampil dalam matriks (sesuai urutan baris berkas Excel saat import)
   urutan?: number;
 }
@@ -123,3 +127,63 @@ export interface SulutRegion {
     villages: string[];
   }[];
 }
+
+// ---------------- Fitur Kode Referral & Tracking ----------------
+export interface DirectLeaderInfo {
+  nik: string;
+  nama: string;
+  jabatan: string;
+  tingkat: string;
+}
+
+export interface ReferralValidationResult {
+  valid: boolean;
+  error?: string;
+  recruiter?: {
+    nik: string;
+    namaLengkap: string;
+    jabatan: string;
+    tingkatKepengurusan: string;
+    dpd: string;
+    dpc: string;
+    dprt: string;
+    kodeReferral: string;
+  };
+  directLeader?: DirectLeaderInfo;
+}
+
+export interface MyReferralProfile {
+  isMemberLinked: boolean;
+  kodeReferral: string;
+  namaLengkap: string;
+  nik: string;
+  nomorEkta?: string;
+  jabatan: string;
+  tingkatKepengurusan: string;
+  dpd: string;
+  dpc: string;
+  dprt: string;
+  ketuaLangsung: DirectLeaderInfo;
+  totalRecruits: number;
+}
+
+export interface ReferralLeaderboardEntry {
+  nama: string;
+  jabatan: string;
+  kodeReferral: string;
+  dpd: string;
+  totalRekrut: number;
+}
+
+export interface ReferralTrackingData {
+  myStats: {
+    kodeReferral: string;
+    totalDirect: number;
+    totalTeam: number;
+    isLeader: boolean;
+  };
+  myRecruits: Member[];
+  teamRecruits: Member[];
+  leaderboard: ReferralLeaderboardEntry[];
+}
+

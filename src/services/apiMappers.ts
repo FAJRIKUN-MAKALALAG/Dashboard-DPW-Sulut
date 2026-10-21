@@ -37,6 +37,11 @@ const MEMBER_DB_TO_API: Record<string, string> = {
   kader_perekrut_nik: 'kaderPerekrutNik',
   kader_perekrut_ekta: 'kaderPerekrutEkta',
   kader_perekrut_jabatan: 'kaderPerekrutJabatan',
+  kader_perekrut_kode_referral: 'kaderPerekrutKodeReferral',
+  ketua_langsung_nik: 'ketuaLangsungNik',
+  ketua_langsung_nama: 'ketuaLangsungNama',
+  ketua_langsung_jabatan: 'ketuaLangsungJabatan',
+  ketua_langsung_tingkat: 'ketuaLangsungTingkat',
   urutan: 'urutan',
 };
 

@@ -40,6 +40,7 @@ interface AppSidebarProps {
   onOpenAuditModal: () => void;
   onOpenDeletionApproval: () => void;
   onOpenUserManagement?: () => void;
+  onOpenReferralHub?: () => void;
   onLogout: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -61,6 +62,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenAuditModal,
   onOpenDeletionApproval,
   onOpenUserManagement,
+  onOpenReferralHub,
   onLogout,
   isMobileOpen,
   onCloseMobile,
@@ -428,6 +430,30 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 Operasional Cepat
               </span>
               <div className="space-y-1">
+                {onOpenReferralHub && (
+                  <button
+                    onClick={() => {
+                      onOpenReferralHub();
+                      onCloseMobile();
+                    }}
+                    className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent hover:from-amber-500/25 hover:to-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700/60 transition-all cursor-pointer shadow-xs mb-1.5"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block leading-none font-bold">Kode Referral Saya</span>
+                        <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-medium mt-0.5 block">
+                          Rekrutmen &amp; Ketua Langsung
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/70 px-1.5 py-0.5 rounded">
+                      REKRUT
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     onOpenBulkImport();
