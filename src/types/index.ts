@@ -165,7 +165,7 @@ export interface MyReferralProfile {
   dpd: string;
   dpc: string;
   dprt: string;
-  ketuaLangsung: DirectLeaderInfo;
+  ketuaLangsung: DirectLeaderInfo | null;
   totalRecruits: number;
 }
 

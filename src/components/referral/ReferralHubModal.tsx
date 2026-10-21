@@ -333,7 +333,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`grid grid-cols-1 ${profile?.ketuaLangsung && session.role !== 'SUPER_ADMIN' ? 'md:grid-cols-2' : ''} gap-4`}>
                       {/* Perekrut (Akun ini) */}
                       <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 space-y-1.5">
                         <span className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
@@ -353,22 +353,24 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Ketua Langsung */}
-                      <div className="p-4 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 space-y-1.5">
-                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
-                          Ketua Langsung Terkait (Supervisi)
-                        </span>
-                        <p className="text-sm font-extrabold text-slate-900 dark:text-white">
-                          {profile?.ketuaLangsung.nama || 'Ketua DPW Partai NasDem Sulut'}
-                        </p>
-                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                          {profile?.ketuaLangsung.jabatan || 'Ketua DPW'}
-                        </p>
-                        <div className="pt-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-                          <Shield className="w-3 h-3 text-amber-500" />
-                          <span>Tingkat Kepengurusan: {profile?.ketuaLangsung.tingkat || 'DPW'}</span>
+                      {/* Ketua Langsung (Hanya jika memiliki pimpinan supervisi & bukan Super Admin) */}
+                      {profile?.ketuaLangsung && session.role !== 'SUPER_ADMIN' && (
+                        <div className="p-4 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 space-y-1.5">
+                          <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                            Ketua Langsung Terkait (Supervisi)
+                          </span>
+                          <p className="text-sm font-extrabold text-slate-900 dark:text-white">
+                            {profile.ketuaLangsung.nama || 'Ketua DPW Partai NasDem Sulut'}
+                          </p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">
+                            {profile.ketuaLangsung.jabatan || 'Ketua DPW'}
+                          </p>
+                          <div className="pt-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
+                            <Shield className="w-3 h-3 text-amber-500" />
+                            <span>Tingkat Kepengurusan: {profile.ketuaLangsung.tingkat || 'DPW'}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     <div className="p-3 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2.5">

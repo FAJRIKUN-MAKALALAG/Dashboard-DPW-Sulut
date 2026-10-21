@@ -68,6 +68,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   }, [members]);
 
   const [selectedPengurusNik, setSelectedPengurusNik] = useState<string>('');
+  const isSuperAdminActingAsSelf = session.role === 'SUPER_ADMIN' && !selectedPengurusNik;
 
   // Anggota aktif pengurus yang sedang ditampilkan
   const activePengurusMember = useMemo(() => {
@@ -125,7 +126,12 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   }, [activePengurusMember, profile, session]);
 
   // Hierarki Ketua Langsung (Otomatis Tracking Sistem)
-  const ketuaLangsung: DirectLeaderInfo = useMemo(() => {
+  const ketuaLangsung: DirectLeaderInfo | null = useMemo(() => {
+    // Super Admin murni (akun administrator atau dev) tidak memiliki dan tidak membutuhkan pimpinan supervisi
+    if (isSuperAdminActingAsSelf) {
+      return null;
+    }
+
     if (profile?.ketuaLangsung && profile.ketuaLangsung.nama) {
       return profile.ketuaLangsung;
     }
@@ -259,7 +265,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       tingkat: 'DPP',
       kodeReferral: 'NSD-DPP-SURYA',
     };
-  }, [profile, activePengurusMember, members]);
+  }, [profile, activePengurusMember, members, isSuperAdminActingAsSelf]);
 
   // Handler Copy
   const handleCopy = (code: string, label: string) => {
@@ -272,12 +278,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   const shareText = useMemo(() => {
     const nama = activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName;
     const jabatan = activePengurusMember?.jabatan || profile?.jabatan || session.jabatan;
+    const supervisorLine = ketuaLangsung
+      ? `🛡️ Supervisi Atasan: ${ketuaLangsung.nama} (${ketuaLangsung.jabatan})\n\n`
+      : '\n';
     return encodeURIComponent(
       `Halo! Mari bergabung dalam Gerakan Perubahan bersama PARTAI NASDEM SULAWESI UTARA 💙🧡\n\n` +
       `Saya mengundang Anda untuk mendaftar sebagai kader resmi Partai NasDem melalui jalur kepengurusan saya:\n\n` +
       `👉 KODE REFERRAL SAYA: *${myReferralCode}*\n` +
       `👤 Pengurus Perekrut: ${nama} (${jabatan})\n` +
-      `🛡️ Supervisi Atasan: ${ketuaLangsung.nama} (${ketuaLangsung.jabatan})\n\n` +
+      supervisorLine +
       `Bersatu, Berjuang, Menang! 🇮🇩`
     );
   }, [myReferralCode, activePengurusMember, profile, session, ketuaLangsung]);
@@ -389,10 +398,10 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       kaderPerekrutJabatan: perekrutJabatan,
       kaderPerekrutNik: perekrutNik,
 
-      ketuaLangsungNik: ketuaLangsung.nik,
-      ketuaLangsungNama: ketuaLangsung.nama,
-      ketuaLangsungJabatan: ketuaLangsung.jabatan,
-      ketuaLangsungTingkat: ketuaLangsung.tingkat,
+      ketuaLangsungNik: ketuaLangsung?.nik || undefined,
+      ketuaLangsungNama: ketuaLangsung?.nama || undefined,
+      ketuaLangsungJabatan: ketuaLangsung?.jabatan || undefined,
+      ketuaLangsungTingkat: ketuaLangsung?.tingkat || undefined,
     };
 
     onAddMember(newMember);
@@ -560,16 +569,16 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
                   Mode Administrator Sistem (Super Admin)
                 </strong>
                 <span>
-                  Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dan <strong>tidak menggunakan kode referral lapangan</strong>. Untuk melihat tampilan portal yang dilihat oleh pengurus DPRt, DPC, atau DPD, silakan pilih salah satu pengurus pada dropdown simulasi di atas.
+                  Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dan <strong>tidak terikat pada hierarki supervisi wilayah</strong>. Untuk melihat simulasi tampilan portal pengurus DPRt, DPC, atau DPD beserta pimpinan supervisinya, silakan pilih salah satu pengurus pada dropdown simulasi di atas.
                 </span>
               </div>
             </div>
           )}
 
           {/* 2. Kartu Identitas Resmi Pengurus & Kode Referral (Warna Basic, Non-Flashy) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
             {/* Kolom Kiri: Profil & Status SK */}
-            <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex items-start gap-3.5">
                   <div className="w-14 h-14 rounded-xl bg-blue-700 text-white font-bold text-lg flex items-center justify-center shrink-0">
@@ -637,25 +646,164 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
               </div>
             </div>
 
-            {/* Kolom Kanan: Dua Kartu (Kode Referral Saya vs Ketua Langsung) */}
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* KARTU 1: KODE REFERRAL SAYA */}
+            {/* Kolom Kanan: Dua Kartu (jika ada ketua langsung) ATAU Kartu Registrasi Tunggal (jika Super Admin) */}
+            {ketuaLangsung ? (
+              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* KARTU 1: KODE REFERRAL SAYA */}
+                <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-800">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Kode Referral Resmi Saya</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        UNIK
+                      </span>
+                    </div>
+
+                    {/* Kotak Kode Referral */}
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        KODE REKRUTMEN
+                      </span>
+                      <div className="text-2xl font-black font-mono tracking-widest text-blue-700 dark:text-blue-400">
+                        {myReferralCode}
+                      </div>
+                      <button
+                        onClick={() => handleCopy(myReferralCode, 'myCode')}
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                      >
+                        {copiedCode === 'myCode' ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600 font-bold">Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Salin Kode</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bagikan kode ini kepada calon kader baru atau input langsung pada formulir di bawah.
+                    </p>
+                  </div>
+
+                  {/* Tombol Bagikan WhatsApp & QR */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                    <a
+                      href={`https://wa.me/?text=${shareText}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Bagikan ke WA</span>
+                    </a>
+
+                    <button
+                      onClick={() => setShowQr(!showQr)}
+                      className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>{showQr ? 'Tutup' : 'QR'}</span>
+                    </button>
+                  </div>
+
+                  {/* QR Pop-down */}
+                  {showQr && (
+                    <div className="mt-3 p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center text-slate-900 dark:text-white">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
+                          `NASDEM-REF:${myReferralCode}`
+                        )}`}
+                        alt="QR Referral"
+                        className="w-32 h-32 rounded-lg"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                        {myReferralCode}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* KARTU 2: KETUA LANGSUNG & SISTEM ATRIBUSI HIERARKIS */}
+                <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>Ketua Langsung Pembina</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        Tingkat {ketuaLangsung.tingkat}
+                      </span>
+                    </div>
+
+                    {/* Box Info Ketua Langsung */}
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        PIMPINAN SUPERVISI
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {ketuaLangsung.nama}
+                      </h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {ketuaLangsung.jabatan}
+                      </p>
+
+                      {/* Kode Referral Ketua Langsung */}
+                      <div className="pt-2 mt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                        <span className="text-slate-500 text-[11px]">Kode Ketua:</span>
+                        <div className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                          <span>{ketuaLangsung.kodeReferral || `NSD-${ketuaLangsung.tingkat}-KETUA`}</span>
+                          <button
+                            onClick={() => handleCopy(ketuaLangsung.kodeReferral || `NSD-${ketuaLangsung.tingkat}-KETUA`, 'ketuaCode')}
+                            className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                            title="Salin Kode Ketua"
+                          >
+                            {copiedCode === 'ketuaCode' ? (
+                              <Check className="w-3 h-3 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Sistem otomatis mengatribusikan koordinasi Anda kepada <strong>{ketuaLangsung.nama}</strong>. Setiap kader baru yang Anda rekrut akan tercatat atas nama Anda sekaligus memperkuat laporan ketua wilayah.
+                    </p>
+                  </div>
+
+                  <div className="text-[10px] text-slate-400 font-mono text-right pt-2 border-t border-slate-100 dark:border-slate-800">
+                    NIK Ketua: {ketuaLangsung.nik}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Super Admin: Hanya Kartu Kode Registrasi Administrator */
               <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-800">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Kode Referral Resmi Saya</span>
+                      <span>Kode Registrasi Administrator</span>
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">
-                      UNIK
+                      ADMIN
                     </span>
                   </div>
 
                   {/* Kotak Kode Referral */}
                   <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
                     <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
-                      KODE REKRUTMEN
+                      KODE REGISTRASI
                     </span>
                     <div className="text-2xl font-black font-mono tracking-widest text-blue-700 dark:text-blue-400">
                       {myReferralCode}
@@ -679,7 +827,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
                   </div>
 
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Bagikan kode ini kepada calon kader baru atau input langsung pada formulir di bawah.
+                    Kode registrasi resmi akun pengelola sistem. Anggota yang didaftarkan melalui kode ini tercatat langsung di bawah pengawasan Administrator Sistem tanpa perantara supervisi atasan.
                   </p>
                 </div>
 
@@ -720,62 +868,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* KARTU 2: KETUA LANGSUNG & SISTEM ATRIBUSI HIERARKIS */}
-              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">
-                      <Shield className="w-3.5 h-3.5" />
-                      <span>Ketua Langsung Pembina</span>
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-500">
-                      Tingkat {ketuaLangsung.tingkat}
-                    </span>
-                  </div>
-
-                  {/* Box Info Ketua Langsung */}
-                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
-                      PIMPINAN SUPERVISI
-                    </span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      {ketuaLangsung.nama}
-                    </h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                      {ketuaLangsung.jabatan}
-                    </p>
-
-                    {/* Kode Referral Ketua Langsung */}
-                    <div className="pt-2 mt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
-                      <span className="text-slate-500 text-[11px]">Kode Ketua:</span>
-                      <div className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                        <span>{ketuaLangsung.kodeReferral || `NSD-${ketuaLangsung.tingkat}-KETUA`}</span>
-                        <button
-                          onClick={() => handleCopy(ketuaLangsung.kodeReferral || `NSD-${ketuaLangsung.tingkat}-KETUA`, 'ketuaCode')}
-                          className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                          title="Salin Kode Ketua"
-                        >
-                          {copiedCode === 'ketuaCode' ? (
-                            <Check className="w-3 h-3 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Sistem otomatis mengatribusikan koordinasi Anda kepada <strong>{ketuaLangsung.nama}</strong>. Setiap kader baru yang Anda rekrut akan tercatat atas nama Anda sekaligus memperkuat laporan ketua wilayah.
-                  </p>
-                </div>
-
-                <div className="text-[10px] text-slate-400 font-mono text-right pt-2 border-t border-slate-100 dark:border-slate-800">
-                  NIK Ketua: {ketuaLangsung.nik}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* 3. Formulir Cepat Pendaftaran Anggota Baru (Clean & Basic Styling) */}
@@ -790,7 +883,9 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
                     Pendaftaran Anggota Baru (Jalur Rekrutmen Mandiri)
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Perekrut dan Ketua Langsung otomatis terisi &amp; terkunci ke identitas akun Anda.
+                    {ketuaLangsung
+                      ? 'Perekrut dan Ketua Langsung otomatis terisi & terkunci ke identitas akun Anda.'
+                      : 'Pendaftaran anggota langsung oleh Administrator Sistem.'}
                   </p>
                 </div>
               </div>
