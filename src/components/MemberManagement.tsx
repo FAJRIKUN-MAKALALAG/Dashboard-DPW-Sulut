@@ -810,7 +810,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
               <Building className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
               1. DPD (Kab/Kota):
             </label>
-            {session.role === 'SUPER_ADMIN' ? (
+            {session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW' ? (
               <select
                 value={selectedDpd}
                 onChange={(e) => {
@@ -841,40 +841,46 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
               <Layers className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
               2. DPC (Kecamatan):
             </label>
-            <select
-              value={selectedDpcFilter}
-              disabled={!activeRegion}
-              onChange={(e) => {
-                setSelectedDpcFilter(e.target.value);
-                setSelectedDprtFilter('ALL');
-                setCurrentPage(1);
-              }}
-              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium ${
-                !activeRegion
-                  ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
-              }`}
-            >
-              {!activeRegion ? (
-                <option value="ALL">Pilih DPD Terlebih Dahulu</option>
-              ) : (
-                <>
-                  <option value="ALL">
-                    Semua DPC ({activeRegion.subdistricts.length} Kec.)
-                  </option>
-                  {availableDpcOptions.dpdLevelCount > 0 && (
-                    <option value="Wilayah DPD">
-                      ⭐ Wilayah DPD (Tingkat Kab/Kota) ({availableDpcOptions.dpdLevelCount})
+            {(session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess && session.dpcAccess !== 'ALL' ? (
+              <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold truncate">
+                Kec. {session.dpcAccess}
+              </div>
+            ) : (
+              <select
+                value={selectedDpcFilter}
+                disabled={!activeRegion}
+                onChange={(e) => {
+                  setSelectedDpcFilter(e.target.value);
+                  setSelectedDprtFilter('ALL');
+                  setCurrentPage(1);
+                }}
+                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium ${
+                  !activeRegion
+                    ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
+                }`}
+              >
+                {!activeRegion ? (
+                  <option value="ALL">Pilih DPD Terlebih Dahulu</option>
+                ) : (
+                  <>
+                    <option value="ALL">
+                      Semua DPC ({activeRegion.subdistricts.length} Kec.)
                     </option>
-                  )}
-                  {availableDpcOptions.subdistricts.map((sub) => (
-                    <option key={sub.name} value={sub.name}>
-                      Kec. {sub.name} {sub.count > 0 ? `(${sub.count})` : '(0)'}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
+                    {availableDpcOptions.dpdLevelCount > 0 && (
+                      <option value="Wilayah DPD">
+                        ⭐ Wilayah DPD (Tingkat Kab/Kota) ({availableDpcOptions.dpdLevelCount})
+                      </option>
+                    )}
+                    {availableDpcOptions.subdistricts.map((sub) => (
+                      <option key={sub.name} value={sub.name}>
+                        Kec. {sub.name} {sub.count > 0 ? `(${sub.count})` : '(0)'}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            )}
           </div>
 
           {/* 3. DPRt Filter (Desa/Kelurahan - Cascading dari DPC terpilih) */}
@@ -883,36 +889,42 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
               <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               3. DPRt (Desa/Kel.):
             </label>
-            <select
-              value={selectedDprtFilter}
-              disabled={!activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'}
-              onChange={(e) => {
-                setSelectedDprtFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium ${
-                !activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'
-                  ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
-              }`}
-            >
-              {!activeRegion || selectedDpcFilter === 'ALL' ? (
-                <option value="ALL">Pilih DPC Terlebih Dahulu</option>
-              ) : selectedDpcFilter === 'Wilayah DPD' ? (
-                <option value="ALL">Khusus Tingkat DPD</option>
-              ) : (
-                <>
-                  <option value="ALL">
-                    Semua DPRt di Kec. {selectedDpcFilter} ({availableDprtOptions.length} Desa)
-                  </option>
-                  {availableDprtOptions.map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.name} {v.count > 0 ? `(${v.count})` : ''}
+            {session.role === 'ADMIN_DPRT' && session.dprtAccess && session.dprtAccess !== 'ALL' ? (
+              <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold truncate">
+                Desa/Kel. {session.dprtAccess}
+              </div>
+            ) : (
+              <select
+                value={selectedDprtFilter}
+                disabled={!activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'}
+                onChange={(e) => {
+                  setSelectedDprtFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium ${
+                  !activeRegion || selectedDpcFilter === 'ALL' || selectedDpcFilter === 'Wilayah DPD'
+                    ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer'
+                }`}
+              >
+                {!activeRegion || selectedDpcFilter === 'ALL' ? (
+                  <option value="ALL">Pilih DPC Terlebih Dahulu</option>
+                ) : selectedDpcFilter === 'Wilayah DPD' ? (
+                  <option value="ALL">Khusus Tingkat DPD</option>
+                ) : (
+                  <>
+                    <option value="ALL">
+                      Semua DPRt di Kec. {selectedDpcFilter} ({availableDprtOptions.length} Desa)
                     </option>
-                  ))}
-                </>
-              )}
-            </select>
+                    {availableDprtOptions.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.name} {v.count > 0 ? `(${v.count})` : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            )}
           </div>
 
           {/* 4. Status Keanggotaan Filter */}

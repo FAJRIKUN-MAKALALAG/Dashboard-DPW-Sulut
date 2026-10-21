@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Member } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Member, UserSession } from '../../types';
 import {
   computeStructureReadiness,
   computeDpcReadinessForDpd,
   TerritoryReadiness,
   getMemberSubOrgCategory,
+  isDpdMatch,
 } from '../../utils/structureReadinessUtils';
 import {
   CheckCircle2,
@@ -24,12 +25,14 @@ import {
 
 interface ExecutiveLeadershipAnswersProps {
   members: Member[];
+  session?: UserSession;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 
 export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProps> = ({
   members,
+  session,
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
@@ -37,8 +40,16 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
   const [filterTab, setFilterTab] = useState<'ALL' | 'LENGKAP' | 'SEBAGIAN' | 'KOSONG'>('ALL');
   const [expandedDpd, setExpandedDpd] = useState<string | null>(null);
 
+  const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+  const scopedDpdList = useMemo(() => {
+    if (isRegionalScoped && session.dpdAccess && session.dpdAccess !== 'ALL') {
+      return readinessSummary.dpdList.filter((dpd) => isDpdMatch(dpd.name, session.dpdAccess));
+    }
+    return readinessSummary.dpdList;
+  }, [readinessSummary.dpdList, isRegionalScoped, session]);
+
   // Filtered DPD list based on active tab
-  const filteredDpds = readinessSummary.dpdList.filter((dpd) => {
+  const filteredDpds = scopedDpdList.filter((dpd) => {
     if (filterTab === 'ALL') return true;
     return dpd.status === filterTab;
   });
@@ -58,7 +69,9 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
               Pemetaan Keterisian Wilayah
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-xs text-slate-500 font-mono">Sulawesi Utara</span>
+            <span className="text-xs text-slate-500 font-mono">
+              {isRegionalScoped ? `Wilayah ${session.dpdAccess}` : 'Sulawesi Utara'}
+            </span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
             Struktur Keanggotaan dan pengurus

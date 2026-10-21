@@ -124,8 +124,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Compute Real Structural Completeness KPI (DPW, DPD, DPC, DPRt templates)
   const structureKpi = useMemo(() => {
-    return computeStructureKpiStats(members, selectedDpdFilter);
-  }, [members, selectedDpdFilter]);
+    const activeDpd =
+      session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW'
+        ? session.dpdAccess
+        : selectedDpdFilter;
+    return computeStructureKpiStats(members, activeDpd);
+  }, [members, selectedDpdFilter, session]);
 
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
@@ -229,13 +233,15 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       {/* 4. Executive Leadership Answers (Menjawab Pertanyaan Pimpinan DPW: Daerah Lengkap vs Belum) */}
       <ExecutiveLeadershipAnswers
         members={members}
+        session={session}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         onOpenStructureModal={handleOpenStructureModal}
       />
 
-      {/* 5. Status Struktur Kepengurusan 15 Kab/Kota */}
+      {/* 5. Status Struktur Kepengurusan Kab/Kota */}
       <StructureReadinessGrid
         members={members}
+        session={session}
         onOpenStructureModal={(dpdName) => handleOpenStructureModal(dpdName, 'ALL')}
         onOpenAllStructureModal={() => handleOpenStructureModal('ALL', 'ALL')}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}

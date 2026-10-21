@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Member } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Member, UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import { isDpdMatch, getMemberSubOrgCategory, REQUIRED_POSITIONS, getDpdPimpinanCompliance } from '../../utils/structureReadinessUtils';
 import {
@@ -19,6 +19,7 @@ import {
 
 interface StructureReadinessGridProps {
   members: Member[];
+  session?: UserSession;
   onOpenStructureModal: (dpdName: string) => void;
   onOpenAllStructureModal: () => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
@@ -26,11 +27,21 @@ interface StructureReadinessGridProps {
 
 export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
   members,
+  session,
   onOpenStructureModal,
   onOpenAllStructureModal,
   onOpenTerritorialMatrix,
 }) => {
   const [showGuidelines, setShowGuidelines] = useState<boolean>(true);
+
+  const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+  const regionsToDisplay = useMemo(() => {
+    if (isRegionalScoped && session.dpdAccess && session.dpdAccess !== 'ALL') {
+      const filtered = SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess));
+      if (filtered.length > 0) return filtered;
+    }
+    return SULUT_REGIONS;
+  }, [isRegionalScoped, session]);
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm transition-colors space-y-6">
@@ -40,16 +51,22 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              Peta Kesiapan SK & Kelengkapan Organisasi
+              Peta Kesiapan SK &amp; Kelengkapan Organisasi
             </span>
             <span className="text-slate-400 dark:text-slate-600">&middot;</span>
-            <span className="text-xs text-slate-500 font-mono">15 Kab/Kota Se-Sulut</span>
+            <span className="text-xs text-slate-500 font-mono">
+              {isRegionalScoped ? `Wilayah ${session.dpdAccess}` : '15 Kab/Kota Se-Sulut'}
+            </span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
-            Status Struktur Kepengurusan DPW &rarr; DPD &rarr; DPC &rarr; DPRt
+            {isRegionalScoped
+              ? `Status Struktur Kepengurusan DPD ${session.dpdAccess} & DPC / DPRt`
+              : 'Status Struktur Kepengurusan DPW → DPD → DPC → DPRt'}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Sistem pendataan terintegrasi: memantau legalitas SK, keterisian 36 jabatan DPD, 17 jabatan DPC kecamatan, dan DPRt desa.
+            {isRegionalScoped
+              ? `Memantau legalitas SK, keterisian 36 jabatan DPD ${session.dpdAccess}, serta struktur DPC kecamatan dan DPRt ranting di wilayah Anda.`
+              : 'Sistem pendataan terintegrasi: memantau legalitas SK, keterisian 36 jabatan DPD, 17 jabatan DPC kecamatan, dan DPRt desa.'}
           </p>
         </div>
 
@@ -157,9 +174,9 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
         </div>
       )}
 
-      {/* 15 Kab/Kota Grid Cards */}
+      {/* Kab/Kota Grid Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {SULUT_REGIONS.map((region) => {
+        {regionsToDisplay.map((region) => {
           const regMembers = members.filter((m) => isDpdMatch(m.dpd, region.name) && m.status === 'Aktif');
           const regPengurus = regMembers.filter((m) => m.isPengurus);
           const dpcCount = region.subdistricts.length;
