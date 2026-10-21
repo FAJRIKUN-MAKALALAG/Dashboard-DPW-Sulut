@@ -53,6 +53,12 @@ import { TemplateDownloadHubModal } from './components/territorial/TemplateDownl
 import { ReferralHubModal } from './components/referral/ReferralHubModal';
 import { isJobTitleMatch, normalizeSubOrgName } from './utils/jobMatchingUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
+import {
+  canAccessDashboard,
+  canManageUsers,
+  isReferralApplicable,
+  getDefaultActiveTab,
+} from './utils/permissionUtils';
 import { LoginPage } from './components/LoginPage';
 import {
   Printer,
@@ -77,7 +83,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true' && Boolean(getToken());
   });
-  const [activeTab, setActiveTab] = useState<MainNavTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<MainNavTab>(() => getDefaultActiveTab(loadSession()));
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
   const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
@@ -236,6 +242,7 @@ export default function App() {
     localStorage.setItem('nasdem_sulut_authenticated', 'true');
     showToast(`Selamat datang, ${userSession.adminName}`);
     loadInitialCloudData();
+    setActiveTab(getDefaultActiveTab(userSession));
   };
 
   useEffect(() => {
@@ -346,24 +353,32 @@ export default function App() {
     });
   }, [members, session]);
 
-  // Tab Guard: Cegah akses ke tingkatan kepengurusan di luar kewenangan peran
+  // Tab Guard: Cegah akses ke tingkatan kepengurusan atau dashboard di luar kewenangan peran
   useEffect(() => {
-    if (session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW') {
-      if (activeTab === 'dpw') {
-        setActiveTab('dashboard');
-      }
+    // 1. Jika tidak memiliki hak akses dashboard (pengurus biasa / ketua DPRt), arahkan ke portal
+    if (!canAccessDashboard(session) && activeTab === 'dashboard') {
+      setActiveTab('portal');
+      return;
     }
-    if (session?.role === 'ADMIN_DPC') {
-      if (activeTab === 'dpw' || activeTab === 'dpd') {
-        setActiveTab('dpc');
-      }
+
+    // 2. Proteksi struktur teritorial menggunakan canAccessStructureTab
+    if (activeTab === 'dpw' && !canAccessStructureTab('dpw', session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
     }
-    if (session?.role === 'ADMIN_DPRT') {
-      if (activeTab === 'dpw' || activeTab === 'dpd' || activeTab === 'dpc') {
-        setActiveTab('dprt');
-      }
+    if (activeTab === 'dpd' && !canAccessStructureTab('dpd', session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
     }
-  }, [session?.role, activeTab]);
+    if (activeTab === 'dpc' && !canAccessStructureTab('dpc', session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
+    if (activeTab === 'dprt' && !canAccessStructureTab('dprt', session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
+  }, [session, activeTab]);
 
   // Helper untuk menambah catatan audit ke database Supabase & local storage
   const recordAuditLog = async (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
@@ -850,11 +865,11 @@ export default function App() {
               <Menu className="w-5 h-5" />
             </button>
 
-            {activeTab !== 'dashboard' && (
+            {activeTab !== getDefaultActiveTab(session) && (
               <button
-                onClick={() => setActiveTab('dashboard')}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs mr-1"
-                title="Kembali ke Dashboard Utama"
+                onClick={() => setActiveTab(getDefaultActiveTab(session))}
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs mr-1"
+                title="Kembali ke Halaman Utama"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 <span className="hidden sm:inline">Kembali</span>
@@ -867,12 +882,22 @@ export default function App() {
               </span>
               <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
-                {activeTab === 'portal' && 'Portal Mandiri Pengurus & Rekrutmen Kader'}
+                {activeTab === 'portal' && 'Portal Kerja Mandiri Pengurus & Rekrutmen'}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
                 {activeTab === 'dprt' && 'Susunan Pengurus DPRt Ranting Desa'}
-                {activeTab === 'members' && 'Database Seluruh Kader Daerah'}
+                {activeTab === 'members' && (
+                  session?.role === 'ADMIN_DPRT'
+                    ? `Pencarian Anggota DPRt (${session.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting Saya'})`
+                    : session?.role === 'ADMIN_DPC'
+                    ? `Pencarian Anggota DPC (Kec. ${session.dpcAccess || ''})`
+                    : session?.role === 'ADMIN_DPD'
+                    ? `Pencarian Anggota DPD (${session.dpdAccess || ''})`
+                    : session?.role === 'ADMIN_DPW'
+                    ? 'Pencarian Anggota Wilayah (DPD, DPC & DPRt Sulut)'
+                    : 'Database Seluruh Kader Daerah'
+                )}
                 {activeTab === 'sync' && 'Sinkronisasi Nomor KTA & NIK'}
               </span>
             </div>
@@ -901,14 +926,17 @@ export default function App() {
               )}
             </button>
 
-            <button
-              onClick={() => setIsReferralHubOpen(true)}
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-              title="Pusat Kode Referral & Rekrutmen Kader Partai NasDem Sulut"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Kode Referral</span>
-            </button>
+            {/* Tombol Kode Referral: HANYA untuk Pengurus (Super Admin tidak perlu kode referral) */}
+            {isReferralApplicable(session) && (
+              <button
+                onClick={() => setIsReferralHubOpen(true)}
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                title="Pusat Kode Referral & Rekrutmen Kader Partai NasDem Sulut"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline">Kode Referral</span>
+              </button>
+            )}
 
             <button
               onClick={() => setIsTemplateHubOpen(true)}

@@ -345,28 +345,28 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     };
   }, [users]);
 
-  if (!isOpen) return null;
+  if (!isOpen || session.role !== 'SUPER_ADMIN') return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white">
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-[#002B49] text-white">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white font-bold">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                  Manajemen Akun Admin & Hak Akses
+                  Manajemen Akun Admin &amp; Hak Akses
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white">
                   Khusus Super Admin
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                Otoritas penuh Super Administrator untuk menerbitkan akun admin, peran, dan cakupan teritorial.
+                Otoritas eksklusif Super Admin untuk menerbitkan akun admin, menetapkan peran, dan cakupan teritorial.
               </p>
             </div>
           </div>
