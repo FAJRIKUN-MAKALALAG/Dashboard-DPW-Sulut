@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserSession, SulutRegion } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { normalizeDpdName, isDpdMatch, normalizeDpcName } from '../../utils/structureReadinessUtils';
+import { isDpdMatch, normalizeDpcName } from '../../utils/structureReadinessUtils';
 import {
   BarChart3,
   PieChart,
@@ -11,22 +11,16 @@ import {
   ExternalLink,
   RefreshCw,
   Clock,
-  Radio,
   ArrowLeft,
-  ChevronRight,
-  TrendingUp,
   Award,
   Users,
-  Building2,
   MapPin,
   ShieldCheck,
   CheckCircle2,
-  SlidersHorizontal,
   ChevronDown,
-  Layers,
-  Sparkles,
   Eye,
   EyeOff,
+  TrendingUp,
 } from 'lucide-react';
 
 export type AnalyticsScreenId =
@@ -47,23 +41,23 @@ interface SulutAnalyticsPageProps {
   isCleanMode?: boolean;
 }
 
-// 15 Standard Kabupaten / Kota in Sulawesi Utara (Alphabetical Order matching Highcharts reference)
+// 15 Kabupaten / Kota Resmi di Provinsi Sulawesi Utara (Urutan Standar Alfabetis)
 export const SULUT_15_KABKOTA = [
-  { key: 'bolmong', name: 'BOLAANG MONGONDOW', label: 'Bolaang Mongondow', color: '#00E396', zone: 'BMR' },
-  { key: 'bolsel', name: 'BOLAANG MONGONDOW SELATAN', label: 'Bolaang Mongondow Selatan', color: '#FEB019', zone: 'BMR' },
-  { key: 'boltim', name: 'BOLAANG MONGONDOW TIMUR', label: 'Bolaang Mongondow Timur', color: '#FF4560', zone: 'BMR' },
-  { key: 'bolmut', name: 'BOLAANG MONGONDOW UTARA', label: 'Bolaang Mongondow Utara', color: '#775DD0', zone: 'BMR' },
-  { key: 'sitaro', name: 'KEP. SIAU TAGULANDANG BIARO', label: 'Kep. Siau Tagulandang Biaro', color: '#E040FB', zone: 'Kepulauan' },
-  { key: 'sangihe', name: 'KEPULAUAN SANGIHE', label: 'Kepulauan Sangihe', color: '#00D2D3', zone: 'Kepulauan' },
-  { key: 'talaud', name: 'KEPULAUAN TALAUD', label: 'Kepulauan Talaud', color: '#FF5252', zone: 'Kepulauan' },
-  { key: 'bitung', name: 'KOTA BITUNG', label: 'Kota Bitung', color: '#FF9F43', zone: 'Daratan Minahasa' },
-  { key: 'kotamobagu', name: 'KOTA KOTAMOBAGU', label: 'Kota Kotamobagu', color: '#48DBFB', zone: 'BMR' },
-  { key: 'manado', name: 'KOTA MANADO', label: 'Kota Manado', color: '#0090FF', zone: 'Daratan Minahasa' },
-  { key: 'tomohon', name: 'KOTA TOMOHON', label: 'Kota Tomohon', color: '#10B981', zone: 'Daratan Minahasa' },
-  { key: 'minahasa', name: 'MINAHASA', label: 'Minahasa', color: '#F1C40F', zone: 'Daratan Minahasa' },
-  { key: 'minsel', name: 'MINAHASA SELATAN', label: 'Minahasa Selatan', color: '#FF6B4A', zone: 'Daratan Minahasa' },
-  { key: 'mitra', name: 'MINAHASA TENGGARA', label: 'Minahasa Tenggara', color: '#6C7A89', zone: 'Daratan Minahasa' },
-  { key: 'minut', name: 'MINAHASA UTARA', label: 'Minahasa Utara', color: '#BA68C8', zone: 'Daratan Minahasa' },
+  { key: 'bolmong', name: 'BOLAANG MONGONDOW', label: 'Bolaang Mongondow', zone: 'BMR' },
+  { key: 'bolsel', name: 'BOLAANG MONGONDOW SELATAN', label: 'Bolaang Mongondow Selatan', zone: 'BMR' },
+  { key: 'boltim', name: 'BOLAANG MONGONDOW TIMUR', label: 'Bolaang Mongondow Timur', zone: 'BMR' },
+  { key: 'bolmut', name: 'BOLAANG MONGONDOW UTARA', label: 'Bolaang Mongondow Utara', zone: 'BMR' },
+  { key: 'sitaro', name: 'KEP. SIAU TAGULANDANG BIARO', label: 'Kep. Siau Tagulandang Biaro', zone: 'Kepulauan' },
+  { key: 'sangihe', name: 'KEPULAUAN SANGIHE', label: 'Kepulauan Sangihe', zone: 'Kepulauan' },
+  { key: 'talaud', name: 'KEPULAUAN TALAUD', label: 'Kepulauan Talaud', zone: 'Kepulauan' },
+  { key: 'bitung', name: 'KOTA BITUNG', label: 'Kota Bitung', zone: 'Daratan Minahasa' },
+  { key: 'kotamobagu', name: 'KOTA KOTAMOBAGU', label: 'Kota Kotamobagu', zone: 'BMR' },
+  { key: 'manado', name: 'KOTA MANADO', label: 'Kota Manado', zone: 'Daratan Minahasa' },
+  { key: 'tomohon', name: 'KOTA TOMOHON', label: 'Kota Tomohon', zone: 'Daratan Minahasa' },
+  { key: 'minahasa', name: 'MINAHASA', label: 'Minahasa', zone: 'Daratan Minahasa' },
+  { key: 'minsel', name: 'MINAHASA SELATAN', label: 'Minahasa Selatan', zone: 'Daratan Minahasa' },
+  { key: 'mitra', name: 'MINAHASA TENGGARA', label: 'Minahasa Tenggara', zone: 'Daratan Minahasa' },
+  { key: 'minut', name: 'MINAHASA UTARA', label: 'Minahasa Utara', zone: 'Daratan Minahasa' },
 ];
 
 export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
@@ -87,7 +81,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
   // Real-time WITA clock
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(30); // 30s default
+  const [autoRefreshInterval] = useState<number>(30); // 30s default
   const [countdown, setCountdown] = useState<number>(30);
   const [isTvCleanBar, setIsTvCleanBar] = useState<boolean>(false);
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
@@ -99,7 +93,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   useEffect(() => {
     const updateWitaTime = () => {
       const now = new Date();
-      // WITA is UTC+8
       const witaStr = now.toLocaleTimeString('id-ID', {
         timeZone: 'Asia/Makassar',
         hour12: false,
@@ -183,7 +176,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       key: string;
       name: string;
       label: string;
-      color: string;
       zone: string;
       total: number;
       active: number;
@@ -198,7 +190,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         key: item.key,
         name: item.name,
         label: item.label,
-        color: item.color,
         zone: item.zone,
         total: 0,
         active: 0,
@@ -233,7 +224,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         }
         if (m.nomorEKTA && m.nomorEKTA.trim() !== '') entry.withKta += 1;
 
-        // Tally subdistrict (DPC)
         if (m.dpc && m.dpc.trim()) {
           const normDpc = m.dpc.trim();
           const prev = entry.subdistrictsMap.get(normDpc) || 0;
@@ -254,7 +244,10 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       };
     });
 
-    // Also include "Tidak Diketahui" if unassigned exists (matches user reference image)
+    const maxChartValue = Math.max(...kabKotaList.map((b) => b.total), 10);
+    const topPerformer = [...kabKotaList].sort((a, b) => b.total - a.total)[0];
+
+    // Chart bars list
     const chartBars = [
       ...(unassignedCount > 0
         ? [
@@ -262,7 +255,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               key: 'unknown',
               name: 'TIDAK DIKETAHUI',
               label: 'Tidak Diketahui',
-              color: '#64748B',
               zone: 'Lainnya',
               total: unassignedCount,
               active: unassignedMembers.filter((m) => m.status === 'Aktif').length,
@@ -277,31 +269,29 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       ...kabKotaList,
     ];
 
-    const maxChartValue = Math.max(...chartBars.map((b) => b.total), 10);
-
     // Leaderboard sorted descending
     const leaderboard = [...kabKotaList].sort((a, b) => b.total - a.total);
 
-    // 3 Geographic Zones
+    // 3 Geographic Zones in NasDem Corporate Theme
     const zones = [
       {
         name: 'Daratan Minahasa',
-        description: 'Manado, Bitung, Tomohon, Minahasa, Minsel, Mitra, Minut',
-        color: '#0090FF',
+        description: 'Kota Manado, Bitung, Tomohon, Minahasa, Minsel, Mitra, Minut',
+        color: '#2563EB', // NasDem Royal Blue
         regions: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa'),
         total: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa').reduce((s, k) => s + k.total, 0),
       },
       {
         name: 'Bolaang Mongondow Raya (BMR)',
-        description: 'Kotamobagu, Bolmong, Bolsel, Boltim, Bolmut',
-        color: '#00E396',
+        description: 'Kota Kotamobagu, Bolmong, Bolsel, Boltim, Bolmut',
+        color: '#F59E0B', // NasDem Amber Gold
         regions: kabKotaList.filter((k) => k.zone === 'BMR'),
         total: kabKotaList.filter((k) => k.zone === 'BMR').reduce((s, k) => s + k.total, 0),
       },
       {
         name: 'Kepulauan Nusa Utara',
-        description: 'Sitaro, Sangihe, Talaud',
-        color: '#E040FB',
+        description: 'Kep. Sitaro, Sangihe, Talaud',
+        color: '#0284C7', // NasDem Navy Cyan
         regions: kabKotaList.filter((k) => k.zone === 'Kepulauan'),
         total: kabKotaList.filter((k) => k.zone === 'Kepulauan').reduce((s, k) => s + k.total, 0),
       },
@@ -321,6 +311,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       kabKotaList,
       chartBars,
       maxChartValue,
+      topPerformer,
       leaderboard,
       zones,
     };
@@ -328,7 +319,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
   // Selected DPD Subdistricts for Drilldown
   const drilldownData = useMemo(() => {
-    // Find matching SulutRegion from dataset
     const matchedRegion = SULUT_REGIONS.find((r) => isDpdMatch(r.name, selectedDrilldownDpd));
     const targetKabKota = analyticsData.kabKotaList.find(
       (k) => isDpdMatch(k.name, selectedDrilldownDpd) || isDpdMatch(k.label, selectedDrilldownDpd)
@@ -341,7 +331,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       matchedRegion.subdistricts.forEach((sub) => {
         let count = 0;
         if (targetKabKota) {
-          // match subdistrict names
           for (const [dpcName, dpcVal] of targetKabKota.subdistrictsMap.entries()) {
             if (normalizeDpcName(dpcName) === normalizeDpcName(sub.name)) {
               count += dpcVal;
@@ -356,7 +345,6 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       });
     }
 
-    // Sort descending by count
     subdistrictCounts.sort((a, b) => b.count - a.count);
     const maxSubCount = Math.max(...subdistrictCounts.map((s) => s.count), 5);
 
@@ -365,16 +353,14 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       totalCount: totalDpdCount,
       pengurusCount: targetKabKota?.pengurus || 0,
       anggotaCount: targetKabKota?.anggota || 0,
-      color: targetKabKota?.color || '#FF6B4A',
       subdistricts: subdistrictCounts,
       maxSubCount,
     };
   }, [selectedDrilldownDpd, analyticsData]);
 
-  // Y-axis tick intervals for 15-Kab/Kota chart
+  // Y-axis tick intervals
   const yTicks = useMemo(() => {
     const max = analyticsData.maxChartValue;
-    // create 5 round intervals
     const step = Math.ceil(max / 5 / 10) * 10 || 10;
     const ticks = [];
     for (let i = 0; i <= max + step; i += step) {
@@ -384,54 +370,66 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
     return ticks;
   }, [analyticsData.maxChartValue]);
 
-  // Helper formatter for numbers
   const fmt = (n: number) => n.toLocaleString('id-ID');
 
   // ============================================================================
-  // RENDER SECTIONS & CHARTS
+  // RENDER SECTIONS & CHARTS (INTERNATIONAL EXECUTIVE STANDARD)
   // ============================================================================
 
-  // 1. CHART 1: 15 KABUPATEN/KOTA COLUMN BAR CHART (HIGHCHARTS DARK STYLE)
+  // 1. CHART 1: 15 KABUPATEN/KOTA COLUMN BAR CHART (STANDAR INTERNASIONAL NASDEM)
   const renderColumn15Chart = (isSolo = false) => {
     const bars = analyticsData.chartBars;
     const maxVal = yTicks[yTicks.length - 1] || 100;
-    const svgHeight = isSolo ? 650 : 440;
+    const topPerformerKey = analyticsData.topPerformer?.key;
+    const svgHeight = isSolo ? 560 : 440;
     const svgWidth = 1100;
-    const chartTop = 40;
-    const chartBottom = svgHeight - 120;
+    const chartTop = 45;
+    const chartBottom = isSolo ? svgHeight - 140 : svgHeight - 110;
     const chartHeight = chartBottom - chartTop;
-    const chartLeft = 70;
+    const chartLeft = 65;
     const chartRight = svgWidth - 30;
     const chartWidth = chartRight - chartLeft;
     const barSlotWidth = chartWidth / bars.length;
-    const barWidth = Math.min(barSlotWidth * 0.58, 48);
+    const barWidth = Math.min(barSlotWidth * 0.52, 42);
 
     return (
-      <div className={`relative bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
-        {/* Chart Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse shadow-[0_0_10px_#f59e0b]" />
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-wide flex items-center gap-2">
-                Data Kabupaten di Provinsi SULAWESI UTARA
-                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  15 Kab / Kota
-                </span>
+      <div className={`relative bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
+        {/* International Executive Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80 mb-3">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]" />
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Distribusi Teritorial 15 Kabupaten / Kota
               </h2>
-              <p className="text-xs text-slate-400">
-                Klik pada batang mana saja untuk melihat rincian drilldown tiap Kecamatan
-              </p>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                PROVINSI SULAWESI UTARA
+              </span>
             </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Standar visualisasi terpadu: perbandingan jumlah kader riil terdaftar di tiap DPD se-Sulut
+            </p>
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            {/* Color Legend Badge */}
+            <div className="hidden lg:flex items-center gap-4 text-[11px] px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                Kader DPD
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                Tertinggi (Rank 1)
+              </span>
+            </div>
+
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('column15')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
-                title="Perbesar Chart Ini ke Layar Penuh"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700/80 transition-colors"
+                title="Perbesar Chart ke Layar Tunggal"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
                 <span className="hidden sm:inline">Layar Tunggal</span>
@@ -439,22 +437,53 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             )}
             <button
               onClick={() => handleOpenStandaloneScreen('column15')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-semibold border border-blue-500/30 transition-colors"
-              title="Buka di Jendela / Layar Baru untuk Video Wall"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-xs font-semibold border border-blue-500/30 transition-colors"
+              title="Buka di Jendela / Monitor Eksternal"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Buka Layar Baru</span>
+              <span className="hidden sm:inline">Layar Baru</span>
             </button>
           </div>
         </div>
 
-        {/* SVG Highcharts-style Canvas */}
+        {/* SVG High-Precision Executive Canvas */}
         <div className="w-full overflow-x-auto select-none py-2">
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
             className="w-full h-auto min-w-[750px]"
-            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' }}
           >
+            <defs>
+              {/* NasDem Executive Royal Blue Gradient */}
+              <linearGradient id="nasdemBlueGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.85" />
+              </linearGradient>
+
+              {/* NasDem Blue Hover Gradient */}
+              <linearGradient id="nasdemBlueHoverGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#60A5FA" stopOpacity="1" />
+                <stop offset="100%" stopColor="#2563EB" stopOpacity="1" />
+              </linearGradient>
+
+              {/* NasDem Signature Amber Gold Gradient (Rank 1 Highlight) */}
+              <linearGradient id="nasdemGoldGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FBBF24" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#D97706" stopOpacity="0.9" />
+              </linearGradient>
+
+              {/* NasDem Gold Hover */}
+              <linearGradient id="nasdemGoldHoverGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FDE047" stopOpacity="1" />
+                <stop offset="100%" stopColor="#F59E0B" stopOpacity="1" />
+              </linearGradient>
+
+              {/* Neutral Empty State Gradient */}
+              <linearGradient id="nasdemMutedGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#334155" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#1E293B" stopOpacity="0.2" />
+              </linearGradient>
+            </defs>
+
             {/* Horizontal Gridlines & Y-Axis Labels */}
             {yTicks.map((val, idx) => {
               const y = chartBottom - (val / maxVal) * chartHeight;
@@ -465,14 +494,14 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                     y1={y}
                     x2={chartRight}
                     y2={y}
-                    stroke="rgba(255,255,255,0.08)"
-                    strokeDasharray={val === 0 ? 'none' : '3 3'}
+                    stroke="rgba(255,255,255,0.06)"
+                    strokeDasharray={val === 0 ? 'none' : '4 4'}
                     strokeWidth={val === 0 ? '1.5' : '1'}
                   />
                   <text
                     x={chartLeft - 14}
                     y={y + 4}
-                    fill="#94A3B8"
+                    fill="#64748B"
                     fontSize="11"
                     fontFamily="monospace"
                     textAnchor="end"
@@ -485,16 +514,16 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
             {/* Y-Axis Title */}
             <text
-              transform={`rotate(-90, 24, ${chartTop + chartHeight / 2})`}
-              x={24}
+              transform={`rotate(-90, 22, ${chartTop + chartHeight / 2})`}
+              x={22}
               y={chartTop + chartHeight / 2}
-              fill="#94A3B8"
-              fontSize="12"
+              fill="#64748B"
+              fontSize="11"
               fontWeight="600"
               textAnchor="middle"
               letterSpacing="1"
             >
-              Total Kader &amp; Anggota
+              JUMLAH KADER &amp; PENGURUS
             </text>
 
             {/* Bars & Top Values & X-Labels */}
@@ -504,11 +533,23 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               const barH = (item.total / maxVal) * chartHeight;
               const barY = chartBottom - barH;
               const isHovered = hoveredBarIndex === idx;
+              const isTopRank = item.key === topPerformerKey && item.total > 0;
+              const isEmpty = item.total === 0;
+
+              // Color determination (Professional NasDem Theme: Blue primary, Gold for rank #1, Slate for empty)
+              let barFill = 'url(#nasdemBlueGrad)';
+              if (isEmpty) {
+                barFill = 'url(#nasdemMutedGrad)';
+              } else if (isTopRank) {
+                barFill = isHovered ? 'url(#nasdemGoldHoverGrad)' : 'url(#nasdemGoldGrad)';
+              } else if (isHovered) {
+                barFill = 'url(#nasdemBlueHoverGrad)';
+              }
 
               return (
                 <g
                   key={item.key}
-                  className="cursor-pointer transition-all duration-200"
+                  className="cursor-pointer transition-all duration-150"
                   onMouseEnter={() => setHoveredBarIndex(idx)}
                   onMouseLeave={() => setHoveredBarIndex(null)}
                   onClick={() => {
@@ -516,48 +557,48 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                     setActiveScreen('drilldown');
                   }}
                 >
-                  {/* Subtle bar background hover highlight */}
+                  {/* Subtle column hover background */}
                   {isHovered && (
                     <rect
-                      x={chartLeft + idx * barSlotWidth}
+                      x={chartLeft + idx * barSlotWidth + 2}
                       y={chartTop}
-                      width={barSlotWidth}
-                      height={chartHeight + 10}
-                      fill="rgba(255,255,255,0.03)"
-                      rx="6"
+                      width={barSlotWidth - 4}
+                      height={chartHeight + 6}
+                      fill="rgba(59, 130, 246, 0.05)"
+                      rx="4"
                     />
                   )}
 
                   {/* The Bar */}
                   <rect
                     x={barX}
-                    y={item.total === 0 ? chartBottom - 2 : barY}
+                    y={isEmpty ? chartBottom - 2 : barY}
                     width={barWidth}
-                    height={item.total === 0 ? 2 : Math.max(barH, 3)}
-                    fill={item.color}
-                    rx="4"
-                    ry="4"
-                    opacity={isHovered ? 1 : 0.92}
+                    height={isEmpty ? 2 : Math.max(barH, 4)}
+                    fill={barFill}
+                    rx="3"
+                    ry="3"
+                    stroke={isTopRank ? '#F59E0B' : isHovered ? '#60A5FA' : 'rgba(59, 130, 246, 0.4)'}
+                    strokeWidth={isHovered ? 1.5 : 0.5}
                     style={{
-                      filter: isHovered
-                        ? `drop-shadow(0 0 14px ${item.color}) brightness(1.2)`
-                        : `drop-shadow(0 2px 6px ${item.color}40)`,
-                      transition: 'all 0.2s ease-out',
+                      filter: isTopRank
+                        ? 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.35))'
+                        : isHovered
+                        ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.4))'
+                        : 'none',
+                      transition: 'all 0.15s ease-out',
                     }}
                   />
 
-                  {/* Value sitting bold white directly on top of each bar */}
+                  {/* Exact Number on Top of Bar */}
                   <text
                     x={xCenter}
-                    y={item.total === 0 ? chartBottom - 8 : barY - 8}
-                    fill={isHovered ? '#FFFFFF' : '#F1F5F9'}
-                    fontSize={isSolo ? '14' : '12'}
-                    fontWeight="800"
+                    y={isEmpty ? chartBottom - 8 : barY - 8}
+                    fill={isEmpty ? '#475569' : isTopRank ? '#FBBF24' : '#E2E8F0'}
+                    fontSize={isSolo ? '13' : '11.5'}
+                    fontWeight={isTopRank ? '800' : '700'}
                     fontFamily="monospace"
                     textAnchor="middle"
-                    style={{
-                      filter: isHovered ? 'drop-shadow(0 0 4px #000)' : 'none',
-                    }}
                   >
                     {fmt(item.total)}
                   </text>
@@ -566,11 +607,11 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   <g transform={`translate(${xCenter}, ${chartBottom + 16})`}>
                     <text
                       transform="rotate(-45)"
-                      fill={isHovered ? '#38BDF8' : '#CBD5E1'}
-                      fontSize={isSolo ? '12' : '10.5'}
-                      fontWeight={isHovered ? '700' : '600'}
+                      fill={isHovered ? '#60A5FA' : isTopRank ? '#FCD34D' : '#94A3B8'}
+                      fontSize={isSolo ? '11.5' : '10'}
+                      fontWeight={isHovered || isTopRank ? '700' : '600'}
                       textAnchor="end"
-                      letterSpacing="0.3"
+                      letterSpacing="0.4"
                     >
                       {item.name}
                     </text>
@@ -581,71 +622,69 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </svg>
         </div>
 
-        {/* Hover / Selection Info Bar */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Professional Footer Status Bar */}
+        <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4 text-slate-400">
             {hoveredBarIndex !== null && bars[hoveredBarIndex] ? (
-              <div className="flex items-center gap-3 animate-in fade-in duration-150">
-                <span className="font-bold text-white text-sm">
+              <div className="flex items-center gap-3 animate-in fade-in duration-100">
+                <span className="font-bold text-white">
                   {bars[hoveredBarIndex].label}:
                 </span>
-                <span className="text-emerald-400 font-mono font-bold">
-                  {fmt(bars[hoveredBarIndex].total)} Kader ({bars[hoveredBarIndex].percentage.toFixed(1)}%)
+                <span className="text-blue-400 font-mono font-bold">
+                  {fmt(bars[hoveredBarIndex].total)} Kader ({bars[hoveredBarIndex].percentage.toFixed(1)}% Sulut)
                 </span>
-                <span className="text-slate-500">·</span>
-                <span className="text-amber-300">
-                  {bars[hoveredBarIndex].pengurus} Pengurus Ber-SK
+                <span className="text-slate-600">&bull;</span>
+                <span className="text-amber-400">
+                  {bars[hoveredBarIndex].pengurus} Pengurus SK
                 </span>
-                <span className="text-slate-500">·</span>
-                <span className="text-blue-300">
-                  {bars[hoveredBarIndex].anggota} Anggota Basis KTP
+                <span className="text-slate-600">&bull;</span>
+                <span className="text-slate-300">
+                  {bars[hoveredBarIndex].anggota} Anggota KTP
                 </span>
               </div>
             ) : (
-              <span className="italic text-slate-500">
-                Arahkan kursor ke batang atau klik untuk rincian wilayah tersebut
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <span className="text-blue-400 font-bold">&bull;</span>
+                Klik pada batang wilayah untuk melakukan drilldown rincian per kecamatan
               </span>
             )}
           </div>
 
-          <div className="text-[11px] text-slate-500 font-mono">
-            SUMBER: CLOUD DATABASE NASDEM SULUT · 15 KAB/KOTA AKTIF
+          <div className="text-[11px] text-slate-400 font-mono">
+            PARTAI NASDEM DPW SULAWESI UTARA &bull; 15 DPD TERDATA
           </div>
         </div>
       </div>
     );
   };
 
-  // 2. CHART 2: DRILLDOWN DETAIL KECAMATAN (PER KABUPATEN/KOTA)
+  // 2. CHART 2: DRILLDOWN DETAIL KECAMATAN (STANDAR KORPORAT)
   const renderDrilldownChart = (isSolo = false) => {
-    const { dpdName, totalCount, pengurusCount, anggotaCount, color, subdistricts, maxSubCount } = drilldownData;
+    const { dpdName, totalCount, pengurusCount, anggotaCount, subdistricts, maxSubCount } = drilldownData;
 
     return (
-      <div className={`bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
         {/* Header with DPD Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80 mb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveScreen('column15')}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
               title="Kembali ke Grafik 15 Kab/Kota"
             >
               <ArrowLeft className="w-4 h-4 text-blue-400" />
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
-                  Detail Drilldown: {dpdName}
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                  Rincian Kecamatan: {dpdName}
                 </h2>
-                <span
-                  className="text-xs font-mono font-bold px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}40` }}
-                >
-                  {fmt(totalCount)} Total
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                  {fmt(totalCount)} Kader
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Rincian sebaran anggota dan kepengurusan di tiap Kecamatan (DPC)
+              <p className="text-xs text-slate-400 mt-0.5">
+                Sebaran anggota &amp; kelengkapan struktur pengurus DPC tingkat kecamatan
               </p>
             </div>
           </div>
@@ -656,7 +695,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               <select
                 value={selectedDrilldownDpd}
                 onChange={(e) => setSelectedDrilldownDpd(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-white text-xs font-semibold rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none"
+                className="bg-slate-800 border border-slate-700 text-white text-xs font-semibold rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none"
               >
                 {SULUT_15_KABKOTA.map((item) => (
                   <option key={item.key} value={item.label}>
@@ -670,27 +709,27 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('drilldown')}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
                 title="Layar Penuh Drilldown"
               >
-                <Maximize2 className="w-4 h-4 text-blue-400" />
+                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
               </button>
             )}
 
             <button
               onClick={() => handleOpenStandaloneScreen('drilldown', selectedDrilldownDpd)}
-              className="p-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-colors"
-              title="Buka di Jendela / Monitor Baru"
+              className="p-2 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 transition-colors"
+              title="Buka di Jendela / Monitor Eksternal"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Subdistrict Bars List */}
-        <div className="space-y-3.5 my-2 max-h-[550px] overflow-y-auto pr-2">
+        <div className="space-y-3 my-2 max-h-[520px] overflow-y-auto pr-2">
           {subdistricts.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 text-sm">
+            <div className="py-12 text-center text-slate-400 text-xs">
               Belum ada data kader yang terpetakan untuk kecamatan di wilayah {dpdName}.
             </div>
           ) : (
@@ -699,35 +738,33 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               return (
                 <div key={sub.name} className="group flex items-center gap-3 text-xs">
                   {/* Rank Index */}
-                  <span className="w-6 text-slate-500 font-mono font-bold text-right shrink-0">
-                    {idx + 1}.
+                  <span className="w-6 text-slate-400 font-mono font-bold text-right shrink-0">
+                    {String(idx + 1).padStart(2, '0')}
                   </span>
 
                   {/* Kecamatan Name */}
-                  <span className="w-36 sm:w-44 truncate font-semibold text-slate-200 group-hover:text-white shrink-0">
+                  <span className="w-36 sm:w-44 truncate font-semibold text-slate-300 group-hover:text-white shrink-0">
                     Kec. {sub.name}
                   </span>
 
                   {/* Progress Bar Container */}
-                  <div className="flex-1 h-6 bg-slate-800/80 rounded-lg overflow-hidden p-0.5 border border-slate-700/50 relative flex items-center">
+                  <div className="flex-1 h-5 bg-slate-950 rounded-md overflow-hidden p-0.5 border border-slate-800 relative flex items-center">
                     <div
-                      className="h-full rounded-md transition-all duration-300"
+                      className="h-full rounded transition-all duration-300 bg-gradient-to-r from-blue-700 to-blue-500"
                       style={{
                         width: `${Math.max(barPercent, sub.count > 0 ? 3 : 0)}%`,
-                        backgroundColor: color,
-                        filter: `drop-shadow(0 0 6px ${color}60)`,
                       }}
                     />
                     {sub.count > 0 && (
-                      <span className="absolute left-3 text-[11px] font-mono font-bold text-white drop-shadow">
-                        {fmt(sub.count)} Kader
+                      <span className="absolute left-2.5 text-[10.5px] font-mono font-bold text-white drop-shadow">
+                        {fmt(sub.count)}
                       </span>
                     )}
                   </div>
 
                   {/* Exact Number & % */}
                   <div className="w-20 text-right shrink-0">
-                    <span className="font-mono font-bold text-white text-sm block leading-none">
+                    <span className="font-mono font-bold text-white text-xs block leading-none">
                       {fmt(sub.count)}
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -743,45 +780,46 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         {/* Summary Footer */}
         <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-3">
-            <span>Total Kecamatan: <strong className="text-white">{subdistricts.length}</strong></span>
-            <span>·</span>
-            <span>Pengurus Ber-SK: <strong className="text-amber-400">{fmt(pengurusCount)}</strong></span>
-            <span>·</span>
+            <span>Total: <strong className="text-white">{subdistricts.length} Kecamatan</strong></span>
+            <span>&bull;</span>
+            <span>Pengurus SK: <strong className="text-amber-400">{fmt(pengurusCount)}</strong></span>
+            <span>&bull;</span>
             <span>Anggota KTP: <strong className="text-blue-400">{fmt(anggotaCount)}</strong></span>
           </div>
           <button
             onClick={() => setActiveScreen('column15')}
             className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1"
           >
-            ← Kembali ke Seluruh Sulut
+            &larr; Ringkasan 15 Kab/Kota
           </button>
         </div>
       </div>
     );
   };
 
-  // 3. CHART 3: KOMPOSISI PENGURUS VS ANGGOTA (DONUT PIE CHART)
+  // 3. CHART 3: KOMPOSISI PENGURUS VS ANGGOTA (ELEGANT DUOTONE DONUT)
   const renderCompositionChart = (isSolo = false) => {
-    const { totalMembers, pengurusCount, anggotaBiasaCount, activeCount, inactiveCount, withKtaCount } = analyticsData;
+    const { totalMembers, pengurusCount, anggotaBiasaCount, activeCount, withKtaCount } = analyticsData;
     const pengurusPct = totalMembers > 0 ? (pengurusCount / totalMembers) * 100 : 0;
     const anggotaPct = totalMembers > 0 ? (anggotaBiasaCount / totalMembers) * 100 : 0;
 
-    // SVG donut calculations
-    const size = isSolo ? 320 : 220;
-    const strokeWidth = isSolo ? 32 : 24;
+    const size = isSolo ? 320 : 210;
+    const strokeWidth = isSolo ? 30 : 22;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const pengurusOffset = circumference - (pengurusPct / 100) * circumference;
 
     return (
-      <div className={`bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
         <div className="flex items-center justify-between pb-4 border-b border-slate-800/80">
           <div>
-            <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <PieChart className="w-4 h-4 text-amber-400" />
-              Komposisi Keanggotaan
-            </h2>
-            <p className="text-xs text-slate-400">
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Komposisi Struktural
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
               Rasio Pengurus Ber-SK vs Anggota Basis KTP
             </p>
           </div>
@@ -789,7 +827,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('composition')}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
                 title="Layar Penuh Komposisi"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
@@ -797,8 +835,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             )}
             <button
               onClick={() => handleOpenStandaloneScreen('composition')}
-              className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30"
-              title="Buka di Jendela / Monitor Baru"
+              className="p-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30"
+              title="Buka di Jendela / Monitor Eksternal"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
@@ -810,29 +848,29 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           {/* SVG Donut */}
           <div className="relative shrink-0 flex items-center justify-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="transform -rotate-90">
-              {/* Background circle (Anggota) */}
+              {/* Background circle (Anggota KTP - NasDem Blue) */}
               <circle
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
                 fill="none"
-                stroke="#0090FF"
+                stroke="#2563EB"
                 strokeWidth={strokeWidth}
                 opacity={0.85}
               />
-              {/* Foreground circle (Pengurus) */}
+              {/* Foreground circle (Pengurus Ber-SK - NasDem Amber Gold) */}
               <circle
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
                 fill="none"
-                stroke="#FEB019"
+                stroke="#F59E0B"
                 strokeWidth={strokeWidth}
                 strokeDasharray={circumference}
                 strokeDashoffset={pengurusOffset}
                 strokeLinecap="round"
                 style={{
-                  filter: 'drop-shadow(0 0 8px rgba(254, 176, 25, 0.5))',
+                  filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.4))',
                   transition: 'stroke-dashoffset 0.8s ease-in-out',
                 }}
               />
@@ -840,7 +878,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
             {/* Center Label */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Total Kader
               </span>
               <span className={`${isSolo ? 'text-4xl' : 'text-2xl'} font-extrabold text-white font-mono`}>
@@ -853,15 +891,15 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </div>
 
           {/* Breakdown cards */}
-          <div className="space-y-4 w-full sm:max-w-xs">
+          <div className="space-y-3 w-full sm:max-w-xs">
             {/* Pengurus Card */}
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="flex items-center gap-1.5 font-bold text-amber-300">
-                  <span className="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                   Pengurus Ber-SK
                 </span>
-                <span className="font-mono font-bold text-amber-400 text-sm">
+                <span className="font-mono font-bold text-amber-400">
                   {pengurusPct.toFixed(1)}%
                 </span>
               </div>
@@ -876,13 +914,13 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             </div>
 
             {/* Anggota Biasa Card */}
-            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+            <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="flex items-center gap-1.5 font-bold text-blue-300">
-                  <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_6px_#3b82f6]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                   Anggota Basis KTP
                 </span>
-                <span className="font-mono font-bold text-blue-400 text-sm">
+                <span className="font-mono font-bold text-blue-400">
                   {anggotaPct.toFixed(1)}%
                 </span>
               </div>
@@ -891,14 +929,14 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   {fmt(anggotaBiasaCount)}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  Kader Akar Rumput
+                  Kader Non-Struktural
                 </span>
               </div>
             </div>
 
             {/* e-KTA Status */}
             <div className="flex items-center justify-between text-xs px-2 pt-1 text-slate-400">
-              <span>e-KTA Resmi Terbit:</span>
+              <span>e-KTA Terverifikasi:</span>
               <span className="font-mono font-bold text-emerald-400">
                 {fmt(withKtaCount)} ({totalMembers > 0 ? ((withKtaCount / totalMembers) * 100).toFixed(1) : 0}%)
               </span>
@@ -906,8 +944,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </div>
         </div>
 
-        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
-          KOMPOSISI NASDEM SULUT · PEMUTAKHIRAN REAL-TIME
+        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 text-center font-mono">
+          KOMPOSISI RESMI PARTAI NASDEM SULUT
         </div>
       </div>
     );
@@ -915,26 +953,28 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
   // 4. CHART 4: LEADERBOARD & PERINGKAT TERITORIAL
   const renderLeaderboardChart = (isSolo = false) => {
-    const { leaderboard, totalMembers } = analyticsData;
+    const { leaderboard } = analyticsData;
     const highestCount = leaderboard[0]?.total || 1;
 
     return (
-      <div className={`bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
         <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-3">
           <div>
-            <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-amber-400" />
-              Papan Peringkat Teritorial Sulut
-            </h2>
-            <p className="text-xs text-slate-400">
-              Urutan 15 Kabupaten / Kota Berdasarkan Jumlah Kader Terdaftar
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Peringkat Wilayah Terbanyak
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Urutan 15 DPD Kabupaten / Kota Berdasarkan Headcount Anggota Riil
             </p>
           </div>
           <div className="flex items-center gap-1.5">
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('leaderboard')}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
                 title="Layar Penuh Leaderboard"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
@@ -942,8 +982,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             )}
             <button
               onClick={() => handleOpenStandaloneScreen('leaderboard')}
-              className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30"
-              title="Buka di Jendela / Monitor Baru"
+              className="p-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30"
+              title="Buka di Jendela / Monitor Eksternal"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
@@ -951,11 +991,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         </div>
 
         {/* Leaderboard rows */}
-        <div className={`space-y-2.5 my-2 ${isSolo ? 'overflow-y-visible' : 'max-h-[420px] overflow-y-auto pr-2'}`}>
+        <div className={`space-y-2 my-2 ${isSolo ? 'overflow-y-visible' : 'max-h-[420px] overflow-y-auto pr-2'}`}>
           {leaderboard.map((item, idx) => {
             const barW = highestCount > 0 ? (item.total / highestCount) * 100 : 0;
-            const isTop3 = idx < 3;
-            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
+            const isRank1 = idx === 0 && item.total > 0;
+            const isRank2 = idx === 1 && item.total > 0;
+            const isRank3 = idx === 2 && item.total > 0;
 
             return (
               <div
@@ -965,44 +1006,54 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   setActiveScreen('drilldown');
                 }}
                 className={`group flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
-                  isTop3
-                    ? 'bg-slate-800/60 hover:bg-slate-800 border-amber-500/20 hover:border-amber-500/50'
-                    : 'bg-slate-900/40 hover:bg-slate-800/40 border-slate-800/80'
+                  isRank1
+                    ? 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/30'
+                    : 'bg-slate-950/40 hover:bg-slate-800/50 border-slate-800/80'
                 }`}
               >
-                {/* Medal / Rank */}
-                <span className={`w-7 text-center font-bold text-sm shrink-0 ${isTop3 ? 'text-lg' : 'text-slate-500 font-mono'}`}>
-                  {medal}
+                {/* Rank Badge */}
+                <span
+                  className={`w-7 text-center font-bold text-xs shrink-0 font-mono ${
+                    isRank1
+                      ? 'text-amber-400'
+                      : isRank2
+                      ? 'text-slate-300'
+                      : isRank3
+                      ? 'text-amber-600'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  {String(idx + 1).padStart(2, '0')}
                 </span>
 
                 {/* Region details */}
                 <div className="w-44 sm:w-56 shrink-0 truncate">
-                  <span className="font-bold text-slate-200 group-hover:text-white text-xs block leading-tight">
+                  <span className={`font-bold text-xs block leading-tight ${isRank1 ? 'text-amber-300' : 'text-slate-200 group-hover:text-white'}`}>
                     {item.label}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono block">
-                    Zona: {item.zone}
+                    Zona {item.zone}
                   </span>
                 </div>
 
-                {/* Relative progress bar */}
-                <div className="flex-1 h-3.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                {/* Relative progress bar (NasDem Blue, Gold for Rank 1) */}
+                <div className="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      isRank1 ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' : 'bg-blue-600'
+                    }`}
                     style={{
                       width: `${Math.max(barW, item.total > 0 ? 3 : 0)}%`,
-                      backgroundColor: item.color,
-                      boxShadow: `0 0 8px ${item.color}80`,
                     }}
                   />
                 </div>
 
                 {/* Headcount */}
                 <div className="w-24 text-right shrink-0">
-                  <span className="font-mono font-extrabold text-white text-sm block leading-none">
+                  <span className="font-mono font-bold text-white text-xs block leading-none">
                     {fmt(item.total)}
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono block mt-0.5">
+                  <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                     {item.percentage.toFixed(1)}% Sulut
                   </span>
                 </div>
@@ -1011,8 +1062,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           })}
         </div>
 
-        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
-          KLIK NAMA WILAYAH UNTUK MEMBUKA DETAIL KECAMATAN
+        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 text-center font-mono">
+          KLIK BARIS WILAYAH UNTUK RINCIAN KECAMATAN
         </div>
       </div>
     );
@@ -1023,22 +1074,24 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
     const { zones, totalMembers } = analyticsData;
 
     return (
-      <div className={`bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
         <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
           <div>
-            <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-emerald-400" />
-              Sebaran 3 Zona Geografis Sulut
-            </h2>
-            <p className="text-xs text-slate-400">
-              Daratan Minahasa · Bolaang Mongondow Raya (BMR) · Kepulauan Nusa Utara
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-400" />
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Distribusi 3 Zona Teritorial Sulut
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Daratan Minahasa &bull; Bolaang Mongondow Raya (BMR) &bull; Kepulauan Nusa Utara
             </p>
           </div>
           <div className="flex items-center gap-1.5">
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('zones')}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
                 title="Layar Penuh Zona"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
@@ -1046,56 +1099,56 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             )}
             <button
               onClick={() => handleOpenStandaloneScreen('zones')}
-              className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30"
-              title="Buka di Jendela / Monitor Baru"
+              className="p-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30"
+              title="Buka di Jendela / Monitor Eksternal"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* 3 Zone Cards */}
+        {/* 3 Zone Cards in NasDem Cohesive Palette */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-2">
           {zones.map((zone) => {
             const pct = totalMembers > 0 ? (zone.total / totalMembers) * 100 : 0;
             return (
               <div
                 key={zone.name}
-                className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 hover:border-slate-600 transition-all flex flex-col justify-between"
+                className="p-5 rounded-xl bg-slate-950/50 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      className="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+                      className="text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider font-mono"
                       style={{
-                        backgroundColor: `${zone.color}20`,
+                        backgroundColor: `${zone.color}15`,
                         color: zone.color,
-                        border: `1px solid ${zone.color}40`,
+                        border: `1px solid ${zone.color}35`,
                       }}
                     >
                       {zone.name}
                     </span>
-                    <span className="font-mono font-extrabold text-sm" style={{ color: zone.color }}>
+                    <span className="font-mono font-bold text-xs text-white">
                       {pct.toFixed(1)}%
                     </span>
                   </div>
 
                   <div className="mt-3">
-                    <span className="text-3xl font-extrabold text-white font-mono block">
+                    <span className="text-2xl font-extrabold text-white font-mono block">
                       {fmt(zone.total)}
                     </span>
                     <span className="text-xs text-slate-400 mt-1 block">
-                      Total Kader Terdaftar
+                      Total Anggota Riil
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-700/50 pt-2 leading-relaxed">
+                  <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-800/80 pt-2 leading-relaxed">
                     {zone.description}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400">
-                  <span>Kab/Kota: <strong className="text-white">{zone.regions.length}</strong></span>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                  <span>{zone.regions.length} Kab/Kota</span>
                   <button
                     onClick={() => {
                       if (zone.regions[0]) {
@@ -1105,7 +1158,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                     }}
                     className="text-blue-400 hover:text-blue-300 font-semibold"
                   >
-                    Buka Rincian →
+                    Rincian &rarr;
                   </button>
                 </div>
               </div>
@@ -1113,8 +1166,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           })}
         </div>
 
-        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
-          STRUKTUR GEOGRAFIS WILAYAH SULAWESI UTARA
+        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 text-center font-mono">
+          STRUKTUR TERITORIAL PROVINSI SULAWESI UTARA
         </div>
       </div>
     );
@@ -1122,19 +1175,21 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
   // 6. CHART 6: STATUS, GENDER & DEMOGRAFI
   const renderStatusGenderChart = (isSolo = false) => {
-    const { totalMembers, maleCount, femaleCount, unspecGenderCount, activeCount, inactiveCount, withKtaCount, verifiedKtpCount } = analyticsData;
+    const { totalMembers, maleCount, femaleCount, activeCount, withKtaCount, verifiedKtpCount } = analyticsData;
     const malePct = totalMembers > 0 ? (maleCount / totalMembers) * 100 : 0;
     const femalePct = totalMembers > 0 ? (femaleCount / totalMembers) * 100 : 0;
 
     return (
-      <div className={`bg-[#14171F] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between backdrop-blur-md ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
         <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
           <div>
-            <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-400" />
-              Demografi &amp; Status Verifikasi
-            </h2>
-            <p className="text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Demografi &amp; Status Verifikasi
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
               Rasio Gender, e-KTA Resmi, dan Keaktifan Status Anggota
             </p>
           </div>
@@ -1142,7 +1197,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             {!isSolo && (
               <button
                 onClick={() => setActiveScreen('status_gender')}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
                 title="Layar Penuh Demografi"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
@@ -1150,8 +1205,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             )}
             <button
               onClick={() => handleOpenStandaloneScreen('status_gender')}
-              className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30"
-              title="Buka di Jendela / Monitor Baru"
+              className="p-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30"
+              title="Buka di Jendela / Monitor Eksternal"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
@@ -1160,8 +1215,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
           {/* Gender Ratio Card */}
-          <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-            <span className="text-xs font-bold text-slate-300 block mb-3 uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+            <span className="text-xs font-bold text-slate-300 block mb-3 uppercase tracking-wider font-mono">
               Rasio Gender Kader
             </span>
             <div className="space-y-3">
@@ -1170,86 +1225,83 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   <span className="text-blue-400">Laki-laki</span>
                   <span className="font-mono text-white">{fmt(maleCount)} ({malePct.toFixed(1)}%)</span>
                 </div>
-                <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${malePct}%` }} />
+                <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full" style={{ width: `${malePct}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-xs mb-1 font-semibold">
-                  <span className="text-pink-400">Perempuan</span>
+                  <span className="text-amber-400">Perempuan</span>
                   <span className="font-mono text-white">{fmt(femaleCount)} ({femalePct.toFixed(1)}%)</span>
                 </div>
-                <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-pink-500 rounded-full" style={{ width: `${femalePct}%` }} />
+                <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${femalePct}%` }} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Verification & e-KTA Card */}
-          <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-            <span className="text-xs font-bold text-slate-300 block mb-3 uppercase tracking-wider">
-              Validasi Identitas &amp; Dokumen
+          <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+            <span className="text-xs font-bold text-slate-300 block mb-3 uppercase tracking-wider font-mono">
+              Validasi Dokumen Identitas
             </span>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
                 <span className="text-slate-300">Nomor e-KTA Resmi:</span>
                 <span className="font-mono font-bold text-emerald-400">{fmt(withKtaCount)}</span>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
                 <span className="text-slate-300">KTP Terverifikasi:</span>
                 <span className="font-mono font-bold text-blue-400">{fmt(verifiedKtpCount)}</span>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60">
-                <span className="text-slate-300">Status Aktif:</span>
-                <span className="font-mono font-bold text-amber-400">{fmt(activeCount)}</span>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                <span className="text-slate-300">Status Keaktifan:</span>
+                <span className="font-mono font-bold text-amber-400">{fmt(activeCount)} Aktif</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
-          AUDIT DEMOGRAFI &amp; VERIFIKASI KTP SULAWESI UTARA
+        <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 text-center font-mono">
+          AUDIT VALIDASI DATA KADER NASDEM SULUT
         </div>
       </div>
     );
   };
 
   // ============================================================================
-  // TOP MONITORING STATUS BAR (WAR ROOM / COMMAND CENTER)
+  // TOP MONITORING STATUS BAR (STANDAR RUANG KONTROL COMMAND CENTER)
   // ============================================================================
   const renderCommandCenterHeader = () => {
     return (
-      <div className="bg-[#10131A] border-b border-slate-800 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-2xl backdrop-blur-md">
+      <div className="bg-slate-900/95 dark:bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-xl backdrop-blur-md">
         {/* Left Branding & Live Status */}
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center">
-            <span className="w-3.5 h-3.5 rounded-full bg-red-500 animate-ping absolute" />
-            <span className="w-3.5 h-3.5 rounded-full bg-red-600 relative shadow-[0_0_12px_#ef4444]" />
-          </div>
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
 
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-extrabold text-white tracking-wider uppercase">
-                COMMAND CENTER DPW SULUT
+              <span className="text-xs sm:text-sm font-extrabold text-white tracking-wider uppercase font-mono">
+                DPW PARTAI NASDEM SULUT
               </span>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold">
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold">
                 LIVE MONITORING
               </span>
             </div>
             <span className="text-[11px] text-slate-400 block">
-              Ruang Monitoring &amp; Video Wall Teritorial (15 Kabupaten / Kota)
+              Pusat Analisis &amp; Visualisasi Data Teritorial 15 Kabupaten / Kota
             </span>
           </div>
         </div>
 
         {/* Center Screen Navigator Pill Tabs */}
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveScreen('grid')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'grid'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1257,9 +1309,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('column15')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'column15'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1267,9 +1319,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('drilldown')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'drilldown'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1277,9 +1329,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('composition')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'composition'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1287,9 +1339,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('leaderboard')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'leaderboard'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1297,9 +1349,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('zones')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'zones'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1307,9 +1359,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('status_gender')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeScreen === 'status_gender'
-                ? 'bg-blue-600 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1318,10 +1370,10 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         </div>
 
         {/* Right Tools: WITA Clock, Refresh, Fullscreen */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* WITA Digital Clock */}
-          <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-400" />
+          <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
             <span className="font-mono font-bold text-amber-300 text-xs sm:text-sm">
               {currentTime || '--:--:--'} WITA
             </span>
@@ -1330,7 +1382,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           {/* Auto Refresh Indicator */}
           <div
             title={`Pembaruan otomatis tiap ${autoRefreshInterval} detik (Tersisa: ${countdown}s)`}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300"
+            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
             <span>{countdown}s</span>
@@ -1341,20 +1393,20 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <button
               onClick={() => onRefreshCloud()}
               disabled={isRefreshingCloud}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
               title="Perbarui Data Langsung dari Supabase"
             >
-              <RefreshCw className={`w-4 h-4 text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
             </button>
           )}
 
           {/* Native Fullscreen TV Mode */}
           <button
             onClick={handleToggleFullscreen}
-            className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors cursor-pointer shadow-md"
+            className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors cursor-pointer shadow-sm"
             title={isFullscreen ? 'Keluar Layar Penuh' : 'Mode Layar Penuh TV (Edge-to-Edge)'}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
@@ -1365,7 +1417,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   const renderQuickKpiBar = () => {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5 mb-6">
-        <div className="p-4 rounded-xl bg-[#14171F] border border-slate-800/80 shadow-lg">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
             Total Kader Terdaftar
           </span>
@@ -1373,13 +1425,13 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <span className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
               {fmt(analyticsData.totalMembers)}
             </span>
-            <span className="text-xs font-mono font-bold text-emerald-400">
-              15 Kab/Kota
+            <span className="text-xs font-mono font-bold text-blue-400">
+              15 DPD
             </span>
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#14171F] border border-slate-800/80 shadow-lg">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
           <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
             Pengurus Ber-SK
           </span>
@@ -1393,7 +1445,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#14171F] border border-slate-800/80 shadow-lg">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
           <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider block mb-1">
             Anggota Basis KTP
           </span>
@@ -1407,7 +1459,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#14171F] border border-slate-800/80 shadow-lg">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
           <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
             e-KTA Resmi Terbit
           </span>
@@ -1416,21 +1468,21 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               {fmt(analyticsData.withKtaCount)}
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Validasi DPW
+              Tervalidasi
             </span>
           </div>
         </div>
 
-        <div className="hidden lg:block p-4 rounded-xl bg-[#14171F] border border-slate-800/80 shadow-lg">
-          <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider block mb-1">
-            Wilayah Tertinggi
+        <div className="hidden lg:block p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
+          <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+            Kader Tertinggi
           </span>
           <div className="flex items-baseline justify-between">
-            <span className="text-lg font-bold text-white truncate max-w-[140px]" title={analyticsData.leaderboard[0]?.label}>
-              {analyticsData.leaderboard[0]?.label || '-'}
+            <span className="text-base font-bold text-white truncate max-w-[140px]" title={analyticsData.topPerformer?.label}>
+              {analyticsData.topPerformer?.label || '-'}
             </span>
             <span className="text-xs font-mono font-bold text-amber-400">
-              {fmt(analyticsData.leaderboard[0]?.total || 0)}
+              {fmt(analyticsData.topPerformer?.total || 0)}
             </span>
           </div>
         </div>
@@ -1442,7 +1494,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   // MAIN BODY RENDER (GRID vs SINGLE SCREEN)
   // ============================================================================
   return (
-    <div className="min-h-screen bg-[#0D1017] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* 1. Command Center Top Navigation Bar */}
       {!isTvCleanBar && renderCommandCenterHeader()}
 
@@ -1450,7 +1502,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       {isCleanMode && (
         <button
           onClick={() => setIsTvCleanBar(!isTvCleanBar)}
-          className="fixed top-2 right-2 z-50 p-1.5 rounded-lg bg-black/60 hover:bg-black text-slate-400 hover:text-white text-xs opacity-40 hover:opacity-100 transition-opacity"
+          className="fixed top-2 right-2 z-50 p-1.5 rounded-xl bg-black/70 hover:bg-black text-slate-400 hover:text-white text-xs opacity-50 hover:opacity-100 transition-opacity border border-slate-800"
           title={isTvCleanBar ? 'Tampilkan Bar Kontrol' : 'Sembunyikan Bar Kontrol untuk Layar Bersih'}
         >
           {isTvCleanBar ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -1465,12 +1517,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
-                LAYAR 1: DIAGRAM BATANG 15 KABUPATEN / KOTA
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                LAYAR 1: DISTRIBUSI TERITORIAL 15 KABUPATEN / KOTA
               </span>
             </div>
             {renderColumn15Chart(true)}
@@ -1482,12 +1534,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
-                LAYAR 2: DRILLDOWN SEBARAN KECAMATAN
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                LAYAR 2: RINCIAN SEBARAN KECAMATAN (DPC)
               </span>
             </div>
             {renderDrilldownChart(true)}
@@ -1499,12 +1551,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
-                LAYAR 3: KOMPOSISI PENGURUS VS ANGGOTA
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                LAYAR 3: KOMPOSISI PENGURUS BER-SK VS ANGGOTA KTP
               </span>
             </div>
             {renderCompositionChart(true)}
@@ -1516,12 +1568,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
-                LAYAR 4: PAPAN PERINGKAT TERITORIAL
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                LAYAR 4: PERINGKAT WILAYAH TERBANYAK
               </span>
             </div>
             {renderLeaderboardChart(true)}
@@ -1533,11 +1585,11 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
                 LAYAR 5: SEBARAN 3 ZONA GEOGRAFIS SULUT
               </span>
             </div>
@@ -1550,12 +1602,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setActiveScreen('grid')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
               >
-                ← Kembali ke Grid Panel
+                &larr; Kembali ke Grid Panel
               </button>
-              <span className="text-xs font-mono font-bold text-slate-400">
-                LAYAR 6: DEMOGRAFI &amp; STATUS VERIFIKASI
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                LAYAR 6: DEMOGRAFI &amp; STATUS VERIFIKASI DOKUMEN
               </span>
             </div>
             {renderStatusGenderChart(true)}
