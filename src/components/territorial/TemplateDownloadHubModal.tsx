@@ -414,7 +414,7 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
             <div className="flex items-start gap-2.5">
               <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               <div className="text-xs text-blue-950 dark:text-blue-200 space-y-1">
-                <p className="font-bold">Panduan Pengisian & Import Massal:</p>
+                <p className="font-bold">Panduan Pengisian & Import Teritorial Struktur:</p>
                 <ol className="list-decimal pl-4 space-y-0.5 text-blue-900 dark:text-blue-300 text-[11px]">
                   <li>Unduh template Excel sesuai tingkatan di atas.</li>
                   <li>Buka file di Microsoft Excel, cukup isi kolom <strong>Nama Lengkap</strong> dan <strong>NIK</strong>. Baris posisi resmi sudah disiapkan otomatis.</li>

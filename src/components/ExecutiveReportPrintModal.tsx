@@ -199,16 +199,16 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden print:static print:overflow-visible print:bg-white print:p-0 print:w-full print:h-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        className="no-print fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <div className="w-screen max-w-4xl sm:max-w-5xl lg:max-w-6xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10 print:static print:pl-0 print:w-full print:h-auto print:block">
+        <div className="w-screen max-w-4xl sm:max-w-5xl lg:max-w-6xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right print:w-full print:max-w-none print:shadow-none print:border-none print:bg-white print:h-auto print:static">
           {/* Controls Bar (Hidden during print) */}
           <div className="no-print flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 gap-3 sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-3">

@@ -37,7 +37,6 @@ import {
   EditMemberModal,
   MemberDetailModal,
   EKtaCardModal,
-  BulkImportModal,
   StatusChangeModal,
   DeletionRequestModal,
   DeletionApprovalModal,
@@ -309,7 +308,6 @@ export default function App() {
   const [navMembershipFilter, setNavMembershipFilter] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
 
   // Modals state
-  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -879,7 +877,6 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onOpenPrintReport={() => setIsPrintReportOpen(true)}
         onOpenRoleModal={() => setIsRoleModalOpen(true)}
-        onOpenBulkImport={() => setIsBulkImportOpen(true)}
         onOpenAuditModal={() => setIsAuditModalOpen(true)}
         onOpenDeletionApproval={() => setIsDeletionApprovalOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
@@ -1192,7 +1189,6 @@ export default function App() {
               initialStatusFilter={navStatusFilter}
               initialMembershipFilter={navMembershipFilter}
               onOpenAddModal={() => setIsAddModalOpen(true)}
-              onOpenBulkImport={() => setIsBulkImportOpen(true)}
               onOpenStatusModal={(m) => {
                 setSelectedMember(m);
                 setIsStatusModalOpen(true);
@@ -1274,14 +1270,6 @@ export default function App() {
             setActiveTab('dpd');
           }
         }}
-      />
-
-      <BulkImportModal
-        isOpen={isBulkImportOpen}
-        onClose={() => setIsBulkImportOpen(false)}
-        existingMembers={members}
-        session={session}
-        onImportSuccess={handleImportSuccess}
       />
 
       <ExecutiveReportPrintModal

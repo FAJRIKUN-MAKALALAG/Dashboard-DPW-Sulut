@@ -2,7 +2,6 @@ export { AddMemberModal } from '../AddMemberModal';
 export { EditMemberModal } from '../EditMemberModal';
 export { MemberDetailModal } from '../MemberDetailModal';
 export { EKtaCardModal } from '../EKtaCardModal';
-export { BulkImportModal } from '../BulkImportModal';
 export { StatusChangeModal } from '../StatusChangeModal';
 export { DeletionRequestModal } from '../DeletionRequestModal';
 export { DeletionApprovalModal } from '../DeletionApprovalModal';

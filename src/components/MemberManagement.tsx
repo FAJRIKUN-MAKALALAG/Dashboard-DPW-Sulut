@@ -45,7 +45,6 @@ interface MemberManagementProps {
   initialStatusFilter?: MemberStatus;
   initialMembershipFilter?: 'ALL' | 'PENGURUS' | 'ANGGOTA';
   onOpenAddModal: () => void;
-  onOpenBulkImport: () => void;
   onOpenStatusModal: (member: Member) => void;
   onOpenCardModal: (member: Member) => void;
   onOpenEditModal: (member: Member) => void;
@@ -62,7 +61,6 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   initialStatusFilter,
   initialMembershipFilter,
   onOpenAddModal,
-  onOpenBulkImport,
   onOpenStatusModal,
   onOpenCardModal,
   onOpenEditModal,
@@ -663,13 +661,6 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Excel ({selectedNiks.size > 0 ? selectedNiks.size : filteredMembers.length})</span>
-          </button>
-          <button
-            onClick={onOpenBulkImport}
-            className="btn-white flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg cursor-pointer"
-          >
-            <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Import Massal</span>
           </button>
           <button
             onClick={onOpenAddModal}
