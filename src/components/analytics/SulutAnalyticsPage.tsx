@@ -1,36 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Member, UserSession } from '../../types';
-import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch, normalizeDpcName } from '../../utils/structureReadinessUtils';
+import { Eye, EyeOff } from 'lucide-react';
+import { DpcTerritoryDrilldownDrawer } from './DpcTerritoryDrilldownDrawer';
+import { AnalyticsScreenId, SULUT_15_KABKOTA } from './types';
+import { useSulutAnalyticsData } from './hooks/useSulutAnalyticsData';
 import {
-  BarChart3,
-  PieChart,
-  Maximize2,
-  Minimize2,
-  ExternalLink,
-  RefreshCw,
-  Clock,
-  ArrowLeft,
-  Award,
-  Users,
-  MapPin,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Building2,
-  Layers,
-  Landmark,
-  CheckCircle2,
-} from 'lucide-react';
+  AnalyticsCommandCenterHeader,
+  AnalyticsQuickKpiBar,
+  AnalyticsTerritorialStructureBar,
+} from './components';
+import {
+  Column15Chart,
+  KecamatanDrilldownChart,
+  CadreCompositionChart,
+  TerritoryLeaderboardChart,
+  GeographicZonesChart,
+  DemographicsChart,
+} from './charts';
 
-export type AnalyticsScreenId =
-  | 'grid'
-  | 'column15'
-  | 'drilldown'
-  | 'composition'
-  | 'leaderboard'
-  | 'zones'
-  | 'status_gender';
+// Re-export types & constants for external consumers
+export type { AnalyticsScreenId };
+export { SULUT_15_KABKOTA };
 
 interface SulutAnalyticsPageProps {
   members: Member[];
@@ -40,25 +30,6 @@ interface SulutAnalyticsPageProps {
   initialScreen?: string | null;
   isCleanMode?: boolean;
 }
-
-// 15 Kabupaten / Kota Resmi di Provinsi Sulawesi Utara (Urutan Standar Alfabetis)
-export const SULUT_15_KABKOTA = [
-  { key: 'bolmong', name: 'BOLAANG MONGONDOW', label: 'Bolaang Mongondow', zone: 'BMR' },
-  { key: 'bolsel', name: 'BOLAANG MONGONDOW SELATAN', label: 'Bolaang Mongondow Selatan', zone: 'BMR' },
-  { key: 'boltim', name: 'BOLAANG MONGONDOW TIMUR', label: 'Bolaang Mongondow Timur', zone: 'BMR' },
-  { key: 'bolmut', name: 'BOLAANG MONGONDOW UTARA', label: 'Bolaang Mongondow Utara', zone: 'BMR' },
-  { key: 'sitaro', name: 'KEP. SIAU TAGULANDANG BIARO', label: 'Kep. Siau Tagulandang Biaro', zone: 'Kepulauan' },
-  { key: 'sangihe', name: 'KEPULAUAN SANGIHE', label: 'Kepulauan Sangihe', zone: 'Kepulauan' },
-  { key: 'talaud', name: 'KEPULAUAN TALAUD', label: 'Kepulauan Talaud', zone: 'Kepulauan' },
-  { key: 'bitung', name: 'KOTA BITUNG', label: 'Kota Bitung', zone: 'Daratan Minahasa' },
-  { key: 'kotamobagu', name: 'KOTA KOTAMOBAGU', label: 'Kota Kotamobagu', zone: 'BMR' },
-  { key: 'manado', name: 'KOTA MANADO', label: 'Kota Manado', zone: 'Daratan Minahasa' },
-  { key: 'tomohon', name: 'KOTA TOMOHON', label: 'Kota Tomohon', zone: 'Daratan Minahasa' },
-  { key: 'minahasa', name: 'MINAHASA', label: 'Minahasa', zone: 'Daratan Minahasa' },
-  { key: 'minsel', name: 'MINAHASA SELATAN', label: 'Minahasa Selatan', zone: 'Daratan Minahasa' },
-  { key: 'mitra', name: 'MINAHASA TENGGARA', label: 'Minahasa Tenggara', zone: 'Daratan Minahasa' },
-  { key: 'minut', name: 'MINAHASA UTARA', label: 'Minahasa Utara', zone: 'Daratan Minahasa' },
-];
 
 export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   members,
@@ -70,7 +41,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 }) => {
   // Screen selection state
   const [activeScreen, setActiveScreen] = useState<AnalyticsScreenId>(() => {
-    if (initialScreen && ['grid', 'column15', 'drilldown', 'composition', 'leaderboard', 'zones', 'status_gender'].includes(initialScreen)) {
+    if (
+      initialScreen &&
+      ['grid', 'column15', 'drilldown', 'composition', 'leaderboard', 'zones', 'status_gender'].includes(
+        initialScreen
+      )
+    ) {
       return initialScreen as AnalyticsScreenId;
     }
     return 'grid';
@@ -79,7 +55,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   // Selected DPD for drilldown view
   const [selectedDrilldownDpd, setSelectedDrilldownDpd] = useState<string>('Minahasa Selatan');
 
-  // Real-time WITA clock
+  // Interactive territorial breakdown state for the 3 Executive Q&A cards
+  const [territoryBreakdownTab, setTerritoryBreakdownTab] = useState<'DPD' | 'DPC' | 'DPRt' | null>('DPC');
+  const [selectedDpcForDrawer, setSelectedDpcForDrawer] = useState<{ dpdName: string; dpcName: string } | null>(null);
+  const [breakdownZoneFilter, setBreakdownZoneFilter] = useState<'ALL' | 'Daratan Minahasa' | 'BMR' | 'Kepulauan'>('ALL');
+
+  // Real-time WITA clock & auto-refresh
   const [currentTime, setCurrentTime] = useState<string>('');
   const [autoRefreshInterval] = useState<number>(30); // 30s default
   const [countdown, setCountdown] = useState<number>(30);
@@ -154,1591 +135,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
     window.open(url.toString(), `_blank_${screenId}_${Date.now()}`, 'width=1920,height=1080,menubar=no,toolbar=no,location=no');
   };
 
-  // --------------------------------------------------------------------------
-  // DATA AGGREGATION ENGINE
-  // --------------------------------------------------------------------------
-  const analyticsData = useMemo(() => {
-    const totalMembers = members.length;
-    const pengurusCount = members.filter((m) => m.isPengurus || (m.tingkatKepengurusan && m.tingkatKepengurusan !== 'Bukan Pengurus')).length;
-    const anggotaBiasaCount = totalMembers - pengurusCount;
-    const activeCount = members.filter((m) => m.status === 'Aktif').length;
-    const inactiveCount = totalMembers - activeCount;
-    const withKtaCount = members.filter((m) => m.nomorEKTA && m.nomorEKTA.trim() !== '').length;
-    const verifiedKtpCount = members.filter((m) => m.statusKtpVerified).length;
-
-    // Gender breakdown
-    const maleCount = members.filter((m) => m.jenisKelamin === 'Laki-laki').length;
-    const femaleCount = members.filter((m) => m.jenisKelamin === 'Perempuan').length;
-    const unspecGenderCount = totalMembers - maleCount - femaleCount;
-
-    // 15 Kab/Kota Data Mapping
-    const kabKotaMap = new Map<string, {
-      key: string;
-      name: string;
-      label: string;
-      zone: string;
-      total: number;
-      active: number;
-      pengurus: number;
-      anggota: number;
-      withKta: number;
-      subdistrictsMap: Map<string, number>;
-    }>();
-
-    SULUT_15_KABKOTA.forEach((item) => {
-      kabKotaMap.set(item.name, {
-        key: item.key,
-        name: item.name,
-        label: item.label,
-        zone: item.zone,
-        total: 0,
-        active: 0,
-        pengurus: 0,
-        anggota: 0,
-        withKta: 0,
-        subdistrictsMap: new Map<string, number>(),
-      });
-    });
-
-    let unassignedCount = 0;
-    const unassignedMembers: Member[] = [];
-
-    members.forEach((m) => {
-      let matchedKey: string | null = null;
-
-      for (const item of SULUT_15_KABKOTA) {
-        if (isDpdMatch(m.dpd, item.name) || isDpdMatch(m.dpd, item.label)) {
-          matchedKey = item.name;
-          break;
-        }
-      }
-
-      if (matchedKey && kabKotaMap.has(matchedKey)) {
-        const entry = kabKotaMap.get(matchedKey)!;
-        entry.total += 1;
-        if (m.status === 'Aktif') entry.active += 1;
-        if (m.isPengurus || (m.tingkatKepengurusan && m.tingkatKepengurusan !== 'Bukan Pengurus')) {
-          entry.pengurus += 1;
-        } else {
-          entry.anggota += 1;
-        }
-        if (m.nomorEKTA && m.nomorEKTA.trim() !== '') entry.withKta += 1;
-
-        if (m.dpc && m.dpc.trim()) {
-          const normDpc = m.dpc.trim();
-          const prev = entry.subdistrictsMap.get(normDpc) || 0;
-          entry.subdistrictsMap.set(normDpc, prev + 1);
-        }
-      } else {
-        unassignedCount += 1;
-        unassignedMembers.push(m);
-      }
-    });
-
-    // -------------------------------------------------------------------------
-    // STATISTIK STRUKTUR TERITORIAL RESMI SULUT (JAWABAN PERTANYAAN KETUA DPW)
-    // -------------------------------------------------------------------------
-    const totalDpdOfficial = 15;
-    const totalDpcOfficial = 171;
-    const totalDprtOfficial = 1602;
-
-    // Menghitung jangkauan unik DPC dan DPRt yang telah memiliki kader terdaftar
-    const coveredDpcSet = new Set<string>();
-    const coveredDprtSet = new Set<string>();
-
-    members.forEach((m) => {
-      if (m.dpd && m.dpc && m.dpc.trim() && m.dpc !== '-') {
-        coveredDpcSet.add(`${normalizeDpcName(m.dpd)}__${normalizeDpcName(m.dpc)}`);
-        if (m.dprt && m.dprt.trim() && m.dprt !== '-') {
-          coveredDprtSet.add(`${normalizeDpcName(m.dpd)}__${normalizeDpcName(m.dpc)}__${m.dprt.trim().toLowerCase()}`);
-        }
-      }
-    });
-
-    const coveredDpcCount = coveredDpcSet.size;
-    const coveredDprtCount = coveredDprtSet.size;
-
-    // 15 Kab/Kota List in standard display order with official territorial counts
-    const kabKotaList = SULUT_15_KABKOTA.map((item) => {
-      const data = kabKotaMap.get(item.name)!;
-      const matchedRegion = SULUT_REGIONS.find((r) => isDpdMatch(r.name, item.name) || isDpdMatch(r.name, item.label));
-      const officialDpcCount = matchedRegion?.subdistricts.length || 0;
-      const officialDprtCount = matchedRegion?.subdistricts.reduce((sum, sub) => sum + sub.villages.length, 0) || 0;
-      return {
-        ...data,
-        officialDpcCount,
-        officialDprtCount,
-        percentage: totalMembers > 0 ? (data.total / totalMembers) * 100 : 0,
-      };
-    });
-
-    const maxChartValue = Math.max(...kabKotaList.map((b) => b.total), 10);
-    const topPerformer = [...kabKotaList].sort((a, b) => b.total - a.total)[0];
-
-    // Chart bars list
-    const chartBars = [
-      ...(unassignedCount > 0
-        ? [
-            {
-              key: 'unknown',
-              name: 'TIDAK DIKETAHUI',
-              label: 'Tidak Diketahui',
-              zone: 'Lainnya',
-              total: unassignedCount,
-              active: unassignedMembers.filter((m) => m.status === 'Aktif').length,
-              pengurus: 0,
-              anggota: unassignedCount,
-              withKta: 0,
-              officialDpcCount: 0,
-              officialDprtCount: 0,
-              percentage: totalMembers > 0 ? (unassignedCount / totalMembers) * 100 : 0,
-              subdistrictsMap: new Map<string, number>(),
-            },
-          ]
-        : []),
-      ...kabKotaList,
-    ];
-
-    // Leaderboard sorted descending
-    const leaderboard = [...kabKotaList].sort((a, b) => b.total - a.total);
-
-    // 3 Geographic Zones in NasDem Clean Palette
-    const zones = [
-      {
-        name: 'Daratan Minahasa',
-        description: 'Kota Manado, Bitung, Tomohon, Minahasa, Minsel, Mitra, Minut',
-        color: '#2563EB',
-        regions: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa'),
-        total: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa').reduce((s, k) => s + k.total, 0),
-        dpcTotal: 88,
-        dprtTotal: 816,
-      },
-      {
-        name: 'Bolaang Mongondow Raya (BMR)',
-        description: 'Kota Kotamobagu, Bolmong, Bolsel, Boltim, Bolmut',
-        color: '#D97706',
-        regions: kabKotaList.filter((k) => k.zone === 'BMR'),
-        total: kabKotaList.filter((k) => k.zone === 'BMR').reduce((s, k) => s + k.total, 0),
-        dpcTotal: 39,
-        dprtTotal: 438,
-      },
-      {
-        name: 'Kepulauan Nusa Utara',
-        description: 'Kep. Sitaro, Sangihe, Talaud',
-        color: '#0284C7',
-        regions: kabKotaList.filter((k) => k.zone === 'Kepulauan'),
-        total: kabKotaList.filter((k) => k.zone === 'Kepulauan').reduce((s, k) => s + k.total, 0),
-        dpcTotal: 44,
-        dprtTotal: 348,
-      },
-    ];
-
-    return {
-      totalMembers,
-      pengurusCount,
-      anggotaBiasaCount,
-      activeCount,
-      inactiveCount,
-      withKtaCount,
-      verifiedKtpCount,
-      maleCount,
-      femaleCount,
-      unspecGenderCount,
-      totalDpdOfficial,
-      totalDpcOfficial,
-      totalDprtOfficial,
-      coveredDpcCount,
-      coveredDprtCount,
-      kabKotaList,
-      chartBars,
-      maxChartValue,
-      topPerformer,
-      leaderboard,
-      zones,
-    };
-  }, [members]);
-
-  // Selected DPD Subdistricts for Drilldown
-  const drilldownData = useMemo(() => {
-    const matchedRegion = SULUT_REGIONS.find((r) => isDpdMatch(r.name, selectedDrilldownDpd));
-    const targetKabKota = analyticsData.kabKotaList.find(
-      (k) => isDpdMatch(k.name, selectedDrilldownDpd) || isDpdMatch(k.label, selectedDrilldownDpd)
-    );
-
-    const subdistrictCounts: { name: string; count: number; percentage: number; dprtCount: number }[] = [];
-    const totalDpdCount = targetKabKota?.total || 0;
-    const officialDpcCount = matchedRegion?.subdistricts.length || 0;
-    const officialDprtCount = matchedRegion?.subdistricts.reduce((sum, s) => sum + s.villages.length, 0) || 0;
-
-    if (matchedRegion && matchedRegion.subdistricts) {
-      matchedRegion.subdistricts.forEach((sub) => {
-        let count = 0;
-        if (targetKabKota) {
-          for (const [dpcName, dpcVal] of targetKabKota.subdistrictsMap.entries()) {
-            if (normalizeDpcName(dpcName) === normalizeDpcName(sub.name)) {
-              count += dpcVal;
-            }
-          }
-        }
-        subdistrictCounts.push({
-          name: sub.name,
-          count,
-          percentage: totalDpdCount > 0 ? (count / totalDpdCount) * 100 : 0,
-          dprtCount: sub.villages.length,
-        });
-      });
-    }
-
-    subdistrictCounts.sort((a, b) => b.count - a.count);
-    const maxSubCount = Math.max(...subdistrictCounts.map((s) => s.count), 5);
-
-    return {
-      dpdName: targetKabKota?.label || selectedDrilldownDpd,
-      totalCount: totalDpdCount,
-      pengurusCount: targetKabKota?.pengurus || 0,
-      anggotaCount: targetKabKota?.anggota || 0,
-      officialDpcCount,
-      officialDprtCount,
-      subdistricts: subdistrictCounts,
-      maxSubCount,
-    };
-  }, [selectedDrilldownDpd, analyticsData]);
-
-  // Y-axis tick intervals
-  const yTicks = useMemo(() => {
-    const max = analyticsData.maxChartValue;
-    const step = Math.ceil(max / 5 / 10) * 10 || 10;
-    const ticks = [];
-    for (let i = 0; i <= max + step; i += step) {
-      ticks.push(i);
-      if (ticks.length >= 6) break;
-    }
-    return ticks;
-  }, [analyticsData.maxChartValue]);
-
-  const fmt = (n: number) => n.toLocaleString('id-ID');
-
-  // ============================================================================
-  // RENDER SECTIONS & CHARTS (PURE WHITE PROFESSIONAL THEME)
-  // ============================================================================
-
-  // 1. CHART 1: 15 KABUPATEN/KOTA COLUMN BAR CHART (CLEAN WHITE CORPORATE)
-  const renderColumn15Chart = (isSolo = false) => {
-    const bars = analyticsData.chartBars;
-    const maxVal = yTicks[yTicks.length - 1] || 100;
-    const topPerformerKey = analyticsData.topPerformer?.key;
-    const svgHeight = isSolo ? 560 : 440;
-    const svgWidth = 1100;
-    const chartTop = 45;
-    const chartBottom = isSolo ? svgHeight - 140 : svgHeight - 110;
-    const chartHeight = chartBottom - chartTop;
-    const chartLeft = 65;
-    const chartRight = svgWidth - 30;
-    const chartWidth = chartRight - chartLeft;
-    const barSlotWidth = chartWidth / bars.length;
-    const barWidth = Math.min(barSlotWidth * 0.65, 48);
-
-    return (
-      <div className={`relative bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800 mb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                Distribusi Teritorial 15 Kabupaten / Kota
-              </h2>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-900 text-blue-400 border border-zinc-800">
-                PROVINSI SULAWESI UTARA
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Perbandingan jumlah kader riil terdaftar di tiap DPD se-Sulut
-            </p>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
-            {/* Color Legend Badge */}
-            <div className="hidden lg:flex items-center gap-4 text-[11px] px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800">
-              <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
-                <span className="w-2.5 h-2.5 rounded-xs bg-blue-600" />
-                Kader DPD
-              </span>
-              <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
-                <span className="w-2.5 h-2.5 rounded-xs bg-amber-500" />
-                Tertinggi (Rank 1)
-              </span>
-            </div>
-
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('column15')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold border border-zinc-800 transition-colors cursor-pointer"
-                title="Perbesar Chart ke Layar Tunggal"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-                <span className="hidden sm:inline">Layar Tunggal</span>
-              </button>
-            )}
-            <button
-              onClick={() => handleOpenStandaloneScreen('column15')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 text-xs font-semibold border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Layar Baru</span>
-            </button>
-          </div>
-        </div>
-
-        {/* SVG High-Precision Dark Canvas */}
-        <div className="w-full overflow-x-auto select-none py-2">
-          <svg
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            className="w-full h-auto min-w-[750px]"
-          >
-            {/* Horizontal Gridlines & Y-Axis Labels */}
-            {yTicks.map((val, idx) => {
-              const y = chartBottom - (val / maxVal) * chartHeight;
-              return (
-                <g key={`ytick-${idx}`}>
-                  <line
-                    x1={chartLeft}
-                    y1={y}
-                    x2={chartRight}
-                    y2={y}
-                    stroke="#27272A"
-                    strokeDasharray={val === 0 ? 'none' : '3 3'}
-                    strokeWidth={val === 0 ? '1.5' : '1'}
-                  />
-                  <text
-                    x={chartLeft - 12}
-                    y={y + 4}
-                    fill="#71717A"
-                    fontSize="11"
-                    fontFamily="monospace"
-                    textAnchor="end"
-                  >
-                    {val >= 1000 ? `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : val}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Y-Axis Title */}
-            <text
-              transform={`rotate(-90, 20, ${chartTop + chartHeight / 2})`}
-              x={20}
-              y={chartTop + chartHeight / 2}
-              fill="#71717A"
-              fontSize="10"
-              fontWeight="600"
-              textAnchor="middle"
-              letterSpacing="1"
-            >
-              JUMLAH KADER &amp; PENGURUS
-            </text>
-
-            {/* Bars & Top Values & X-Labels */}
-            {bars.map((item, idx) => {
-              const xCenter = chartLeft + idx * barSlotWidth + barSlotWidth / 2;
-              const barX = xCenter - barWidth / 2;
-              const barH = (item.total / maxVal) * chartHeight;
-              const barY = chartBottom - barH;
-              const isHovered = hoveredBarIndex === idx;
-              const isTopRank = item.key === topPerformerKey && item.total > 0;
-              const isEmpty = item.total === 0;
-
-              // Pure solid flat color
-              let barFill = '#2563EB';
-              if (isEmpty) {
-                barFill = '#27272A';
-              } else if (isTopRank) {
-                barFill = '#D97706';
-              } else if (isHovered) {
-                barFill = '#3B82F6';
-              }
-
-              return (
-                <g
-                  key={item.key}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredBarIndex(idx)}
-                  onMouseLeave={() => setHoveredBarIndex(null)}
-                  onClick={() => {
-                    setSelectedDrilldownDpd(item.label);
-                    setActiveScreen('drilldown');
-                  }}
-                >
-                  {/* Subtle column hover background */}
-                  {isHovered && (
-                    <rect
-                      x={chartLeft + idx * barSlotWidth + 2}
-                      y={chartTop}
-                      width={barSlotWidth - 4}
-                      height={chartHeight + 6}
-                      fill="#18181B"
-                      rx="1"
-                    />
-                  )}
-
-                  {/* The Bar */}
-                  <rect
-                    x={barX}
-                    y={isEmpty ? chartBottom - 2 : barY}
-                    width={barWidth}
-                    height={isEmpty ? 2 : Math.max(barH, 3)}
-                    fill={barFill}
-                    rx="1"
-                    ry="1"
-                  />
-
-                  {/* Exact Number on Top of Bar */}
-                  <text
-                    x={xCenter}
-                    y={isEmpty ? chartBottom - 8 : barY - 8}
-                    fill={isEmpty ? '#52525B' : isTopRank ? '#F59E0B' : '#FFFFFF'}
-                    fontSize={isSolo ? '13' : '11.5'}
-                    fontWeight={isTopRank ? '800' : '700'}
-                    fontFamily="monospace"
-                    textAnchor="middle"
-                  >
-                    {fmt(item.total)}
-                  </text>
-
-                  {/* Angled 45° X-Axis Label */}
-                  <g transform={`translate(${xCenter}, ${chartBottom + 16})`}>
-                    <text
-                      transform="rotate(-45)"
-                      fill={isHovered ? '#60A5FA' : isTopRank ? '#F59E0B' : '#A1A1AA'}
-                      fontSize={isSolo ? '11.5' : '10'}
-                      fontWeight={isHovered || isTopRank ? '700' : '600'}
-                      textAnchor="end"
-                      letterSpacing="0.2"
-                    >
-                      {item.name}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* Footer Status Bar */}
-        <div className="mt-3 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-4 text-zinc-400">
-            {hoveredBarIndex !== null && bars[hoveredBarIndex] ? (
-              <div className="flex items-center gap-3 animate-in fade-in duration-100 flex-wrap">
-                <span className="font-bold text-white">
-                  {bars[hoveredBarIndex].label}:
-                </span>
-                <span className="text-blue-400 font-mono font-bold">
-                  {fmt(bars[hoveredBarIndex].total)} Kader ({bars[hoveredBarIndex].percentage.toFixed(1)}% Sulut)
-                </span>
-                <span className="text-zinc-600">&bull;</span>
-                <span className="text-amber-400 font-mono font-semibold">
-                  {bars[hoveredBarIndex].officialDpcCount} DPC (Kec)
-                </span>
-                <span className="text-zinc-600">&bull;</span>
-                <span className="text-emerald-400 font-mono font-semibold">
-                  {bars[hoveredBarIndex].officialDprtCount} DPRt (Desa/Kel)
-                </span>
-                <span className="text-zinc-600">&bull;</span>
-                <span className="text-zinc-300 font-medium">
-                  {bars[hoveredBarIndex].pengurus} Pengurus SK &bull; {bars[hoveredBarIndex].anggota} Anggota
-                </span>
-              </div>
-            ) : (
-              <span className="text-zinc-400 flex items-center gap-2">
-                <span className="text-blue-500 font-bold">&bull;</span>
-                <span>Klik batang wilayah untuk drilldown rincian per kecamatan</span>
-                <span className="text-zinc-600">&bull;</span>
-                <span className="text-zinc-500">Total Resmi: <strong>15 DPD</strong> &bull; <strong>171 DPC</strong> &bull; <strong>1.602 DPRt</strong></span>
-              </span>
-            )}
-          </div>
-
-          <div className="text-[11px] text-zinc-400 font-mono">
-            PARTAI NASDEM DPW SULUT &bull; <strong className="text-white">15 DPD</strong> &bull; <strong className="text-amber-400">171 DPC</strong> &bull; <strong className="text-emerald-400">1.602 DPRt</strong>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 2. CHART 2: DRILLDOWN DETAIL KECAMATAN (PURE BLACK FLAT)
-  const renderDrilldownChart = (isSolo = false) => {
-    const { dpdName, totalCount, pengurusCount, anggotaCount, subdistricts, maxSubCount, officialDpcCount, officialDprtCount } = drilldownData;
-    const barHeightClass = isSolo ? 'h-7 sm:h-8' : 'h-6 sm:h-7';
-    const maxListHeight = isSolo ? 'max-h-[calc(100vh-270px)]' : 'max-h-[520px]';
-    const listSpacingClass = isSolo ? 'space-y-2' : 'space-y-1.5';
-
-    return (
-      <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col ${isSolo ? 'min-h-[calc(100vh-140px)] justify-between' : ''}`}>
-        {/* Header with DPD Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800 mb-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setActiveScreen('column15')}
-              className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-              title="Kembali ke Grafik 15 Kab/Kota"
-            >
-              <ArrowLeft className="w-4 h-4 text-blue-400" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                  Rincian Kecamatan: {dpdName}
-                </h2>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-blue-400 border border-zinc-800">
-                  {fmt(totalCount)} Kader
-                </span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-amber-400 border border-zinc-800">
-                  {officialDpcCount} DPC
-                </span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-emerald-400 border border-zinc-800">
-                  {officialDprtCount} DPRt
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Sebaran anggota &amp; kelengkapan struktur pengurus DPC tingkat kecamatan se-{dpdName}
-              </p>
-            </div>
-          </div>
-
-          {/* DPD Dropdown Switcher */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={selectedDrilldownDpd}
-                onChange={(e) => setSelectedDrilldownDpd(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-semibold rounded-md px-3 py-2 pr-8 focus:outline-none focus:border-blue-600 cursor-pointer appearance-none"
-              >
-                {SULUT_15_KABKOTA.map((item) => (
-                  <option key={item.key} value={item.label} className="bg-zinc-900 text-zinc-200">
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-2.5 pointer-events-none" />
-            </div>
-
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('drilldown')}
-                className="p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-                title="Layar Penuh Drilldown"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-
-            <button
-              onClick={() => handleOpenStandaloneScreen('drilldown', selectedDrilldownDpd)}
-              className="p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Subdistrict Bars List with Compact Pure Color Bars */}
-        <div className={`${listSpacingClass} my-2 ${maxListHeight} overflow-y-auto pr-2`}>
-          {subdistricts.length === 0 ? (
-            <div className="py-12 text-center text-zinc-500 text-xs">
-              Belum ada data kader yang terpetakan untuk kecamatan di wilayah {dpdName}.
-            </div>
-          ) : (
-            subdistricts.map((sub, idx) => {
-              const barPercent = maxSubCount > 0 ? (sub.count / maxSubCount) * 100 : 0;
-              const isTop1 = idx === 0 && sub.count > 0;
-              const isTop3 = idx < 3 && sub.count > 0;
-
-              return (
-                <div
-                  key={sub.name}
-                  className={`group flex items-center gap-3 p-2 rounded-md border transition-all ${
-                    isTop1
-                      ? 'bg-amber-950/20 hover:bg-amber-950/30 border-amber-900/40'
-                      : 'bg-zinc-950 hover:bg-zinc-900/50 border-zinc-900 hover:border-zinc-800'
-                  }`}
-                >
-                  {/* Rank Index Badge */}
-                  <div
-                    className={`w-6 h-6 sm:w-7 sm:h-7 rounded flex items-center justify-center font-mono font-bold text-xs shrink-0 border transition-colors ${
-                      isTop1
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                        : isTop3
-                        ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
-                        : 'bg-zinc-900 text-zinc-500 border-zinc-800'
-                    }`}
-                  >
-                    {String(idx + 1).padStart(2, '0')}
-                  </div>
-
-                  {/* Kecamatan Details */}
-                  <div className={`${isSolo ? 'w-48 sm:w-60' : 'w-40 sm:w-48'} shrink-0 truncate`}>
-                    <span className={`font-semibold text-xs sm:text-sm block truncate transition-colors ${
-                      isTop1 ? 'text-amber-400' : 'text-zinc-200 group-hover:text-blue-400'
-                    }`}>
-                      Kec. {sub.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono block">
-                      {sub.dprtCount} DPRt (Desa/Kel) &bull; {sub.count > 0 ? `${sub.percentage.toFixed(1)}% wilayah` : '0 kader'}
-                    </span>
-                  </div>
-
-                  {/* Clean Flat Progress Bar Container */}
-                  <div className={`flex-1 ${barHeightClass} bg-zinc-900 rounded overflow-hidden p-0.5 border border-zinc-800 relative flex items-center`}>
-                    {/* The Filled Bar - Pure Solid Color */}
-                    <div
-                      className={`h-full rounded-xs transition-all duration-300 ${
-                        isTop1 ? 'bg-amber-600' : 'bg-blue-600'
-                      }`}
-                      style={{
-                        width: `${Math.max(barPercent, sub.count > 0 ? 5 : 0)}%`,
-                      }}
-                    />
-
-                    {/* Value label inside bar */}
-                    {sub.count > 0 && barPercent >= 16 && (
-                      <span className="absolute left-2.5 text-[11px] font-mono font-bold text-white pointer-events-none">
-                        {fmt(sub.count)} Kader
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Exact Number & % */}
-                  <div className="w-20 sm:w-24 text-right shrink-0">
-                    <span className="font-mono font-bold text-white text-xs sm:text-sm block leading-none">
-                      {fmt(sub.count)}
-                    </span>
-                    <span className={`text-[10px] sm:text-[11px] font-mono block mt-0.5 ${
-                      isTop1 ? 'text-amber-400' : 'text-zinc-400'
-                    }`}>
-                      {sub.percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Summary Footer */}
-        <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span>Total: <strong className="text-white">{subdistricts.length} DPC Kecamatan</strong> &bull; <strong className="text-emerald-400">{officialDprtCount} DPRt Desa/Kel</strong></span>
-            <span>&bull;</span>
-            <span>Pengurus SK: <strong className="text-amber-400">{fmt(pengurusCount)}</strong></span>
-            <span>&bull;</span>
-            <span>Anggota KTP: <strong className="text-blue-400">{fmt(anggotaCount)}</strong></span>
-          </div>
-          <button
-            onClick={() => setActiveScreen('column15')}
-            className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 cursor-pointer"
-          >
-            &larr; Ringkasan 15 Kab/Kota
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // 3. CHART 3: KOMPOSISI PENGURUS VS ANGGOTA (PURE BLACK FLAT DONUT)
-  const renderCompositionChart = (isSolo = false) => {
-    const { totalMembers, pengurusCount, anggotaBiasaCount, activeCount, withKtaCount } = analyticsData;
-    const pengurusPct = totalMembers > 0 ? (pengurusCount / totalMembers) * 100 : 0;
-    const anggotaPct = totalMembers > 0 ? (anggotaBiasaCount / totalMembers) * 100 : 0;
-
-    const size = isSolo ? 300 : 200;
-    const strokeWidth = isSolo ? 28 : 20;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const pengurusOffset = circumference - (pengurusPct / 100) * circumference;
-
-    return (
-      <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                Komposisi Struktural
-              </h2>
-            </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Rasio Pengurus Ber-SK vs Anggota Basis KTP
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('composition')}
-                className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-                title="Layar Penuh Komposisi"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-            <button
-              onClick={() => handleOpenStandaloneScreen('composition')}
-              className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Donut graphic and stats */}
-        <div className="my-6 flex flex-col sm:flex-row items-center justify-center gap-8">
-          {/* SVG Donut */}
-          <div className="relative shrink-0 flex items-center justify-center" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="transform -rotate-90">
-              {/* Background circle (Anggota KTP - Solid Blue) */}
-              <circle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke="#2563EB"
-                strokeWidth={strokeWidth}
-              />
-              {/* Foreground circle (Pengurus Ber-SK - Solid Amber) */}
-              <circle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke="#D97706"
-                strokeWidth={strokeWidth}
-                strokeDasharray={circumference}
-                strokeDashoffset={pengurusOffset}
-                strokeLinecap="butt"
-                style={{
-                  transition: 'stroke-dashoffset 0.8s ease-in-out',
-                }}
-              />
-            </svg>
-
-            {/* Center Label */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                Total Kader
-              </span>
-              <span className={`${isSolo ? 'text-4xl' : 'text-2xl'} font-extrabold text-white font-mono`}>
-                {fmt(totalMembers)}
-              </span>
-              <span className="text-[10px] text-emerald-400 font-semibold mt-0.5">
-                {activeCount} Aktif ({totalMembers > 0 ? ((activeCount / totalMembers) * 100).toFixed(0) : 0}%)
-              </span>
-            </div>
-          </div>
-
-          {/* Breakdown cards */}
-          <div className="space-y-3 w-full sm:max-w-xs">
-            {/* Pengurus Card */}
-            <div className="p-3.5 rounded-md bg-zinc-900 border border-zinc-800">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="flex items-center gap-1.5 font-bold text-amber-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  Pengurus Ber-SK
-                </span>
-                <span className="font-mono font-bold text-amber-400">
-                  {pengurusPct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-extrabold text-white font-mono">
-                  {fmt(pengurusCount)}
-                </span>
-                <span className="text-[11px] text-zinc-500">
-                  Struktural DPW - DPRt
-                </span>
-              </div>
-            </div>
-
-            {/* Anggota Biasa Card */}
-            <div className="p-3.5 rounded-md bg-zinc-900 border border-zinc-800">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="flex items-center gap-1.5 font-bold text-blue-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                  Anggota Basis KTP
-                </span>
-                <span className="font-mono font-bold text-blue-400">
-                  {anggotaPct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-extrabold text-white font-mono">
-                  {fmt(anggotaBiasaCount)}
-                </span>
-                <span className="text-[11px] text-zinc-500">
-                  Kader Non-Struktural
-                </span>
-              </div>
-            </div>
-
-            {/* e-KTA Status */}
-            <div className="flex items-center justify-between text-xs px-2 pt-1 text-zinc-400">
-              <span>e-KTA Terverifikasi:</span>
-              <span className="font-mono font-bold text-emerald-400">
-                {fmt(withKtaCount)} ({totalMembers > 0 ? ((withKtaCount / totalMembers) * 100).toFixed(1) : 0}%)
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-500 text-center font-mono">
-          KOMPOSISI RESMI PARTAI NASDEM SULUT
-        </div>
-      </div>
-    );
-  };
-
-  // 4. CHART 4: LEADERBOARD & PERINGKAT TERITORIAL (PURE BLACK FLAT)
-  const renderLeaderboardChart = (isSolo = false) => {
-    const { leaderboard } = analyticsData;
-    const highestCount = leaderboard[0]?.total || 1;
-
-    return (
-      <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                Peringkat Wilayah Terbanyak
-              </h2>
-            </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Urutan 15 DPD Kabupaten / Kota Berdasarkan Headcount Anggota Riil
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('leaderboard')}
-                className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-                title="Layar Penuh Leaderboard"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-            <button
-              onClick={() => handleOpenStandaloneScreen('leaderboard')}
-              className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Leaderboard rows */}
-        <div className={`space-y-2 my-2 ${isSolo ? 'overflow-y-visible' : 'max-h-[420px] overflow-y-auto pr-2'}`}>
-          {leaderboard.map((item, idx) => {
-            const barW = highestCount > 0 ? (item.total / highestCount) * 100 : 0;
-            const isRank1 = idx === 0 && item.total > 0;
-            const isRank2 = idx === 1 && item.total > 0;
-            const isRank3 = idx === 2 && item.total > 0;
-
-            return (
-              <div
-                key={item.key}
-                onClick={() => {
-                  setSelectedDrilldownDpd(item.label);
-                  setActiveScreen('drilldown');
-                }}
-                className={`group flex items-center gap-3 p-2.5 rounded-md border transition-all cursor-pointer ${
-                  isRank1
-                    ? 'bg-amber-950/20 hover:bg-amber-950/30 border-amber-900/40'
-                    : 'bg-zinc-900/50 hover:bg-zinc-900 border-zinc-800/80'
-                }`}
-              >
-                {/* Rank Badge */}
-                <span
-                  className={`w-7 text-center font-bold text-xs shrink-0 font-mono ${
-                    isRank1
-                      ? 'text-amber-400'
-                      : isRank2
-                      ? 'text-zinc-200'
-                      : isRank3
-                      ? 'text-amber-300'
-                      : 'text-zinc-500'
-                  }`}
-                >
-                  {String(idx + 1).padStart(2, '0')}
-                </span>
-
-                {/* Region details */}
-                <div className="w-48 sm:w-64 shrink-0 truncate">
-                  <span className={`font-bold text-xs block leading-tight ${isRank1 ? 'text-amber-300' : 'text-zinc-200 group-hover:text-blue-400'}`}>
-                    {item.label}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 font-mono block">
-                    <strong className="text-amber-400">{item.officialDpcCount}</strong> DPC &bull; <strong className="text-emerald-400">{item.officialDprtCount}</strong> DPRt &bull; Zona {item.zone}
-                  </span>
-                </div>
-
-                {/* Relative progress bar */}
-                <div className="flex-1 h-2.5 sm:h-3 bg-zinc-900 rounded p-0.5 border border-zinc-800">
-                  <div
-                    className={`h-full rounded-xs transition-all duration-300 ${
-                      isRank1 ? 'bg-amber-500' : 'bg-blue-600'
-                    }`}
-                    style={{
-                      width: `${Math.max(barW, item.total > 0 ? 3 : 0)}%`,
-                    }}
-                  />
-                </div>
-
-                {/* Headcount */}
-                <div className="w-24 text-right shrink-0">
-                  <span className="font-mono font-bold text-white text-xs block leading-none">
-                    {fmt(item.total)}
-                  </span>
-                  <span className="text-[10px] text-blue-400 font-mono block mt-0.5">
-                    {item.percentage.toFixed(1)}% Sulut
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-500 text-center font-mono">
-          KLIK BARIS WILAYAH UNTUK RINCIAN KECAMATAN
-        </div>
-      </div>
-    );
-  };
-
-  // 5. CHART 5: SEBARAN 3 ZONA GEOGRAFIS SULAWESI UTARA (PURE BLACK FLAT)
-  const renderZonesChart = (isSolo = false) => {
-    const { zones, totalMembers } = analyticsData;
-
-    return (
-      <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                Distribusi 3 Zona Teritorial Sulut
-              </h2>
-            </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Daratan Minahasa &bull; Bolaang Mongondow Raya (BMR) &bull; Kepulauan Nusa Utara
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('zones')}
-                className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-                title="Layar Penuh Zona"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-            <button
-              onClick={() => handleOpenStandaloneScreen('zones')}
-              className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* 3 Zone Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-2">
-          {zones.map((zone) => {
-            const pct = totalMembers > 0 ? (zone.total / totalMembers) * 100 : 0;
-            return (
-              <div
-                key={zone.name}
-                className="p-4 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider font-mono"
-                      style={{
-                        backgroundColor: `${zone.color}20`,
-                        color: zone.color,
-                        border: `1px solid ${zone.color}50`,
-                      }}
-                    >
-                      {zone.name}
-                    </span>
-                    <span className="font-mono font-bold text-xs text-white">
-                      {pct.toFixed(1)}%
-                    </span>
-                  </div>
-
-                  <div className="mt-3">
-                    <span className="text-2xl font-extrabold text-white font-mono block">
-                      {fmt(zone.total)}
-                    </span>
-                    <span className="text-xs text-zinc-400 mt-1 block">
-                      Total Anggota Riil
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-zinc-400 mt-3 border-t border-zinc-800 pt-2 leading-relaxed">
-                    {zone.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
-                  <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                    <span className="text-white font-bold">{zone.regions.length} DPD</span>
-                    <span className="text-zinc-600">&bull;</span>
-                    <span className="text-amber-400 font-semibold">{zone.dpcTotal} DPC</span>
-                    <span className="text-zinc-600">&bull;</span>
-                    <span className="text-emerald-400 font-semibold">{zone.dprtTotal} DPRt</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (zone.regions[0]) {
-                        setSelectedDrilldownDpd(zone.regions[0].label);
-                        setActiveScreen('drilldown');
-                      }
-                    }}
-                    className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
-                  >
-                    Rincian &rarr;
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-500 text-center font-mono">
-          STRUKTUR TERITORIAL PROVINSI SULAWESI UTARA
-        </div>
-      </div>
-    );
-  };
-
-  // 6. CHART 6: STATUS, GENDER & DEMOGRAFI (PURE BLACK FLAT)
-  const renderStatusGenderChart = (isSolo = false) => {
-    const { totalMembers, maleCount, femaleCount, activeCount, withKtaCount, verifiedKtpCount } = analyticsData;
-    const malePct = totalMembers > 0 ? (maleCount / totalMembers) * 100 : 0;
-    const femalePct = totalMembers > 0 ? (femaleCount / totalMembers) * 100 : 0;
-
-    return (
-      <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                Demografi &amp; Status Verifikasi
-              </h2>
-            </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Rasio Gender, e-KTA Resmi, dan Keaktifan Status Anggota
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {!isSolo && (
-              <button
-                onClick={() => setActiveScreen('status_gender')}
-                className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-                title="Layar Penuh Demografi"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-            <button
-              onClick={() => handleOpenStandaloneScreen('status_gender')}
-              className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-blue-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Buka di Jendela / Monitor Eksternal"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
-          {/* Gender Ratio Card */}
-          <div className="p-4 rounded-md bg-zinc-900 border border-zinc-800">
-            <span className="text-xs font-bold text-zinc-300 block mb-3 uppercase tracking-wider font-mono">
-              Rasio Gender Kader
-            </span>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs mb-1 font-semibold">
-                  <span className="text-blue-400">Laki-laki</span>
-                  <span className="font-mono text-white">{fmt(maleCount)} ({malePct.toFixed(1)}%)</span>
-                </div>
-                <div className="h-2.5 bg-zinc-950 rounded overflow-hidden p-0.5 border border-zinc-800">
-                  <div className="h-full bg-blue-600 rounded-xs transition-all duration-300" style={{ width: `${malePct}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1 font-semibold">
-                  <span className="text-amber-400">Perempuan</span>
-                  <span className="font-mono text-white">{fmt(femaleCount)} ({femalePct.toFixed(1)}%)</span>
-                </div>
-                <div className="h-2.5 bg-zinc-950 rounded overflow-hidden p-0.5 border border-zinc-800">
-                  <div className="h-full bg-amber-500 rounded-xs transition-all duration-300" style={{ width: `${femalePct}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Verification & e-KTA Card */}
-          <div className="p-4 rounded-md bg-zinc-900 border border-zinc-800">
-            <span className="text-xs font-bold text-zinc-300 block mb-3 uppercase tracking-wider font-mono">
-              Validasi Dokumen Identitas
-            </span>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400">Nomor e-KTA Resmi:</span>
-                <span className="font-mono font-bold text-emerald-400">{fmt(withKtaCount)}</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400">KTP Terverifikasi:</span>
-                <span className="font-mono font-bold text-blue-400">{fmt(verifiedKtpCount)}</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400">Status Keaktifan:</span>
-                <span className="font-mono font-bold text-amber-400">{fmt(activeCount)} Aktif</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-500 text-center font-mono">
-          AUDIT VALIDASI DATA KADER NASDEM SULUT
-        </div>
-      </div>
-    );
-  };
-
-  // ============================================================================
-  // TOP MONITORING STATUS BAR (PURE BLACK FLAT)
-  // ============================================================================
-  const renderCommandCenterHeader = () => {
-    return (
-      <div className="bg-black border-b border-zinc-800 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30">
-        {/* Left Branding & Live Status */}
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-extrabold text-white tracking-wider uppercase font-mono">
-                DPW PARTAI NASDEM SULUT
-              </span>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-mono font-bold">
-                LIVE MONITORING
-              </span>
-            </div>
-            <span className="text-[11px] text-zinc-400 block">
-              Pusat Analisis Teritorial &bull; <strong className="text-blue-400 font-mono">15 DPD</strong> &bull; <strong className="text-amber-400 font-mono">171 DPC</strong> &bull; <strong className="text-emerald-400 font-mono">1.602 DPRt</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Center Screen Navigator Pill Tabs */}
-        <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-md border border-zinc-800 overflow-x-auto max-w-full">
-          <button
-            onClick={() => setActiveScreen('grid')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'grid'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            🗂️ Grid Panel
-          </button>
-          <button
-            onClick={() => setActiveScreen('column15')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'column15'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            📊 1. Batang 15 Kab
-          </button>
-          <button
-            onClick={() => setActiveScreen('drilldown')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'drilldown'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            🔍 2. Drilldown Kec
-          </button>
-          <button
-            onClick={() => setActiveScreen('composition')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'composition'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            🍩 3. Komposisi
-          </button>
-          <button
-            onClick={() => setActiveScreen('leaderboard')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'leaderboard'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            🏆 4. Peringkat
-          </button>
-          <button
-            onClick={() => setActiveScreen('zones')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'zones'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            🗺️ 5. Zona Wilayah
-          </button>
-          <button
-            onClick={() => setActiveScreen('status_gender')}
-            className={`px-3 py-1.5 rounded text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeScreen === 'status_gender'
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            📈 6. Demografi
-          </button>
-        </div>
-
-        {/* Right Tools: WITA Clock, Refresh, Fullscreen */}
-        <div className="flex items-center gap-2">
-          {/* WITA Digital Clock */}
-          <div className="px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
-            <span className="font-mono font-bold text-amber-400 text-xs sm:text-sm">
-              {currentTime || '--:--:--'} WITA
-            </span>
-          </div>
-
-          {/* Auto Refresh Indicator */}
-          <div
-            title={`Pembaruan otomatis tiap ${autoRefreshInterval} detik (Tersisa: ${countdown}s)`}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
-            <span>{countdown}s</span>
-          </div>
-
-          {/* Manual Refresh Button */}
-          {onRefreshCloud && (
-            <button
-              onClick={() => onRefreshCloud()}
-              disabled={isRefreshingCloud}
-              className="p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-              title="Perbarui Data Langsung dari Supabase"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
-            </button>
-          )}
-
-          {/* Native Fullscreen TV Mode */}
-          <button
-            onClick={handleToggleFullscreen}
-            className="p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-800 transition-colors cursor-pointer"
-            title={isFullscreen ? 'Keluar Layar Penuh' : 'Mode Layar Penuh TV (Edge-to-Edge)'}
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ----------------------------------------------------------------------------
-  // STRUKTUR TERITORIAL EKSEKUTIF SULAWESI UTARA (JAWABAN PERTANYAAN KETUA DPW)
-  // Menjawab 3 Pertanyaan Strategis:
-  // 1. Berapa jumlah semua DPD di Sulawesi Utara? -> 15 DPD (11 Kab + 4 Kota)
-  // 2. Berapa jumlah semua DPC yang ada di Sulut? -> 171 DPC (171 Kecamatan)
-  // 3. Berapa semua DPRt yang ada di Sulut? -> 1.602 DPRt (1.507 Desa + 95 Kelurahan)
-  // ----------------------------------------------------------------------------
-  const renderTerritorialStructureBar = () => {
-    const { totalDpdOfficial, totalDpcOfficial, totalDprtOfficial, coveredDpcCount, coveredDprtCount } = analyticsData;
-    const dpcCoveragePct = totalDpcOfficial > 0 ? ((coveredDpcCount / totalDpcOfficial) * 100).toFixed(1) : '0';
-    const dprtCoveragePct = totalDprtOfficial > 0 ? ((coveredDprtCount / totalDprtOfficial) * 100).toFixed(1) : '0';
-
-    return (
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-5 mb-6">
-        {/* Header Title with Subtitle for Ketua DPW */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-2 mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-              <Building2 className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-                  Informasi Struktur Teritorial Resmi Sulawesi Utara
-                </h2>
-                <span className="px-2 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800/80 text-[10px] font-mono font-bold uppercase">
-                  Panduan Eksekutif Ketua DPW
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Basis Data Administrasi Resmi Tingkat DPD (Kab/Kota), DPC (Kecamatan), dan DPRt (Desa/Kelurahan) se-Sulut
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 bg-zinc-900 px-3 py-1.5 rounded border border-zinc-800 self-start sm:self-auto">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>15 DPD &bull; 171 DPC &bull; 1.602 DPRt</span>
-          </div>
-        </div>
-
-        {/* 3 Executive Answer Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* CARD 1: DPD KABUPATEN / KOTA */}
-          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-blue-700/60 transition-all flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-900/60">
-                  Tingkat Kab / Kota
-                </span>
-                <span className="flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-400">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> 100% Terbentuk
-                </span>
-              </div>
-
-              {/* Explicit Q&A format answering Ketua DPW */}
-              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
-                <span className="text-blue-400 font-bold">T:</span>
-                <span>&ldquo;Berapa jumlah semua DPD di Sulawesi Utara?&rdquo;</span>
-              </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
-                    {totalDpdOfficial}
-                  </span>
-                  <span className="text-sm font-bold text-blue-400 ml-1.5 uppercase font-mono">
-                    DPD
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-mono text-zinc-300 font-bold block">
-                    11 Kab &bull; 4 Kota
-                  </span>
-                  <span className="text-[10px] text-emerald-400 font-mono block">
-                    15 DPD 100% Terdata
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
-              Semua 15 DPD Kabupaten &amp; Kota di Sulawesi Utara telah terbentuk penuh dan memiliki kepengurusan definitif Partai NasDem.
-            </div>
-          </div>
-
-          {/* CARD 2: DPC KECAMATAN */}
-          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-amber-700/60 transition-all flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/60">
-                  Tingkat Kecamatan
-                </span>
-                <span className="text-[11px] font-mono font-bold text-amber-400">
-                  {coveredDpcCount} / {totalDpcOfficial} Terisi ({dpcCoveragePct}%)
-                </span>
-              </div>
-
-              {/* Explicit Q&A format answering Ketua DPW */}
-              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
-                <span className="text-amber-400 font-bold">T:</span>
-                <span>&ldquo;Berapa jumlah semua DPC yang ada di Sulut?&rdquo;</span>
-              </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
-                    {totalDpcOfficial}
-                  </span>
-                  <span className="text-sm font-bold text-amber-400 ml-1.5 uppercase font-mono">
-                    DPC
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-mono text-zinc-300 font-bold block">
-                    171 Kecamatan
-                  </span>
-                  <span className="text-[10px] text-amber-400/90 font-mono block">
-                    {coveredDpcCount} DPC Terjangkau Kader
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
-              Total 171 Kecamatan resmi se-Sulawesi Utara: Minahasa (88 DPC), BMR (39 DPC), dan Kepulauan (44 DPC).
-            </div>
-          </div>
-
-          {/* CARD 3: DPRT DESA & KELURAHAN */}
-          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-emerald-700/60 transition-all flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/60">
-                  Tingkat Desa / Kelurahan
-                </span>
-                <span className="text-[11px] font-mono font-bold text-emerald-400">
-                  {coveredDprtCount} / {fmt(totalDprtOfficial)} Terisi ({dprtCoveragePct}%)
-                </span>
-              </div>
-
-              {/* Explicit Q&A format answering Ketua DPW */}
-              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
-                <span className="text-emerald-400 font-bold">T:</span>
-                <span>&ldquo;Berapa semua DPRt yang ada di Sulut?&rdquo;</span>
-              </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
-                    {fmt(totalDprtOfficial)}
-                  </span>
-                  <span className="text-sm font-bold text-emerald-400 ml-1.5 uppercase font-mono">
-                    DPRt
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-mono text-zinc-300 font-bold block">
-                    1.507 Desa &bull; 95 Kel
-                  </span>
-                  <span className="text-[10px] text-emerald-400/90 font-mono block">
-                    {coveredDprtCount} DPRt Terjangkau Kader
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
-              Total 1.602 Desa dan Kelurahan resmi se-Sulawesi Utara: Minahasa (816 DPRt), BMR (438 DPRt), Kepulauan (348 DPRt).
-            </div>
-          </div>
-        </div>
-
-        {/* Regional Breakdown Mini Matrix */}
-        <div className="mt-4 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
-          <div className="flex items-center gap-3 flex-wrap font-mono text-[11px]">
-            <span className="text-zinc-500 font-bold uppercase tracking-wider">Rincian Zona Resmi:</span>
-            <span className="text-blue-400">
-              <strong>Daratan Minahasa:</strong> 7 DPD &bull; 88 DPC &bull; 816 DPRt
-            </span>
-            <span className="text-zinc-600">&bull;</span>
-            <span className="text-amber-400">
-              <strong>BMR:</strong> 5 DPD &bull; 39 DPC &bull; 438 DPRt
-            </span>
-            <span className="text-zinc-600">&bull;</span>
-            <span className="text-sky-400">
-              <strong>Kepulauan:</strong> 3 DPD &bull; 44 DPC &bull; 348 DPRt
-            </span>
-          </div>
-
-          <div className="text-[11px] text-zinc-500 font-mono">
-            SUMBER: KEMENDAGRI &bull; BPS SULUT &bull; DPW NASDEM SULUT
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Quick KPI Metric Highlights Bar (Pure Black Flat)
-  const renderQuickKpiBar = () => {
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5 mb-6">
-        <div className="p-4 rounded-md bg-zinc-950 border border-zinc-800">
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-            Total Kader Terdaftar
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
-              {fmt(analyticsData.totalMembers)}
-            </span>
-            <span className="text-xs font-mono font-bold text-blue-400">
-              15 DPD
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-md bg-zinc-950 border border-zinc-800">
-          <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
-            Pengurus Ber-SK
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono">
-              {fmt(analyticsData.pengurusCount)}
-            </span>
-            <span className="text-xs text-zinc-400 font-mono">
-              {analyticsData.totalMembers > 0 ? ((analyticsData.pengurusCount / analyticsData.totalMembers) * 100).toFixed(1) : 0}%
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-md bg-zinc-950 border border-zinc-800">
-          <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider block mb-1">
-            Anggota Basis KTP
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-blue-400 font-mono">
-              {fmt(analyticsData.anggotaBiasaCount)}
-            </span>
-            <span className="text-xs text-zinc-400 font-mono">
-              {analyticsData.totalMembers > 0 ? ((analyticsData.anggotaBiasaCount / analyticsData.totalMembers) * 100).toFixed(1) : 0}%
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-md bg-zinc-950 border border-zinc-800">
-          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-            e-KTA Resmi Terbit
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">
-              {fmt(analyticsData.withKtaCount)}
-            </span>
-            <span className="text-xs text-zinc-400 font-mono">
-              Tervalidasi
-            </span>
-          </div>
-        </div>
-
-        <div className="hidden lg:block p-4 rounded-md bg-zinc-950 border border-zinc-800">
-          <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
-            Kader Tertinggi
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-base font-bold text-white truncate max-w-[140px]" title={analyticsData.topPerformer?.label}>
-              {analyticsData.topPerformer?.label || '-'}
-            </span>
-            <span className="text-xs font-mono font-bold text-amber-400">
-              {fmt(analyticsData.topPerformer?.total || 0)}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Aggregated data and metrics via custom hook
+  const { analyticsData, drilldownData, yTicks, fmt } = useSulutAnalyticsData(members, selectedDrilldownDpd);
 
   // ============================================================================
   // MAIN BODY RENDER (GRID vs SINGLE SCREEN)
@@ -1746,7 +144,19 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* 1. Command Center Top Navigation Bar */}
-      {!isTvCleanBar && renderCommandCenterHeader()}
+      {!isTvCleanBar && (
+        <AnalyticsCommandCenterHeader
+          activeScreen={activeScreen}
+          setActiveScreen={setActiveScreen}
+          currentTime={currentTime}
+          autoRefreshInterval={autoRefreshInterval}
+          countdown={countdown}
+          isRefreshingCloud={isRefreshingCloud}
+          onRefreshCloud={onRefreshCloud}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
+        />
+      )}
 
       {/* Floating Toggle to show/hide clean bar on TV walls */}
       {isCleanMode && (
@@ -1775,7 +185,20 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 1: DISTRIBUSI TERITORIAL 15 KABUPATEN / KOTA
               </span>
             </div>
-            {renderColumn15Chart(true)}
+            <Column15Chart
+              analyticsData={analyticsData}
+              yTicks={yTicks}
+              fmt={fmt}
+              isSolo={true}
+              hoveredBarIndex={hoveredBarIndex}
+              setHoveredBarIndex={setHoveredBarIndex}
+              onSelectDpd={(dpd) => {
+                setSelectedDrilldownDpd(dpd);
+                setActiveScreen('drilldown');
+              }}
+              onOpenFullscreen={() => setActiveScreen('column15')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+            />
           </div>
         )}
 
@@ -1792,7 +215,17 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 2: RINCIAN SEBARAN KECAMATAN (DPC)
               </span>
             </div>
-            {renderDrilldownChart(true)}
+            <KecamatanDrilldownChart
+              drilldownData={drilldownData}
+              selectedDrilldownDpd={selectedDrilldownDpd}
+              setSelectedDrilldownDpd={setSelectedDrilldownDpd}
+              fmt={fmt}
+              isSolo={true}
+              onOpenFullscreen={() => setActiveScreen('drilldown')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+              onBackToColumn15={() => setActiveScreen('column15')}
+              onSelectDpcForDrawer={(dpdName, dpcName) => setSelectedDpcForDrawer({ dpdName, dpcName })}
+            />
           </div>
         )}
 
@@ -1809,7 +242,13 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 3: KOMPOSISI PENGURUS BER-SK VS ANGGOTA KTP
               </span>
             </div>
-            {renderCompositionChart(true)}
+            <CadreCompositionChart
+              analyticsData={analyticsData}
+              fmt={fmt}
+              isSolo={true}
+              onOpenFullscreen={() => setActiveScreen('composition')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+            />
           </div>
         )}
 
@@ -1826,7 +265,17 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 4: PERINGKAT WILAYAH TERBANYAK
               </span>
             </div>
-            {renderLeaderboardChart(true)}
+            <TerritoryLeaderboardChart
+              analyticsData={analyticsData}
+              fmt={fmt}
+              isSolo={true}
+              onOpenFullscreen={() => setActiveScreen('leaderboard')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+              onSelectDpd={(dpd) => {
+                setSelectedDrilldownDpd(dpd);
+                setActiveScreen('drilldown');
+              }}
+            />
           </div>
         )}
 
@@ -1843,7 +292,17 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 5: SEBARAN 3 ZONA GEOGRAFIS SULUT
               </span>
             </div>
-            {renderZonesChart(true)}
+            <GeographicZonesChart
+              analyticsData={analyticsData}
+              fmt={fmt}
+              isSolo={true}
+              onOpenFullscreen={() => setActiveScreen('zones')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+              onSelectDpd={(dpd) => {
+                setSelectedDrilldownDpd(dpd);
+                setActiveScreen('drilldown');
+              }}
+            />
           </div>
         )}
 
@@ -1860,7 +319,13 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 LAYAR 6: DEMOGRAFI &amp; STATUS VERIFIKASI DOKUMEN
               </span>
             </div>
-            {renderStatusGenderChart(true)}
+            <DemographicsChart
+              analyticsData={analyticsData}
+              fmt={fmt}
+              isSolo={true}
+              onOpenFullscreen={() => setActiveScreen('status_gender')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+            />
           </div>
         )}
 
@@ -1868,31 +333,107 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         {activeScreen === 'grid' && (
           <div className="space-y-6">
             {/* Executive Territorial Structure Bar (Answers for Ketua DPW) */}
-            {renderTerritorialStructureBar()}
+            <AnalyticsTerritorialStructureBar
+              analyticsData={analyticsData}
+              members={members}
+              fmt={fmt}
+              territoryBreakdownTab={territoryBreakdownTab}
+              setTerritoryBreakdownTab={setTerritoryBreakdownTab}
+              breakdownZoneFilter={breakdownZoneFilter}
+              setBreakdownZoneFilter={setBreakdownZoneFilter}
+              onSelectDpcForDrawer={(dpdName, dpcName) =>
+                setSelectedDpcForDrawer({ dpdName, dpcName })
+              }
+            />
 
             {/* Quick KPI Row */}
-            {renderQuickKpiBar()}
+            <AnalyticsQuickKpiBar analyticsData={analyticsData} fmt={fmt} />
 
             {/* Row 1: Main 15 Kab/Kota Column Chart */}
-            {renderColumn15Chart(false)}
+            <Column15Chart
+              analyticsData={analyticsData}
+              yTicks={yTicks}
+              fmt={fmt}
+              isSolo={false}
+              hoveredBarIndex={hoveredBarIndex}
+              setHoveredBarIndex={setHoveredBarIndex}
+              onSelectDpd={(dpd) => {
+                setSelectedDrilldownDpd(dpd);
+                setActiveScreen('drilldown');
+              }}
+              onOpenFullscreen={() => setActiveScreen('column15')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+            />
 
             {/* Row 2: Drilldown Kecamatan & Komposisi Donut */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {renderDrilldownChart(false)}
-              {renderCompositionChart(false)}
+              <KecamatanDrilldownChart
+                drilldownData={drilldownData}
+                selectedDrilldownDpd={selectedDrilldownDpd}
+                setSelectedDrilldownDpd={setSelectedDrilldownDpd}
+                fmt={fmt}
+                isSolo={false}
+                onOpenFullscreen={() => setActiveScreen('drilldown')}
+                onOpenStandalone={handleOpenStandaloneScreen}
+                onBackToColumn15={() => setActiveScreen('column15')}
+                onSelectDpcForDrawer={(dpdName, dpcName) => setSelectedDpcForDrawer({ dpdName, dpcName })}
+              />
+              <CadreCompositionChart
+                analyticsData={analyticsData}
+                fmt={fmt}
+                isSolo={false}
+                onOpenFullscreen={() => setActiveScreen('composition')}
+                onOpenStandalone={handleOpenStandaloneScreen}
+              />
             </div>
 
             {/* Row 3: Leaderboard & 3 Geographics Zones */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {renderLeaderboardChart(false)}
-              {renderZonesChart(false)}
+              <TerritoryLeaderboardChart
+                analyticsData={analyticsData}
+                fmt={fmt}
+                isSolo={false}
+                onOpenFullscreen={() => setActiveScreen('leaderboard')}
+                onOpenStandalone={handleOpenStandaloneScreen}
+                onSelectDpd={(dpd) => {
+                  setSelectedDrilldownDpd(dpd);
+                  setActiveScreen('drilldown');
+                }}
+              />
+              <GeographicZonesChart
+                analyticsData={analyticsData}
+                fmt={fmt}
+                isSolo={false}
+                onOpenFullscreen={() => setActiveScreen('zones')}
+                onOpenStandalone={handleOpenStandaloneScreen}
+                onSelectDpd={(dpd) => {
+                  setSelectedDrilldownDpd(dpd);
+                  setActiveScreen('drilldown');
+                }}
+              />
             </div>
 
             {/* Row 4: Demografi & Verifikasi Status */}
-            {renderStatusGenderChart(false)}
+            <DemographicsChart
+              analyticsData={analyticsData}
+              fmt={fmt}
+              isSolo={false}
+              onOpenFullscreen={() => setActiveScreen('status_gender')}
+              onOpenStandalone={handleOpenStandaloneScreen}
+            />
           </div>
         )}
       </div>
+
+      {/* 3. DPC & DPRt Micro-Page Drilldown Drawer */}
+      <DpcTerritoryDrilldownDrawer
+        isOpen={Boolean(selectedDpcForDrawer)}
+        onClose={() => setSelectedDpcForDrawer(null)}
+        dpdName={selectedDpcForDrawer?.dpdName || null}
+        dpcName={selectedDpcForDrawer?.dpcName || null}
+        members={members}
+        session={session}
+      />
     </div>
   );
 };

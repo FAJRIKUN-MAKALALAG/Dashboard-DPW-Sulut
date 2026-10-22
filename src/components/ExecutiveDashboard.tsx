@@ -13,8 +13,7 @@ import {
   DashboardHeader,
   DashboardScopeFilter,
   ExecutiveKpiCards,
-  ExecutiveLeadershipAnswers,
-  StructureReadinessGrid,
+  UnifiedTerritorialReadiness,
   RecruitmentAnalyticsSection,
   ExecutiveOperationalNote,
 } from './dashboard';
@@ -230,22 +229,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
-      {/* 4. Executive Leadership Answers (Menjawab Pertanyaan Pimpinan DPW: Daerah Lengkap vs Belum) */}
-      <ExecutiveLeadershipAnswers
+      {/* 4. Kesiapan Struktur & Teritorial Organisasi 15 Kab/Kota (Terpadu & Micro-Page Detail) */}
+      <UnifiedTerritorialReadiness
         members={members}
         session={session}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         onOpenStructureModal={handleOpenStructureModal}
       />
 
-      {/* 5. Status Struktur Kepengurusan Kab/Kota */}
-      <StructureReadinessGrid
-        members={members}
-        session={session}
-        onOpenStructureModal={(dpdName) => handleOpenStructureModal(dpdName, 'ALL')}
-        onOpenAllStructureModal={() => handleOpenStructureModal('ALL', 'ALL')}
-        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-      />
 
       {/* 6. Cadre-Driven Recruitment Analytics */}
       <RecruitmentAnalyticsSection

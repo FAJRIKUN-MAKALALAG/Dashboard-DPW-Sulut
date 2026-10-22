@@ -3,6 +3,8 @@ export * from './DashboardScopeFilter';
 export * from './ExecutiveKpiCards';
 export * from './ExecutiveLeadershipAnswers';
 export * from './StructureReadinessGrid';
+export * from './UnifiedTerritorialReadiness';
+export * from './TerritoryDetailDrawer';
 export * from './RecruitmentAnalyticsSection';
 export * from './TerritorialBarDistribution';
 export * from './ExecutiveOperationalNote';

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserSession } from '../../types';
 import { GrowthAnalytics, GrowthPeriod, formatDisplayDate } from '../../utils/growthUtils';
 import { GrowthInteractiveChart } from '../GrowthInteractiveChart';
@@ -13,6 +13,13 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowUpRight,
+  Users,
+  TrendingUp,
+  Info,
+  CheckCircle2,
+  ShieldCheck,
+  Layers,
+  X,
 } from 'lucide-react';
 
 interface RecruitmentAnalyticsSectionProps {
@@ -64,41 +71,37 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
   hasAddMembers,
 }) => {
   const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
+  const [showSystemWorkflow, setShowSystemWorkflow] = useState<boolean>(true);
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm transition-colors space-y-6">
-      {/* Section Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+      {/* 1. SECTION HEADER */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Award className="w-4 h-4" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Award className="w-3.5 h-3.5" />
             </div>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               Cadre-Driven Recruitment Analytics
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Direkrut Langsung Oleh Kader Penggerak
             </span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
+
+          <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-1.5">
             Monitoring Penambahan Anggota yang Direkrut oleh Kader Lapangan
           </h3>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-4xl leading-relaxed">
-            Setiap anggota baru wajib terhubung dengan{' '}
-            <strong className="text-amber-700 dark:text-amber-400 font-semibold">
-              Kader Perekrut
-            </strong>{' '}
-            yang membawanya. Sistem secara otomatis menaruh domisili anggota baru ke DPRt
-            (Kelurahan/Desa) berdasarkan alamat KTP, sehingga pimpinan mengetahui kader mana yang
-            bergerak dan di daerah mana anggotanya bertambah.
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
+            Sistem pemantauan rekrutmen berbasis kader penanggung jawab dengan penempatan domisili otomatis ke DPRt (Desa/Kelurahan) sesuai alamat KTP faktual.
           </p>
         </div>
 
-        {/* Action & Period Selector */}
+        {/* Action Controls & Period Selector */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* Period Selector Tabs */}
+          {/* Period Selector Segmented Tabs */}
           <div className="flex p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs">
             {(
               [
@@ -133,7 +136,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
               title="Muat data contoh: +100 Minahasa Selatan & +50 Manado yang direkrut kader"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Simulasi Rekrutmen (+100 Minsel, +50 Manado)</span>
+              <span>Simulasi Rekrutmen</span>
             </button>
           )}
 
@@ -149,7 +152,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
               title="Buka Matriks Struktur Organisasi & Input Template Berurut"
             >
               <Table className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Matriks Struktur & Template</span>
+              <span>Matriks Struktur</span>
             </button>
           )}
 
@@ -157,14 +160,87 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
           <button
             onClick={() => openDrilldownModalWithFocus()}
             className="btn-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer"
+            title="Buka audit lengkap dalam modal"
           >
             <Maximize2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Inspeksi Audit Lengkap</span>
+            <span>Audit Lengkap</span>
           </button>
         </div>
       </div>
 
-      {/* 4 Interactive Cadre-Recruitment Stat Cards */}
+      {/* 2. THREE-PILLAR OPERATIONAL WORKFLOW BANNER (CLEAN & INFORMATIVE) */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-4 transition-all">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+              Alur Rekrutmen Teritorial Berbasis Kader Lapangan
+            </span>
+          </div>
+          <button
+            onClick={() => setShowSystemWorkflow(!showSystemWorkflow)}
+            className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium flex items-center gap-1 cursor-pointer"
+          >
+            <span>{showSystemWorkflow ? 'Sembunyikan' : 'Tampilkan Alur'}</span>
+            {showSystemWorkflow ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+
+        {showSystemWorkflow && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 animate-in fade-in duration-150">
+            {/* Step 1: Kader Perekrut */}
+            <div className="p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Users className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  1. Terhubung Kader Perekrut
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pl-8">
+                Setiap anggota baru <strong className="text-amber-700 dark:text-amber-400">wajib terhubung</strong> dengan nama kader penggerak yang membawanya masuk ke Partai NasDem.
+              </p>
+            </div>
+
+            {/* Step 2: Alokasi DPRt Otomatis */}
+            <div className="p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <MapPin className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  2. Alokasi DPRt Otomatis
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pl-8">
+                Sistem secara otomatis menaruh domisili anggota baru ke <strong className="text-blue-700 dark:text-blue-400">DPRt (Kelurahan/Desa)</strong> definitif berdasarkan alamat KTP resmi.
+              </p>
+            </div>
+
+            {/* Step 3: Kecerdasan Teritorial Pimpinan */}
+            <div className="p-3.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  3. Deteksi Wilayah Bertumbuh
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pl-8">
+                Pimpinan DPW &amp; DPD dapat langsung memantau <strong className="text-emerald-700 dark:text-emerald-400">kader mana yang bergerak</strong> dan di daerah mana anggotanya bertambah.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. FOUR METRIC HIGHLIGHT CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Card 1: Hari Ini */}
         <div
@@ -172,61 +248,68 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
             setGrowthPeriod('today');
             setPinnedDate(undefined);
           }}
-          className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${
             growthPeriod === 'today' && !pinnedDate
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 shadow-xs'
-              : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500/30'
+              : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
           }`}
         >
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-slate-500 dark:text-slate-400">Direkrut Hari Ini</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Direkrut Hari Ini</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
             +{growthAnalytics.todayCount}
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Anggota baru masuk</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Anggota baru tervalidasi
+          </p>
         </div>
 
         {/* Card 2: Kader yang Bergerak */}
         <div
           onClick={() => setGrowthViewTab('recruiters')}
-          className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${
             growthViewTab === 'recruiters'
-              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 shadow-xs'
-              : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-500 dark:border-amber-500 shadow-xs ring-1 ring-amber-500/30'
+              : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
           }`}
         >
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-amber-700 dark:text-amber-400">Kader Perekrut Aktif</span>
-            <Award className="w-3.5 h-3.5 text-amber-500" />
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-semibold text-amber-700 dark:text-amber-400">Kader Perekrut Aktif</span>
+            <Award className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
-            {growthAnalytics.activeRecruitersCount} Kader
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tracking-tight">
+            {growthAnalytics.activeRecruitersCount}
+            <span className="text-sm font-semibold ml-1.5 uppercase font-sans">Kader</span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Penggerak di lapangan</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Penggerak aktif di lapangan
+          </p>
         </div>
 
-        {/* Card 3: 30 Hari Terakhir */}
+        {/* Card 3: Total Periode */}
         <div
           onClick={() => {
             setGrowthPeriod('30days');
             setPinnedDate(undefined);
           }}
-          className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${
             growthPeriod === '30days' && !pinnedDate
-              ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 dark:border-indigo-600 shadow-xs'
-              : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-500 dark:border-blue-500 shadow-xs ring-1 ring-blue-500/30'
+              : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
           }`}
         >
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-slate-500 dark:text-slate-400">Total Periode</span>
-            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Total Periode</span>
+            <Calendar className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+          <div className="text-2xl sm:text-3xl font-extrabold font-mono text-blue-600 dark:text-blue-400 tracking-tight">
             +{growthAnalytics.totalNew}
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Hasil rekrutmen kader</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Periode: {growthAnalytics.periodLabel}
+          </p>
         </div>
 
         {/* Card 4: Top Perekrut */}
@@ -241,19 +324,21 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
               );
             }
           }}
-          className="p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-amber-400 transition-all cursor-pointer group"
+          className="p-4 rounded-xl border bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500 transition-all cursor-pointer group flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-amber-700 dark:text-amber-400">Top Kader Perekrut</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold text-amber-700 dark:text-amber-400">Top Perekrut Terbanyak</span>
+              <ArrowUpRight className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+            <div
+              className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate"
+              title={growthAnalytics.topRecruiter?.nama || 'Belum ada data'}
+            >
+              {growthAnalytics.topRecruiter ? growthAnalytics.topRecruiter.nama.split(',')[0] : '-'}
+            </div>
           </div>
-          <div
-            className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate"
-            title={growthAnalytics.topRecruiter?.nama || 'Belum ada data'}
-          >
-            {growthAnalytics.topRecruiter ? growthAnalytics.topRecruiter.nama.split(',')[0] : '-'}
-          </div>
-          <p className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+          <p className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">
             {growthAnalytics.topRecruiter
               ? `+${growthAnalytics.topRecruiter.count} Anggota Baru`
               : '0 Anggota'}
@@ -261,7 +346,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
         </div>
       </div>
 
-      {/* Filter Indicator */}
+      {/* 4. ACTIVE FILTER CHIP */}
       {(pinnedDate || filterRecruiter) && (
         <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-4 py-2.5 rounded-xl text-xs">
           <div className="flex items-center gap-2">
@@ -294,7 +379,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
         </div>
       )}
 
-      {/* Ultra-Interactive Cadre Growth Chart */}
+      {/* 5. INTERACTIVE CADRE GROWTH CHART */}
       <GrowthInteractiveChart
         dailyPoints={growthAnalytics.dailyPoints}
         pinnedDate={pinnedDate}
@@ -303,7 +388,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
         totalNew={growthAnalytics.totalNew}
       />
 
-      {/* Tab Toggle: Peta Teritorial KTP vs Kader Perekrut */}
+      {/* 6. TAB TOGGLE: SEBARAN TERITORIAL KTP vs KADER PEREKRUT */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs">
           <button
@@ -311,7 +396,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
             className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
               growthViewTab === 'territory'
                 ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
-                : 'text-slate-600 dark:text-slate-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <MapPin className="w-3.5 h-3.5" />
@@ -322,7 +407,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
             className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
               growthViewTab === 'recruiters'
                 ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-bold'
-                : 'text-slate-600 dark:text-slate-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Award className="w-3.5 h-3.5" />
@@ -335,7 +420,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
         </span>
       </div>
 
-      {/* VIEW 1: SEBARAN TERITORIAL KTP (DPD -> DPC -> DPRt) */}
+      {/* 7. VIEW 1: SEBARAN TERITORIAL KTP (DPD -> DPC -> DPRt) */}
       {growthViewTab === 'territory' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -345,10 +430,8 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
                 <span>Rincian Teritorial Penambahan (Alamat KTP Faktual)</span>
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Klik tombol <strong className="text-blue-600 dark:text-blue-400">Rincian DPC</strong>{' '}
-                untuk membuka sebaran kecamatan, dan{' '}
-                <strong className="text-indigo-600 dark:text-indigo-400">Rincian DPRt</strong> untuk
-                melihat desa basis beserta kader perekrutnya.
+                Klik tombol <strong className="text-blue-600 dark:text-blue-400">Buka DPC</strong> untuk membuka sebaran kecamatan, dan{' '}
+                <strong className="text-indigo-600 dark:text-indigo-400">Lihat DPRt</strong> untuk melihat desa basis serta kader pengusungnya.
               </p>
             </div>
 
@@ -390,7 +473,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
                           <Building2 className="w-4.5 h-4.5" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h5 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
                               {dpdNode.name}
                             </h5>
@@ -455,7 +538,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
                       <div
                         className="bg-emerald-500 h-1.5 transition-all duration-500"
                         style={{ width: `${dpdNode.percentage}%` }}
-                      ></div>
+                      />
                     </div>
 
                     {/* Expanded Level 2: DPC (Kecamatan) List */}
@@ -528,7 +611,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
                                       >
                                         <div>
                                           <div className="flex items-center gap-1.5">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                             <span className="font-medium text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                               Kel/Desa {dprtNode.name}
                                             </span>
@@ -564,7 +647,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
         </div>
       )}
 
-      {/* VIEW 2: LEADERBOARD KADER PEREKRUT */}
+      {/* 8. VIEW 2: LEADERBOARD KADER PEREKRUT */}
       {growthViewTab === 'recruiters' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -574,8 +657,7 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
                 <span>Kinerja Kader Perekrut di Lapangan</span>
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Klik nama kader perekrut untuk membedah seluruh anggota yang dia rekrut beserta
-                sebaran desa KTP-nya.
+                Klik nama kader perekrut untuk membedah seluruh anggota yang dia rekrut beserta sebaran desa KTP-nya.
               </p>
             </div>
 

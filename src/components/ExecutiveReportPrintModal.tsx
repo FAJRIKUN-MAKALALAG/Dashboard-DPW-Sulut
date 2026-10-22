@@ -617,23 +617,12 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                   <p className="font-bold">SEKRETARIS DPW PARTAI NASDEM SULUT</p>
                 </div>
                 <div>
-                  <p className="font-bold underline text-sm text-slate-950">Dr. Ir. GS Vicky Lumentut, SH, M.Si</p>
-                  <p className="text-[11px] text-slate-600 font-mono">No. e-KTA: ND-7100-2024-0002</p>
+                  <p className="font-bold underline text-sm text-slate-950">---</p>
+                  <p className="text-[11px] text-slate-600 font-mono">---</p>
                 </div>
               </div>
 
-              <div className="text-center w-52 flex flex-col items-center justify-center">
-                <div className="relative w-28 h-28 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full border-2 border-blue-800 p-0.5 flex items-center justify-center">
-                    <div className="w-full h-full rounded-full border border-dashed border-blue-800 flex flex-col items-center justify-center text-blue-900 p-1 text-center select-none rotate-[-6deg]">
-                      <span className="text-[8px] font-black uppercase tracking-wider">★ RESMI ★</span>
-                      <span className="text-[9px] font-black uppercase leading-tight">DPW PARTAI NASDEM</span>
-                      <span className="text-[7.5px] font-bold text-amber-700">SULAWESI UTARA</span>
-                      <span className="text-[6.5px] text-slate-500 font-mono mt-0.5">TERVALIDASI RIIL</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            
 
               <div className="text-right w-64 space-y-16">
                 <div>
@@ -641,8 +630,8 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                   <p className="font-bold">KETUA DPW PARTAI NASDEM SULUT</p>
                 </div>
                 <div>
-                  <p className="font-bold underline text-sm text-slate-950">Dr. J. Victor Mailangkay, SH, MH</p>
-                  <p className="text-[11px] text-slate-600 font-mono">No. e-KTA: ND-7100-2024-0001</p>
+                  <p className="font-bold underline text-sm text-slate-950">---</p>
+                  <p className="text-[11px] text-slate-600 font-mono">---</p>
                 </div>
               </div>
             </div>
