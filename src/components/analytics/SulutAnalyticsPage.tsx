@@ -17,6 +17,10 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  Building2,
+  Layers,
+  Landmark,
+  CheckCircle2,
 } from 'lucide-react';
 
 export type AnalyticsScreenId =
@@ -231,11 +235,39 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       }
     });
 
-    // 15 Kab/Kota List in standard display order
+    // -------------------------------------------------------------------------
+    // STATISTIK STRUKTUR TERITORIAL RESMI SULUT (JAWABAN PERTANYAAN KETUA DPW)
+    // -------------------------------------------------------------------------
+    const totalDpdOfficial = 15;
+    const totalDpcOfficial = 171;
+    const totalDprtOfficial = 1602;
+
+    // Menghitung jangkauan unik DPC dan DPRt yang telah memiliki kader terdaftar
+    const coveredDpcSet = new Set<string>();
+    const coveredDprtSet = new Set<string>();
+
+    members.forEach((m) => {
+      if (m.dpd && m.dpc && m.dpc.trim() && m.dpc !== '-') {
+        coveredDpcSet.add(`${normalizeDpcName(m.dpd)}__${normalizeDpcName(m.dpc)}`);
+        if (m.dprt && m.dprt.trim() && m.dprt !== '-') {
+          coveredDprtSet.add(`${normalizeDpcName(m.dpd)}__${normalizeDpcName(m.dpc)}__${m.dprt.trim().toLowerCase()}`);
+        }
+      }
+    });
+
+    const coveredDpcCount = coveredDpcSet.size;
+    const coveredDprtCount = coveredDprtSet.size;
+
+    // 15 Kab/Kota List in standard display order with official territorial counts
     const kabKotaList = SULUT_15_KABKOTA.map((item) => {
       const data = kabKotaMap.get(item.name)!;
+      const matchedRegion = SULUT_REGIONS.find((r) => isDpdMatch(r.name, item.name) || isDpdMatch(r.name, item.label));
+      const officialDpcCount = matchedRegion?.subdistricts.length || 0;
+      const officialDprtCount = matchedRegion?.subdistricts.reduce((sum, sub) => sum + sub.villages.length, 0) || 0;
       return {
         ...data,
+        officialDpcCount,
+        officialDprtCount,
         percentage: totalMembers > 0 ? (data.total / totalMembers) * 100 : 0,
       };
     });
@@ -257,6 +289,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               pengurus: 0,
               anggota: unassignedCount,
               withKta: 0,
+              officialDpcCount: 0,
+              officialDprtCount: 0,
               percentage: totalMembers > 0 ? (unassignedCount / totalMembers) * 100 : 0,
               subdistrictsMap: new Map<string, number>(),
             },
@@ -276,6 +310,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         color: '#2563EB',
         regions: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa'),
         total: kabKotaList.filter((k) => k.zone === 'Daratan Minahasa').reduce((s, k) => s + k.total, 0),
+        dpcTotal: 88,
+        dprtTotal: 816,
       },
       {
         name: 'Bolaang Mongondow Raya (BMR)',
@@ -283,6 +319,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         color: '#D97706',
         regions: kabKotaList.filter((k) => k.zone === 'BMR'),
         total: kabKotaList.filter((k) => k.zone === 'BMR').reduce((s, k) => s + k.total, 0),
+        dpcTotal: 39,
+        dprtTotal: 438,
       },
       {
         name: 'Kepulauan Nusa Utara',
@@ -290,6 +328,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         color: '#0284C7',
         regions: kabKotaList.filter((k) => k.zone === 'Kepulauan'),
         total: kabKotaList.filter((k) => k.zone === 'Kepulauan').reduce((s, k) => s + k.total, 0),
+        dpcTotal: 44,
+        dprtTotal: 348,
       },
     ];
 
@@ -304,6 +344,11 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       maleCount,
       femaleCount,
       unspecGenderCount,
+      totalDpdOfficial,
+      totalDpcOfficial,
+      totalDprtOfficial,
+      coveredDpcCount,
+      coveredDprtCount,
       kabKotaList,
       chartBars,
       maxChartValue,
@@ -320,8 +365,10 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       (k) => isDpdMatch(k.name, selectedDrilldownDpd) || isDpdMatch(k.label, selectedDrilldownDpd)
     );
 
-    const subdistrictCounts: { name: string; count: number; percentage: number }[] = [];
+    const subdistrictCounts: { name: string; count: number; percentage: number; dprtCount: number }[] = [];
     const totalDpdCount = targetKabKota?.total || 0;
+    const officialDpcCount = matchedRegion?.subdistricts.length || 0;
+    const officialDprtCount = matchedRegion?.subdistricts.reduce((sum, s) => sum + s.villages.length, 0) || 0;
 
     if (matchedRegion && matchedRegion.subdistricts) {
       matchedRegion.subdistricts.forEach((sub) => {
@@ -337,6 +384,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           name: sub.name,
           count,
           percentage: totalDpdCount > 0 ? (count / totalDpdCount) * 100 : 0,
+          dprtCount: sub.villages.length,
         });
       });
     }
@@ -349,6 +397,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
       totalCount: totalDpdCount,
       pengurusCount: targetKabKota?.pengurus || 0,
       anggotaCount: targetKabKota?.anggota || 0,
+      officialDpcCount,
+      officialDprtCount,
       subdistricts: subdistrictCounts,
       maxSubCount,
     };
@@ -580,7 +630,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         <div className="mt-3 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4 text-zinc-400">
             {hoveredBarIndex !== null && bars[hoveredBarIndex] ? (
-              <div className="flex items-center gap-3 animate-in fade-in duration-100">
+              <div className="flex items-center gap-3 animate-in fade-in duration-100 flex-wrap">
                 <span className="font-bold text-white">
                   {bars[hoveredBarIndex].label}:
                 </span>
@@ -588,24 +638,30 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   {fmt(bars[hoveredBarIndex].total)} Kader ({bars[hoveredBarIndex].percentage.toFixed(1)}% Sulut)
                 </span>
                 <span className="text-zinc-600">&bull;</span>
-                <span className="text-amber-400 font-medium">
-                  {bars[hoveredBarIndex].pengurus} Pengurus SK
+                <span className="text-amber-400 font-mono font-semibold">
+                  {bars[hoveredBarIndex].officialDpcCount} DPC (Kec)
+                </span>
+                <span className="text-zinc-600">&bull;</span>
+                <span className="text-emerald-400 font-mono font-semibold">
+                  {bars[hoveredBarIndex].officialDprtCount} DPRt (Desa/Kel)
                 </span>
                 <span className="text-zinc-600">&bull;</span>
                 <span className="text-zinc-300 font-medium">
-                  {bars[hoveredBarIndex].anggota} Anggota KTP
+                  {bars[hoveredBarIndex].pengurus} Pengurus SK &bull; {bars[hoveredBarIndex].anggota} Anggota
                 </span>
               </div>
             ) : (
-              <span className="text-zinc-500 flex items-center gap-1.5">
+              <span className="text-zinc-400 flex items-center gap-2">
                 <span className="text-blue-500 font-bold">&bull;</span>
-                Klik pada batang wilayah untuk melakukan drilldown rincian per kecamatan
+                <span>Klik batang wilayah untuk drilldown rincian per kecamatan</span>
+                <span className="text-zinc-600">&bull;</span>
+                <span className="text-zinc-500">Total Resmi: <strong>15 DPD</strong> &bull; <strong>171 DPC</strong> &bull; <strong>1.602 DPRt</strong></span>
               </span>
             )}
           </div>
 
-          <div className="text-[11px] text-zinc-500 font-mono">
-            PARTAI NASDEM DPW SULAWESI UTARA &bull; 15 DPD TERDATA
+          <div className="text-[11px] text-zinc-400 font-mono">
+            PARTAI NASDEM DPW SULUT &bull; <strong className="text-white">15 DPD</strong> &bull; <strong className="text-amber-400">171 DPC</strong> &bull; <strong className="text-emerald-400">1.602 DPRt</strong>
           </div>
         </div>
       </div>
@@ -614,7 +670,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
   // 2. CHART 2: DRILLDOWN DETAIL KECAMATAN (PURE BLACK FLAT)
   const renderDrilldownChart = (isSolo = false) => {
-    const { dpdName, totalCount, pengurusCount, anggotaCount, subdistricts, maxSubCount } = drilldownData;
+    const { dpdName, totalCount, pengurusCount, anggotaCount, subdistricts, maxSubCount, officialDpcCount, officialDprtCount } = drilldownData;
     const barHeightClass = isSolo ? 'h-7 sm:h-8' : 'h-6 sm:h-7';
     const maxListHeight = isSolo ? 'max-h-[calc(100vh-270px)]' : 'max-h-[520px]';
     const listSpacingClass = isSolo ? 'space-y-2' : 'space-y-1.5';
@@ -632,16 +688,22 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               <ArrowLeft className="w-4 h-4 text-blue-400" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
                   Rincian Kecamatan: {dpdName}
                 </h2>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-blue-400 border border-zinc-800">
                   {fmt(totalCount)} Kader
                 </span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-amber-400 border border-zinc-800">
+                  {officialDpcCount} DPC
+                </span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-zinc-900 text-emerald-400 border border-zinc-800">
+                  {officialDprtCount} DPRt
+                </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Sebaran anggota &amp; kelengkapan struktur pengurus DPC tingkat kecamatan
+                Sebaran anggota &amp; kelengkapan struktur pengurus DPC tingkat kecamatan se-{dpdName}
               </p>
             </div>
           </div>
@@ -718,14 +780,14 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   </div>
 
                   {/* Kecamatan Details */}
-                  <div className={`${isSolo ? 'w-44 sm:w-56' : 'w-36 sm:w-44'} shrink-0 truncate`}>
+                  <div className={`${isSolo ? 'w-48 sm:w-60' : 'w-40 sm:w-48'} shrink-0 truncate`}>
                     <span className={`font-semibold text-xs sm:text-sm block truncate transition-colors ${
                       isTop1 ? 'text-amber-400' : 'text-zinc-200 group-hover:text-blue-400'
                     }`}>
                       Kec. {sub.name}
                     </span>
-                    <span className="text-[10px] text-zinc-500 font-mono block">
-                      {sub.count > 0 ? `${sub.percentage.toFixed(1)}% wilayah` : '0 kader'}
+                    <span className="text-[10px] text-zinc-400 font-mono block">
+                      {sub.dprtCount} DPRt (Desa/Kel) &bull; {sub.count > 0 ? `${sub.percentage.toFixed(1)}% wilayah` : '0 kader'}
                     </span>
                   </div>
 
@@ -768,8 +830,8 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
         {/* Summary Footer */}
         <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
-          <div className="flex items-center gap-3">
-            <span>Total: <strong className="text-white">{subdistricts.length} Kecamatan</strong></span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span>Total: <strong className="text-white">{subdistricts.length} DPC Kecamatan</strong> &bull; <strong className="text-emerald-400">{officialDprtCount} DPRt Desa/Kel</strong></span>
             <span>&bull;</span>
             <span>Pengurus SK: <strong className="text-amber-400">{fmt(pengurusCount)}</strong></span>
             <span>&bull;</span>
@@ -1014,12 +1076,12 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 </span>
 
                 {/* Region details */}
-                <div className="w-44 sm:w-56 shrink-0 truncate">
+                <div className="w-48 sm:w-64 shrink-0 truncate">
                   <span className={`font-bold text-xs block leading-tight ${isRank1 ? 'text-amber-300' : 'text-zinc-200 group-hover:text-blue-400'}`}>
                     {item.label}
                   </span>
-                  <span className="text-[10px] text-zinc-500 font-mono block">
-                    Zona {item.zone}
+                  <span className="text-[10px] text-zinc-400 font-mono block">
+                    <strong className="text-amber-400">{item.officialDpcCount}</strong> DPC &bull; <strong className="text-emerald-400">{item.officialDprtCount}</strong> DPRt &bull; Zona {item.zone}
                   </span>
                 </div>
 
@@ -1134,8 +1196,14 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
-                  <span>{zone.regions.length} Kab/Kota</span>
+                <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
+                  <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                    <span className="text-white font-bold">{zone.regions.length} DPD</span>
+                    <span className="text-zinc-600">&bull;</span>
+                    <span className="text-amber-400 font-semibold">{zone.dpcTotal} DPC</span>
+                    <span className="text-zinc-600">&bull;</span>
+                    <span className="text-emerald-400 font-semibold">{zone.dprtTotal} DPRt</span>
+                  </div>
                   <button
                     onClick={() => {
                       if (zone.regions[0]) {
@@ -1277,7 +1345,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
               </span>
             </div>
             <span className="text-[11px] text-zinc-400 block">
-              Pusat Analisis &amp; Visualisasi Data Teritorial 15 Kabupaten / Kota
+              Pusat Analisis Teritorial &bull; <strong className="text-blue-400 font-mono">15 DPD</strong> &bull; <strong className="text-amber-400 font-mono">171 DPC</strong> &bull; <strong className="text-emerald-400 font-mono">1.602 DPRt</strong>
             </span>
           </div>
         </div>
@@ -1395,6 +1463,201 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ----------------------------------------------------------------------------
+  // STRUKTUR TERITORIAL EKSEKUTIF SULAWESI UTARA (JAWABAN PERTANYAAN KETUA DPW)
+  // Menjawab 3 Pertanyaan Strategis:
+  // 1. Berapa jumlah semua DPD di Sulawesi Utara? -> 15 DPD (11 Kab + 4 Kota)
+  // 2. Berapa jumlah semua DPC yang ada di Sulut? -> 171 DPC (171 Kecamatan)
+  // 3. Berapa semua DPRt yang ada di Sulut? -> 1.602 DPRt (1.507 Desa + 95 Kelurahan)
+  // ----------------------------------------------------------------------------
+  const renderTerritorialStructureBar = () => {
+    const { totalDpdOfficial, totalDpcOfficial, totalDprtOfficial, coveredDpcCount, coveredDprtCount } = analyticsData;
+    const dpcCoveragePct = totalDpcOfficial > 0 ? ((coveredDpcCount / totalDpcOfficial) * 100).toFixed(1) : '0';
+    const dprtCoveragePct = totalDprtOfficial > 0 ? ((coveredDprtCount / totalDprtOfficial) * 100).toFixed(1) : '0';
+
+    return (
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-5 mb-6">
+        {/* Header Title with Subtitle for Ketua DPW */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-2 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
+              <Building2 className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                  Informasi Struktur Teritorial Resmi Sulawesi Utara
+                </h2>
+                <span className="px-2 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800/80 text-[10px] font-mono font-bold uppercase">
+                  Panduan Eksekutif Ketua DPW
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Basis Data Administrasi Resmi Tingkat DPD (Kab/Kota), DPC (Kecamatan), dan DPRt (Desa/Kelurahan) se-Sulut
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 bg-zinc-900 px-3 py-1.5 rounded border border-zinc-800 self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>15 DPD &bull; 171 DPC &bull; 1.602 DPRt</span>
+          </div>
+        </div>
+
+        {/* 3 Executive Answer Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* CARD 1: DPD KABUPATEN / KOTA */}
+          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-blue-700/60 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-900/60">
+                  Tingkat Kab / Kota
+                </span>
+                <span className="flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> 100% Terbentuk
+                </span>
+              </div>
+
+              {/* Explicit Q&A format answering Ketua DPW */}
+              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
+                <span className="text-blue-400 font-bold">T:</span>
+                <span>&ldquo;Berapa jumlah semua DPD di Sulawesi Utara?&rdquo;</span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <div>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
+                    {totalDpdOfficial}
+                  </span>
+                  <span className="text-sm font-bold text-blue-400 ml-1.5 uppercase font-mono">
+                    DPD
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-mono text-zinc-300 font-bold block">
+                    11 Kab &bull; 4 Kota
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono block">
+                    15 DPD 100% Terdata
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
+              Semua 15 DPD Kabupaten &amp; Kota di Sulawesi Utara telah terbentuk penuh dan memiliki kepengurusan definitif Partai NasDem.
+            </div>
+          </div>
+
+          {/* CARD 2: DPC KECAMATAN */}
+          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-amber-700/60 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/60">
+                  Tingkat Kecamatan
+                </span>
+                <span className="text-[11px] font-mono font-bold text-amber-400">
+                  {coveredDpcCount} / {totalDpcOfficial} Terisi ({dpcCoveragePct}%)
+                </span>
+              </div>
+
+              {/* Explicit Q&A format answering Ketua DPW */}
+              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
+                <span className="text-amber-400 font-bold">T:</span>
+                <span>&ldquo;Berapa jumlah semua DPC yang ada di Sulut?&rdquo;</span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <div>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
+                    {totalDpcOfficial}
+                  </span>
+                  <span className="text-sm font-bold text-amber-400 ml-1.5 uppercase font-mono">
+                    DPC
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-mono text-zinc-300 font-bold block">
+                    171 Kecamatan
+                  </span>
+                  <span className="text-[10px] text-amber-400/90 font-mono block">
+                    {coveredDpcCount} DPC Terjangkau Kader
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
+              Total 171 Kecamatan resmi se-Sulawesi Utara: Minahasa (88 DPC), BMR (39 DPC), dan Kepulauan (44 DPC).
+            </div>
+          </div>
+
+          {/* CARD 3: DPRT DESA & KELURAHAN */}
+          <div className="p-4 rounded-md bg-zinc-900/90 border border-zinc-800 hover:border-emerald-700/60 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/60">
+                  Tingkat Desa / Kelurahan
+                </span>
+                <span className="text-[11px] font-mono font-bold text-emerald-400">
+                  {coveredDprtCount} / {fmt(totalDprtOfficial)} Terisi ({dprtCoveragePct}%)
+                </span>
+              </div>
+
+              {/* Explicit Q&A format answering Ketua DPW */}
+              <div className="text-[11px] text-zinc-400 font-medium mb-1 flex items-start gap-1">
+                <span className="text-emerald-400 font-bold">T:</span>
+                <span>&ldquo;Berapa semua DPRt yang ada di Sulut?&rdquo;</span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <div>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">
+                    {fmt(totalDprtOfficial)}
+                  </span>
+                  <span className="text-sm font-bold text-emerald-400 ml-1.5 uppercase font-mono">
+                    DPRt
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-mono text-zinc-300 font-bold block">
+                    1.507 Desa &bull; 95 Kel
+                  </span>
+                  <span className="text-[10px] text-emerald-400/90 font-mono block">
+                    {coveredDprtCount} DPRt Terjangkau Kader
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed">
+              Total 1.602 Desa dan Kelurahan resmi se-Sulawesi Utara: Minahasa (816 DPRt), BMR (438 DPRt), Kepulauan (348 DPRt).
+            </div>
+          </div>
+        </div>
+
+        {/* Regional Breakdown Mini Matrix */}
+        <div className="mt-4 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
+          <div className="flex items-center gap-3 flex-wrap font-mono text-[11px]">
+            <span className="text-zinc-500 font-bold uppercase tracking-wider">Rincian Zona Resmi:</span>
+            <span className="text-blue-400">
+              <strong>Daratan Minahasa:</strong> 7 DPD &bull; 88 DPC &bull; 816 DPRt
+            </span>
+            <span className="text-zinc-600">&bull;</span>
+            <span className="text-amber-400">
+              <strong>BMR:</strong> 5 DPD &bull; 39 DPC &bull; 438 DPRt
+            </span>
+            <span className="text-zinc-600">&bull;</span>
+            <span className="text-sky-400">
+              <strong>Kepulauan:</strong> 3 DPD &bull; 44 DPC &bull; 348 DPRt
+            </span>
+          </div>
+
+          <div className="text-[11px] text-zinc-500 font-mono">
+            SUMBER: KEMENDAGRI &bull; BPS SULUT &bull; DPW NASDEM SULUT
+          </div>
         </div>
       </div>
     );
@@ -1604,6 +1867,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
         {/* Default Multi-Panel Grid Mode */}
         {activeScreen === 'grid' && (
           <div className="space-y-6">
+            {/* Executive Territorial Structure Bar (Answers for Ketua DPW) */}
+            {renderTerritorialStructureBar()}
+
             {/* Quick KPI Row */}
             {renderQuickKpiBar()}
 
