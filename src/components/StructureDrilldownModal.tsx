@@ -8,6 +8,7 @@ import {
   SubOrgCategory,
   getDpdPimpinanCompliance,
 } from '../utils/structureReadinessUtils';
+import { sortMembersByHierarchy, isDefinitiveLeader } from '../utils/jobMatchingUtils';
 import {
   X,
   Building,
@@ -153,7 +154,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
 
   // Filter members based on structural positions, sub-organ & query
   const filteredList = useMemo(() => {
-    return baseScopeMembers.filter((m) => {
+    const list = baseScopeMembers.filter((m) => {
       // Filter Sub-Organ (Dewan Pimpinan vs Pertimbangan vs Pakar)
       if (selectedSubOrg !== 'ALL' && getMemberSubOrgCategory(m) !== selectedSubOrg) {
         return false;
@@ -179,6 +180,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
 
       return true;
     });
+
+    return sortMembersByHierarchy(list);
   }, [baseScopeMembers, selectedSubOrg, selectedJabatan, searchTerm]);
 
   // Anggota ber-SK yang tersaring berdasarkan wilayah yang sedang dipilih
@@ -575,6 +578,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                    <th className="p-3 w-12 text-center">No</th>
                     <th className="p-3">Nama Lengkap & NIK</th>
                     <th className="p-3">Organ & Jabatan SK</th>
                     <th className="p-3">SK Resmi</th>
@@ -584,19 +588,44 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredList.map((m) => (
-                    <tr
-                      key={m.nik}
-                      className="hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors"
-                    >
-                      <td className="p-3">
-                        <div className="font-semibold text-slate-900 dark:text-white">
-                          {m.namaLengkap}
-                        </div>
-                        <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                          NIK: {m.nik}
-                        </div>
-                      </td>
+                  {filteredList.map((m, idx) => {
+                    const isKetua = isDefinitiveLeader(m.jabatan);
+                    return (
+                      <tr
+                        key={m.nik}
+                        className={`transition-colors ${
+                          isKetua
+                            ? 'bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100/70 dark:hover:bg-amber-900/40'
+                            : 'hover:bg-blue-50/40 dark:hover:bg-blue-950/20'
+                        }`}
+                      >
+                        <td className="p-3 text-center shrink-0">
+                          {isKetua ? (
+                            <span
+                              className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-black bg-amber-500 text-slate-950 font-mono shadow-xs"
+                              title={`Ketua Definitif ${m.tingkatKepengurusan || ''} (Peringkat #1 Database)`}
+                            >
+                              #1
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs font-semibold text-slate-400">
+                              #{idx + 1}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                            <span>{m.namaLengkap}</span>
+                            {isKetua && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-400/50">
+                                Ketua #{m.tingkatKepengurusan || ''}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                            NIK: {m.nik}
+                          </div>
+                        </td>
                       <td className="p-3">
                         {(() => {
                           const dewan = getDewanWilayahInfo(m);
@@ -674,7 +703,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>

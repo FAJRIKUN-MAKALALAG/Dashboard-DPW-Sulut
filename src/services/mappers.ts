@@ -109,6 +109,7 @@ export function mapDbRowToMember(row: any): Member {
   }
 
   return {
+    id: row.id || undefined,
     nik: String(row.nik || ''),
     nomorEKTA: row.nomor_ekta || '',
     namaLengkap: row.nama_lengkap || '',
@@ -154,6 +155,7 @@ export function mapDbRowToMember(row: any): Member {
 
 export function mapMemberToDbPayload(m: Member): any {
   const payload: any = {
+    id: m.id || undefined,
     nik: String(m.nik).trim(),
     nomor_ekta: m.nomorEKTA?.trim() || null,
     nama_lengkap: m.namaLengkap.trim(),

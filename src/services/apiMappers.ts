@@ -54,7 +54,11 @@ export function mapApiMember(item: any): Member {
   Object.entries(MEMBER_DB_TO_API).forEach(([dbKey, apiKey]) => {
     if (item[apiKey] !== undefined) row[dbKey] = item[apiKey];
   });
-  return mapDbRowToMember(row);
+  const m = mapDbRowToMember(row);
+  if (Array.isArray(item.positions)) {
+    m.positions = item.positions;
+  }
+  return m;
 }
 
 const formatTime = (ts?: string | null): string => {

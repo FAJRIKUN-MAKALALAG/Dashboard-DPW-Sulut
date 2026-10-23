@@ -5,6 +5,7 @@ export type MemberStatus =
   | 'Non-Aktif (Pindah Domisili)';
 
 export interface Member {
+  id?: string; // Primary key penugasan unik (e.g. NIK_TINGKAT_DPC)
   nik: string; // 16 digit unique
   nomorEKTA: string; // e.g. KT-7101-2024-XXXX or ND-71XX-2024-XXXX
   namaLengkap: string;
@@ -51,6 +52,21 @@ export interface Member {
   ketuaLangsungJabatan?: string;
   ketuaLangsungTingkat?: string;
   // Urutan tampil dalam matriks (sesuai urutan baris berkas Excel saat import)
+  urutan?: number;
+  // Daftar jabatan struktural yang diemban kader (1 orang bisa menduduki >1 jabatan)
+  positions?: MemberPosition[];
+}
+
+export interface MemberPosition {
+  id: string;
+  tingkatKepengurusan: 'DPW' | 'DPD' | 'DPC' | 'DPRt';
+  dpd: string;
+  dpc?: string;
+  dprt?: string;
+  wilayahPenugasan?: string;
+  jabatan?: string;
+  nomorSK?: string;
+  tanggalSK?: string;
   urutan?: number;
 }
 

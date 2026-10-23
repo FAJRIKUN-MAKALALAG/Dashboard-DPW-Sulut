@@ -4,6 +4,8 @@ import { SULUT_REGIONS } from '../../data/sulutRegions';
 import {
   computeStructureReadiness,
   isDpdMatch,
+  isDpcMatch,
+  isDprtMatch,
   getDpdPimpinanCompliance,
   getMemberSubOrgCategory,
 } from '../../utils/structureReadinessUtils';
@@ -45,6 +47,8 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
   
   // Selected DPD for slide-over Micro-Page drawer
   const [selectedDrawerRegion, setSelectedDrawerRegion] = useState<string | null>(null);
+  const [selectedDrawerInitialTab, setSelectedDrawerInitialTab] = useState<'dpd' | 'dpc' | 'dprt'>('dpd');
+  const [selectedDrawerInitialDpc, setSelectedDrawerInitialDpc] = useState<string | null>(null);
 
   const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
 
@@ -65,9 +69,23 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
       const regMembers = members.filter((m) => isDpdMatch(m.dpd, region.name) && m.status === 'Aktif');
       const regPengurus = regMembers.filter((m) => m.isPengurus);
       
-      const filledDpcs = new Set(
-        regPengurus.filter((m) => m.tingkatKepengurusan === 'DPC').map((m) => m.dpc)
-      ).size;
+      const totalDpcs = region.subdistricts.length;
+      const totalDprts = region.subdistricts.reduce((sum, sub) => sum + sub.villages.length, 0);
+
+      // Check how many DPC subdistricts have active cadres or DPC committee members
+      const filledDpcs = region.subdistricts.filter((sub) =>
+        regMembers.some((m) => isDpcMatch(m.dpc, sub.name))
+      ).length;
+
+      // Check how many DPRt villages have active cadres
+      let filledDprts = 0;
+      region.subdistricts.forEach((sub) => {
+        sub.villages.forEach((v) => {
+          if (regMembers.some((m) => isDpcMatch(m.dpc, sub.name) && isDprtMatch(m.dprt, v))) {
+            filledDprts++;
+          }
+        });
+      });
 
       const pertimbanganCount = regPengurus.filter(
         (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN'
@@ -90,7 +108,9 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
         regMembersCount: regMembers.length,
         regPengurusCount: regPengurus.length,
         filledDpcs,
-        totalDpcs: region.subdistricts.length,
+        totalDpcs,
+        filledDprts,
+        totalDprts,
         pertimbanganCount,
         pakarCount,
       };
@@ -407,12 +427,25 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
         {/* 15 Kab/Kota Grid Cards - Clean, Spacious, Minimal Text */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredRegionStats.map((item) => {
-            const { region, compliance, status, regMembersCount, filledDpcs, totalDpcs } = item;
+            const {
+              region,
+              compliance,
+              status,
+              regMembersCount,
+              filledDpcs,
+              totalDpcs,
+              filledDprts,
+              totalDprts,
+            } = item;
 
             return (
               <div
                 key={region.id}
-                onClick={() => setSelectedDrawerRegion(region.name)}
+                onClick={() => {
+                  setSelectedDrawerInitialTab('dpd');
+                  setSelectedDrawerInitialDpc(null);
+                  setSelectedDrawerRegion(region.name);
+                }}
                 className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-400 dark:hover:border-slate-600 transition-all shadow-xs hover:shadow-sm cursor-pointer space-y-3 group"
               >
                 {/* Header Card */}
@@ -465,29 +498,95 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                   </div>
                 </div>
 
-                {/* 2 Clean Key Metrics */}
-                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Cakupan DPC</span>
-                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
-                      {filledDpcs} / {totalDpcs} Kec
+                {/* 3 Interactive Key Metrics: DPC, DPRt, Total Kader */}
+                <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                  {/* Metric 1: DPC */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDrawerInitialTab('dpc');
+                      setSelectedDrawerInitialDpc(null);
+                      setSelectedDrawerRegion(region.name);
+                    }}
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all cursor-pointer group/stat"
+                    title="Klik untuk membuka micro-page grid DPC Kecamatan"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold group-hover/stat:text-blue-600 dark:group-hover/stat:text-blue-400">
+                        DPC
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:text-blue-500 group-hover/stat:translate-x-0.5 transition-all" />
+                    </div>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-xs block mt-0.5">
+                      {filledDpcs} / {totalDpcs}
                     </span>
+                    <span className="text-[9.5px] text-slate-400 block truncate">Kecamatan</span>
                   </div>
-                  <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Kader</span>
-                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
+
+                  {/* Metric 2: DPRt */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDrawerInitialTab('dpc');
+                      setSelectedDrawerInitialDpc(null);
+                      setSelectedDrawerRegion(region.name);
+                    }}
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all cursor-pointer group/stat"
+                    title="Klik untuk melihat sebaran DPRt Desa/Kelurahan"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold group-hover/stat:text-blue-600 dark:group-hover/stat:text-blue-400">
+                        DPRt
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:text-blue-500 group-hover/stat:translate-x-0.5 transition-all" />
+                    </div>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-xs block mt-0.5">
+                      {filledDprts} / {totalDprts}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block truncate">Desa/Kel</span>
+                  </div>
+
+                  {/* Metric 3: Total Kader */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDrawerInitialTab('dpd');
+                      setSelectedDrawerInitialDpc(null);
+                      setSelectedDrawerRegion(region.name);
+                    }}
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                    title="Total kader riil ber-KTP di wilayah ini"
+                  >
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block">
+                      Kader
+                    </span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-xs block mt-0.5">
                       {regMembersCount} Org
                     </span>
+                    <span className="text-[9.5px] text-slate-400 block truncate">Total Riil</span>
                   </div>
                 </div>
 
-                {/* Footer Link: Affordance to Micro-Page Drawer */}
-                <div className="flex items-center justify-between text-xs pt-2 text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium transition-colors">
-                  <span className="text-[11px]">Audit 36 jabatan & DPC</span>
-                  <div className="flex items-center gap-1 font-semibold text-[11px]">
-                    <span>Buka Rincian</span>
+                {/* Footer Action Bar */}
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60 text-slate-500 font-medium">
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <span>Buka Rincian DPD</span>
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                   </div>
+                  {onOpenTerritorialMatrix && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenTerritorialMatrix(region.name, undefined, 'DPD');
+                      }}
+                      className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Buka matriks DPD & import Excel"
+                    >
+                      <Table className="w-3 h-3" />
+                      <span>Matriks & Import</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -502,6 +601,8 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
         regionName={selectedDrawerRegion}
         members={members}
         session={session}
+        initialTab={selectedDrawerInitialTab}
+        initialDpcName={selectedDrawerInitialDpc}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         onOpenStructureModal={onOpenStructureModal}
       />

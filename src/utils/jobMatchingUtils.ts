@@ -46,8 +46,9 @@ export function normalizeJobTitle(title?: string): string {
   // Normalisasi Tingkat / Hirarki Jabatan (Paling awal dicek)
   str = str
     .replace(/\b(waka|waket|wakil ketua|wkl ketua|wkl\s*ketua|wk\s*ketua|wakil\s*ktua)\b/g, 'wakil_ketua')
-    .replace(/\b(wasek|wakil sekretaris|wkl sekretaris|wkl\s*sekretaris|wk\s*sekretaris)\b/g, 'wakil_sekretaris')
+    .replace(/\b(wasek|wakil sekretaris|wakil sekertaris|wkl sekretaris|wkl\s*sekretaris|wk\s*sekretaris)\b/g, 'wakil_sekretaris')
     .replace(/\b(wabendum|wabend|wakil bendahara|wkl bendahara|wkl\s*bendahara|wk\s*bendahara)\b/g, 'wakil_bendahara')
+    .replace(/\b(sekertaris)\b/g, 'sekretaris')
     .replace(/\b(wanhat|wantim|dewan pertimbangan)\b/g, 'dewan_pertimbangan')
     .replace(/\b(wanpak|dewan pakar)\b/g, 'dewan_pakar');
 
@@ -162,6 +163,13 @@ export function isJobTitleMatch(
 
   // 1. Exact Match setelah normalisasi singkatan
   if (nMem === nTpl) return true;
+
+  // Aturan Mutlak: Jangan pernah mencocokkan jabatan Pokok (Ketua/Sekretaris/Bendahara) dengan Wakil
+  const isMemWakil = nMem.includes('wakil') || memberTitle.toLowerCase().includes('wakil');
+  const isTplWakil = nTpl.includes('wakil') || templateTitle.toLowerCase().includes('wakil');
+  if (isMemWakil !== isTplWakil) {
+    return false;
+  }
 
   // 2. Strip Affixes Match (misal: "Ketua DPD" <===> "Ketua", "Sekretaris DPC" <===> "Sekretaris", "Ketua Dewan Pertimbangan Daerah" <===> "Ketua")
   const sMem = stripOrgAffixes(memberTitle);
@@ -374,5 +382,43 @@ export function getPimpinanRank(jabatan?: string, slots?: PositionSlot[]): numbe
   if (j.includes('anggota') || j.includes('pengurus')) return 500;
   return 600;
 }
+
+/**
+ * Memeriksa apakah jabatan adalah Ketua Definitif (Ketua DPW, Ketua DPD, Ketua DPC, atau Ketua DPRt).
+ * Menolak tegas segala bentuk 'Wakil Ketua'.
+ */
+export function isDefinitiveLeader(jabatan?: string): boolean {
+  if (!jabatan) return false;
+  const j = jabatan.toLowerCase().trim();
+  return (j === 'ketua' || j.startsWith('ketua ') || j.endsWith(' ketua')) && !j.includes('wakil');
+}
+
+/**
+ * Mengembalikan peringkat urutan hierarki untuk pengurus.
+ * Ketua Definitif (Ketua DPW / DPD / DPC / DPRt) SELALU MENDAPATKAN NOMOR 1.
+ */
+export function getHierarchicalRank(member: Member): number {
+  if (isDefinitiveLeader(member.jabatan)) {
+    return 1;
+  }
+  if (typeof member.urutan === 'number' && member.urutan > 0) {
+    return member.urutan === 1 ? 2 : member.urutan;
+  }
+  return getPimpinanRank(member.jabatan);
+}
+
+/**
+ * Mengurutkan daftar pengurus secara hierarkis:
+ * Ketua Definitif selalu berada di posisi teratas (#1), diikuti pengurus lainnya secara berurutan.
+ */
+export function sortMembersByHierarchy(membersList: Member[]): Member[] {
+  return [...membersList].sort((a, b) => {
+    const rankA = getHierarchicalRank(a);
+    const rankB = getHierarchicalRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.namaLengkap || '').localeCompare(b.namaLengkap || '');
+  });
+}
+
 
 

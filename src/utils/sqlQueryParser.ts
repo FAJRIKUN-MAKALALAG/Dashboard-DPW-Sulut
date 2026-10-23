@@ -1,5 +1,5 @@
 import { Member } from '../types';
-import { TerritoryContext, ParsedTerritoryRow, ParseTerritoryExcelResult } from './territorialExcelTemplateUtils';
+import { TerritoryContext, ParsedTerritoryRow, ParseTerritoryExcelResult, generateUniqueTerritoryNik } from './territorialExcelTemplateUtils';
 import { getStructureTemplate } from '../data/structureTemplates';
 import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
 import { SULUT_REGIONS } from '../data/sulutRegions';
@@ -263,17 +263,22 @@ export function parseSqlInsertQuery(
     if (isFilled) {
       filledCount++;
 
-      // Jika NIK kosong atau merupakan placeholder kode contoh (misal: 'KOTAMOBAGU-DPD-001'),
-      // pertahankan atau buatkan NIK 16 digit yang unik jika diperlukan
-      if (!nikVal) {
-        nikVal = `71002026${String(10000000 + idx + 1).slice(-8)}`;
+      // Pastikan NIK adalah 16 digit angka valid (jika kosong atau berupa kode string placeholder)
+      if (!nikVal || !/^\d{16}$/.test(nikVal)) {
+        nikVal = generateUniqueTerritoryNik(rawDpd, normalizedSubOrg, idx + 1, occupiedNiks);
       }
 
       occupiedNiks.add(nikVal);
 
+      const cleanT = (rawTingkat || ctx.level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const cleanD = (rawDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const cleanS = normalizedSubOrg.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const memberId = `${nikVal}_${cleanT}_${cleanD}_${cleanS}`;
+
       const existingMember = currentMembers.find(
         (m) =>
-          m.nik === nikVal ||
+          m.id === memberId ||
+          (m.nik === nikVal && m.tingkatKepengurusan === (rawTingkat || ctx.level)) ||
           (rawEkta && m.nomorEKTA === rawEkta) ||
           (isDpdMatch(m.dpd, rawDpd) &&
             normalizeSubOrgName(m.wilayahPenugasan, rawTingkat) === normalizedSubOrg &&
@@ -282,6 +287,7 @@ export function parseSqlInsertQuery(
 
       const memberObj: Member = {
         ...(existingMember || {}),
+        id: memberId,
         nik: nikVal,
         nomorEKTA: rawEkta || existingMember?.nomorEKTA || nikVal,
         namaLengkap: rawNama,
@@ -297,6 +303,7 @@ export function parseSqlInsertQuery(
         nomorSK: rawNomorSk || existingMember?.nomorSK || undefined,
         tanggalSK: rawTanggalSk || existingMember?.tanggalSK || undefined,
         jabatan: rawJabatan || matchedSlot?.jabatan || 'Pengurus',
+        urutan: idx + 1,
         status: (rawStatus as any) || 'Aktif',
         statusKtpVerified: true,
         tanggalBergabung:

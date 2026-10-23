@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
+import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
 
 export interface GridRowItem {
   id: string;
@@ -421,7 +422,13 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
 
                             {/* 1. NO */}
                             <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
-                              {idx + 1}
+                              {isDefinitiveLeader(row.jabatan) ? (
+                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950 shadow-xs" title="Ketua Definitif #1">
+                                  #1
+                                </span>
+                              ) : (
+                                idx + 1
+                              )}
                             </td>
 
                             {/* 2. STATUS FORMASI */}
@@ -449,12 +456,17 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                   className="w-full bg-blue-50/60 dark:bg-slate-800 border border-blue-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : (
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   <span
                                     className={`w-2 h-2 rounded-full shrink-0 ${
                                       isFilled ? 'bg-emerald-500' : 'bg-amber-500'
                                     }`}
                                   ></span>
+                                  {isDefinitiveLeader(row.jabatan) && (
+                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 tracking-wider">
+                                      KETUA
+                                    </span>
+                                  )}
                                   <span
                                     className={
                                       isFilled
