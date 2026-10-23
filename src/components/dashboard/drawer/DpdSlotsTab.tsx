@@ -89,7 +89,7 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
             Tidak ada posisi jabatan yang sesuai dengan filter.
           </div>
         ) : (
-          filteredSlots.map((slot) => (
+          filteredSlots.map((slot: any) => (
             <div
               key={slot.no}
               className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"

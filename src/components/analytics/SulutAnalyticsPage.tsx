@@ -96,9 +96,11 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          if (onRefreshCloud && !isRefreshingCloud) {
-            onRefreshCloud().catch((e) => console.error('Auto refresh failed:', e));
-          }
+          setTimeout(() => {
+            if (onRefreshCloud && !isRefreshingCloud) {
+              onRefreshCloud().catch((e) => console.error('Auto refresh failed:', e));
+            }
+          }, 0);
           return autoRefreshInterval;
         }
         return prev - 1;

@@ -128,7 +128,7 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {dpdPimpinanCompliance.slots.map((slot) => (
+                    {dpdPimpinanCompliance.slots.map((slot: any) => (
                       <tr
                         key={slot.no}
                         className={

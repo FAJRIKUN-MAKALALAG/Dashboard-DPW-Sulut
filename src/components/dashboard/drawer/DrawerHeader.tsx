@@ -1,11 +1,10 @@
 import React from 'react';
 import { X, Table, Users } from 'lucide-react';
-import { Member } from '../../../types';
-import { Region } from '../../../data/sulutRegions';
+import { Member, SulutRegion } from '../../../types';
 import { DpdComplianceInfo } from '../../../utils/structureReadinessUtils';
 
 interface DrawerHeaderProps {
-  regionInfo: Region;
+  regionInfo: SulutRegion;
   compliance: DpdComplianceInfo;
   activeMembersCount: number;
   activeKecamatanCount: number;

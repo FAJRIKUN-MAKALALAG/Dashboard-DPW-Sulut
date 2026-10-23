@@ -1,20 +1,19 @@
 import React from 'react';
 import { Sparkles, Copy, Check, Share2, QrCode, Shield } from 'lucide-react';
-import { Member } from '../../types';
-import { Session } from '../../types';
+import { Member, UserSession } from '../../types';
 
 interface KetuaLangsungInfo {
   nik: string;
   nama: string;
   jabatan: string;
   tingkat: string;
-  kodeReferral: string;
+  kodeReferral?: string;
 }
 
 interface PengurusHierarchyCardProps {
   activePengurusMember: Member | null;
   profile: any;
-  session: Session;
+  session: UserSession;
   ketuaLangsung: KetuaLangsungInfo | null;
   myReferralCode: string;
   copiedCode: string | null;
@@ -45,7 +44,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             <div className="w-14 h-14 rounded-xl bg-blue-700 text-white font-bold text-lg flex items-center justify-center shrink-0">
               {(activePengurusMember?.namaLengkap || session.adminName || 'ND')
                 .split(' ')
-                .map((n) => n[0])
+                .map((n: string) => n[0])
                 .slice(0, 2)
                 .join('')
                 .toUpperCase()}

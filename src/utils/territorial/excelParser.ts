@@ -704,15 +704,21 @@ export function alignAndCheckWithTemplate(
     });
 
     return {
+      success: true,
       rows: alignedRows,
       membersToSave,
       stats: {
         totalRows: alignedRows.length,
         filledRows: alignedRows.filter((r) => r.isFilled).length,
         vacantSlotsCount: 0,
-        matchedCount: alignedRows.length,
+        standardSlotsTarget: alignedRows.length,
         extraRowsCount: 0,
+        pertimbanganCount: 0,
+        pakarCount: 0,
+        pimpinanCount: alignedRows.length,
+        matchedCount: alignedRows.length,
       },
+      message: `Pemeriksaan selesai. Ditemukan ${alignedRows.length} susunan pengurus DPRt.`,
     };
   }
 

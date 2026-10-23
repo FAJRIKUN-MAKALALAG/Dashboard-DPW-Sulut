@@ -9,7 +9,7 @@ import {
   Sparkles,
   AlertCircle,
 } from 'lucide-react';
-import { SulutRegion } from '../../data/sulutRegions';
+import { SulutRegion } from '../../types';
 
 interface TerritorySelectorBarProps {
   level: 'DPW' | 'DPD' | 'DPC' | 'DPRt';

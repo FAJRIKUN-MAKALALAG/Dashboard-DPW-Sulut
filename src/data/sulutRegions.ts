@@ -1,4 +1,5 @@
 import { MemberStatus, SulutRegion } from '../types';
+export type { SulutRegion };
 
 export const SULUT_REGIONS: SulutRegion[] = [
   // 1. KABUPATEN BOLAANG MONGONDOW (15 Kecamatan, 202 Desa/Kelurahan)
@@ -6,7 +7,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'bolmong',
     name: 'Kabupaten Bolaang Mongondow',
     type: 'Kabupaten',
-    zone: 'Bolaang Mongondow Raya',
+    zone: 'BMR',
     capital: 'Lolak',
     subdistricts: [
       {
@@ -698,7 +699,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'sangihe',
     name: 'Kabupaten Kepulauan Sangihe',
     type: 'Kabupaten',
-    zone: 'Kepulauan Nusa Utara',
+    zone: 'Kepulauan',
     capital: 'Tahuna',
     subdistricts: [
       {
@@ -950,7 +951,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'talaud',
     name: 'Kabupaten Kepulauan Talaud',
     type: 'Kabupaten',
-    zone: 'Kepulauan Nusa Utara',
+    zone: 'Kepulauan',
     capital: 'Melonguane',
     subdistricts: [
       {
@@ -1671,7 +1672,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'bolmut',
     name: 'Kabupaten Bolaang Mongondow Utara',
     type: 'Kabupaten',
-    zone: 'Bolaang Mongondow Raya',
+    zone: 'BMR',
     capital: 'Boroko',
     subdistricts: [
       {
@@ -1818,7 +1819,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'sitaro',
     name: 'Kabupaten Kepulauan Siau Tagulandang Biaro',
     type: 'Kabupaten',
-    zone: 'Kepulauan Nusa Utara',
+    zone: 'Kepulauan',
     capital: 'Ondong Siau',
     subdistricts: [
       {
@@ -2185,7 +2186,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'bolsel',
     name: 'Kabupaten Bolaang Mongondow Selatan',
     type: 'Kabupaten',
-    zone: 'Bolaang Mongondow Raya',
+    zone: 'BMR',
     capital: 'Bolaang Uki',
     subdistricts: [
       {
@@ -2311,7 +2312,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'boltim',
     name: 'Kabupaten Bolaang Mongondow Timur',
     type: 'Kabupaten',
-    zone: 'Bolaang Mongondow Raya',
+    zone: 'BMR',
     capital: 'Tutuyan',
     subdistricts: [
       {
@@ -2787,7 +2788,7 @@ export const SULUT_REGIONS: SulutRegion[] = [
     id: 'kotamobagu',
     name: 'Kota Kotamobagu',
     type: 'Kota',
-    zone: 'Bolaang Mongondow Raya',
+    zone: 'BMR',
     capital: 'Kotamobagu',
     subdistricts: [
       {

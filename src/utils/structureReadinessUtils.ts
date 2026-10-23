@@ -817,6 +817,9 @@ export interface DpdPimpinanCompliance {
   filledSlots: DpdPimpinanSlotCompliance[];
 }
 
+export type DpdComplianceInfo = DpdPimpinanCompliance;
+export type DpdComplianceResult = DpdPimpinanCompliance;
+
 /**
  * Memeriksa kepatuhan formasi DPD Bagian A (Dewan Pimpinan Daerah / 36 Jabatan Baku).
  * Mengembalikan status keterisian x/36 dan daftar jabatan mana saja yang belum terisi (lowong).
