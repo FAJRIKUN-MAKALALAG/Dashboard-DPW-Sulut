@@ -450,8 +450,9 @@ export default function App() {
               : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'
           }`}
         >
-          {/* Tab 1: Executive Dashboard */}
-          {activeTab === 'dashboard' && (
+          <div key={activeTab} className="animate-page-enter">
+            {/* Tab 1: Executive Dashboard */}
+            {activeTab === 'dashboard' && (
             <ExecutiveDashboard
               members={accessibleMembers}
               session={session}
@@ -611,6 +612,7 @@ export default function App() {
               onBackToDashboard={() => setActiveTab('dashboard')}
             />
           )}
+          </div>
         </main>
 
         {/* Footer */}

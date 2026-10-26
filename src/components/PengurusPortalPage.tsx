@@ -441,9 +441,10 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         </button>
       </div>
 
-      {/* ================= TAB 1: PROFIL, REFERRAL & FORM REKRUTMEN ================= */}
-      {activePortalTab === 'profil' && (
-        <div className="space-y-6">
+      <div key={activePortalTab} className="animate-tab-enter space-y-6">
+        {/* ================= TAB 1: PROFIL, REFERRAL & FORM REKRUTMEN ================= */}
+        {activePortalTab === 'profil' && (
+          <div className="space-y-6">
           {session.role === 'SUPER_ADMIN' && !selectedPengurusNik && (
             <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
               <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
@@ -510,6 +511,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
           filteredTerritoryMembers={filteredTerritoryMembers}
         />
       )}
+      </div>
     </div>
   );
 };

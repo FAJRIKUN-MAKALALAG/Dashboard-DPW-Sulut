@@ -55,7 +55,7 @@ export const DpcSubdistrictsTab: React.FC<DpcSubdistrictsTabProps> = ({
   onClose,
 }) => {
   return (
-    <div className="space-y-3">
+    <div key={selectedDpcForDrilldown ? `drilldown-${selectedDpcForDrilldown}` : 'all-dpc'} className="animate-tab-enter space-y-3">
       {!selectedDpcForDrilldown ? (
         /* LEVEL 1: GRID OF ALL DPC KECAMATAN */
         <div className="space-y-3">

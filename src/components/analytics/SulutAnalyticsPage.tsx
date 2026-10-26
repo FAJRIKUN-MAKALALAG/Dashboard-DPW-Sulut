@@ -173,8 +173,9 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
 
       {/* 2. Main Content Viewport */}
       <div className="flex-1 p-4 sm:p-6 max-w-[1800px] w-full mx-auto">
-        {/* Render Single Screen Mode if selected */}
-        {activeScreen === 'column15' && (
+        <div key={activeScreen} className="animate-tab-enter">
+          {/* Render Single Screen Mode if selected */}
+          {activeScreen === 'column15' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <button
@@ -425,6 +426,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
             />
           </div>
         )}
+        </div>
       </div>
 
       {/* 3. DPC & DPRt Micro-Page Drilldown Drawer */}

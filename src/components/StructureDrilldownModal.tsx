@@ -224,13 +224,13 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+        <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           {/* Drawer Header */}
           <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10">
             <div className="flex items-center gap-3">
@@ -484,7 +484,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
 
         {/* Table Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {showVacantOnly && dpdCompliance ? (
+          <div key={`${selectedLevel}-${selectedDpd}-${selectedSubOrg}-${showVacantOnly}`} className="animate-tab-enter">
+            {showVacantOnly && dpdCompliance ? (
             <div className="space-y-3">
               <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-950 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
@@ -709,6 +710,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
               </table>
             </div>
           )}
+          </div>
         </div>
 
         {/* Drawer Footer */}

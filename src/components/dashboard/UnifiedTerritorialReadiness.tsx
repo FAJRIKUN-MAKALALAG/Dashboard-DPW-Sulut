@@ -425,7 +425,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
         </div>
 
         {/* 15 Kab/Kota Grid Cards - Clean, Spacious, Minimal Text */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div key={filterTab} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 animate-tab-enter">
           {filteredRegionStats.map((item) => {
             const {
               region,

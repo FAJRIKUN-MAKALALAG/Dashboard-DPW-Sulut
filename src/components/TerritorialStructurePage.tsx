@@ -299,7 +299,10 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       />
 
       {/* 4. Matrix Tables Rendering */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+      <div
+        key={`${level}-${selectedDpd}-${selectedDpc}-${selectedDprt}`}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden animate-tab-enter"
+      >
         <MatrixTableSheet
           gridRows={displayRows}
           isEditMode={isEditMode}

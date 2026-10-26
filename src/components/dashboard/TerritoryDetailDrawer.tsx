@@ -218,13 +218,13 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in cursor-pointer"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-12">
-        <div className="w-screen max-w-2xl sm:max-w-3xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+        <div className="w-screen max-w-2xl sm:max-w-3xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           
           {/* 1. Header Drawer & KPI Summaries */}
           <DrawerHeader
@@ -286,54 +286,56 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             </button>
           </div>
 
-          {/* 3. Tab Contents */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-            {activeTab === 'dpd' && (
-              <DpdSlotsTab
-                filteredSlots={filteredSlots}
-                compliance={compliance}
-                dpdSlotFilter={dpdSlotFilter}
-                setDpdSlotFilter={setDpdSlotFilter}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                pertimbanganMembers={pertimbanganMembers}
-                pakarMembers={pakarMembers}
-                regionName={regionInfo.name}
-                onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-                onClose={onClose}
-              />
-            )}
+          {/* 3. Tab Contents with Micro-animation */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+            <div key={activeTab} className="animate-tab-enter space-y-4">
+              {activeTab === 'dpd' && (
+                <DpdSlotsTab
+                  filteredSlots={filteredSlots}
+                  compliance={compliance}
+                  dpdSlotFilter={dpdSlotFilter}
+                  setDpdSlotFilter={setDpdSlotFilter}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  pertimbanganMembers={pertimbanganMembers}
+                  pakarMembers={pakarMembers}
+                  regionName={regionInfo.name}
+                  onOpenTerritorialMatrix={onOpenTerritorialMatrix}
+                  onClose={onClose}
+                />
+              )}
 
-            {activeTab === 'dpc' && (
-              <DpcSubdistrictsTab
-                regionName={regionInfo.name}
-                subdistrictDetails={subdistrictDetails}
-                dpcSearchTerm={dpcSearchTerm}
-                setDpcSearchTerm={setDpcSearchTerm}
-                selectedDpcForDrilldown={selectedDpcForDrilldown}
-                setSelectedDpcForDrilldown={setSelectedDpcForDrilldown}
-                activeSubDetail={activeSubDetail}
-                dprtSearchTerm={dprtSearchTerm}
-                setDprtSearchTerm={setDprtSearchTerm}
-                onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-                onClose={onClose}
-              />
-            )}
+              {activeTab === 'dpc' && (
+                <DpcSubdistrictsTab
+                  regionName={regionInfo.name}
+                  subdistrictDetails={subdistrictDetails}
+                  dpcSearchTerm={dpcSearchTerm}
+                  setDpcSearchTerm={setDpcSearchTerm}
+                  selectedDpcForDrilldown={selectedDpcForDrilldown}
+                  setSelectedDpcForDrilldown={setSelectedDpcForDrilldown}
+                  activeSubDetail={activeSubDetail}
+                  dprtSearchTerm={dprtSearchTerm}
+                  setDprtSearchTerm={setDprtSearchTerm}
+                  onOpenTerritorialMatrix={onOpenTerritorialMatrix}
+                  onClose={onClose}
+                />
+              )}
 
-            {activeTab === 'dprt' && (
-              <DprtOverviewTab
-                regionName={regionInfo.name}
-                totalDprtTarget={totalDprtTarget}
-                selectedDpcForDrilldown={selectedDpcForDrilldown}
-                setSelectedDpcForDrilldown={setSelectedDpcForDrilldown}
-                activeSubDetail={activeSubDetail}
-                subdistrictDetails={subdistrictDetails}
-                dprtSearchTerm={dprtSearchTerm}
-                setDprtSearchTerm={setDprtSearchTerm}
-                onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-                onClose={onClose}
-              />
-            )}
+              {activeTab === 'dprt' && (
+                <DprtOverviewTab
+                  regionName={regionInfo.name}
+                  totalDprtTarget={totalDprtTarget}
+                  selectedDpcForDrilldown={selectedDpcForDrilldown}
+                  setSelectedDpcForDrilldown={setSelectedDpcForDrilldown}
+                  activeSubDetail={activeSubDetail}
+                  subdistrictDetails={subdistrictDetails}
+                  dprtSearchTerm={dprtSearchTerm}
+                  setDprtSearchTerm={setDprtSearchTerm}
+                  onOpenTerritorialMatrix={onOpenTerritorialMatrix}
+                  onClose={onClose}
+                />
+              )}
+            </div>
           </div>
 
           {/* 4. Drawer Footer */}

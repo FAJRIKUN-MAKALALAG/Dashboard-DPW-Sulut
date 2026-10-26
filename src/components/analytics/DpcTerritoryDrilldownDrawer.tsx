@@ -112,13 +112,13 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
     <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in cursor-pointer"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-12">
-        <div className="w-screen max-w-2xl sm:max-w-3xl bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+        <div className="w-screen max-w-2xl sm:max-w-3xl bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col h-full animate-drawer-slide">
           
           {/* 1. Header */}
           <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/90 flex items-start justify-between gap-3 sticky top-0 z-10">
@@ -234,9 +234,10 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
             </div>
           </div>
 
-          {/* 4. Villages List */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
-            {filteredVillages.length === 0 ? (
+          {/* 4. Villages List with Micro-animation */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+            <div key={filterMode} className="animate-tab-enter space-y-2">
+              {filteredVillages.length === 0 ? (
               <div className="p-8 text-center text-xs text-zinc-500">
                 Tidak ada desa atau kelurahan yang cocok dengan pencarian.
               </div>
@@ -295,6 +296,7 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
                 </div>
               ))
             )}
+            </div>
           </div>
 
           {/* 5. Footer */}

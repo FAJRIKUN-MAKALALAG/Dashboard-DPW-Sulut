@@ -24,6 +24,142 @@
   }
 }
 
+/* ==========================================================================
+   Smooth Premium Transitions & Micro-Animations
+   ========================================================================== */
+
+/* 1. Page Enter Animation (Smooth Fade + Micro Slide Up) */
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* 2. Slide-over Micro-Page Drawer Animation */
+@keyframes drawerSlideRight {
+  0% {
+    opacity: 0.3;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer-slide {
+  animation: drawerSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 3. Backdrop Fade & Blur Animation */
+@keyframes backdropFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+.animate-backdrop-fade {
+  animation: backdropFadeIn 0.24s ease-out forwards;
+  will-change: opacity, backdrop-filter;
+}
+
+/* 4. Modal Scale / Pop-in Animation */
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-pop {
+  animation: modalPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 5. Tab / Sub-view Content Switch Animation */
+@keyframes tabEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-enter {
+  animation: tabEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* 6. Tailwindcss-animate compatibility layer in Tailwind v4 */
+.animate-in {
+  animation-duration: 0.28s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+
+.animate-in.fade-in,
+.fade-in {
+  animation-name: animFadeIn;
+}
+
+.animate-in.slide-in-from-right,
+.slide-in-from-right {
+  animation-name: drawerSlideRight;
+}
+
+.animate-in.slide-in-from-bottom-3,
+.animate-in.slide-in-from-bottom {
+  animation-name: animSlideInBottom;
+}
+
+.animate-in.zoom-in-95,
+.zoom-in-95 {
+  animation-name: modalPopIn;
+}
+
+@keyframes animFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes animSlideInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Smooth expand animations */
 @keyframes fadeSlideIn {
   0% {
@@ -35,6 +171,7 @@
     transform: translateY(0);
   }
 }
+
 
 /* Standar Tombol Basic Putih (efek agak gelap saat hover) */
 .btn-white {

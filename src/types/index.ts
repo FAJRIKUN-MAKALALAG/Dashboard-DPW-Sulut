@@ -32,7 +32,7 @@ export interface Member {
   diubahOleh?: string;
   fotoProfilUrl?: string; // Base64 data URL or photo URL
   fotoKtpUrl?: string; // Base64 data URL or KTP card scan
-  jenisKelamin?: 'Laki-laki' | 'Perempuan';
+  jenisKelamin?: 'Laki-laki' | 'Perempuan' | '-' | string;
   tempatLahir?: string;
   tanggalLahir?: string;
   alamatLengkap?: string;

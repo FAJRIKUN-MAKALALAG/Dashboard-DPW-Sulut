@@ -29,7 +29,7 @@ export const DprtOverviewTab: React.FC<DprtOverviewTabProps> = ({
   onClose,
 }) => {
   return (
-    <div className="space-y-3">
+    <div key={selectedDpcForDrilldown ? `dprt-${selectedDpcForDrilldown}` : 'all-dprt'} className="animate-tab-enter space-y-3">
       {selectedDpcForDrilldown && activeSubDetail ? (
         /* If a DPC is already selected, show its DPRt villages grid */
         <div className="space-y-3">
