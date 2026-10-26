@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Member, UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
@@ -108,7 +109,7 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
 
   if (!isOpen || !dpdName || !dpcName || !subdistrict) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       {/* Backdrop */}
       <div
@@ -116,9 +117,9 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
         onClick={onClose}
       />
 
-      {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-12">
-        <div className="w-screen max-w-2xl sm:max-w-3xl bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col h-full animate-drawer-slide">
+      {/* Slide-over Right Drawer Container - Mentok ke pojok kanan layar */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-4 sm:pl-10 pointer-events-none z-10">
+        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col h-full animate-drawer-slide">
           
           {/* 1. Header */}
           <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/90 flex items-start justify-between gap-3 sticky top-0 z-10">
@@ -314,7 +315,8 @@ export const DpcTerritoryDrilldownDrawer: React.FC<DpcTerritoryDrilldownDrawerPr
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

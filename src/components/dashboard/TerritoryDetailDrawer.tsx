@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Member, UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import {
@@ -214,7 +215,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
 
   if (!isOpen || !regionName || !regionInfo || !compliance) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
@@ -222,9 +223,9 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
         onClick={onClose}
       />
 
-      {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-12">
-        <div className="w-screen max-w-2xl sm:max-w-3xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
+      {/* Slide-over Right Drawer Container - Mentok ke pojok kanan layar */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-4 sm:pl-10 pointer-events-none z-10">
+        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           
           {/* 1. Header Drawer & KPI Summaries */}
           <DrawerHeader
@@ -354,6 +355,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
