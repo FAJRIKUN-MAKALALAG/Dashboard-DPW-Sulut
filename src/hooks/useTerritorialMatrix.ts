@@ -10,7 +10,12 @@ import {
   getDpdPimpinanCompliance,
   getExpandedStructuralMembers,
 } from '../utils/structureReadinessUtils';
-import { isJobTitleMatch, getCouncilRank, sortMembersByHierarchy } from '../utils/jobMatchingUtils';
+import {
+  isJobTitleMatch,
+  getCouncilRank,
+  sortMembersByHierarchy,
+  assignItemsToTemplateSlots,
+} from '../utils/jobMatchingUtils';
 import { generateUniqueTerritoryNik } from '../utils/territorialExcelTemplateUtils';
 import { GridRowItem } from '../components/matrix';
 import * as XLSX from 'xlsx';
@@ -358,23 +363,23 @@ export function useTerritorialMatrix({
 
     // 3. DEWAN PIMPINAN
     if (pimpinanTemplateSlots.length > 0) {
-      const usedMemberNiksInPimpinan = new Set<string>();
+      // Gunakan algoritma Scored 1-to-1 Best-Match Assignment untuk pimpinan
+      const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
+        pimpinanTemplateSlots,
+        pimpinanMembers,
+        (m) => m.jabatan || '',
+        (m) => m.urutan
+      );
 
       pimpinanTemplateSlots.forEach((slot) => {
-        const matched = pimpinanMembers.find(
-          (m) =>
-            !usedMemberNiksInPimpinan.has(m.nik) &&
-            isJobTitleMatch(m.jabatan, slot.jabatan, slot.subOrg)
-        );
-
-        if (matched) {
-          usedMemberNiksInPimpinan.add(matched.nik);
+        if (slotAssignments.has(slot.no)) {
+          const { item: matched } = slotAssignments.get(slot.no)!;
           assignedMemberNiks.add(matched.nik);
           rows.push({
             id: matched.nik,
             no: slot.no,
             subOrg: pimpinanSubOrgName,
-            jabatan: slot.jabatan,
+            jabatan: matched.jabatan || slot.jabatan,
             namaLengkap: matched.namaLengkap,
             nik: matched.nik,
             nomorEKTA: matched.nomorEKTA || '',
@@ -402,25 +407,22 @@ export function useTerritorialMatrix({
       });
 
       let extraPimpinanNo = pimpinanTemplateSlots.length + 1;
-      pimpinanMembers.forEach((m) => {
-        if (!usedMemberNiksInPimpinan.has(m.nik)) {
-          usedMemberNiksInPimpinan.add(m.nik);
-          assignedMemberNiks.add(m.nik);
-          rows.push({
-            id: m.nik,
-            no: extraPimpinanNo++,
-            subOrg: pimpinanSubOrgName,
-            jabatan: m.jabatan || 'Pengurus',
-            namaLengkap: m.namaLengkap,
-            nik: m.nik,
-            nomorEKTA: m.nomorEKTA || '',
-            email: m.email || '',
-            nomorHP: m.nomorHP || '',
-            sosmed: m.sosmed || '',
-            isExisting: true,
-            originalNik: m.nik,
-          });
-        }
+      unassignedItems.forEach(({ item: m }) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: extraPimpinanNo++,
+          subOrg: pimpinanSubOrgName,
+          jabatan: m.jabatan || 'Pengurus',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
       });
     } else if (pimpinanMembers.length > 0) {
       pimpinanMembers.forEach((m, idx) => {

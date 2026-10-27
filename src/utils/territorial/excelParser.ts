@@ -8,7 +8,13 @@ import {
   getMemberSubOrgCategory,
   getSlotSubOrgCategory,
 } from '../structureReadinessUtils';
-import { isJobTitleMatch, normalizeSubOrgName, isDefinitiveLeader } from '../jobMatchingUtils';
+import {
+  isJobTitleMatch,
+  normalizeSubOrgName,
+  isDefinitiveLeader,
+  assignItemsToTemplateSlots,
+  calculateJobMatchScore,
+} from '../jobMatchingUtils';
 import { makeGeneratedEkta, isGeneratedNik } from '../generatedIds';
 
 /**
@@ -420,24 +426,24 @@ export async function parseTerritorialExcelFile(
 
       finalSubOrg = normalizeSubOrgName(finalSubOrg, rowLevel);
 
-      const matchedSlot =
-        slots.find(
-          (s) =>
-            normalizeSubOrgName(s.subOrg, rowLevel) === finalSubOrg &&
-            isJobTitleMatch(jabatanVal, s.jabatan, s.subOrg)
-        ) || slots.find((s) => isJobTitleMatch(jabatanVal, s.jabatan, s.subOrg));
+      let matchedSlot = undefined as any;
+      let bestSlotScore = 0;
+      for (const s of slots) {
+        const isSameSub = normalizeSubOrgName(s.subOrg, rowLevel) === finalSubOrg;
+        let score = calculateJobMatchScore(jabatanVal, s.jabatan, s.subOrg);
+        if (isSameSub && score > 0) score += 5;
+        if (score > bestSlotScore) {
+          bestSlotScore = score;
+          matchedSlot = s;
+        }
+      }
 
       if (matchedSlot && matchedSlot.subOrg) {
         finalSubOrg = normalizeSubOrgName(matchedSlot.subOrg, rowLevel);
       }
 
-      // Khusus DPRt: Pertahankan nama jabatan asli dari berkas Excel (misal "Wakil Ketua Bid. ...", "Sekertaris")
-      const standardizedJabatan =
-        rowLevel === 'DPRt'
-          ? jabatanVal || 'Pengurus'
-          : matchedSlot
-          ? matchedSlot.jabatan
-          : jabatanVal || 'Pengurus';
+      // Pertahankan nama jabatan asli dari berkas Excel tanpa menimpanya secara kaku
+      const standardizedJabatan = jabatanVal || matchedSlot?.jabatan || 'Pengurus';
 
       const isMatched = rowLevel === 'DPRt' ? true : !!matchedSlot;
       if (isMatched) {
@@ -787,49 +793,26 @@ export function alignAndCheckWithTemplate(
   }
 
   const alignedPimpinanRows: ParsedTerritoryRow[] = [];
-  const usedPimpinanIdx = new Set<number>();
   let vacantSlotsCount = 0;
   let filledStandardCount = 0;
 
+  // Gunakan algoritma Scored 1-to-1 Best-Match Assignment untuk pimpinan
+  const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
+    pimpinanSlots,
+    pimpinanRows,
+    (r) => r.jabatanExcel || r.jabatanMatched || '',
+    (r) => r.no
+  );
+
   for (const slot of pimpinanSlots) {
-    let matchedIdx = -1;
-
-    for (let i = 0; i < pimpinanRows.length; i++) {
-      if (usedPimpinanIdx.has(i)) continue;
-      const r = pimpinanRows[i];
-      if (
-        isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg) ||
-        isJobTitleMatch(r.jabatanMatched || '', slot.jabatan, slot.subOrg)
-      ) {
-        matchedIdx = i;
-        break;
-      }
-    }
-
-    if (matchedIdx === -1) {
-      for (let i = 0; i < pimpinanRows.length; i++) {
-        if (usedPimpinanIdx.has(i)) continue;
-        const r = pimpinanRows[i];
-        if (
-          r.no === slot.no &&
-          (isJobTitleMatch(r.jabatanExcel, slot.jabatan, slot.subOrg) ||
-            isJobTitleMatch(r.jabatanMatched || '', slot.jabatan, slot.subOrg))
-        ) {
-          matchedIdx = i;
-          break;
-        }
-      }
-    }
-
-    if (matchedIdx !== -1) {
-      usedPimpinanIdx.add(matchedIdx);
-      const r = pimpinanRows[matchedIdx];
+    if (slotAssignments.has(slot.no)) {
+      const { item: r } = slotAssignments.get(slot.no)!;
       filledStandardCount++;
       alignedPimpinanRows.push({
         ...r,
         no: slot.no,
         subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
-        jabatanExcel: slot.jabatan,
+        jabatanExcel: r.jabatanExcel || slot.jabatan,
         jabatanMatched: slot.jabatan,
         isMatched: true,
         aiNote: `✓ Sesuai Slot Template #${slot.no} (${slot.jabatan})`,
@@ -859,22 +842,18 @@ export function alignAndCheckWithTemplate(
   }
 
   let extraCounter = pimpinanSlots.length + 1;
-  let extraRowsCount = 0;
-  for (let i = 0; i < pimpinanRows.length; i++) {
-    if (!usedPimpinanIdx.has(i)) {
-      const r = pimpinanRows[i];
-      extraRowsCount++;
-      alignedPimpinanRows.push({
-        ...r,
-        no: extraCounter++,
-        subOrg: normalizeSubOrgName(
-          r.subOrg || pimpinanSlots[0]?.subOrg || 'III. DEWAN PIMPINAN DAERAH',
-          ctx.level
-        ),
-        isMatched: false,
-        aiNote: `➕ Jabatan tambahan (di luar ${pimpinanSlots.length} struktur baku)`,
-      });
-    }
+  let extraRowsCount = unassignedItems.length;
+  for (const { item: r } of unassignedItems) {
+    alignedPimpinanRows.push({
+      ...r,
+      no: extraCounter++,
+      subOrg: normalizeSubOrgName(
+        r.subOrg || pimpinanSlots[0]?.subOrg || 'III. DEWAN PIMPINAN DAERAH',
+        ctx.level
+      ),
+      isMatched: false,
+      aiNote: `➕ Jabatan tambahan (di luar ${pimpinanSlots.length} struktur baku)`,
+    });
   }
 
   const finalRows: ParsedTerritoryRow[] = [
@@ -972,7 +951,7 @@ export function alignAndCheckWithTemplate(
       nomorSK:
         existingMember?.nomorSK ||
         `SK-${ctx.level}-${(r.dpd || territoryDpd).replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
-      jabatan: r.jabatanMatched || r.jabatanExcel,
+      jabatan: r.jabatanExcel || r.jabatanMatched || 'Pengurus',
       status: 'Aktif',
       statusKtpVerified: true,
       tanggalBergabung:
