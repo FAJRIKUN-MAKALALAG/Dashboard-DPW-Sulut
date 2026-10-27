@@ -15,6 +15,8 @@ import {
   UserCheck,
   Building,
   Info,
+  Lock,
+  IdCard,
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -24,6 +26,7 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   // Mode: 'login' (Masuk Akun) | 'activate' (Aktivasi / Buat Sandi Baru Pengurus)
   const [mode, setMode] = useState<'login' | 'activate'>('login');
+  const [showHelp, setShowHelp] = useState(false);
 
   // --- State Form Login Normal ---
   const [username, setUsername] = useState('');
@@ -166,20 +169,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         <div className="w-full max-w-sm sm:max-w-md flex flex-col">
           <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-100 shadow-xl shadow-slate-100/80">
             {/* Header Tabs: Masuk vs Aktivasi Akun Pengurus */}
-            <div className="flex items-center p-1 bg-slate-100/80 rounded-xl mb-6">
+            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => {
                   setMode('login');
                   setErrorMsg(null);
+                  setShowHelp(false);
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   mode === 'login'
-                    ? 'bg-white text-[#002B49] shadow-xs'
+                    ? 'bg-white text-[#002B49] shadow-sm font-bold'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                Masuk Akun
+                <UserCheck className="w-4 h-4 text-[#002B49]" />
+                <span>Masuk Akun</span>
               </button>
               <button
                 type="button"
@@ -187,9 +192,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   setMode('activate');
                   setActError(null);
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   mode === 'activate'
-                    ? 'bg-[#002B49] text-white shadow-xs'
+                    ? 'bg-[#002B49] text-white shadow-sm font-bold'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -202,111 +207,133 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             {mode === 'login' && (
               <>
                 <div className="mb-5 text-center">
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#002B49] tracking-tight">
-                    Login / Masuk
+                  <h2 className="text-xl sm:text-2xl font-black text-[#002B49] tracking-tight">
+                    Portal Internal Pengurus
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Portal Internal Pengurus &amp; Database Kader Sulut
+                    Database Kader &amp; Struktur Kepengurusan DPW Sulut
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmitLogin} className="space-y-4">
                   {errorMsg && (
-                    <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-shake">
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5 animate-shake">
                       <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                      <span>{errorMsg}</span>
+                      <span className="leading-relaxed">{errorMsg}</span>
                     </div>
                   )}
 
                   {/* NIK / Username Input */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      NIK KTP / Username Admin
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      NIK KTP / Username
                     </label>
                     <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <IdCard className="w-4 h-4" />
+                      </div>
                       <input
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder="Contoh: 7105... atau No. e-KTA"
-                        className="w-full px-4 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner font-mono"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all font-mono"
                         required
                       />
                     </div>
                   </div>
 
                   {/* Password Input */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 mb-0.5">
-                      Kata Sandi (Password)
-                    </label>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Kata Sandi (Password)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowHelp(!showHelp)}
+                        className="text-[11px] text-blue-700 hover:text-blue-900 font-semibold cursor-pointer hover:underline"
+                      >
+                        {showHelp ? 'Tutup Bantuan' : 'Lupa Password?'}
+                      </button>
+                    </div>
                     <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Lock className="w-4 h-4" />
+                      </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Masukkan kata sandi..."
-                        className="w-full pl-4 pr-10 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setMode('activate')}
-                        className="text-[#0095f6] hover:underline font-semibold cursor-pointer"
-                      >
-                        Aktivasi / Buat Sandi &raquo;
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setErrorMsg(
-                            'Jika belum pernah membuat kata sandi, silakan gunakan 6 digit terakhir NIK KTP Anda atau hubungi Sekretariat DPW.'
-                          )
-                        }
-                        className="text-slate-400 hover:text-slate-600 cursor-pointer"
-                      >
-                        Lupa Password?
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Banner Informasi Opsi 2 (Password Default) */}
-                  <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-blue-900 leading-relaxed flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold block">Pengurus Baru Belum Punya Password?</span>
-                      Gunakan <strong className="font-mono text-blue-800">6 Digit Terakhir NIK</strong> Anda atau <strong className="font-mono text-blue-800">nasdem123</strong> sebagai sandi awal.
+                  {/* Box Bantuan Lupa Password (Expandable) */}
+                  {showHelp && (
+                    <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed animate-fadeIn space-y-1">
+                      <p className="font-bold text-[#002B49]">Petunjuk Masuk &amp; Sandi:</p>
+                      <p className="text-[11px] text-slate-600">
+                        2. Jika ingin mereset atau membuat kata sandi mandiri, klik{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('activate');
+                            setShowHelp(false);
+                          }}
+                          className="font-bold text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                        >
+                          Aktivasi Pengurus &raquo;
+                        </button>
+                      </p>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Petunjuk Sandi Awal Pengurus Baru */}
 
                   {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-lg bg-[#0095f6] hover:bg-[#0084dc] active:bg-[#0074c2] disabled:opacity-60 text-white font-semibold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-150 mt-2"
+                    className="w-full py-3 px-4 rounded-xl bg-[#002B49] hover:bg-[#001d32] active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 cursor-pointer transition-all duration-150 mt-1"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Memverifikasi...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                        <span>Memverifikasi Akun...</span>
                       </>
                     ) : (
                       <>
-                        <span>Login / Masuk</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <span>Masuk Sekarang</span>
+                        <ArrowRight className="w-4 h-4 text-amber-400" />
                       </>
                     )}
                   </button>
+
+                  <div className="text-center pt-1">
+                    <span className="text-xs text-slate-500">Ingin buat sandi baru mandiri? </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('activate');
+                        setErrorMsg(null);
+                        setShowHelp(false);
+                      }}
+                      className="text-xs font-bold text-[#002B49] hover:underline cursor-pointer"
+                    >
+                      Aktivasi Akun &raquo;
+                    </button>
+                  </div>
                 </form>
               </>
             )}
@@ -315,7 +342,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             {mode === 'activate' && (
               <div>
                 <div className="mb-4 text-center">
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#002B49] tracking-tight">
+                  <h2 className="text-xl sm:text-2xl font-black text-[#002B49] tracking-tight">
                     Aktivasi Akun Pengurus
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
@@ -324,14 +351,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 {actError && (
-                  <div className="p-3 mb-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-shake">
+                  <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5 animate-shake">
                     <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                     <span>{actError}</span>
                   </div>
                 )}
 
                 {actSuccessMsg && (
-                  <div className="p-3 mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
+                  <div className="p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <span>{actSuccessMsg}</span>
                   </div>
@@ -341,31 +368,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 {!actCheckedMember && (
                   <form onSubmit={handleCheckPengurus} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Nomor Induk Kependudukan (NIK KTP)
                       </label>
-                      <input
-                        type="text"
-                        value={actNik}
-                        onChange={(e) => setActNik(e.target.value)}
-                        placeholder="Contoh: 7105011204850003"
-                        className="w-full px-4 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner font-mono"
-                        required
-                        maxLength={20}
-                      />
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        Sistem akan memverifikasi apakah NIK Anda tercatat dalam SK Kepengurusan.
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <IdCard className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={actNik}
+                          onChange={(e) => setActNik(e.target.value)}
+                          placeholder="Contoh: 7105011204850003"
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all font-mono"
+                          required
+                          maxLength={20}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        Sistem akan memverifikasi apakah NIK Anda tercatat dalam SK Kepengurusan resmi.
                       </p>
                     </div>
 
                     <button
                       type="submit"
                       disabled={actIsChecking}
-                      className="w-full py-2.5 px-4 rounded-lg bg-[#002B49] hover:bg-slate-800 text-white font-semibold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+                      className="w-full py-3 px-4 rounded-xl bg-[#002B49] hover:bg-[#001d32] text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
                     >
                       {actIsChecking ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
                           <span>Mengecek Database SK...</span>
                         </>
                       ) : (
@@ -375,6 +407,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         </>
                       )}
                     </button>
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode('login');
+                          setActError(null);
+                        }}
+                        className="text-xs text-slate-500 hover:text-[#002B49] hover:underline font-semibold cursor-pointer"
+                      >
+                        &laquo; Kembali ke Halaman Masuk
+                      </button>
+                    </div>
                   </form>
                 )}
 
@@ -402,23 +447,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
                     {/* Input Password Baru */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Buat Kata Sandi Baru
                       </label>
                       <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
                         <input
                           type={actShowPassword ? 'text' : 'password'}
                           value={actNewPassword}
                           onChange={(e) => setActNewPassword(e.target.value)}
                           placeholder="Minimal 6 karakter..."
-                          className="w-full pl-4 pr-10 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
+                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
                           required
                           minLength={6}
                         />
                         <button
                           type="button"
                           onClick={() => setActShowPassword(!actShowPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                         >
                           {actShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -427,21 +475,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
                     {/* Konfirmasi Password */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Ulangi Kata Sandi Baru
                       </label>
-                      <input
-                        type={actShowPassword ? 'text' : 'password'}
-                        value={actConfirmPassword}
-                        onChange={(e) => setActConfirmPassword(e.target.value)}
-                        placeholder="Ulangi kata sandi..."
-                        className="w-full px-4 py-2.5 bg-[#eef3f9] hover:bg-[#e9eff7] focus:bg-white border border-transparent focus:border-sky-400 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
-                        required
-                        minLength={6}
-                      />
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={actShowPassword ? 'text' : 'password'}
+                          value={actConfirmPassword}
+                          onChange={(e) => setActConfirmPassword(e.target.value)}
+                          placeholder="Ulangi kata sandi..."
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all"
+                          required
+                          minLength={6}
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2.5 pt-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -449,14 +502,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           setActNewPassword('');
                           setActConfirmPassword('');
                         }}
-                        className="px-3 py-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        className="px-4 py-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
                       >
                         Batal
                       </button>
                       <button
                         type="submit"
                         disabled={actIsSubmitting}
-                        className="flex-1 py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+                        className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
                       >
                         {actIsSubmitting ? (
                           <>
