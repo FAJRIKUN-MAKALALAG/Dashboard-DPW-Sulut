@@ -115,10 +115,23 @@ export const ImportPreviewTable: React.FC<ImportPreviewTableProps> = ({
                       >
                         {r.jabatanExcel}
                       </span>
-                      {r.dpd && (
-                        <span className="block text-[10px] text-blue-600 dark:text-blue-400 font-normal">
-                          {r.dpd} · {r.subOrg}
-                        </span>
+                      {r.subOrg && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[9.5px] font-bold ${
+                              r.subOrg.toUpperCase().includes('PERTIMBANGAN')
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                : r.subOrg.toUpperCase().includes('PAKAR')
+                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}
+                          >
+                            {r.subOrg}
+                          </span>
+                          {r.dpd && (
+                            <span className="text-[10px] text-slate-400">· {r.dpd}</span>
+                          )}
+                        </div>
                       )}
                       {r.aiNote && (
                         <span

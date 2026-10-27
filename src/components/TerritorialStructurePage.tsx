@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
-import { MatrixTableSheet } from './matrix';
+import { MatrixTableSheet, RawSourceStructureTable, StructureComparisonTable } from './matrix';
 import {
   downloadTerritorialExcelTemplate,
   downloadAdvisoryOnlyExcelTemplate,
@@ -17,7 +17,7 @@ import {
   TerritoryToolbar,
 } from './territorial';
 import { useTerritorialMatrix } from '../hooks/useTerritorialMatrix';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, LayoutGrid, FileSpreadsheet, ArrowLeftRight } from 'lucide-react';
 
 interface TerritorialStructurePageProps {
   level: 'DPW' | 'DPD' | 'DPC' | 'DPRt';
@@ -68,8 +68,26 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       if (session.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
     }
     if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') return initialDpd;
+    try {
+      const saved = localStorage.getItem(`nasdem_selected_dpd_${level}`);
+      if (saved && availableRegions.some((r) => isDpdMatch(r.name, saved))) {
+        return saved;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
     return availableRegions[0]?.name || 'Kabupaten Minahasa Selatan';
   });
+
+  useEffect(() => {
+    if (selectedDpd) {
+      try {
+        localStorage.setItem(`nasdem_selected_dpd_${level}`, selectedDpd);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }, [level, selectedDpd]);
 
   const currentRegion = useMemo(() => {
     return (
@@ -173,6 +191,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     statusFilter,
     setStatusFilter,
     gridRows,
+    rawTerritoryMembers,
     showVacantModal,
     setShowVacantModal,
     dpdPimpinanCompliance,
@@ -185,6 +204,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     buildMatrixRows,
     handleCellChange,
     handleAddNewRow,
+    handleInsertRow,
     handleDeleteRow,
     handleDeleteSelectedRows,
     handleResetTemplate,
@@ -200,6 +220,9 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     onSaveMembersBatch,
     onDeleteMembersBatch,
   });
+
+  // Mode Tampilan: Matriks Template vs Data Asli Berkas SK vs Komparasi
+  const [activeViewMode, setActiveViewMode] = useState<'matrix' | 'raw_excel' | 'comparison'>('matrix');
 
   // Territory Context untuk Template Excel dan Import
   const territoryContext: TerritoryContext = useMemo(
@@ -298,21 +321,124 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         onExportTemplateExcel={handleExportTemplateExcel}
       />
 
-      {/* 4. Matrix Tables Rendering */}
-      <div
-        key={`${level}-${selectedDpd}-${selectedDpc}-${selectedDprt}`}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden animate-tab-enter"
-      >
-        <MatrixTableSheet
-          gridRows={displayRows}
-          isEditMode={isEditMode}
-          officialTitle={getOfficialTitle()}
-          onCellChange={handleCellChange}
-          onDeleteRow={handleDeleteRow}
-          onDeleteSelectedRows={handleDeleteSelectedRows}
-          onAddNewRowForSubOrg={handleAddNewRow}
-        />
+      {/* 4. Mode Tampilan: Matriks Template vs Data Asli SK / Excel vs Komparasi */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shadow-xs">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs overflow-x-auto">
+          <button
+            onClick={() => setActiveViewMode('matrix')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+              activeViewMode === 'matrix'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Matriks Standar Template</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                activeViewMode === 'matrix'
+                  ? 'bg-blue-700 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              {filledCount}/{totalRows}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveViewMode('raw_excel')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+              activeViewMode === 'raw_excel'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Data Asli Berkas SK / Excel</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                activeViewMode === 'raw_excel'
+                  ? 'bg-emerald-700 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              {rawTerritoryMembers.length} Personil
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveViewMode('comparison')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+              activeViewMode === 'comparison'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            <span>Komparasi Matriks vs SK</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 hidden lg:block px-2">
+          {activeViewMode === 'matrix' && 'Menampilkan formasi baku template matriks resmi partai dengan status keterisian.'}
+          {activeViewMode === 'raw_excel' && 'Menampilkan daftar personil murni sesuai SK tanpa slot lowong template.'}
+          {activeViewMode === 'comparison' && 'Audit perbandingan 1-to-1 antara slot baku matriks dengan data berkas SK.'}
+        </div>
       </div>
+
+      {/* Render Active View Component */}
+      {activeViewMode === 'matrix' && (
+        <div
+          key={`${level}-${selectedDpd}-${selectedDpc}-${selectedDprt}-matrix`}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden animate-tab-enter"
+        >
+          <MatrixTableSheet
+            gridRows={displayRows}
+            isEditMode={isEditMode}
+            officialTitle={getOfficialTitle()}
+            onCellChange={handleCellChange}
+            onDeleteRow={handleDeleteRow}
+            onDeleteSelectedRows={handleDeleteSelectedRows}
+            onAddNewRowForSubOrg={handleAddNewRow}
+            onInsertRow={handleInsertRow}
+          />
+        </div>
+      )}
+
+      {activeViewMode === 'raw_excel' && (
+        <div
+          key={`${level}-${selectedDpd}-${selectedDpc}-${selectedDprt}-raw`}
+          className="animate-tab-enter"
+        >
+          <RawSourceStructureTable
+            members={rawTerritoryMembers}
+            level={level}
+            selectedDpd={selectedDpd}
+            selectedDpc={selectedDpc}
+            selectedDprt={selectedDprt}
+            officialTitle={getOfficialTitle()}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
+      )}
+
+      {activeViewMode === 'comparison' && (
+        <div
+          key={`${level}-${selectedDpd}-${selectedDpc}-${selectedDprt}-comparison`}
+          className="animate-tab-enter"
+        >
+          <StructureComparisonTable
+            gridRows={displayRows}
+            rawMembers={rawTerritoryMembers}
+            level={level}
+            selectedDpd={selectedDpd}
+            officialTitle={getOfficialTitle()}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
+      )}
 
       {/* 5. Modal Import / Export Excel Teritorial Khusus */}
       <TerritorialImportExportModal
@@ -325,7 +451,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         onSaveMembersBatch={onSaveMembersBatch}
         onDeleteMembersBatch={onDeleteMembersBatch}
         onSuccessRefresh={() => {
-          buildMatrixRows();
+          buildMatrixRows(undefined, true);
         }}
       />
 

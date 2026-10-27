@@ -438,7 +438,7 @@ export async function parseTerritorialExcelFile(
         }
       }
 
-      if (matchedSlot && matchedSlot.subOrg) {
+      if (!finalSubOrg && matchedSlot && matchedSlot.subOrg) {
         finalSubOrg = normalizeSubOrgName(matchedSlot.subOrg, rowLevel);
       }
 
@@ -594,7 +594,7 @@ export async function parseTerritorialExcelFile(
     };
   }
 
-  return {
+  const rawResult: ParseTerritoryExcelResult = {
     territoryContext: ctx,
     rows: parsedRows,
     membersToSave,
@@ -607,6 +607,23 @@ export async function parseTerritorialExcelFile(
     },
     filename: file.name,
     dpdPimpinanCompliance,
+  };
+
+  // Otomatis selaraskan dengan susunan template baku sejak awal file diunggah
+  const alignedCheck = alignAndCheckWithTemplate(rawResult, currentMembers, adminName);
+  return {
+    territoryContext: ctx,
+    rows: alignedCheck.rows,
+    membersToSave: alignedCheck.membersToSave,
+    stats: {
+      totalRows: alignedCheck.stats.totalRows,
+      filledRows: alignedCheck.stats.filledRows,
+      emptyRows: alignedCheck.stats.vacantSlotsCount,
+      matchedPositions: alignedCheck.stats.matchedCount,
+      customPositions: alignedCheck.stats.extraRowsCount,
+    },
+    filename: file.name,
+    dpdPimpinanCompliance: alignedCheck.dpdPimpinanCompliance,
   };
 }
 
@@ -626,6 +643,8 @@ export function alignAndCheckWithTemplate(
   const territoryDprt = ctx.level === 'DPRt' ? ctx.dprt || 'Pusat' : 'Pusat/Umum';
 
   const allSlots = getStructureTemplate(ctx.level);
+  const pertimbanganSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
+  const pakarSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
   const pimpinanSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
 
   // KHUSUS DPRt: DIRECT PASSTHROUGH (Salin langsung 1-to-1 data riil dari berkas Excel)
@@ -747,56 +766,159 @@ export function alignAndCheckWithTemplate(
   }
 
   const alignedPertimbanganRows: ParsedTerritoryRow[] = [];
-  let pertimbanganNo = 1;
-
-  const rankPertimbangan = (j: string): number => {
-    const l = j.toLowerCase();
-    if (l.startsWith('ketua') && !l.includes('wakil')) return 1;
-    if (l.includes('wakil ketua')) return 2;
-    if (l.startsWith('sekretaris') && !l.includes('wakil')) return 3;
-    if (l.includes('wakil sekretaris')) return 4;
-    if (l.includes('bendahara')) return 5;
-    return 6;
-  };
-
-  const sortedPertimbangan = [...pertimbanganRows].sort(
-    (a, b) => rankPertimbangan(a.jabatanExcel) - rankPertimbangan(b.jabatanExcel)
-  );
-
-  for (const r of sortedPertimbangan) {
-    const sub = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
-    alignedPertimbanganRows.push({
-      ...r,
-      no: pertimbanganNo++,
-      subOrg: normalizeSubOrgName(sub, ctx.level),
-      isMatched: true,
-      aiNote: `✓ Dewan Pertimbangan Urutan #${pertimbanganNo - 1}`,
-    });
-  }
-
-  const alignedPakarRows: ParsedTerritoryRow[] = [];
-  let pakarNo = 1;
-
-  const sortedPakar = [...pakarRows].sort(
-    (a, b) => rankPertimbangan(a.jabatanExcel) - rankPertimbangan(b.jabatanExcel)
-  );
-
-  for (const r of sortedPakar) {
-    const sub = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
-    alignedPakarRows.push({
-      ...r,
-      no: pakarNo++,
-      subOrg: normalizeSubOrgName(sub, ctx.level),
-      isMatched: true,
-      aiNote: `✓ Dewan Pakar Urutan #${pakarNo - 1}`,
-    });
-  }
-
-  const alignedPimpinanRows: ParsedTerritoryRow[] = [];
   let vacantSlotsCount = 0;
   let filledStandardCount = 0;
 
-  // Gunakan algoritma Scored 1-to-1 Best-Match Assignment untuk pimpinan
+  if (pertimbanganSlots.length > 0) {
+    const { slotAssignments: pertimbanganAssignments, unassignedItems: unassignedPertimbangan } =
+      assignItemsToTemplateSlots(
+        pertimbanganSlots,
+        pertimbanganRows,
+        (r) => r.jabatanExcel || r.jabatanMatched || '',
+        (r) => r.no
+      );
+
+    for (const slot of pertimbanganSlots) {
+      if (pertimbanganAssignments.has(slot.no)) {
+        const { item: r } = pertimbanganAssignments.get(slot.no)!;
+        filledStandardCount++;
+        alignedPertimbanganRows.push({
+          ...r,
+          no: slot.no,
+          subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+          jabatanExcel: r.jabatanExcel || slot.jabatan,
+          jabatanMatched: slot.jabatan,
+          isMatched: true,
+          aiNote: `✓ Sesuai Slot Dewan Pertimbangan #${slot.no} (${slot.jabatan})`,
+        });
+      } else {
+        vacantSlotsCount++;
+        alignedPertimbanganRows.push({
+          no: slot.no,
+          dpd: territoryDpd,
+          subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+          jabatanExcel: slot.jabatan,
+          jabatanMatched: slot.jabatan,
+          isMatched: true,
+          namaLengkap: '-',
+          nik: '',
+          nomorEKTA: '',
+          jenisKelamin: '',
+          nomorHP: '',
+          email: '',
+          alamat: '',
+          status: 'Kosong / Lowong',
+          isFilled: false,
+          isVacantSlot: true,
+          aiNote: `⚠️ Jabatan belum terisi di Excel (ditetapkan Kosong No. #${slot.no})`,
+        });
+      }
+    }
+
+    let extraPertimbanganCounter = pertimbanganSlots.length + 1;
+    for (const { item: r } of unassignedPertimbangan) {
+      alignedPertimbanganRows.push({
+        ...r,
+        no: extraPertimbanganCounter++,
+        subOrg: normalizeSubOrgName(
+          r.subOrg || pertimbanganSlots[0]?.subOrg || 'I. DEWAN PERTIMBANGAN',
+          ctx.level
+        ),
+        isMatched: true,
+        aiNote: `✓ Anggota Tambahan Dewan Pertimbangan #${extraPertimbanganCounter - 1}`,
+      });
+    }
+  } else {
+    let pertimbanganNo = 1;
+    for (const r of pertimbanganRows) {
+      const sub = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
+      alignedPertimbanganRows.push({
+        ...r,
+        no: pertimbanganNo++,
+        subOrg: normalizeSubOrgName(sub, ctx.level),
+        isMatched: true,
+        aiNote: `✓ Dewan Pertimbangan Urutan #${pertimbanganNo - 1}`,
+      });
+    }
+  }
+
+  const alignedPakarRows: ParsedTerritoryRow[] = [];
+  if (pakarSlots.length > 0) {
+    const { slotAssignments: pakarAssignments, unassignedItems: unassignedPakar } =
+      assignItemsToTemplateSlots(
+        pakarSlots,
+        pakarRows,
+        (r) => r.jabatanExcel || r.jabatanMatched || '',
+        (r) => r.no
+      );
+
+    for (const slot of pakarSlots) {
+      if (pakarAssignments.has(slot.no)) {
+        const { item: r } = pakarAssignments.get(slot.no)!;
+        filledStandardCount++;
+        alignedPakarRows.push({
+          ...r,
+          no: slot.no,
+          subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+          jabatanExcel: r.jabatanExcel || slot.jabatan,
+          jabatanMatched: slot.jabatan,
+          isMatched: true,
+          aiNote: `✓ Sesuai Slot Dewan Pakar #${slot.no} (${slot.jabatan})`,
+        });
+      } else {
+        vacantSlotsCount++;
+        alignedPakarRows.push({
+          no: slot.no,
+          dpd: territoryDpd,
+          subOrg: normalizeSubOrgName(slot.subOrg, ctx.level),
+          jabatanExcel: slot.jabatan,
+          jabatanMatched: slot.jabatan,
+          isMatched: true,
+          namaLengkap: '-',
+          nik: '',
+          nomorEKTA: '',
+          jenisKelamin: '',
+          nomorHP: '',
+          email: '',
+          alamat: '',
+          status: 'Kosong / Lowong',
+          isFilled: false,
+          isVacantSlot: true,
+          aiNote: `⚠️ Jabatan belum terisi di Excel (ditetapkan Kosong No. #${slot.no})`,
+        });
+      }
+    }
+
+    let extraPakarCounter = pakarSlots.length + 1;
+    for (const { item: r } of unassignedPakar) {
+      alignedPakarRows.push({
+        ...r,
+        no: extraPakarCounter++,
+        subOrg: normalizeSubOrgName(
+          r.subOrg || pakarSlots[0]?.subOrg || 'II. DEWAN PAKAR',
+          ctx.level
+        ),
+        isMatched: true,
+        aiNote: `✓ Anggota Tambahan Dewan Pakar #${extraPakarCounter - 1}`,
+      });
+    }
+  } else {
+    let pakarNo = 1;
+    for (const r of pakarRows) {
+      const sub = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
+      alignedPakarRows.push({
+        ...r,
+        no: pakarNo++,
+        subOrg: normalizeSubOrgName(sub, ctx.level),
+        isMatched: true,
+        aiNote: `✓ Dewan Pakar Urutan #${pakarNo - 1}`,
+      });
+    }
+  }
+
+  const alignedPimpinanRows: ParsedTerritoryRow[] = [];
+
+  // Gunakan algoritma 3-Pass Best-Match Assignment untuk pimpinan
   const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
     pimpinanSlots,
     pimpinanRows,
@@ -941,7 +1063,7 @@ export function alignAndCheckWithTemplate(
             r.jenisKelamin?.toLowerCase().includes('perem')
           ? 'Perempuan'
           : existingMember?.jenisKelamin || 'Laki-laki',
-      dpd: r.dpd || territoryDpd,
+      dpd: territoryDpd,
       dpc: territoryDpc,
       dprt: territoryDprt,
       isPengurus: true,
@@ -950,7 +1072,7 @@ export function alignAndCheckWithTemplate(
       urutan: r.no,
       nomorSK:
         existingMember?.nomorSK ||
-        `SK-${ctx.level}-${(r.dpd || territoryDpd).replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
+        `SK-${ctx.level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
       jabatan: r.jabatanExcel || r.jabatanMatched || 'Pengurus',
       status: 'Aktif',
       statusKtpVerified: true,

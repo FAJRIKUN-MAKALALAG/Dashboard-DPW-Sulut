@@ -57,13 +57,13 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
                       : 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
                   }`}
                 >
-                  {dpdPimpinanCompliance.filledCount}/36 Jabatan Terisi
+                  {dpdPimpinanCompliance.filledCount}/{dpdPimpinanCompliance.totalRequired} Jabatan Terisi
                 </span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
                 {dpdPimpinanCompliance.isComplete
-                  ? `Seluruh 36 formasi resmi pengurus harian DPD ${selectedDpd} telah lengkap terisi.`
-                  : `Data pengurus DPD ${selectedDpd} baru mengisi ${dpdPimpinanCompliance.filledCount} dari 36 formasi resmi. Terdapat ${dpdPimpinanCompliance.vacantCount} jabatan yang belum terisi (lowong).`}
+                  ? `Seluruh ${dpdPimpinanCompliance.totalRequired} formasi resmi pengurus harian DPD ${selectedDpd} telah lengkap terisi.`
+                  : `Data pengurus DPD ${selectedDpd} baru mengisi ${dpdPimpinanCompliance.filledCount} dari ${dpdPimpinanCompliance.totalRequired} formasi resmi. Terdapat ${dpdPimpinanCompliance.vacantCount} jabatan yang belum terisi (lowong).`}
               </p>
             </div>
           </div>
@@ -98,7 +98,7 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     DPD Partai NasDem {selectedDpd} &middot;{' '}
                     <span className="font-semibold text-amber-600 dark:text-amber-400">
-                      Terisi {dpdPimpinanCompliance.filledCount}/36 Jabatan ({dpdPimpinanCompliance.vacantCount} Lowong)
+                      Terisi {dpdPimpinanCompliance.filledCount}/{dpdPimpinanCompliance.totalRequired} Jabatan ({dpdPimpinanCompliance.vacantCount} Lowong)
                     </span>
                   </p>
                 </div>
@@ -115,7 +115,7 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
             {/* List / Table Content */}
             <div className="p-4 overflow-y-auto space-y-3">
               <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200">
-                Berikut adalah <strong>{dpdPimpinanCompliance.vacantCount} jabatan pimpinan daerah</strong> dari 36 formasi resmi yang masih kosong dan perlu diisi kader/pengurus ber-SK:
+                Berikut adalah <strong>{dpdPimpinanCompliance.vacantCount} jabatan pimpinan daerah</strong> dari {dpdPimpinanCompliance.totalRequired} formasi yang masih kosong dan perlu diisi kader/pengurus ber-SK:
               </div>
 
               <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
@@ -123,7 +123,7 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
                   <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
                     <tr>
                       <th className="py-2.5 px-3 w-12 text-center">No</th>
-                      <th className="py-2.5 px-3">Nama Jabatan Baku (36 Formasi Resmi)</th>
+                      <th className="py-2.5 px-3">Nama Jabatan ({dpdPimpinanCompliance.totalRequired} Formasi Aktif)</th>
                       <th className="py-2.5 px-3 text-center w-28">Status</th>
                     </tr>
                   </thead>

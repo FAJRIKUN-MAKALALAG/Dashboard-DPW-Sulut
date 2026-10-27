@@ -43,7 +43,7 @@ export function normalizeJobTitle(title?: string): string {
   // Bersihkan titik tanda singkatan (contoh: "Bid." -> "Bid", "S.T." dsb)
   str = str.replace(/\./g, ' ');
 
-  // Normalisasi Tingkat / Hirarki Jabatan (Paling awal dicek)
+  // Normalisasi Tingkat / Hirarki Jabatan (Paling awal dicek agar 'Wakil Ketua Bid' tidak termakan 'Ketua Bid')
   str = str
     .replace(/\b(waka|waket|wakil ketua|wkl ketua|wkl\s*ketua|wk\s*ketua|wakil\s*ktua)\b/g, 'wakil_ketua')
     .replace(/\b(wasek|wakil sekretaris|wakil sekertaris|wkl sekretaris|wkl\s*sekretaris|wk\s*sekretaris)\b/g, 'wakil_sekretaris')
@@ -52,6 +52,17 @@ export function normalizeJobTitle(title?: string): string {
     .replace(/\b(wanhat|wantim|dewan pertimbangan)\b/g, 'dewan_pertimbangan')
     .replace(/\b(wanpak|dewan pakar)\b/g, 'dewan_pakar');
 
+  // Normalisasi Pimpinan Bidang yang berdiri sendiri (tanpa kata 'wakil' sebelumnya)
+  str = str
+    .replace(/\b(ketua bidang|ketua bid|kabid)\b/g, 'wakil_ketua')
+    .replace(/\b(sekretaris bidang|sekretaris bid|sekbid)\b/g, 'wakil_sekretaris')
+    .replace(/\b(bendahara bidang|bendahara bid)\b/g, 'wakil_bendahara');
+
+  // Penomoran romawi / angka pada wakil bendahara (Wabend 1 = Dana & Aset, Wabend 2 = Galang Dana)
+  str = str
+    .replace(/\bwakil_bendahara\s*(1|i)\b/g, 'wakil_bendahara dana aset')
+    .replace(/\bwakil_bendahara\s*(2|ii)\b/g, 'wakil_bendahara galang dana');
+
   // Normalisasi Kata Sambung & Singkatan Umum Bidang
   str = str
     .replace(/\b(bidang|bid|bdg|bag|bagian|divisi|div|seksi|seks)\b/g, ' ')
@@ -59,18 +70,30 @@ export function normalizeJobTitle(title?: string): string {
     .replace(/\bmasyakarat\b/g, 'masyarakat')
     .replace(/\b(dan|masyarakat|pada|untuk|di|ke)\b/g, ' ');
 
-  // Normalisasi Istilah Khusus Partai NasDem
+  // Normalisasi Istilah Khusus Partai NasDem & Sektoral
   str = str
-    .replace(/\bumkm\b/g, 'usaha mikro kecil menengah')
+    .replace(/\b(umkm|ukm)\b/g, 'usaha mikro kecil menengah')
     .replace(/\bham\b/g, 'hak asasi manusia')
     .replace(/\bokk\b/g, 'organisasi keanggotaan kaderisasi')
     .replace(/\b(bappilu|bapilu)\b/g, 'pemenangan pemilu')
     .replace(/\blitbang\b/g, 'penelitian pengembangan')
     .replace(/\b(ekraf|industri kreatif|ekonomi kreatif)\b/g, 'industri kreatif')
+    .replace(/\bperekonomian\b/g, 'ekonomi')
+    .replace(/\b(ketenagakerjaan|ketenaga kerjaan|naker|buruh)\b/g, 'tenaga kerja')
     .replace(/\b(pekerja migran indonesia|pekerja migran|migrasi|pmi)\b/g, 'migran')
     .replace(/\b(hub|hubungan)\b/g, 'hubungan')
     .replace(/\b(pariwisata)\b/g, 'pariwisata')
     .replace(/\b(desa)\b/g, 'desa')
+    .replace(/\b(kelautan|perikanan)\b/g, 'maritim')
+    .replace(/\bdikbud\b/g, 'pendidikan kebudayaan')
+    .replace(/\b(dispora|kepemudaan)\b/g, 'pemuda olahraga')
+    .replace(/\blh\b/g, 'lingkungan hidup')
+    .replace(/\b(esdm|pertambangan)\b/g, 'energi mineral')
+    .replace(/\b(atr|pertanahan)\b/g, 'kehutanan agraria')
+    .replace(/\b(sarpras|sarana|prasarana)\b/g, 'pembangunan infrastruktur')
+    .replace(/\biok\b/g, 'ideologi organisasi kaderisasi')
+    .replace(/\bkesekretariatan\b/g, 'umum administrasi')
+    .replace(/\badvokasi\b/g, 'hukum')
     .replace(/[^a-z0-9_]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -311,6 +334,12 @@ export function calculateJobMatchScore(
     nMem.includes('dewan_pakar');
 
   if (isCouncil) {
+    // Dewan Pertimbangan & Dewan Pakar TIDAK PERNAH memiliki portofolio "Bidang"
+    const hasBidang = nMem.includes('bidang') || memberTitle.toLowerCase().includes('bidang') || memberTitle.toLowerCase().includes('bid.');
+    if (hasBidang) {
+      return 0;
+    }
+
     if (sTpl === 'ketua') {
       return (sMem === 'ketua' || nMem.includes('ketua')) && !nMem.includes('wakil_ketua') ? 95 : 0;
     }
@@ -477,7 +506,7 @@ export function matchMemberToSlot(
   const found = candidates.find((m) => isJobTitleMatch(m.jabatan, slot.jabatan, slot.subOrg));
 
   if (found) {
-    // Sesuai permintaan user: "template jabatannya tetap mengikuti jabatan yang sekaligus saya import"
+    // Sesuai permintaan user: nama jabatan pengurus tetap sama dengan yang diimport dari Excel
     return {
       matchedMember: found,
       displayTitle: found.jabatan || slot.jabatan,
@@ -567,12 +596,67 @@ export function getPimpinanRank(jabatan?: string, slots?: PositionSlot[]): numbe
 
 /**
  * Memeriksa apakah jabatan adalah Ketua Definitif (Ketua DPW, Ketua DPD, Ketua DPC, atau Ketua DPRt).
- * Menolak tegas segala bentuk 'Wakil Ketua'.
+ * Menolak tegas segala bentuk 'Wakil Ketua' atau 'Ketua Bidang'.
  */
 export function isDefinitiveLeader(jabatan?: string): boolean {
   if (!jabatan) return false;
   const j = jabatan.toLowerCase().trim();
-  return (j === 'ketua' || j.startsWith('ketua ') || j.endsWith(' ketua')) && !j.includes('wakil');
+  if (
+    j.includes('wakil') ||
+    j.includes('bidang') ||
+    j.includes('bid.') ||
+    j.includes('bid ') ||
+    j.includes('kabid') ||
+    j.includes('sekretaris') ||
+    j.includes('bendahara') ||
+    j.includes('anggota')
+  ) {
+    return false;
+  }
+  return (
+    j === 'ketua' ||
+    j === 'ketua dpd' ||
+    j === 'ketua dpw' ||
+    j === 'ketua dpc' ||
+    j === 'ketua dprt' ||
+    j.startsWith('ketua ')
+  );
+}
+
+export type JobTier =
+  | 'ketua'
+  | 'wakil_ketua'
+  | 'sekretaris'
+  | 'wakil_sekretaris'
+  | 'bendahara'
+  | 'wakil_bendahara'
+  | 'pertimbangan'
+  | 'pakar'
+  | 'anggota'
+  | 'other';
+
+/**
+ * Menentukan tingkatan hierarki jabatan untuk perbandingan kompatibilitas antar slot
+ */
+export function getJobTier(title?: string, subOrg?: string): JobTier {
+  if (!title) return 'other';
+  const norm = normalizeJobTitle(title);
+  const sLower = (subOrg || '').toLowerCase();
+
+  if (sLower.includes('pertimbangan') || norm.includes('dewan_pertimbangan')) return 'pertimbangan';
+  if (sLower.includes('pakar') || norm.includes('dewan_pakar')) return 'pakar';
+
+  if (norm.startsWith('wakil_ketua') || norm.includes('wakil_ketua')) return 'wakil_ketua';
+  if (isDefinitiveLeader(title) || (norm.startsWith('ketua') && !norm.includes('wakil'))) return 'ketua';
+
+  if (norm.startsWith('wakil_sekretaris') || norm.includes('wakil_sekretaris')) return 'wakil_sekretaris';
+  if (norm.startsWith('sekretaris') && !norm.includes('wakil')) return 'sekretaris';
+
+  if (norm.startsWith('wakil_bendahara') || norm.includes('wakil_bendahara')) return 'wakil_bendahara';
+  if (norm.startsWith('bendahara') && !norm.includes('wakil')) return 'bendahara';
+
+  if (norm.includes('anggota')) return 'anggota';
+  return 'other';
 }
 
 /**
@@ -603,10 +687,13 @@ export function sortMembersByHierarchy(membersList: Member[]): Member[] {
 }
 
 /**
- * 6. Algoritma Pencocokan Slot Cerdas Berbasis Skor (Scored 1-to-1 Best-Match Assignment)
- * Memasangkan item (kader atau baris Excel) ke slot template resmi secara 1-to-1
- * berdasarkan skor prioritas tertinggi (Exact match > Domain signature > Cross-level portofolio > Fuzzy).
- * Mencegah perebutan slot yang keliru, duplikasi jabatan, atau terlemparnya kader ke baris tambahan.
+ * 6. Algoritma Pencocokan Slot Cerdas Berbasis Skor & Hierarki (3-Pass Best-Match Assignment)
+ * Memasangkan item (kader atau baris Excel) ke slot template resmi secara 1-to-1:
+ * - Pass 1: Scored Keyword & Domain Match (skor tertinggi, bonus +5 jika urutan Excel sesuai nomor slot).
+ * - Pass 2: Order & Tier Fallback (mencocokkan baris yang tertulis typo/duplikasi di Excel bila urutan dan tingkatan jabatannya sama).
+ * - Pass 3: Sequential Tier Fallback (mengisi slot kosong yang tersisa dalam tingkatan yang sama).
+ * - Item tersisa dikembalikan sebagai unassignedItems (tidak ada data kader yang hilang).
+ * - Slot yang tidak mendapatkan kader tetap kosong (dapat ditampilkan sebagai lowong/kosong berjabatan baku).
  */
 export function assignItemsToTemplateSlots<T>(
   slots: PositionSlot[],
@@ -617,6 +704,7 @@ export function assignItemsToTemplateSlots<T>(
   slotAssignments: Map<number, { item: T; score: number; itemIndex: number }>;
   unassignedItems: { item: T; itemIndex: number }[];
 } {
+  // Pass 1: Scored Keyword & Domain Match
   const candidatePairs: { itemIndex: number; slotIndex: number; score: number }[] = [];
 
   items.forEach((item, itemIndex) => {
@@ -626,9 +714,9 @@ export function assignItemsToTemplateSlots<T>(
     slots.forEach((slot, slotIndex) => {
       let score = calculateJobMatchScore(itemJabatan, slot.jabatan, slot.subOrg);
       if (score > 0) {
-        // Berikan bonus kecil jika nomor urut asal di Excel cocok dengan nomor slot template
+        // Berikan bonus jika nomor urut asal di Excel cocok dengan nomor slot template
         if (typeof itemUrutan === 'number' && itemUrutan === slot.no) {
-          score += 1;
+          score += 5;
         }
         candidatePairs.push({ itemIndex, slotIndex, score });
       }
@@ -651,6 +739,47 @@ export function assignItemsToTemplateSlots<T>(
       assignedSlotIndices.add(pair.slotIndex);
     }
   }
+
+  // Pass 2: Fallback berbasis Nomor Urut untuk Kategori Jabatan yang Kompatibel
+  // (Menyelamatkan baris typo/duplikasi di Excel seperti Boltim baris 6, 7, 36)
+  slots.forEach((slot, slotIndex) => {
+    if (assignedSlotIndices.has(slotIndex)) return;
+    const slotTier = getJobTier(slot.jabatan, slot.subOrg);
+
+    items.forEach((item, itemIndex) => {
+      if (assignedItemIndices.has(itemIndex)) return;
+      const itemUrutan = getUrutan ? getUrutan(item) : undefined;
+      const itemJabatan = getJabatan(item);
+      const itemTier = getJobTier(itemJabatan);
+
+      if (typeof itemUrutan === 'number' && itemUrutan === slot.no && slotTier === itemTier) {
+        slotAssignments.set(slot.no, { item, score: 50, itemIndex });
+        assignedItemIndices.add(itemIndex);
+        assignedSlotIndices.add(slotIndex);
+      }
+    });
+  });
+
+  // Pass 3: Fallback Sekuensial untuk Jabatan Setingkat yang Masih Kosong
+  slots.forEach((slot, slotIndex) => {
+    if (assignedSlotIndices.has(slotIndex)) return;
+    const slotTier = getJobTier(slot.jabatan, slot.subOrg);
+    if (slotTier === 'other') return;
+
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      if (assignedItemIndices.has(itemIndex)) continue;
+      const item = items[itemIndex];
+      const itemJabatan = getJabatan(item);
+      const itemTier = getJobTier(itemJabatan);
+
+      if (slotTier === itemTier) {
+        slotAssignments.set(slot.no, { item, score: 40, itemIndex });
+        assignedItemIndices.add(itemIndex);
+        assignedSlotIndices.add(slotIndex);
+        break;
+      }
+    }
+  });
 
   const unassignedItems: { item: T; itemIndex: number }[] = [];
   items.forEach((item, itemIndex) => {

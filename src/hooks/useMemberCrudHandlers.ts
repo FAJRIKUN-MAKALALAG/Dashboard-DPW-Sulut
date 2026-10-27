@@ -12,6 +12,7 @@ import {
 } from '../utils/storage';
 import {
   isSupabaseConfigured,
+  getMembersFromSupabase,
   upsertSingleMemberToSupabase,
   upsertMembersToSupabase,
   deleteMemberFromSupabase,
@@ -187,8 +188,10 @@ export function useMemberCrudHandlers({
     incomingMembers.forEach((inc) => {
       const key = getMemberPositionKey(inc);
       const existing = membersMap.get(key);
+      // positions lama dibuang: jabatan baru diambil dari server setelah sinkron
+      const { positions: _stalePositions, ...existingRest } = (existing || {}) as Member;
       membersMap.set(key, {
-        ...(existing || {}),
+        ...existingRest,
         ...inc,
         id: inc.id || key,
       });
@@ -201,9 +204,16 @@ export function useMemberCrudHandlers({
     showToast(`Berhasil menyimpan ${incomingMembers.length} pengurus struktur teritorial.`);
 
     if (isSupabaseConfigured()) {
-      upsertMembersToSupabase(incomingMembers).catch((e) =>
-        console.error('Gagal sync pengurus teritorial ke Supabase:', e)
-      );
+      try {
+        await upsertMembersToSupabase(incomingMembers);
+        const fresh = await getMembersFromSupabase();
+        if (Array.isArray(fresh)) {
+          setMembers(fresh);
+          saveMembers(fresh);
+        }
+      } catch (e) {
+        console.error('Gagal sync pengurus teritorial ke Supabase:', e);
+      }
     }
 
     recordAuditLog({
