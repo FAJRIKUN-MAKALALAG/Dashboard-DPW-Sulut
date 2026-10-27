@@ -49,6 +49,62 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       ? session.dprtAccess
       : '';
 
+  const isDpdLocked =
+    session.role !== 'SUPER_ADMIN' &&
+    session.role !== 'ADMIN_DPW' &&
+    Boolean(session.dpdAccess && session.dpdAccess !== 'ALL');
+
+  const isDpcLocked =
+    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') &&
+    Boolean(session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)');
+
+  const isDprtLocked =
+    session.role === 'ADMIN_DPRT' &&
+    Boolean(session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum');
+
+  const allowedTingkatOptions = useMemo(() => {
+    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+      return [
+        { value: 'DPW', label: 'DPW (Tingkat Provinsi)' },
+        { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
+        { value: 'DPC', label: 'DPC (Kecamatan)' },
+        { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
+      ];
+    }
+    if (session.role === 'ADMIN_DPD') {
+      return [
+        { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
+        { value: 'DPC', label: 'DPC (Kecamatan)' },
+        { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
+      ];
+    }
+    if (session.role === 'ADMIN_DPC') {
+      return [
+        { value: 'DPC', label: 'DPC (Kecamatan)' },
+        { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
+      ];
+    }
+    return [{ value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' }];
+  }, [session.role]);
+
+  const defaultTingkat: 'DPW' | 'DPD' | 'DPC' | 'DPRt' =
+    session.role === 'ADMIN_DPRT'
+      ? 'DPRt'
+      : session.role === 'ADMIN_DPC'
+      ? 'DPC'
+      : session.role === 'ADMIN_DPD'
+      ? 'DPD'
+      : 'DPW';
+
+  const defaultWilayahPenugasan =
+    session.role === 'ADMIN_DPRT'
+      ? `DPRt ${session.dprtAccess || ''}`
+      : session.role === 'ADMIN_DPC'
+      ? `DPC Kec. ${session.dpcAccess || ''}`
+      : session.role === 'ADMIN_DPD'
+      ? `DPD ${session.dpdAccess || ''}`
+      : 'DPW Sulawesi Utara';
+
   const [nik, setNik] = useState<string>('');
   const [nomorEKTA, setNomorEKTA] = useState<string>('');
   const [namaLengkap, setNamaLengkap] = useState<string>('');
@@ -61,8 +117,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
   // Status Kepengurusan & SK
   const [isPengurus, setIsPengurus] = useState<boolean>(true);
-  const [tingkatKepengurusan, setTingkatKepengurusan] = useState<'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus'>('DPW');
-  const [wilayahPenugasan, setWilayahPenugasan] = useState<string>('DPW Sulawesi Utara');
+  const [tingkatKepengurusan, setTingkatKepengurusan] = useState<'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus'>(defaultTingkat);
+  const [wilayahPenugasan, setWilayahPenugasan] = useState<string>(defaultWilayahPenugasan);
   const [nomorSK, setNomorSK] = useState<string>('');
   const [tanggalSK, setTanggalSK] = useState<string>('');
   const [kodeReferral, setKodeReferral] = useState<string>('');
@@ -649,10 +705,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                           onChange={(e) => setTingkatKepengurusan(e.target.value as any)}
                           className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold"
                         >
-                          <option value="DPW">DPW (Tingkat Provinsi)</option>
-                          <option value="DPD">DPD (Kabupaten / Kota)</option>
-                          <option value="DPC">DPC (Kecamatan)</option>
-                          <option value="DPRt">DPRt (Kelurahan / Desa)</option>
+                          {allowedTingkatOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -690,9 +747,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                       DPD (Kabupaten / Kota)
+                      {isDpdLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
                     </label>
                     <select
                       value={dpd}
+                      disabled={isDpdLocked}
                       onChange={(e) => {
                         setDpd(e.target.value);
                         const region = SULUT_REGIONS.find((r) => r.name === e.target.value);
@@ -700,7 +759,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                           setDpc(region.subdistricts[0].name);
                         }
                       }}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 ${
+                        isDpdLocked
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
+                      }`}
                     >
                       {SULUT_REGIONS.map((r) => (
                         <option key={r.name} value={r.name}>
@@ -713,11 +776,17 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                       DPC (Kecamatan)
+                      {isDpcLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
                     </label>
                     <select
                       value={dpc}
+                      disabled={isDpcLocked}
                       onChange={(e) => setDpc(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 ${
+                        isDpcLocked
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
+                      }`}
                     >
                       {availableSubdistricts.map((sub) => (
                         <option key={sub.name} value={sub.name}>
@@ -730,13 +799,19 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                       DPRt (Kelurahan / Desa)
+                      {isDprtLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
                     </label>
                     <input
                       type="text"
                       value={dprt}
+                      disabled={isDprtLocked}
                       onChange={(e) => setDprt(e.target.value)}
                       placeholder="Contoh: Ranomeida"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400 ${
+                        isDprtLocked
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
+                      }`}
                     />
                   </div>
                 </div>
