@@ -40,6 +40,7 @@ interface MatrixTableSheetProps {
   onDeleteRow: (id: string) => void;
   onDeleteSelectedRows?: (selectedIds: string[]) => void;
   onAddNewRowForSubOrg?: (subOrg: string) => void;
+  onInsertRow?: (targetId: string, position: 'above' | 'below') => void;
 }
 
 export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
@@ -50,6 +51,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   onDeleteRow,
   onDeleteSelectedRows,
   onAddNewRowForSubOrg,
+  onInsertRow,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showConfirmBulkDelete, setShowConfirmBulkDelete] = useState(false);
@@ -315,7 +317,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                       <CheckSquare className="w-3.5 h-3.5" />
                       <span>Pilih Bagian Ini</span>
                     </button>
-                    {isEditMode && onAddNewRowForSubOrg && (
+                    {onAddNewRowForSubOrg && (
                       <button
                         onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
                         className="text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
@@ -379,11 +381,9 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                         <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[120px]">
                           SOSIAL MEDIA
                         </th>
-                        {isEditMode && (
-                          <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-14 text-center bg-rose-800 text-white">
-                            AKSI
-                          </th>
-                        )}
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-24 text-center bg-slate-900 text-white">
+                          AKSI
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -432,17 +432,27 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                             </td>
 
                             {/* 2. STATUS FORMASI */}
-                            <td className="border border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-center">
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-center">
                               {isFilled ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                   <span>TERISI</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700 shadow-2xs">
-                                  <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                                  <span>LOWONG</span>
-                                </span>
+                                <div className="inline-flex items-center justify-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700 shadow-2xs">
+                                    <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                    <span>LOWONG</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteRow(row.id)}
+                                    className="p-1 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-md transition-all cursor-pointer border border-rose-200 dark:border-rose-900/50 hover:border-rose-600 shadow-2xs"
+                                    title="Hapus slot lowong ini"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               )}
                             </td>
 
@@ -597,19 +607,30 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               )}
                             </td>
 
-                            {/* Action Column (Edit Mode) */}
-                            {isEditMode && (
-                              <td className="border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-center">
+                            {/* Action Column */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-1.5 py-1 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {onInsertRow && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onInsertRow(row.id, 'below')}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 hover:text-white hover:bg-blue-600 dark:hover:bg-blue-600 rounded-md transition-all cursor-pointer border border-blue-300 dark:border-blue-800 shadow-2xs"
+                                    title={`Sisipkan baris baru di bawah No. ${idx + 1}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>Sisip</span>
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => onDeleteRow(row.id)}
-                                  className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-lg transition-all duration-150 cursor-pointer shadow-xs border border-rose-200 dark:border-rose-900/50 hover:border-rose-600"
-                                  title={`Hapus baris jabatan: ${row.jabatan}`}
+                                  className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-md transition-all cursor-pointer border border-rose-200 dark:border-rose-900/50 hover:border-rose-600 shadow-2xs"
+                                  title={!isFilled ? 'Hapus slot lowong ini' : `Hapus baris: ${row.namaLengkap || row.jabatan}`}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                              </td>
-                            )}
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}

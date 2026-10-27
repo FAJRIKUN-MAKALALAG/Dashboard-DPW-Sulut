@@ -5,12 +5,18 @@ import {
   isDpdMatch,
   isDpcMatch,
   isDprtMatch,
+  cleanJobTitle,
   getMemberSubOrgCategory,
   getSlotSubOrgCategory,
   getDpdPimpinanCompliance,
   getExpandedStructuralMembers,
 } from '../utils/structureReadinessUtils';
-import { isJobTitleMatch, getCouncilRank, sortMembersByHierarchy } from '../utils/jobMatchingUtils';
+import {
+  isJobTitleMatch,
+  getCouncilRank,
+  sortMembersByHierarchy,
+  assignItemsToTemplateSlots,
+} from '../utils/jobMatchingUtils';
 import { generateUniqueTerritoryNik } from '../utils/territorialExcelTemplateUtils';
 import { GridRowItem } from '../components/matrix';
 import * as XLSX from 'xlsx';
@@ -41,19 +47,80 @@ export function useTerritorialMatrix({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'filled' | 'empty'>('all');
   const [gridRows, setGridRows] = useState<GridRowItem[]>([]);
+  const [rawTerritoryMembers, setRawTerritoryMembers] = useState<Member[]>([]);
   const [deletedMemberNiks, setDeletedMemberNiks] = useState<string[]>([]);
   const [showVacantModal, setShowVacantModal] = useState<boolean>(false);
 
-  // Kepatuhan formasi 36 jabatan DPD Bagian A (Dewan Pimpinan Daerah)
+  // Kepatuhan formasi jabatan DPD Bagian A (Dewan Pimpinan Daerah) dihitung dinamis sesuai slot aktif
   const dpdPimpinanCompliance = useMemo(() => {
     if (level !== 'DPD') return null;
-    return getDpdPimpinanCompliance(selectedDpd, members);
-  }, [level, selectedDpd, members]);
+    const pimpinanRows = gridRows.filter(
+      (r) => r.subOrg.includes('PIMPINAN') || r.subOrg.includes('DPD')
+    );
+    const totalRequired = pimpinanRows.length || 36;
+    const filledPimpinan = pimpinanRows.filter(
+      (r) => !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-'
+    );
+    const vacantPimpinan = pimpinanRows.filter(
+      (r) => !r.namaLengkap || r.namaLengkap.trim() === '' || r.namaLengkap === '-'
+    );
+
+    return {
+      totalRequired,
+      filledCount: filledPimpinan.length,
+      vacantCount: vacantPimpinan.length,
+      isComplete: vacantPimpinan.length === 0 && filledPimpinan.length > 0,
+      slots: pimpinanRows.map((r) => ({
+        no: r.no,
+        subOrg: r.subOrg,
+        jabatan: r.jabatan,
+        isFilled: !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-',
+        member: {
+          nik: r.nik,
+          namaLengkap: r.namaLengkap,
+          jabatan: r.jabatan,
+          nomorEKTA: r.nomorEKTA,
+          nomorHP: r.nomorHP,
+          email: r.email,
+        } as Member,
+      })),
+      filledSlots: filledPimpinan.map((r) => ({
+        no: r.no,
+        subOrg: r.subOrg,
+        jabatan: r.jabatan,
+        isFilled: true,
+      })),
+      vacantSlots: vacantPimpinan.map((r) => ({
+        no: r.no,
+        subOrg: r.subOrg,
+        jabatan: r.jabatan,
+        isFilled: false,
+      })),
+    };
+  }, [level, gridRows]);
+
+  const cleanDpd = useMemo(
+    () => (selectedDpd || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_'),
+    [selectedDpd]
+  );
+  const cleanDpc = useMemo(
+    () => (selectedDpc || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_'),
+    [selectedDpc]
+  );
+  const cleanDprt = useMemo(
+    () => (selectedDprt || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_'),
+    [selectedDprt]
+  );
 
   // Local storage key for custom deleted template slots per territory
   const territoryKey = useMemo(() => {
-    return `nasdem_deleted_slots_${level}_${selectedDpd}_${selectedDpc || ''}_${selectedDprt || ''}`;
-  }, [level, selectedDpd, selectedDpc, selectedDprt]);
+    return `nasdem_deleted_slots_${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
+  }, [level, cleanDpd, cleanDpc, cleanDprt]);
+
+  // Local storage key for cached custom matrix rows (persists deletes, inserts, and cell edits across refresh)
+  const matrixStorageKey = useMemo(() => {
+    return `nasdem_custom_matrix_rows_${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
+  }, [level, cleanDpd, cleanDpc, cleanDprt]);
 
   // Load deleted slot keys for current territory
   const getStoredDeletedSlotKeys = (): Set<string> => {
@@ -76,14 +143,69 @@ export function useTerritorialMatrix({
     }
   };
 
+  const saveCustomMatrixRows = (rowsToSave: GridRowItem[]) => {
+    try {
+      localStorage.setItem(matrixStorageKey, JSON.stringify(rowsToSave));
+    } catch (e) {
+      console.warn('Failed to save custom matrix rows to localStorage:', e);
+    }
+  };
+
   // Helper to get unique slot key for template slots
   const getSlotKey = (subOrg: string, no: number, jabatan: string) => {
     return `${subOrg.trim().toLowerCase()}__${no}__${jabatan.trim().toLowerCase()}`;
   };
 
   // Build matrix whenever territory changes or members change
-  const buildMatrixRows = (currentDeletedKeys?: Set<string>) => {
+  const buildMatrixRows = (currentDeletedKeys?: Set<string>, forceReset: boolean = false) => {
     const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys();
+
+    // 1. Cek apakah ada susunan matriks tersimpan di localStorage untuk wilayah ini (agar hasil hapus/sisip tidak hilang saat refresh)
+    if (!forceReset) {
+      try {
+        const savedJson = localStorage.getItem(matrixStorageKey);
+        if (savedJson) {
+          const cachedRows: GridRowItem[] = JSON.parse(savedJson);
+          if (Array.isArray(cachedRows) && cachedRows.length > 0) {
+            // Sinkronkan data profil personil terbaru dari database
+            const sourceMembers = getExpandedStructuralMembers(members);
+            const memberMapByNik = new Map<string, Member>();
+            sourceMembers.forEach((m) => {
+              if (m.nik) memberMapByNik.set(m.nik, m);
+            });
+
+            const refreshedRows = cachedRows.map((r) => {
+              if (r.nik && memberMapByNik.has(r.nik)) {
+                const liveMember = memberMapByNik.get(r.nik)!;
+                return {
+                  ...r,
+                  namaLengkap: liveMember.namaLengkap || r.namaLengkap,
+                  nomorEKTA: liveMember.nomorEKTA || r.nomorEKTA,
+                  email: liveMember.email || r.email,
+                  nomorHP: liveMember.nomorHP || r.nomorHP,
+                  sosmed: liveMember.sosmed || r.sosmed,
+                  isExisting: true,
+                };
+              }
+              return r;
+            });
+
+            const counters = new Map<string, number>();
+            const normalized = refreshedRows.map((r) => {
+              const currentCount = (counters.get(r.subOrg) || 0) + 1;
+              counters.set(r.subOrg, currentCount);
+              return { ...r, no: currentCount };
+            });
+
+            setGridRows(normalized);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal membaca cache matriks:', e);
+      }
+    }
+
     const template = getStructureTemplate(level);
     const sourceMembers = getExpandedStructuralMembers(members);
 
@@ -199,6 +321,7 @@ export function useTerritorialMatrix({
 
     // Urutan hierarkis: Ketua selalu nomor 1, disusul urutan berkas Excel / hirarki resmi
     matchedMembers = sortMembersByHierarchy(matchedMembers);
+    setRawTerritoryMembers(matchedMembers);
 
     // KHUSUS DPRt: DIRECT PASSTHROUGH (Salin langsung 1-to-1 seluruh pengurus riil ke matriks)
     // Setiap desa/kelurahan memiliki struktur unik & dinamis (bisa 7, 9, 11, atau 15 pengurus).
@@ -230,8 +353,19 @@ export function useTerritorialMatrix({
 
     // Saring template yang tidak dihapus secara eksplisit oleh pengguna
     const activeTemplate = template.filter((slot) => {
-      const key = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
-      return !deletedKeys.has(key);
+      const slotEmptyId = `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}`;
+      const cleanSlotJob = cleanJobTitle(slot.jabatan);
+      const cat = getSlotSubOrgCategory(slot);
+
+      if (deletedKeys.has(slotEmptyId)) return false;
+      if (deletedKeys.has(`job_${cat}_${cleanSlotJob}`)) return false;
+      if (deletedKeys.has(`job_${cleanSlotJob}`)) return false;
+      if (deletedKeys.has(`slot_${cat}_${slot.no}`)) return false;
+
+      const key1 = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
+      const key2 = `${slot.subOrg.trim().toLowerCase()}__slot_${slot.no}`;
+      const key3 = `${slot.subOrg.trim().toLowerCase()}__jabatan_${slot.jabatan.trim().toLowerCase()}`;
+      return !deletedKeys.has(key1) && !deletedKeys.has(key2) && !deletedKeys.has(key3);
     });
 
     const pertimbanganMembers = matchedMembers.filter(
@@ -275,7 +409,68 @@ export function useTerritorialMatrix({
     const rows: GridRowItem[] = [];
 
     // 1. DEWAN PERTIMBANGAN
-    if (pertimbanganMembers.length > 0) {
+    if (pertimbanganTemplateSlots.length > 0) {
+      const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
+        pertimbanganTemplateSlots,
+        pertimbanganMembers,
+        (m) => m.jabatan || '',
+        (m) => m.urutan
+      );
+
+      pertimbanganTemplateSlots.forEach((slot) => {
+        if (slotAssignments.has(slot.no)) {
+          const { item: matched } = slotAssignments.get(slot.no)!;
+          assignedMemberNiks.add(matched.nik);
+          rows.push({
+            id: matched.nik,
+            no: slot.no,
+            subOrg: pertimbanganSubOrgName,
+            jabatan: matched.jabatan || slot.jabatan,
+            namaLengkap: matched.namaLengkap,
+            nik: matched.nik,
+            nomorEKTA: matched.nomorEKTA || '',
+            email: matched.email || '',
+            nomorHP: matched.nomorHP || '',
+            sosmed: matched.sosmed || '',
+            isExisting: true,
+            originalNik: matched.nik,
+          });
+        } else {
+          rows.push({
+            id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}`,
+            no: slot.no,
+            subOrg: pertimbanganSubOrgName,
+            jabatan: slot.jabatan,
+            namaLengkap: '',
+            nik: '',
+            nomorEKTA: '',
+            email: '',
+            nomorHP: '',
+            sosmed: '',
+            isExisting: false,
+          });
+        }
+      });
+
+      let extraPertimbanganNo = pertimbanganTemplateSlots.length + 1;
+      unassignedItems.forEach(({ item: m }) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: extraPertimbanganNo++,
+          subOrg: pertimbanganSubOrgName,
+          jabatan: m.jabatan || 'Anggota',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
+      });
+    } else if (pertimbanganMembers.length > 0) {
       const sortedPertimbangan = [...pertimbanganMembers].sort(
         (a, b) => getCouncilRank(a.jabatan) - getCouncilRank(b.jabatan)
       );
@@ -297,26 +492,71 @@ export function useTerritorialMatrix({
           originalNik: m.nik,
         });
       });
-    } else if (pertimbanganTemplateSlots.length > 0) {
-      pertimbanganTemplateSlots.forEach((slot, idx) => {
-        rows.push({
-          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
-          no: slot.no,
-          subOrg: slot.subOrg,
-          jabatan: slot.jabatan,
-          namaLengkap: '',
-          nik: '',
-          nomorEKTA: '',
-          email: '',
-          nomorHP: '',
-          sosmed: '',
-          isExisting: false,
-        });
-      });
     }
 
     // 2. DEWAN PAKAR
-    if (pakarMembers.length > 0) {
+    if (pakarTemplateSlots.length > 0) {
+      const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
+        pakarTemplateSlots,
+        pakarMembers,
+        (m) => m.jabatan || '',
+        (m) => m.urutan
+      );
+
+      pakarTemplateSlots.forEach((slot) => {
+        if (slotAssignments.has(slot.no)) {
+          const { item: matched } = slotAssignments.get(slot.no)!;
+          assignedMemberNiks.add(matched.nik);
+          rows.push({
+            id: matched.nik,
+            no: slot.no,
+            subOrg: pakarSubOrgName,
+            jabatan: matched.jabatan || slot.jabatan,
+            namaLengkap: matched.namaLengkap,
+            nik: matched.nik,
+            nomorEKTA: matched.nomorEKTA || '',
+            email: matched.email || '',
+            nomorHP: matched.nomorHP || '',
+            sosmed: matched.sosmed || '',
+            isExisting: true,
+            originalNik: matched.nik,
+          });
+        } else {
+          rows.push({
+            id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}`,
+            no: slot.no,
+            subOrg: pakarSubOrgName,
+            jabatan: slot.jabatan,
+            namaLengkap: '',
+            nik: '',
+            nomorEKTA: '',
+            email: '',
+            nomorHP: '',
+            sosmed: '',
+            isExisting: false,
+          });
+        }
+      });
+
+      let extraPakarNo = pakarTemplateSlots.length + 1;
+      unassignedItems.forEach(({ item: m }) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: extraPakarNo++,
+          subOrg: pakarSubOrgName,
+          jabatan: m.jabatan || 'Anggota',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
+      });
+    } else if (pakarMembers.length > 0) {
       const sortedPakar = [...pakarMembers].sort(
         (a, b) => getCouncilRank(a.jabatan) - getCouncilRank(b.jabatan)
       );
@@ -338,43 +578,27 @@ export function useTerritorialMatrix({
           originalNik: m.nik,
         });
       });
-    } else if (pakarTemplateSlots.length > 0) {
-      pakarTemplateSlots.forEach((slot, idx) => {
-        rows.push({
-          id: `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${idx}`,
-          no: slot.no,
-          subOrg: slot.subOrg,
-          jabatan: slot.jabatan,
-          namaLengkap: '',
-          nik: '',
-          nomorEKTA: '',
-          email: '',
-          nomorHP: '',
-          sosmed: '',
-          isExisting: false,
-        });
-      });
     }
 
     // 3. DEWAN PIMPINAN
     if (pimpinanTemplateSlots.length > 0) {
-      const usedMemberNiksInPimpinan = new Set<string>();
+      // Gunakan algoritma 3-Pass Best-Match Assignment untuk pimpinan
+      const { slotAssignments, unassignedItems } = assignItemsToTemplateSlots(
+        pimpinanTemplateSlots,
+        pimpinanMembers,
+        (m) => m.jabatan || '',
+        (m) => m.urutan
+      );
 
       pimpinanTemplateSlots.forEach((slot) => {
-        const matched = pimpinanMembers.find(
-          (m) =>
-            !usedMemberNiksInPimpinan.has(m.nik) &&
-            isJobTitleMatch(m.jabatan, slot.jabatan, slot.subOrg)
-        );
-
-        if (matched) {
-          usedMemberNiksInPimpinan.add(matched.nik);
+        if (slotAssignments.has(slot.no)) {
+          const { item: matched } = slotAssignments.get(slot.no)!;
           assignedMemberNiks.add(matched.nik);
           rows.push({
             id: matched.nik,
             no: slot.no,
             subOrg: pimpinanSubOrgName,
-            jabatan: slot.jabatan,
+            jabatan: matched.jabatan || slot.jabatan, // Nama jabatan sesuai berkas SK Excel
             namaLengkap: matched.namaLengkap,
             nik: matched.nik,
             nomorEKTA: matched.nomorEKTA || '',
@@ -402,25 +626,22 @@ export function useTerritorialMatrix({
       });
 
       let extraPimpinanNo = pimpinanTemplateSlots.length + 1;
-      pimpinanMembers.forEach((m) => {
-        if (!usedMemberNiksInPimpinan.has(m.nik)) {
-          usedMemberNiksInPimpinan.add(m.nik);
-          assignedMemberNiks.add(m.nik);
-          rows.push({
-            id: m.nik,
-            no: extraPimpinanNo++,
-            subOrg: pimpinanSubOrgName,
-            jabatan: m.jabatan || 'Pengurus',
-            namaLengkap: m.namaLengkap,
-            nik: m.nik,
-            nomorEKTA: m.nomorEKTA || '',
-            email: m.email || '',
-            nomorHP: m.nomorHP || '',
-            sosmed: m.sosmed || '',
-            isExisting: true,
-            originalNik: m.nik,
-          });
-        }
+      unassignedItems.forEach(({ item: m }) => {
+        assignedMemberNiks.add(m.nik);
+        rows.push({
+          id: m.nik,
+          no: extraPimpinanNo++,
+          subOrg: pimpinanSubOrgName,
+          jabatan: m.jabatan || 'Pengurus',
+          namaLengkap: m.namaLengkap,
+          nik: m.nik,
+          nomorEKTA: m.nomorEKTA || '',
+          email: m.email || '',
+          nomorHP: m.nomorHP || '',
+          sosmed: m.sosmed || '',
+          isExisting: true,
+          originalNik: m.nik,
+        });
       });
     } else if (pimpinanMembers.length > 0) {
       pimpinanMembers.forEach((m, idx) => {
@@ -471,7 +692,19 @@ export function useTerritorialMatrix({
       }
     });
 
-    setGridRows(rows);
+    // Normalisasi nomor urut berurutan per sub-organisasi agar rapi tanpa jeda angka
+    const subOrgCounters = new Map<string, number>();
+    const normalizedRows = rows.map((r) => {
+      const currentCount = (subOrgCounters.get(r.subOrg) || 0) + 1;
+      subOrgCounters.set(r.subOrg, currentCount);
+      return {
+        ...r,
+        no: currentCount,
+      };
+    });
+
+    setGridRows(normalizedRows);
+    saveCustomMatrixRows(normalizedRows);
   };
 
   useEffect(() => {
@@ -482,9 +715,11 @@ export function useTerritorialMatrix({
   }, [level, selectedDpd, selectedDpc, selectedDprt, members]);
 
   const handleCellChange = (id: string, field: keyof GridRowItem, value: string) => {
-    setGridRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
+    setGridRows((prev) => {
+      const updated = prev.map((row) => (row.id === id ? { ...row, [field]: value } : row));
+      saveCustomMatrixRows(updated);
+      return updated;
+    });
   };
 
   const handleAddNewRow = (targetSubOrg?: string) => {
@@ -509,7 +744,7 @@ export function useTerritorialMatrix({
         ? 'Anggota Dewan Pakar'
         : level === 'DPRt'
         ? 'Pengurus Ranting'
-        : 'Pengurus Tambahan Bidang',
+        : 'Wakil Ketua Bidang ...',
       namaLengkap: '',
       nik: '',
       nomorEKTA: '',
@@ -518,7 +753,75 @@ export function useTerritorialMatrix({
       sosmed: '',
       isExisting: false,
     };
-    setGridRows((prev) => [...prev, newRow]);
+    setGridRows((prev) => {
+      const updated = [...prev, newRow];
+      const counters = new Map<string, number>();
+      const normalized = updated.map((r) => {
+        const currentCount = (counters.get(r.subOrg) || 0) + 1;
+        counters.set(r.subOrg, currentCount);
+        return { ...r, no: currentCount };
+      });
+      saveCustomMatrixRows(normalized);
+      return normalized;
+    });
+    setIsEditMode(true);
+  };
+
+  const handleInsertRow = (targetId: string, position: 'above' | 'below' = 'below') => {
+    const targetIndex = gridRows.findIndex((r) => r.id === targetId);
+    if (targetIndex === -1) return;
+
+    const targetRow = gridRows[targetIndex];
+    const insertIndex = position === 'below' ? targetIndex + 1 : targetIndex;
+
+    const newId = `custom_row_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    
+    let defaultJabatan = 'Wakil Ketua Bidang ...';
+    if (targetRow.subOrg.includes('PERTIMBANGAN')) {
+      defaultJabatan = 'Anggota Dewan Pertimbangan';
+    } else if (targetRow.subOrg.includes('PAKAR')) {
+      defaultJabatan = 'Anggota Dewan Pakar';
+    } else if (level === 'DPRt') {
+      defaultJabatan = 'Pengurus Ranting';
+    } else if (targetRow.jabatan.toLowerCase().includes('sekretaris')) {
+      defaultJabatan = 'Wakil Sekretaris Bidang ...';
+    } else if (targetRow.jabatan.toLowerCase().includes('bendahara')) {
+      defaultJabatan = 'Wakil Bendahara ...';
+    } else if (targetRow.jabatan.toLowerCase().includes('wakil ketua')) {
+      defaultJabatan = 'Wakil Ketua Bidang ...';
+    }
+
+    const newRow: GridRowItem = {
+      id: newId,
+      no: targetRow.no + (position === 'below' ? 1 : 0),
+      subOrg: targetRow.subOrg,
+      jabatan: defaultJabatan,
+      namaLengkap: '',
+      nik: '',
+      nomorEKTA: '',
+      email: '',
+      nomorHP: '',
+      sosmed: '',
+      isExisting: false,
+    };
+
+    setGridRows((prev) => {
+      const updated = [...prev];
+      updated.splice(insertIndex, 0, newRow);
+
+      const counters = new Map<string, number>();
+      const normalized = updated.map((r) => {
+        const currentCount = (counters.get(r.subOrg) || 0) + 1;
+        counters.set(r.subOrg, currentCount);
+        return {
+          ...r,
+          no: currentCount,
+        };
+      });
+      saveCustomMatrixRows(normalized);
+      return normalized;
+    });
+
     setIsEditMode(true);
   };
 
@@ -526,12 +829,44 @@ export function useTerritorialMatrix({
     const targetRow = gridRows.find((r) => r.id === id);
     if (!targetRow) return;
 
-    const slotKey = getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan);
+    const cat =
+      getMemberSubOrgCategory({ jabatan: targetRow.jabatan } as Member) ||
+      (targetRow.subOrg.includes('PERTIMBANGAN')
+        ? 'PERTIMBANGAN'
+        : targetRow.subOrg.includes('PAKAR')
+        ? 'PAKAR'
+        : 'PIMPINAN');
+    const cleanJob = cleanJobTitle(targetRow.jabatan);
     const deletedKeys = getStoredDeletedSlotKeys();
-    deletedKeys.add(slotKey);
+
+    deletedKeys.add(targetRow.id);
+    deletedKeys.add(`empty_${targetRow.subOrg.replace(/[^a-z0-9]/gi, '_')}_${targetRow.no}`);
+    deletedKeys.add(`job_${cat}_${cleanJob}`);
+    deletedKeys.add(`job_${cleanJob}`);
+    deletedKeys.add(`slot_${cat}_${targetRow.no}`);
+    deletedKeys.add(getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan));
+    deletedKeys.add(`${targetRow.subOrg.trim().toLowerCase()}__slot_${targetRow.no}`);
+    deletedKeys.add(`${targetRow.subOrg.trim().toLowerCase()}__jabatan_${targetRow.jabatan.trim().toLowerCase()}`);
     saveDeletedSlotKeys(deletedKeys);
 
-    setGridRows((prev) => prev.filter((r) => r.id !== id));
+    if (targetRow.nik && !targetRow.id.startsWith('empty_') && !targetRow.id.startsWith('custom_row_')) {
+      setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
+    }
+
+    setGridRows((prev) => {
+      const remaining = prev.filter((r) => r.id !== id);
+      const counters = new Map<string, number>();
+      const normalized = remaining.map((r) => {
+        const currentCount = (counters.get(r.subOrg) || 0) + 1;
+        counters.set(r.subOrg, currentCount);
+        return {
+          ...r,
+          no: currentCount,
+        };
+      });
+      saveCustomMatrixRows(normalized);
+      return normalized;
+    });
   };
 
   const handleDeleteSelectedRows = (selectedIds: string[]) => {
@@ -554,8 +889,8 @@ export function useTerritorialMatrix({
       onDeleteMembersBatch(niksToDelete, territoryLabel);
     }
 
-    setGridRows((prev) =>
-      prev.map((row) => {
+    setGridRows((prev) => {
+      const updated = prev.map((row) => {
         if (!idSet.has(row.id)) return row;
         return {
           ...row,
@@ -568,8 +903,10 @@ export function useTerritorialMatrix({
           isExisting: false,
           originalNik: undefined,
         };
-      })
-    );
+      });
+      saveCustomMatrixRows(updated);
+      return updated;
+    });
 
     setSaveSuccessMsg(`Berhasil hard delete ${niksToDelete.length} data pengurus dari database!`);
     setTimeout(() => setSaveSuccessMsg(null), 4000);
@@ -583,10 +920,11 @@ export function useTerritorialMatrix({
     ) {
       try {
         localStorage.removeItem(territoryKey);
+        localStorage.removeItem(matrixStorageKey);
       } catch (e) {
         console.warn(e);
       }
-      buildMatrixRows(new Set<string>());
+      buildMatrixRows(new Set<string>(), true);
       setSaveSuccessMsg('Template standar berhasil dipulihkan!');
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     }
@@ -693,6 +1031,7 @@ export function useTerritorialMatrix({
     }
 
     onSaveMembersBatch(updatedMembersList);
+    saveCustomMatrixRows(gridRows);
     setSaveSuccessMsg(
       `Berhasil menyimpan perubahan ${updatedMembersList.length} data pengurus ke database!`
     );
@@ -788,6 +1127,7 @@ export function useTerritorialMatrix({
     setStatusFilter,
     gridRows,
     setGridRows,
+    rawTerritoryMembers,
     showVacantModal,
     setShowVacantModal,
     dpdPimpinanCompliance,
@@ -800,6 +1140,7 @@ export function useTerritorialMatrix({
     buildMatrixRows,
     handleCellChange,
     handleAddNewRow,
+    handleInsertRow,
     handleDeleteRow,
     handleDeleteSelectedRows,
     handleResetTemplate,
