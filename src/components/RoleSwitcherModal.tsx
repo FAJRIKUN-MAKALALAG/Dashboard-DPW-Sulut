@@ -27,6 +27,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
   currentSession,
   onSelectSession,
 }) => {
+  if (!isOpen || currentSession?.role !== 'SUPER_ADMIN') return null;
+
   const [activeTab, setActiveTab] = useState<'DPW' | 'DPD' | 'DPC' | 'DPRT'>('DPW');
 
   // State for DPD role selection
