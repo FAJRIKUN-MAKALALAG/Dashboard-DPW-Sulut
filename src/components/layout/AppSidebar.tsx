@@ -621,14 +621,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 </div>
               </div>
 
-              {/* Role Switcher button (Untuk simulasi / testing oleh admin) */}
-              <button
-                onClick={onOpenRoleModal}
-                className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-                title="Ganti Peran Sesi / Simulasi Role"
-              >
-                Ganti
-              </button>
+              {/* Role Switcher button (Hanya untuk Super Admin) */}
+              {session?.role === 'SUPER_ADMIN' && (
+                <button
+                  onClick={onOpenRoleModal}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-300 transition-colors cursor-pointer shrink-0"
+                  title="Simulasi Peran Sesi (Khusus Super Admin)"
+                >
+                  Simulasi
+                </button>
+              )}
             </div>
           </div>
 

@@ -105,12 +105,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      <RoleSwitcherModal
-        isOpen={modals.isRoleModalOpen}
-        onClose={() => modals.setIsRoleModalOpen(false)}
-        currentSession={session}
-        onSelectSession={onSelectSession}
-      />
+      {session?.role === 'SUPER_ADMIN' && (
+        <RoleSwitcherModal
+          isOpen={modals.isRoleModalOpen}
+          onClose={() => modals.setIsRoleModalOpen(false)}
+          currentSession={session}
+          onSelectSession={onSelectSession}
+        />
+      )}
 
       <AuditTrailModal
         isOpen={modals.isAuditModalOpen}
