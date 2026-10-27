@@ -1,4 +1,4 @@
-import { supabase } from '../config/database';
+import { apiFetch } from './http';
 import { TerritoryContext, ParsedTerritoryRow } from '../utils/territorialExcelTemplateUtils';
 import { isJobTitleMatch, normalizeSubOrgName } from '../utils/jobMatchingUtils';
 import { getStructureTemplate } from '../data/structureTemplates';
@@ -34,52 +34,138 @@ export interface AiCleaningResult {
   isFallback?: boolean;
 }
 
-const NASDEM_SULUT_TAXONOMY = `
-PANDUAN TAKSONOMI RESMI PARTAI NASDEM SULUT:
-1. 15 DPD KABUPATEN / KOTA BAKU:
-   - Manado, Minahasa, Minahasa Selatan, Minahasa Utara, Minahasa Tenggara,
-   - Tomohon, Bitung, Kotamobagu, Bolaang Mongondow, Bolaang Mongondow Utara,
-   - Bolaang Mongondow Selatan, Bolaang Mongondow Timur,
-   - Kepulauan Sangihe, Kepulauan Talaud, Kepulauan Siau Tagulandang Biaro (Sitaro).
+export interface AiProgressUpdate {
+  current: number;
+  total: number;
+  percentage: number;
+  currentBatch: number;
+  totalBatches: number;
+  currentLabel: string;
+}
 
-2. SUB-ORGANISASI RESMI:
-   - "I. DEWAN PERTIMBANGAN" (atau "DEWAN PERTIMBANGAN WILAYAH" untuk DPW)
-   - "II. DEWAN PAKAR" (atau "DEWAN PAKAR WILAYAH" untuk DPW)
-   - "III. DEWAN PIMPINAN DAERAH" (atau "DEWAN PIMPINAN WILAYAH" untuk DPW, "DEWAN PIMPINAN CABANG" untuk DPC)
-
-3. 36 JABATAN BAKU STRUKTURAL DEWAN PIMPINAN:
-   - Ketua, Sekretaris, Bendahara.
-   - Para Wakil Ketua Bidang: Bappilu, OKK, Kaderisasi & Pendidikan Politik, Hubungan Legislatif, Hubungan Eksekutif, Hubungan Sayap & Badan, Penggalangan Komunitas, Pemilih Pemula/Milenial, Digital & Siber, Media & Komunikasi Publik, UMKM, Ekonomi, Agama & Masyarakat Adat, Tenaga Kerja, Kesehatan, Perempuan & Anak, Pendidikan & Kebudayaan, Hukum & HAM, Pariwisata & Industri Kreatif, Pertanian/Peternakan/Desa, Maritim, Pemuda & Olahraga, Lingkungan Hidup, dll.
-`;
+export type AiProgressCallback = (progress: AiProgressUpdate) => void;
 
 /**
- * Membersihkan dan mengelompokkan data pengurus menggunakan Gemini Flash AI.
- * Mendukung pemanggilan langsung via Gemini API (dengan VITE_GEMINI_API_KEY)
- * atau via Supabase Edge Function, serta dilengkapi Smart Local Engine sebagai fallback.
+ * Membersihkan dan mengelompokkan data pengurus via Backend AI (`/api/ai/clean`).
+ * Jika backend tidak terkonfigurasi Gemini API key atau offline, otomatis fallback ke local normalizer.
  */
 export async function cleanDataWithGeminiAi(
   rawRows: ParsedTerritoryRow[],
-  ctx: TerritoryContext
+  ctx: TerritoryContext,
+  onProgress?: AiProgressCallback
 ): Promise<AiCleaningResult> {
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const CHUNK_SIZE = 75; // Ukuran optimal per batch
 
-  // 1. Eksekusi Langsung via Google Gemini Flash API jika VITE_GEMINI_API_KEY terkonfigurasi
-  if (geminiApiKey && typeof geminiApiKey === 'string' && geminiApiKey.trim() !== '') {
-    try {
-      const directResult = await callDirectGeminiApi(rawRows, ctx, geminiApiKey.trim());
-      if (directResult && directResult.success && directResult.items.length > 0) {
-        return directResult;
-      }
-    } catch (directErr) {
-      console.warn('Direct Gemini API call failed, trying Edge Function:', directErr);
+  if (rawRows.length <= CHUNK_SIZE) {
+    if (onProgress) {
+      onProgress({
+        current: rawRows.length,
+        total: rawRows.length,
+        percentage: 50,
+        currentBatch: 1,
+        totalBatches: 1,
+        currentLabel: `Memproses ${rawRows.length} pengurus via AI...`,
+      });
     }
+
+    const res = await processSingleBatch(rawRows, ctx);
+
+    if (onProgress) {
+      onProgress({
+        current: rawRows.length,
+        total: rawRows.length,
+        percentage: 100,
+        currentBatch: 1,
+        totalBatches: 1,
+        currentLabel: `Selesai memproses ${rawRows.length} pengurus!`,
+      });
+    }
+
+    return res;
   }
 
-  // 2. Coba via Supabase Edge Function 'ai-clean-cluster'
+  // Multi-batch jika data banyak
+  const totalBatches = Math.ceil(rawRows.length / CHUNK_SIZE);
+  const allCleanedItems: AiCleanedItem[] = [];
+
+  let totalPertimbangan = 0;
+  let totalPakar = 0;
+  let totalPimpinan = 0;
+  let totalMatched = 0;
+  let totalCorrected = 0;
+
+  for (let b = 0; b < totalBatches; b++) {
+    const startIdx = b * CHUNK_SIZE;
+    const endIdx = Math.min(startIdx + CHUNK_SIZE, rawRows.length);
+    const batchRows = rawRows.slice(startIdx, endIdx);
+
+    const percent = Math.round((startIdx / rawRows.length) * 100);
+    if (onProgress) {
+      onProgress({
+        current: startIdx,
+        total: rawRows.length,
+        percentage: percent,
+        currentBatch: b + 1,
+        totalBatches,
+        currentLabel: `Memproses Batch ${b + 1} dari ${totalBatches}: baris ${startIdx + 1} - ${endIdx} (${batchRows.length} pengurus)...`,
+      });
+    }
+
+    const batchResult = await processSingleBatch(batchRows, ctx);
+
+    batchResult.items.forEach((item, idx) => {
+      allCleanedItems.push({
+        ...item,
+        no: startIdx + idx + 1,
+      });
+    });
+
+    totalPertimbangan += batchResult.stats.pertimbanganCount;
+    totalPakar += batchResult.stats.pakarCount;
+    totalPimpinan += batchResult.stats.pimpinanCount;
+    totalMatched += batchResult.stats.matchedCount;
+    totalCorrected += batchResult.stats.correctedCount;
+  }
+
+  if (onProgress) {
+    onProgress({
+      current: rawRows.length,
+      total: rawRows.length,
+      percentage: 100,
+      currentBatch: totalBatches,
+      totalBatches,
+      currentLabel: `Berhasil membersihkan seluruh ${rawRows.length} pengurus!`,
+    });
+  }
+
+  return {
+    success: true,
+    items: allCleanedItems,
+    stats: {
+      total: allCleanedItems.length,
+      pertimbanganCount: totalPertimbangan,
+      pakarCount: totalPakar,
+      pimpinanCount: totalPimpinan,
+      matchedCount: totalMatched,
+      correctedCount: totalCorrected,
+    },
+    message: `AI berhasil memproses massal ${allCleanedItems.length} kader pengurus dalam ${totalBatches} batch!`,
+    isFallback: false,
+  };
+}
+
+/**
+ * Memproses 1 batch melalui Backend REST API (/api/ai/clean), fallback ke local engine jika gagal.
+ */
+async function processSingleBatch(
+  batchRows: ParsedTerritoryRow[],
+  ctx: TerritoryContext
+): Promise<AiCleaningResult> {
   try {
-    const { data, error } = await supabase.functions.invoke('ai-clean-cluster', {
+    const res = await apiFetch<AiCleaningResult>('/ai/clean', {
+      method: 'POST',
       body: {
-        rawRows: rawRows.map((r) => ({
+        rawRows: batchRows.map((r) => ({
           no: r.no,
           subOrg: r.subOrg,
           jabatan: r.jabatanExcel,
@@ -93,133 +179,25 @@ export async function cleanDataWithGeminiAi(
       },
     });
 
-    if (!error && data && data.success && Array.isArray(data.items) && data.items.length > 0) {
+    if (res && res.success && Array.isArray(res.items) && res.items.length > 0) {
       return {
         success: true,
-        items: data.items,
-        stats: data.stats,
-        message: data.message || 'Data berhasil dibersihkan dan di-cluster dengan Gemini AI!',
+        items: res.items,
+        stats: res.stats,
+        message: res.message,
         isFallback: false,
       };
     }
-  } catch (edgeErr) {
-    console.warn('Edge Function invoke failed, switching to local engine:', edgeErr);
+  } catch (err) {
+    console.warn('Backend AI endpoint call failed or returned error, using local normalizer:', err);
   }
 
-  // 3. Fallback Normalizer Cerdas (Rule-Based Clustering Engine)
-  return fallbackLocalCleaner(rawRows, ctx);
+  // Fallback Normalizer Cerdas Lokal
+  return fallbackLocalCleaner(batchRows, ctx);
 }
 
 /**
- * Pemanggilan langsung Google Gemini Flash API dari browser
- */
-async function callDirectGeminiApi(
-  rawRows: ParsedTerritoryRow[],
-  ctx: TerritoryContext,
-  apiKey: string
-): Promise<AiCleaningResult> {
-  const systemPrompt = `
-Anda adalah AI Spesialis Normalisasi & Clustering Data Kepengurusan Partai NasDem Sulawesi Utara.
-Tugas Anda adalah membaca daftar pengurus dan merapikannya sesuai taksonomi resmi:
-
-${NASDEM_SULUT_TAXONOMY}
-
-ATURAN PENTING:
-1. PISAHKAN DEWAN:
-   - Kata kunci "Pertimbangan" / "Wankar" -> subOrg = "I. DEWAN PERTIMBANGAN", clusterGroup = "WANKAR".
-   - Kata kunci "Pakar" / "Wangan" -> subOrg = "II. DEWAN PAKAR", clusterGroup = "WANGAN".
-   - Sisanya -> subOrg = "III. DEWAN PIMPINAN DAERAH" (atau tingkat wilayah yang sesuai), clusterGroup = "PIMPINAN".
-2. NORMALISASI JABATAN:
-   - Petakan singkatan ke nama jabatan resmi baku (misal "Wkl Ketua Bid OKK" -> "Wakil Ketua Bidang Organisasi, Keanggotaan, dan Kaderisasi (OKK)").
-   - Cocokkan dengan 36 slot baku, set "isMatched": true jika cocok, false jika jabatan kustom.
-3. RAPIKAN NAMA:
-   - Format nama pengurus rapi (huruf besar atau title case profesional), pisahkan gelar jika ada.
-4. KEMBALIKAN HANYA JSON DENGAN FORMAT:
-   {
-     "items": [
-       {
-         "no": 1,
-         "subOrg": "I. DEWAN PERTIMBANGAN",
-         "jabatan": "Ketua",
-         "canonicalJabatan": "Ketua",
-         "isMatched": true,
-         "namaLengkap": "NAMA LENGKAP",
-         "nik": "7105...",
-         "clusterGroup": "WANKAR",
-         "aiCorrection": "Dipisahkan ke Dewan Pertimbangan"
-       }
-     ]
-   }
-`;
-
-  const userPrompt = `
-Wilayah: Tingkat ${ctx.level} - ${ctx.dpd}
-Data Pengurus:
-${JSON.stringify(
-  rawRows.map((r) => ({
-    no: r.no,
-    subOrg: r.subOrg,
-    jabatan: r.jabatanExcel,
-    namaLengkap: r.namaLengkap,
-    nik: r.nik,
-  })),
-  null,
-  2
-)}
-`;
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n' + userPrompt }] }],
-      generationConfig: {
-        response_mime_type: 'application/json',
-        temperature: 0.1,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API Error: ${errText}`);
-  }
-
-  const jsonRes = await res.json();
-  const rawText = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Gemini API mengembalikan respons kosong.');
-
-  const parsed = JSON.parse(rawText);
-  const items: AiCleanedItem[] = parsed.items || parsed.pengurus || (Array.isArray(parsed) ? parsed : []);
-
-  const stats = {
-    total: items.length,
-    pertimbanganCount: items.filter(
-      (i) => (i.subOrg || '').toLowerCase().includes('pertimbangan') || i.clusterGroup === 'WANKAR'
-    ).length,
-    pakarCount: items.filter(
-      (i) => (i.subOrg || '').toLowerCase().includes('pakar') || i.clusterGroup === 'WANGAN'
-    ).length,
-    pimpinanCount: items.filter(
-      (i) => (i.subOrg || '').toLowerCase().includes('pimpinan') || i.clusterGroup === 'PIMPINAN'
-    ).length,
-    matchedCount: items.filter((i) => i.isMatched).length,
-    correctedCount: items.filter((i) => i.aiCorrection).length,
-  };
-
-  return {
-    success: true,
-    items,
-    stats,
-    message: `Gemini AI berhasil membersihkan dan mengelompokkan ${items.length} kader pengurus!`,
-    isFallback: false,
-  };
-}
-
-/**
- * Fallback Normalizer Cerdas jika koneksi AI offline
+ * Fallback Normalizer Cerdas jika koneksi backend AI offline atau key belum diset
  */
 function fallbackLocalCleaner(
   rawRows: ParsedTerritoryRow[],
@@ -251,7 +229,8 @@ function fallbackLocalCleaner(
     if (
       rawSubOrg.includes('pertimbangan') ||
       rawSubOrg.includes('wankar') ||
-      jabatanLower.includes('pertimbangan')
+      jabatanLower.includes('pertimbangan') ||
+      jabatanLower.includes('wankar')
     ) {
       clusterGroup = 'WANKAR';
       targetSubOrg = ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN';
@@ -261,7 +240,8 @@ function fallbackLocalCleaner(
     } else if (
       rawSubOrg.includes('pakar') ||
       rawSubOrg.includes('wangan') ||
-      jabatanLower.includes('pakar')
+      jabatanLower.includes('pakar') ||
+      jabatanLower.includes('wangan')
     ) {
       clusterGroup = 'WANGAN';
       targetSubOrg = ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR';
@@ -272,7 +252,7 @@ function fallbackLocalCleaner(
       pimpinanCount++;
     }
 
-    // 2. Pencocokan Jabatan ke 36 Slot Baku
+    // 2. Pencocokan Jabatan ke Slot Baku
     const matchedSlot = slots.find((s) => isJobTitleMatch(rawJabatan, s.jabatan));
     const isMatched = !!matchedSlot;
     const canonicalJabatan = matchedSlot ? matchedSlot.jabatan : rawJabatan;

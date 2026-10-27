@@ -1,7 +1,9 @@
-import { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '../config/database';
 import { Member, AuditLog, DeletionRequest } from '../types';
-import { mapDbRowToMember, mapDbRowToAuditLog, mapDbRowToDeletionRequest } from './mappers';
+import { isBackendConfigured } from '../config/api';
+import { getToken } from './http';
+import { AuditService } from './auditService';
+import { DeletionRequestService } from './deletionService';
+import { MemberService } from './memberService';
 
 export interface RealtimeCallbacks {
   onMemberChange?: (eventType: 'INSERT' | 'UPDATE' | 'DELETE', member: Member | { nik: string }) => void;
@@ -9,66 +11,92 @@ export interface RealtimeCallbacks {
   onDeletionRequestChange?: (eventType: 'INSERT' | 'UPDATE' | 'DELETE', req: DeletionRequest | { id: string }) => void;
 }
 
+const POLL_INTERVAL_MS = 15000;
+const MAX_MEMBER_REFRESH_PER_TICK = 20;
+const NIK_PATTERN = /^\d{16}$/;
+
 /**
- * Berlangganan (Subscribe) perubahan data Supabase secara Realtime (WebSocket).
- * Setiap ada INSERT / UPDATE / DELETE di database, callback otomatis terpanggil.
+ * Sinkronisasi perubahan data antar pengguna lewat polling ke backend (pengganti WebSocket Supabase).
+ * - Audit log baru -> callback onAuditLogInsert
+ * - Audit log yang menyentuh anggota tertentu -> data anggota tersebut dimuat ulang (INSERT/UPDATE/DELETE)
+ * - Permohonan hapus baru / berubah status -> callback onDeletionRequestChange
+ * Import/penghapusan massal tidak diuraikan per anggota; gunakan tombol "Tarik Data" untuk memuat ulang penuh.
  */
 export function subscribeToAllRealtime(callbacks: RealtimeCallbacks): () => void {
-  if (!supabase) {
+  if (!isBackendConfigured()) {
     return () => {};
   }
 
-  const channel: RealtimeChannel = supabase
-    .channel('nasdem-sulut-realtime-global')
-    // 1. Members Table Changes
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'members' },
-      (payload) => {
-        if (!callbacks.onMemberChange) return;
-        if (payload.eventType === 'DELETE') {
-          const nik = payload.old?.nik;
-          if (nik) callbacks.onMemberChange('DELETE', { nik });
-        } else if (payload.new) {
-          const member = mapDbRowToMember(payload.new);
-          callbacks.onMemberChange(payload.eventType as 'INSERT' | 'UPDATE', member);
-        }
-      }
-    )
-    // 2. Audit Logs Changes
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'audit_logs' },
-      (payload) => {
-        if (!callbacks.onAuditLogInsert) return;
-        if (payload.new) {
-          const log = mapDbRowToAuditLog(payload.new);
-          callbacks.onAuditLogInsert(log);
-        }
-      }
-    )
-    // 3. Deletion Requests Changes
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'deletion_requests' },
-      (payload) => {
-        if (!callbacks.onDeletionRequestChange) return;
-        if (payload.eventType === 'DELETE') {
-          const id = payload.old?.id;
-          if (id) callbacks.onDeletionRequestChange('DELETE', { id });
-        } else if (payload.new) {
-          const req = mapDbRowToDeletionRequest(payload.new);
-          callbacks.onDeletionRequestChange(payload.eventType as 'INSERT' | 'UPDATE', req);
-        }
-      }
-    )
-    .subscribe((status, err) => {
-      if (err) {
-        console.warn('[Realtime Info] Subscription status:', status, err.message);
-      }
+  let stopped = false;
+  let auditPrimed = false;
+  let requestsPrimed = false;
+  const seenAuditIds = new Set<string>();
+  const requestStatus = new Map<string, string>();
+
+  async function pollAudit() {
+    const logs = await AuditService.getRecent();
+    if (!auditPrimed) {
+      logs.forEach((l) => seenAuditIds.add(l.id));
+      auditPrimed = true;
+      return;
+    }
+
+    const fresh = logs.filter((l) => !seenAuditIds.has(l.id)).reverse(); // terlama dulu
+    fresh.forEach((l) => seenAuditIds.add(l.id));
+
+    const touched = new Map<string, string>(); // nik -> action terakhir
+    fresh.forEach((log) => {
+      callbacks.onAuditLogInsert?.(log);
+      if (NIK_PATTERN.test(log.memberNik)) touched.set(log.memberNik, log.action);
     });
 
+    let refreshed = 0;
+    for (const [nik, action] of touched) {
+      if (!callbacks.onMemberChange || refreshed >= MAX_MEMBER_REFRESH_PER_TICK) break;
+      refreshed++;
+      if (action === 'DELETE') {
+        callbacks.onMemberChange('DELETE', { nik });
+        continue;
+      }
+      const member = await MemberService.getByNik(nik);
+      if (member) callbacks.onMemberChange(action === 'CREATE' ? 'INSERT' : 'UPDATE', member);
+      else callbacks.onMemberChange('DELETE', { nik });
+    }
+  }
+
+  async function pollDeletionRequests() {
+    const list = await DeletionRequestService.getAll();
+    if (!requestsPrimed) {
+      list.forEach((r) => requestStatus.set(r.id, r.status));
+      requestsPrimed = true;
+      return;
+    }
+    list.forEach((r) => {
+      const prev = requestStatus.get(r.id);
+      if (prev === undefined) {
+        callbacks.onDeletionRequestChange?.('INSERT', r);
+      } else if (prev !== r.status) {
+        callbacks.onDeletionRequestChange?.('UPDATE', r);
+      }
+      requestStatus.set(r.id, r.status);
+    });
+  }
+
+  async function tick() {
+    if (stopped || document.hidden || !getToken()) return;
+    try {
+      await pollAudit();
+      await pollDeletionRequests();
+    } catch (err) {
+      console.warn('[Sync] Polling backend gagal:', err);
+    }
+  }
+
+  const timer = window.setInterval(tick, POLL_INTERVAL_MS);
+  tick();
+
   return () => {
-    supabase?.removeChannel(channel);
+    stopped = true;
+    window.clearInterval(timer);
   };
 }

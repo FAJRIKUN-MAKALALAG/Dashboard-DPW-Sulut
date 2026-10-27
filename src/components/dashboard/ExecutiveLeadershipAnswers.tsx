@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Member } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Member, UserSession } from '../../types';
 import {
   computeStructureReadiness,
   computeDpcReadinessForDpd,
   TerritoryReadiness,
   getMemberSubOrgCategory,
+  isDpdMatch,
 } from '../../utils/structureReadinessUtils';
 import {
   CheckCircle2,
@@ -24,12 +25,14 @@ import {
 
 interface ExecutiveLeadershipAnswersProps {
   members: Member[];
+  session?: UserSession;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 
 export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProps> = ({
   members,
+  session,
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
@@ -37,8 +40,16 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
   const [filterTab, setFilterTab] = useState<'ALL' | 'LENGKAP' | 'SEBAGIAN' | 'KOSONG'>('ALL');
   const [expandedDpd, setExpandedDpd] = useState<string | null>(null);
 
+  const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+  const scopedDpdList = useMemo(() => {
+    if (isRegionalScoped && session.dpdAccess && session.dpdAccess !== 'ALL') {
+      return readinessSummary.dpdList.filter((dpd) => isDpdMatch(dpd.name, session.dpdAccess));
+    }
+    return readinessSummary.dpdList;
+  }, [readinessSummary.dpdList, isRegionalScoped, session]);
+
   // Filtered DPD list based on active tab
-  const filteredDpds = readinessSummary.dpdList.filter((dpd) => {
+  const filteredDpds = scopedDpdList.filter((dpd) => {
     if (filterTab === 'ALL') return true;
     return dpd.status === filterTab;
   });
@@ -58,7 +69,9 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
               Pemetaan Keterisian Wilayah
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="text-xs text-slate-500 font-mono">Sulawesi Utara</span>
+            <span className="text-xs text-slate-500 font-mono">
+              {isRegionalScoped ? `Wilayah ${session.dpdAccess}` : 'Sulawesi Utara'}
+            </span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
             Struktur Keanggotaan dan pengurus
@@ -352,12 +365,12 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
                   {dpd.status === 'LENGKAP' ? (
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       Semua 36 jabatan terisi lengkap
                     </span>
                   ) : dpd.status === 'SEBAGIAN' ? (
                     <span>
-                      Masih kosong <strong className="text-amber-600 dark:text-amber-400">{dpd.totalEmpty}</strong> jabatan
+                      Terisi {dpd.totalFilled}/36 (Masih kosong <strong className="text-amber-600 dark:text-amber-400">{dpd.totalEmpty}</strong> jabatan)
                     </span>
                   ) : (
                     <span className="text-rose-600 dark:text-rose-400 italic">
@@ -365,6 +378,36 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
                     </span>
                   )}
                 </div>
+
+                {/* Daftar Jabatan Belum Terisi (Langsung Terlihat Tanpa Perlu Buka DPD) */}
+                {dpd.missingPositions && dpd.missingPositions.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>Jabatan Belum Terisi ({dpd.missingPositions.length}):</span>
+                      </span>
+                    </div>
+                    <div className="space-y-1 max-h-32 overflow-y-auto pr-0.5">
+                      {dpd.missingPositions.map((pos, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-1.5 rounded bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/60 text-[11px]"
+                        >
+                          <span
+                            className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1"
+                            title={pos}
+                          >
+                            {pos}
+                          </span>
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0 ml-1">
+                            ⚡ Lowong
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Buttons: Matriks Tabel & Drilldown DPC */}
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">

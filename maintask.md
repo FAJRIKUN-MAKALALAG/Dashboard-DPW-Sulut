@@ -31,3 +31,18 @@ struktur kepengurusan ganti menjadi stuktur DPW.
 di dashboard tingkat keaktifan ketika di klik siapa-siapa saja dan dimana saja di dpw
 
 untuk bagian kepengurusan atau jabatan, walaupun mereka berada di dprt mereka masing masing karena sinkronisasi menggunakan ktp dan akan terdaftar di dprt desa alamat ktpnya, akan tetapi akan keliatan jabatannya itu apa dan di mana dia menjabat, apakah dia pengurus dpw, dpd, dpc, dprt, atau kabupaten/kota. tapi susunan semua anggota tetap rapih berada di dprt mereka masing masing karena sinkronisasi alamat menggunakan ktp.
+
+
+
+┌────────────────────────────────┬─────────────┬───────────┬───────────┬─────────────┐
+│ Fitur & Akses                  │ Super Admin │ Admin DPD │ Admin DPC │ Pengurus SK │
+├────────────────────────────────┼─────────────┼───────────┼───────────┼─────────────┤
+│ Pantau Dashboard 15 Kab/Kota   │     ✅      │    ❌     │    ❌     │     ❌      │
+│ Pantau Dashboard Wilayah Sendiri│    ✅      │    ✅     │    ✅     │     ❌      │
+│ Tambah Anggota Baru            │     ✅      │    ✅     │    ✅     │  ✅ (Wajib SK)
+│ Edit Profil & Cetak e-KTA      │     ✅      │  Wilayah  │  Wilayah  │ Diri Sendiri│
+│ Ajukan Hapus Data (Soft-delete)│     ✅      │    ✅     │    ✅     │     ❌      │
+│ Setujui / Tolak Hapus Data     │     ✅      │    ❌     │    ❌     │     ❌      │
+│ Sinkronisasi ID & Import Massal│     ✅      │    ❌     │    ❌     │     ❌      │
+│ Riwayat Audit Sistem           │   Semua     │  Wilayah  │  Wilayah  │     ❌      │
+└────────────────────────────────┴─────────────┴───────────┴───────────┴─────────────┘

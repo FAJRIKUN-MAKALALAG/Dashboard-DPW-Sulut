@@ -45,16 +45,18 @@ export function normalizeJobTitle(title?: string): string {
 
   // Normalisasi Tingkat / Hirarki Jabatan (Paling awal dicek)
   str = str
-    .replace(/\b(waka|wakil ketua|wkl ketua|wkl\s*ketua|wakil\s*ktua)\b/g, 'wakil_ketua')
-    .replace(/\b(wasek|wakil sekretaris|wkl sekretaris|wkl\s*sekretaris)\b/g, 'wakil_sekretaris')
-    .replace(/\b(wabendum|wakil bendahara|wkl bendahara|wkl\s*bendahara)\b/g, 'wakil_bendahara')
+    .replace(/\b(waka|waket|wakil ketua|wkl ketua|wkl\s*ketua|wk\s*ketua|wakil\s*ktua)\b/g, 'wakil_ketua')
+    .replace(/\b(wasek|wakil sekretaris|wakil sekertaris|wkl sekretaris|wkl\s*sekretaris|wk\s*sekretaris)\b/g, 'wakil_sekretaris')
+    .replace(/\b(wabendum|wabend|wakil bendahara|wkl bendahara|wkl\s*bendahara|wk\s*bendahara)\b/g, 'wakil_bendahara')
+    .replace(/\b(sekertaris)\b/g, 'sekretaris')
     .replace(/\b(wanhat|wantim|dewan pertimbangan)\b/g, 'dewan_pertimbangan')
     .replace(/\b(wanpak|dewan pakar)\b/g, 'dewan_pakar');
 
-  // Normalisasi Kata Sambung & Singkatan Umum
+  // Normalisasi Kata Sambung & Singkatan Umum Bidang
   str = str
-    .replace(/\b(bidang|bid|bag|bagian|divisi|seksi)\b/g, ' ')
+    .replace(/\b(bidang|bid|bdg|bag|bagian|divisi|div|seksi|seks)\b/g, ' ')
     .replace(/&/g, ' dan ')
+    .replace(/\bmasyakarat\b/g, 'masyarakat')
     .replace(/\b(dan|masyarakat|pada|untuk|di|ke)\b/g, ' ');
 
   // Normalisasi Istilah Khusus Partai NasDem
@@ -62,11 +64,10 @@ export function normalizeJobTitle(title?: string): string {
     .replace(/\bumkm\b/g, 'usaha mikro kecil menengah')
     .replace(/\bham\b/g, 'hak asasi manusia')
     .replace(/\bokk\b/g, 'organisasi keanggotaan kaderisasi')
-    .replace(/\bbappilu\b/g, 'pemenangan pemilu')
+    .replace(/\b(bappilu|bapilu)\b/g, 'pemenangan pemilu')
     .replace(/\blitbang\b/g, 'penelitian pengembangan')
-    .replace(/\bekraf\b/g, 'industri kreatif')
-    .replace(/\bpekerja migran indonesia\b/g, 'migran')
-    .replace(/\bmigrasi\b/g, 'migran')
+    .replace(/\b(ekraf|industri kreatif|ekonomi kreatif)\b/g, 'industri kreatif')
+    .replace(/\b(pekerja migran indonesia|pekerja migran|migrasi|pmi)\b/g, 'migran')
     .replace(/\b(hub|hubungan)\b/g, 'hubungan')
     .replace(/\b(pariwisata)\b/g, 'pariwisata')
     .replace(/\b(desa)\b/g, 'desa')
@@ -97,7 +98,7 @@ export function stripOrgAffixes(title: string): string {
 
 /**
  * 3. Ekstraksi Kata Kunci Topik (Domain Signature)
- * Memetakan jabatan ke signature unik (contoh: "wakil_ketua__hukum_ham")
+ * Memetakan jabatan ke signature unik (contoh: "wakil_ketua__pendidikan_kebudayaan")
  */
 export function getJobDomainSignature(normalized: string): string {
   // Level Prefix
@@ -109,50 +110,41 @@ export function getJobDomainSignature(normalized: string): string {
   else if (normalized.startsWith('wakil_bendahara')) level = 'wakil_bendahara';
   else if (normalized.startsWith('bendahara')) level = 'bendahara';
 
-  // Domain / Pokok Tugas Khusus
-  const domains = [
-    { key: 'hukum_ham', words: ['hukum', 'hak asasi manusia'] },
-    { key: 'pemilu', words: ['pemenangan pemilu', 'pemilihan umum', 'pemilu'] },
-    { key: 'organisasi_kaderisasi', words: ['organisasi', 'kaderisasi', 'keanggotaan'] },
-    { key: 'legislatif', words: ['legislatif'] },
-    { key: 'eksekutif', words: ['eksekutif'] },
-    { key: 'sayap_badan', words: ['sayap', 'badan'] },
-    { key: 'penggalangan_komunitas', words: ['penggalangan', 'komunitas'] },
-    { key: 'pemilih_pemula_milenial', words: ['pemilih pemula', 'milenial', 'pemula'] },
-    { key: 'digital_siber', words: ['digital', 'siber'] },
-    { key: 'media_komunikasi', words: ['media', 'komunikasi'] },
-    { key: 'umkm', words: ['usaha mikro', 'umkm', 'menengah'] },
-    { key: 'ekonomi', words: ['ekonomi'] },
-    { key: 'agama_adat', words: ['agama', 'adat'] },
-    { key: 'tenaga_kerja', words: ['tenaga kerja', 'buruh'] },
-    { key: 'kesehatan', words: ['kesehatan'] },
-    { key: 'perempuan_anak', words: ['perempuan', 'anak', 'wanita'] },
-    { key: 'pendidikan_kebudayaan', words: ['pendidikan', 'kebudayaan'] },
-    { key: 'pariwisata_ekraf', words: ['pariwisata', 'kreatif', 'ekraf'] },
-    { key: 'maritim', words: ['maritim', 'kelautan'] },
-    { key: 'pemuda_olahraga', words: ['pemuda', 'olahraga'] },
-    { key: 'pertanian_peternakan', words: ['pertanian', 'peternakan', 'desa'] },
-    { key: 'lingkungan_hidup', words: ['lingkungan hidup', 'lingkungan'] },
-    { key: 'energi_mineral', words: ['energi', 'mineral'] },
-    { key: 'kehutanan_agraria', words: ['kehutanan', 'agraria', 'tata ruang'] },
-    { key: 'migran', words: ['migran', 'migrasi'] },
-    { key: 'pembangunan_infrastruktur', words: ['pembangunan', 'infrastruktur'] },
-    { key: 'kebijakan_publik', words: ['kebijakan publik', 'isu strategis', 'strategis'] },
-    { key: 'ideologi_kaderisasi', words: ['ideologi', 'kaderisasi'] },
-    { key: 'umum_administrasi', words: ['umum', 'administrasi'] },
-    { key: 'dana_aset', words: ['pengelolaan dana', 'aset', 'dana'] },
-    { key: 'penggalangan_dana', words: ['penggalangan dana'] },
-  ];
+  // Domain terinci dengan prioritas kata majemuk & spesifik terlebih dahulu
+  if (normalized.includes('hukum') || normalized.includes('hak asasi manusia')) return `${level}__hukum_ham`;
+  if (normalized.includes('pemenangan pemilu') || normalized.includes('pemilihan umum') || normalized.includes('pemilu')) return `${level}__pemilu`;
+  if (normalized.includes('pendidikan politik') || (normalized.includes('kaderisasi') && !normalized.includes('ideologi') && !normalized.includes('keanggotaan'))) return `${level}__kaderisasi_politik`;
+  if (normalized.includes('ideologi')) return `${level}__ideologi_kaderisasi`;
+  if (normalized.includes('kebudayaan') || (normalized.includes('pendidikan') && !normalized.includes('politik'))) return `${level}__pendidikan_kebudayaan`;
+  if (normalized.includes('organisasi') || normalized.includes('keanggotaan')) return `${level}__organisasi_keanggotaan`;
+  if (normalized.includes('legislatif')) return `${level}__legislatif`;
+  if (normalized.includes('eksekutif')) return `${level}__eksekutif`;
+  if (normalized.includes('sayap') || normalized.includes('badan')) return `${level}__sayap_badan`;
+  if (normalized.includes('penggalangan komunitas') || (normalized.includes('penggalangan') && normalized.includes('komunitas')) || normalized.includes('penggerak komunitas')) return `${level}__penggalangan_komunitas`;
+  if (normalized.includes('pemilih pemula') || normalized.includes('milenial') || normalized.includes('pemula')) return `${level}__pemilih_pemula_milenial`;
+  if (normalized.includes('digital') || normalized.includes('siber')) return `${level}__digital_siber`;
+  if (normalized.includes('media') || normalized.includes('komunikasi publik') || normalized.includes('komunikasi')) return `${level}__media_komunikasi`;
+  if (normalized.includes('usaha mikro') || normalized.includes('menengah')) return `${level}__umkm`;
+  if (normalized.includes('ekonomi')) return `${level}__ekonomi`;
+  if (normalized.includes('agama') || normalized.includes('adat')) return `${level}__agama_adat`;
+  if (normalized.includes('tenaga kerja') || normalized.includes('buruh') || normalized.includes('naker')) return `${level}__tenaga_kerja`;
+  if (normalized.includes('kesehatan')) return `${level}__kesehatan`;
+  if (normalized.includes('perempuan') || normalized.includes('anak') || normalized.includes('wanita')) return `${level}__perempuan_anak`;
+  if (normalized.includes('pariwisata') || normalized.includes('kreatif')) return `${level}__pariwisata_ekraf`;
+  if (normalized.includes('maritim') || normalized.includes('kelautan')) return `${level}__maritim`;
+  if (normalized.includes('pemuda') || normalized.includes('olahraga')) return `${level}__pemuda_olahraga`;
+  if (normalized.includes('pertanian') || normalized.includes('peternakan') || normalized.includes('kemandirian desa')) return `${level}__pertanian_peternakan`;
+  if (normalized.includes('lingkungan hidup') || normalized.includes('lingkungan')) return `${level}__lingkungan_hidup`;
+  if (normalized.includes('energi') || normalized.includes('mineral')) return `${level}__energi_mineral`;
+  if (normalized.includes('kehutanan') || normalized.includes('agraria') || normalized.includes('tata ruang')) return `${level}__kehutanan_agraria`;
+  if (normalized.includes('migran')) return `${level}__migran`;
+  if (normalized.includes('pembangunan') || normalized.includes('infrastruktur')) return `${level}__pembangunan_infrastruktur`;
+  if (normalized.includes('kebijakan publik') || normalized.includes('isu strategis') || normalized.includes('strategis')) return `${level}__kebijakan_publik`;
+  if (normalized.includes('umum') || normalized.includes('administrasi')) return `${level}__umum_administrasi`;
+  if (normalized.includes('pengelolaan dana') || normalized.includes('aset')) return `${level}__dana_aset`;
+  if (normalized.includes('penggalangan dana')) return `${level}__penggalangan_dana`;
 
-  let foundDomain = 'umum';
-  for (const d of domains) {
-    if (d.words.some((w) => normalized.includes(w))) {
-      foundDomain = d.key;
-      break;
-    }
-  }
-
-  return `${level}__${foundDomain}`;
+  return `${level}__umum`;
 }
 
 /**
@@ -171,6 +163,13 @@ export function isJobTitleMatch(
 
   // 1. Exact Match setelah normalisasi singkatan
   if (nMem === nTpl) return true;
+
+  // Aturan Mutlak: Jangan pernah mencocokkan jabatan Pokok (Ketua/Sekretaris/Bendahara) dengan Wakil
+  const isMemWakil = nMem.includes('wakil') || memberTitle.toLowerCase().includes('wakil');
+  const isTplWakil = nTpl.includes('wakil') || templateTitle.toLowerCase().includes('wakil');
+  if (isMemWakil !== isTplWakil) {
+    return false;
+  }
 
   // 2. Strip Affixes Match (misal: "Ketua DPD" <===> "Ketua", "Sekretaris DPC" <===> "Sekretaris", "Ketua Dewan Pertimbangan Daerah" <===> "Ketua")
   const sMem = stripOrgAffixes(memberTitle);
@@ -322,19 +321,19 @@ export function normalizeSubOrgName(
 ): string {
   const str = (rawSubOrg || '').toLowerCase().trim();
   if (level === 'DPW') {
-    if (str.includes('pertimbangan')) return 'DEWAN PERTIMBANGAN WILAYAH';
-    if (str.includes('pakar')) return 'DEWAN PAKAR WILAYAH';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'DEWAN PERTIMBANGAN WILAYAH';
+    if (str.includes('pakar') || str.includes('wangan')) return 'DEWAN PAKAR WILAYAH';
     return 'DEWAN PIMPINAN WILAYAH';
   } else if (level === 'DPC') {
-    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
-    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar') || str.includes('wangan')) return 'II. DEWAN PAKAR';
     return 'III. DEWAN PIMPINAN CABANG';
   } else if (level === 'DPRt') {
     return 'DEWAN PIMPINAN RANTING';
   } else {
     // DPD
-    if (str.includes('pertimbangan')) return 'I. DEWAN PERTIMBANGAN';
-    if (str.includes('pakar')) return 'II. DEWAN PAKAR';
+    if (str.includes('pertimbangan') || str.includes('wankar')) return 'I. DEWAN PERTIMBANGAN';
+    if (str.includes('pakar') || str.includes('wangan')) return 'II. DEWAN PAKAR';
     return 'III. DEWAN PIMPINAN DAERAH';
   }
 }
@@ -355,4 +354,71 @@ export function getCouncilRank(jabatan?: string): number {
   if (j.includes('anggota')) return 7;
   return 10;
 }
+
+/**
+ * Menentukan urutan hierarki jabatan Dewan Pimpinan (DPW / DPD / DPC / DPRt)
+ * Mengikuti urutan resmi template: Ketua (1) -> Para Wakil Ketua (2..28) -> Sekretaris (29) -> Para Wakil Sekretaris (30..33) -> Bendahara (34) -> Para Wakil Bendahara (35..36) -> Lainnya.
+ */
+export function getPimpinanRank(jabatan?: string, slots?: PositionSlot[]): number {
+  if (!jabatan) return 999;
+  const j = jabatan.toLowerCase().trim();
+
+  // 1. Cek kecocokan dengan slot template resmi jika tersedia
+  if (slots && slots.length > 0) {
+    const matched = slots.find((s) => isJobTitleMatch(jabatan, s.jabatan, s.subOrg));
+    if (matched) {
+      return matched.no * 10;
+    }
+  }
+
+  // 2. Fallback hierarki berbasis kata kunci jabatan
+  if (j === 'ketua' || (j.startsWith('ketua') && !j.includes('wakil'))) return 10;
+  if (j.includes('wakil ketua')) return 285; // Di kelompok wakil ketua
+  if (j === 'sekretaris' || (j.startsWith('sekretaris') && !j.includes('wakil'))) return 290;
+  if (j.includes('wakil sekretaris')) return 335; // Di kelompok wakil sekretaris
+  if (j === 'bendahara' || (j.startsWith('bendahara') && !j.includes('wakil'))) return 340;
+  if (j.includes('wakil bendahara')) return 365; // Di kelompok wakil bendahara
+  if (j.includes('koordinator') || j.includes('ketua bidang') || j.includes('kepala')) return 400;
+  if (j.includes('anggota') || j.includes('pengurus')) return 500;
+  return 600;
+}
+
+/**
+ * Memeriksa apakah jabatan adalah Ketua Definitif (Ketua DPW, Ketua DPD, Ketua DPC, atau Ketua DPRt).
+ * Menolak tegas segala bentuk 'Wakil Ketua'.
+ */
+export function isDefinitiveLeader(jabatan?: string): boolean {
+  if (!jabatan) return false;
+  const j = jabatan.toLowerCase().trim();
+  return (j === 'ketua' || j.startsWith('ketua ') || j.endsWith(' ketua')) && !j.includes('wakil');
+}
+
+/**
+ * Mengembalikan peringkat urutan hierarki untuk pengurus.
+ * Ketua Definitif (Ketua DPW / DPD / DPC / DPRt) SELALU MENDAPATKAN NOMOR 1.
+ */
+export function getHierarchicalRank(member: Member): number {
+  if (isDefinitiveLeader(member.jabatan)) {
+    return 1;
+  }
+  if (typeof member.urutan === 'number' && member.urutan > 0) {
+    return member.urutan === 1 ? 2 : member.urutan;
+  }
+  return getPimpinanRank(member.jabatan);
+}
+
+/**
+ * Mengurutkan daftar pengurus secara hierarkis:
+ * Ketua Definitif selalu berada di posisi teratas (#1), diikuti pengurus lainnya secara berurutan.
+ */
+export function sortMembersByHierarchy(membersList: Member[]): Member[] {
+  return [...membersList].sort((a, b) => {
+    const rankA = getHierarchicalRank(a);
+    const rankB = getHierarchicalRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.namaLengkap || '').localeCompare(b.namaLengkap || '');
+  });
+}
+
+
 

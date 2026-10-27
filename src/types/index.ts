@@ -5,6 +5,7 @@ export type MemberStatus =
   | 'Non-Aktif (Pindah Domisili)';
 
 export interface Member {
+  id?: string; // Primary key penugasan unik (e.g. NIK_TINGKAT_DPC)
   nik: string; // 16 digit unique
   nomorEKTA: string; // e.g. KT-7101-2024-XXXX or ND-71XX-2024-XXXX
   namaLengkap: string;
@@ -31,7 +32,7 @@ export interface Member {
   diubahOleh?: string;
   fotoProfilUrl?: string; // Base64 data URL or photo URL
   fotoKtpUrl?: string; // Base64 data URL or KTP card scan
-  jenisKelamin?: 'Laki-laki' | 'Perempuan';
+  jenisKelamin?: 'Laki-laki' | 'Perempuan' | '-' | string;
   tempatLahir?: string;
   tanggalLahir?: string;
   alamatLengkap?: string;
@@ -45,6 +46,28 @@ export interface Member {
   kaderPerekrutJabatan?: string;
   kaderPerekrutDpd?: string;
   kaderPerekrutKodeReferral?: string;
+  // Atribusi Ketua Langsung (Hierarkis berdasarkan struktur organisasi)
+  ketuaLangsungNik?: string;
+  ketuaLangsungNama?: string;
+  ketuaLangsungJabatan?: string;
+  ketuaLangsungTingkat?: string;
+  // Urutan tampil dalam matriks (sesuai urutan baris berkas Excel saat import)
+  urutan?: number;
+  // Daftar jabatan struktural yang diemban kader (1 orang bisa menduduki >1 jabatan)
+  positions?: MemberPosition[];
+}
+
+export interface MemberPosition {
+  id: string;
+  tingkatKepengurusan: 'DPW' | 'DPD' | 'DPC' | 'DPRt';
+  dpd: string;
+  dpc?: string;
+  dprt?: string;
+  wilayahPenugasan?: string;
+  jabatan?: string;
+  nomorSK?: string;
+  tanggalSK?: string;
+  urutan?: number;
 }
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
@@ -121,3 +144,64 @@ export interface SulutRegion {
     villages: string[];
   }[];
 }
+
+// ---------------- Fitur Kode Referral & Tracking ----------------
+export interface DirectLeaderInfo {
+  nik: string;
+  nama: string;
+  jabatan: string;
+  tingkat: string;
+  kodeReferral?: string;
+}
+
+export interface ReferralValidationResult {
+  valid: boolean;
+  error?: string;
+  recruiter?: {
+    nik: string;
+    namaLengkap: string;
+    jabatan: string;
+    tingkatKepengurusan: string;
+    dpd: string;
+    dpc: string;
+    dprt: string;
+    kodeReferral: string;
+  };
+  directLeader?: DirectLeaderInfo;
+}
+
+export interface MyReferralProfile {
+  isMemberLinked: boolean;
+  kodeReferral: string;
+  namaLengkap: string;
+  nik: string;
+  nomorEkta?: string;
+  jabatan: string;
+  tingkatKepengurusan: string;
+  dpd: string;
+  dpc: string;
+  dprt: string;
+  ketuaLangsung: DirectLeaderInfo | null;
+  totalRecruits: number;
+}
+
+export interface ReferralLeaderboardEntry {
+  nama: string;
+  jabatan: string;
+  kodeReferral: string;
+  dpd: string;
+  totalRekrut: number;
+}
+
+export interface ReferralTrackingData {
+  myStats: {
+    kodeReferral: string;
+    totalDirect: number;
+    totalTeam: number;
+    isLeader: boolean;
+  };
+  myRecruits: Member[];
+  teamRecruits: Member[];
+  leaderboard: ReferralLeaderboardEntry[];
+}
+

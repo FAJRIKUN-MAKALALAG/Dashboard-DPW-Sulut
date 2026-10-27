@@ -22,18 +22,18 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden print:static print:bg-white print:p-0 print:overflow-visible print:w-full print:h-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        className="no-print fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-lg sm:max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 print:static print:pl-0 print:w-full print:justify-center">
+        <div className="w-screen max-w-lg sm:max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right print:w-full print:max-w-none print:shadow-none print:border-none print:bg-white">
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+          <div className="no-print flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
@@ -159,7 +159,7 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
           </div>
 
           {/* Operational Details below card */}
-          <div className="w-full mt-5 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+          <div className="no-print w-full mt-5 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
             <div className="flex justify-between text-slate-500 dark:text-slate-400">
               <span>Tanggal Registrasi Awal:</span>
               <span className="text-slate-900 dark:text-white font-mono font-medium">{member.tanggalBergabung}</span>
@@ -186,7 +186,7 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
         </div>
 
         {/* Actions Footer */}
-        <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
+        <div className="no-print shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
           <button
             onClick={handlePrint}
             className="btn-white flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"

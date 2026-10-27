@@ -13,8 +13,7 @@ import {
   DashboardHeader,
   DashboardScopeFilter,
   ExecutiveKpiCards,
-  ExecutiveLeadershipAnswers,
-  StructureReadinessGrid,
+  UnifiedTerritorialReadiness,
   RecruitmentAnalyticsSection,
   ExecutiveOperationalNote,
 } from './dashboard';
@@ -35,6 +34,7 @@ interface ExecutiveDashboardProps {
   onOpenDownloadTemplate?: () => void;
   onRefreshCloud?: () => Promise<void> | void;
   isRefreshingCloud?: boolean;
+  onOpenReferralHub?: () => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -49,6 +49,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   onOpenDownloadTemplate,
   onRefreshCloud,
   isRefreshingCloud = false,
+  onOpenReferralHub,
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
@@ -122,8 +123,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Compute Real Structural Completeness KPI (DPW, DPD, DPC, DPRt templates)
   const structureKpi = useMemo(() => {
-    return computeStructureKpiStats(members, selectedDpdFilter);
-  }, [members, selectedDpdFilter]);
+    const activeDpd =
+      session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW'
+        ? session.dpdAccess
+        : selectedDpdFilter;
+    return computeStructureKpiStats(members, activeDpd);
+  }, [members, selectedDpdFilter, session]);
 
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
@@ -183,6 +188,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenDownloadTemplate={onOpenDownloadTemplate}
         onRefreshCloud={onRefreshCloud}
         isRefreshingCloud={isRefreshingCloud}
+        onOpenReferralHub={onOpenReferralHub}
       />
 
       {/* 2. Scope & Territory Filter */}
@@ -223,20 +229,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
-      {/* 4. Executive Leadership Answers (Menjawab Pertanyaan Pimpinan DPW: Daerah Lengkap vs Belum) */}
-      <ExecutiveLeadershipAnswers
+      {/* 4. Kesiapan Struktur & Teritorial Organisasi 15 Kab/Kota (Terpadu & Micro-Page Detail) */}
+      <UnifiedTerritorialReadiness
         members={members}
+        session={session}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         onOpenStructureModal={handleOpenStructureModal}
       />
 
-      {/* 5. Status Struktur Kepengurusan 15 Kab/Kota */}
-      <StructureReadinessGrid
-        members={members}
-        onOpenStructureModal={(dpdName) => handleOpenStructureModal(dpdName, 'ALL')}
-        onOpenAllStructureModal={() => handleOpenStructureModal('ALL', 'ALL')}
-        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-      />
 
       {/* 6. Cadre-Driven Recruitment Analytics */}
       <RecruitmentAnalyticsSection

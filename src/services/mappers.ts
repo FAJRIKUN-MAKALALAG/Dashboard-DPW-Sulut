@@ -109,6 +109,7 @@ export function mapDbRowToMember(row: any): Member {
   }
 
   return {
+    id: row.id || undefined,
     nik: String(row.nik || ''),
     nomorEKTA: row.nomor_ekta || '',
     namaLengkap: row.nama_lengkap || '',
@@ -143,11 +144,18 @@ export function mapDbRowToMember(row: any): Member {
     kaderPerekrutNik: row.kader_perekrut_nik || undefined,
     kaderPerekrutEkta: row.kader_perekrut_ekta || undefined,
     kaderPerekrutJabatan: row.kader_perekrut_jabatan || undefined,
+    kaderPerekrutKodeReferral: row.kader_perekrut_kode_referral || undefined,
+    ketuaLangsungNik: row.ketua_langsung_nik || undefined,
+    ketuaLangsungNama: row.ketua_langsung_nama || undefined,
+    ketuaLangsungJabatan: row.ketua_langsung_jabatan || undefined,
+    ketuaLangsungTingkat: row.ketua_langsung_tingkat || undefined,
+    urutan: row.urutan !== undefined && row.urutan !== null ? Number(row.urutan) : undefined,
   };
 }
 
 export function mapMemberToDbPayload(m: Member): any {
-  return {
+  const payload: any = {
+    id: m.id || undefined,
     nik: String(m.nik).trim(),
     nomor_ekta: m.nomorEKTA?.trim() || null,
     nama_lengkap: m.namaLengkap.trim(),
@@ -182,7 +190,15 @@ export function mapMemberToDbPayload(m: Member): any {
     kader_perekrut_nik: m.kaderPerekrutNik?.trim() || null,
     kader_perekrut_ekta: m.kaderPerekrutEkta?.trim() || null,
     kader_perekrut_jabatan: m.kaderPerekrutJabatan?.trim() || null,
+    kader_perekrut_kode_referral: m.kaderPerekrutKodeReferral?.trim() || null,
+    ketua_langsung_nik: m.ketuaLangsungNik?.trim() || null,
+    ketua_langsung_nama: m.ketuaLangsungNama?.trim() || null,
+    ketua_langsung_jabatan: m.ketuaLangsungJabatan?.trim() || null,
+    ketua_langsung_tingkat: m.ketuaLangsungTingkat?.trim() || null,
   };
+  // Hanya dikirim bila ada nilainya (kolom urutan opsional, tidak menimpa data lama)
+  if (m.urutan !== undefined && m.urutan !== null) payload.urutan = m.urutan;
+  return payload;
 }
 
 export function mapDbRowToAuditLog(row: any): AuditLog {

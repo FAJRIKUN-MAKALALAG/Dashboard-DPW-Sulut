@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Member, MemberStatus } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch } from '../utils/structureReadinessUtils';
-import { getMembersFromSupabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { getMembersFromApi as getMembersFromSupabase, isBackendConfigured as isSupabaseConfigured } from '../utils/backendClient';
 import { loadMembers, saveMembers } from '../utils/storage';
 import {
   exportMembersToExcel,
@@ -199,16 +199,16 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden print:static print:overflow-visible print:bg-white print:p-0 print:w-full print:h-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+        className="no-print fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
         onClick={onClose}
       />
 
       {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <div className="w-screen max-w-4xl sm:max-w-5xl lg:max-w-6xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10 print:static print:pl-0 print:w-full print:h-auto print:block">
+        <div className="w-screen max-w-4xl sm:max-w-5xl lg:max-w-6xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right print:w-full print:max-w-none print:shadow-none print:border-none print:bg-white print:h-auto print:static">
           {/* Controls Bar (Hidden during print) */}
           <div className="no-print flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 gap-3 sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-3">
@@ -617,23 +617,12 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                   <p className="font-bold">SEKRETARIS DPW PARTAI NASDEM SULUT</p>
                 </div>
                 <div>
-                  <p className="font-bold underline text-sm text-slate-950">Dr. Ir. GS Vicky Lumentut, SH, M.Si</p>
-                  <p className="text-[11px] text-slate-600 font-mono">No. e-KTA: ND-7100-2024-0002</p>
+                  <p className="font-bold underline text-sm text-slate-950">---</p>
+                  <p className="text-[11px] text-slate-600 font-mono">---</p>
                 </div>
               </div>
 
-              <div className="text-center w-52 flex flex-col items-center justify-center">
-                <div className="relative w-28 h-28 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full border-2 border-blue-800 p-0.5 flex items-center justify-center">
-                    <div className="w-full h-full rounded-full border border-dashed border-blue-800 flex flex-col items-center justify-center text-blue-900 p-1 text-center select-none rotate-[-6deg]">
-                      <span className="text-[8px] font-black uppercase tracking-wider">★ RESMI ★</span>
-                      <span className="text-[9px] font-black uppercase leading-tight">DPW PARTAI NASDEM</span>
-                      <span className="text-[7.5px] font-bold text-amber-700">SULAWESI UTARA</span>
-                      <span className="text-[6.5px] text-slate-500 font-mono mt-0.5">TERVALIDASI RIIL</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            
 
               <div className="text-right w-64 space-y-16">
                 <div>
@@ -641,8 +630,8 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
                   <p className="font-bold">KETUA DPW PARTAI NASDEM SULUT</p>
                 </div>
                 <div>
-                  <p className="font-bold underline text-sm text-slate-950">Dr. J. Victor Mailangkay, SH, MH</p>
-                  <p className="text-[11px] text-slate-600 font-mono">No. e-KTA: ND-7100-2024-0001</p>
+                  <p className="font-bold underline text-sm text-slate-950">---</p>
+                  <p className="text-[11px] text-slate-600 font-mono">---</p>
                 </div>
               </div>
             </div>

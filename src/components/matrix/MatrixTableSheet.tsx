@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Trash2,
   Plus,
@@ -10,7 +10,12 @@ import {
   Info,
   Sparkles,
   FileSpreadsheet,
+  CheckSquare,
+  Square,
+  AlertTriangle,
 } from 'lucide-react';
+import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
+import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
 
 export interface GridRowItem {
   id: string;
@@ -33,6 +38,7 @@ interface MatrixTableSheetProps {
   officialTitle: { line1: string; line2: string };
   onCellChange: (id: string, field: keyof GridRowItem, value: string) => void;
   onDeleteRow: (id: string) => void;
+  onDeleteSelectedRows?: (selectedIds: string[]) => void;
   onAddNewRowForSubOrg?: (subOrg: string) => void;
 }
 
@@ -42,8 +48,11 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   officialTitle,
   onCellChange,
   onDeleteRow,
+  onDeleteSelectedRows,
   onAddNewRowForSubOrg,
 }) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showConfirmBulkDelete, setShowConfirmBulkDelete] = useState(false);
   // Hitung metrik keseluruhan
   const totalRows = gridRows.length;
   const totalFilled = gridRows.filter((r) => r.namaLengkap.trim() !== '').length;
@@ -153,6 +162,73 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
           </div>
         </div>
 
+        {/* Bar Seleksi Multi-Baris & Hard Delete Terpilih */}
+        {selectedIds.size > 0 && (
+          <div className="p-3.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/60 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
+            <div className="flex items-center gap-2 text-rose-900 dark:text-rose-200 text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>{selectedIds.size} baris pengurus dipilih di matriks ini.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Batalkan Pilihan
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConfirmBulkDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hard Delete {selectedIds.size} Data Terpilih</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Konfirmasi Hard Delete Bulk */}
+        {showConfirmBulkDelete && (
+          <div className="p-4 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/80 space-y-3 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-950 dark:text-rose-100">
+                <p className="font-bold text-sm">
+                  Konfirmasi Hard Delete Permanen ({selectedIds.size} Data Pengurus)?
+                </p>
+                <p className="mt-1 text-rose-800 dark:text-rose-300">
+                  Data pengurus yang dipilih akan <strong>dihapus permanen dari database Supabase (melalui backend)</strong> dan slot posisinya akan dikosongkan/dibersihkan dari matriks ini.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmBulkDelete(false)}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteSelectedRows) {
+                    onDeleteSelectedRows(Array.from(selectedIds));
+                  }
+                  setSelectedIds(new Set());
+                  setShowConfirmBulkDelete(false);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Ya, Hapus Permanen Sekarang</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 3. Section Tables Rendering */}
         {sections.length === 0 ? (
           <div className="p-8 text-center text-slate-400 italic border border-slate-300 dark:border-slate-700 rounded-lg">
@@ -218,16 +294,38 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                     </div>
                   </div>
 
-                  {isEditMode && onAddNewRowForSubOrg && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
-                      className="text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
-                      title={`Tambah baris jabatan baru di ${sec.subOrg}`}
+                      type="button"
+                      onClick={() => {
+                        const secIds = sec.rows.map((r) => r.id);
+                        const allSelected = secIds.every((id) => selectedIds.has(id));
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (allSelected) {
+                            secIds.forEach((id) => next.delete(id));
+                          } else {
+                            secIds.forEach((id) => next.add(id));
+                          }
+                          return next;
+                        });
+                      }}
+                      className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
                     >
-                      <Plus className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Tambah Baris</span>
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>Pilih Bagian Ini</span>
                     </button>
-                  )}
+                    {isEditMode && onAddNewRowForSubOrg && (
+                      <button
+                        onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
+                        className="text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
+                        title={`Tambah baris jabatan baru di ${sec.subOrg}`}
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Tambah Baris</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Section Table */}
@@ -235,6 +333,25 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-800 dark:bg-slate-950 text-white text-[11px] font-bold uppercase tracking-wider text-center">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={sec.rows.length > 0 && sec.rows.every((r) => selectedIds.has(r.id))}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                sec.rows.forEach((r) => {
+                                  if (checked) next.add(r.id);
+                                  else next.delete(r.id);
+                                });
+                                return next;
+                              });
+                            }}
+                            className="rounded cursor-pointer"
+                            title="Pilih semua baris di seksi ini"
+                          />
+                        </th>
                         <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-12">
                           NO
                         </th>
@@ -272,19 +389,46 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                     <tbody>
                       {sec.rows.map((row, idx) => {
                         const isFilled = row.namaLengkap.trim() !== '';
+                        const isRowSelected = selectedIds.has(row.id);
 
                         return (
                           <tr
                             key={row.id}
                             className={`transition-colors text-[11px] ${
-                              !isFilled
+                              isRowSelected
+                                ? 'bg-rose-100/70 dark:bg-rose-950/40 border-l-4 border-l-rose-600'
+                                : !isFilled
                                 ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-4 border-l-amber-500 hover:bg-amber-100/60 dark:hover:bg-amber-950/40'
                                 : 'bg-white dark:bg-slate-900 border-l-4 border-l-emerald-500 hover:bg-blue-50/30 dark:hover:bg-slate-800/30'
                             }`}
                           >
+                            {/* Checkbox Seleksi Baris */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isRowSelected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setSelectedIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add(row.id);
+                                    else next.delete(row.id);
+                                    return next;
+                                  });
+                                }}
+                                className="rounded cursor-pointer"
+                              />
+                            </td>
+
                             {/* 1. NO */}
                             <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
-                              {idx + 1}
+                              {isDefinitiveLeader(row.jabatan) ? (
+                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950 shadow-xs" title="Ketua Definitif #1">
+                                  #1
+                                </span>
+                              ) : (
+                                idx + 1
+                              )}
                             </td>
 
                             {/* 2. STATUS FORMASI */}
@@ -312,12 +456,17 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                   className="w-full bg-blue-50/60 dark:bg-slate-800 border border-blue-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : (
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   <span
                                     className={`w-2 h-2 rounded-full shrink-0 ${
                                       isFilled ? 'bg-emerald-500' : 'bg-amber-500'
                                     }`}
                                   ></span>
+                                  {isDefinitiveLeader(row.jabatan) && (
+                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 tracking-wider">
+                                      KETUA
+                                    </span>
+                                  )}
                                   <span
                                     className={
                                       isFilled
@@ -362,14 +511,18 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               {isEditMode ? (
                                 <input
                                   type="text"
-                                  placeholder="16 Digit NIK..."
-                                  value={row.nik}
+                                  placeholder={isGeneratedNik(row.nik) ? '- (Belum ada NIK)' : '16 Digit NIK...'}
+                                  value={isGeneratedNik(row.nik) ? '' : row.nik}
                                   onChange={(e) => onCellChange(row.id, 'nik', e.target.value)}
                                   className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
+                              ) : isGeneratedNik(row.nik) || !row.nik ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-sans italic font-normal" title="NIK belum ada / tidak tertera di Excel">
+                                  -
+                                </span>
                               ) : (
                                 <span className="text-slate-700 dark:text-slate-300">
-                                  {row.nik || '-'}
+                                  {row.nik}
                                 </span>
                               )}
                             </td>
@@ -379,14 +532,18 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               {isEditMode ? (
                                 <input
                                   type="text"
-                                  placeholder="Nomor E-KTA..."
-                                  value={row.nomorEKTA}
+                                  placeholder={isGeneratedEkta(row.nomorEKTA) ? '- (Belum ada KTA)' : 'Nomor E-KTA...'}
+                                  value={isGeneratedEkta(row.nomorEKTA) ? '' : row.nomorEKTA}
                                   onChange={(e) => onCellChange(row.id, 'nomorEKTA', e.target.value)}
                                   className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
+                              ) : isGeneratedEkta(row.nomorEKTA) || !row.nomorEKTA ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-sans italic font-normal" title="E-KTA belum ada">
+                                  -
+                                </span>
                               ) : (
                                 <span className="font-semibold text-blue-700 dark:text-blue-400">
-                                  {row.nomorEKTA || '-'}
+                                  {row.nomorEKTA}
                                 </span>
                               )}
                             </td>
