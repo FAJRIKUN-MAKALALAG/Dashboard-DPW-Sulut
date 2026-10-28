@@ -1,5 +1,18 @@
 import React from 'react';
-import { Sparkles, Copy, Check, Share2, QrCode, Shield, Edit3, User, CreditCard } from 'lucide-react';
+import {
+  Sparkles,
+  Copy,
+  Check,
+  Share2,
+  QrCode,
+  Shield,
+  Edit3,
+  User,
+  Camera,
+  FileText,
+  MapPin,
+  CheckCircle2,
+} from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { resolveImageUrl } from '../../utils/imageUtils';
 
@@ -38,13 +51,198 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
   showQr,
   setShowQr,
   onOpenEditProfile,
-  onOpenCardModal,
 }) => {
   const memberPhoto = resolveImageUrl(activePengurusMember?.fotoProfilUrl);
   const isAnggota = session.role === 'ANGGOTA';
 
+  // ================= TAMPILAN KHUSUS ANGGOTA BIASA (PROFIL LENGKAP & FOTO MANDIRI) =================
+  if (isAnggota) {
+    const memberKtp = resolveImageUrl(activePengurusMember?.fotoKtpUrl);
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-150">
+        {/* Kolom Kiri: Pas Foto Profil & Ringkasan Akun */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between space-y-6">
+          <div className="flex flex-col items-center text-center">
+            {/* Foto Profil Utama yang Besar */}
+            <div className="relative mb-4">
+              <div className="w-32 h-36 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-blue-600/40 overflow-hidden shadow-md flex items-center justify-center">
+                {memberPhoto ? (
+                  <img
+                    src={memberPhoto}
+                    alt={activePengurusMember?.namaLengkap || 'Foto Profil'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center p-3">
+                    <User className="w-12 h-12 text-slate-400 mx-auto mb-1" />
+                    <span className="text-[10px] text-slate-400 font-medium block">
+                      Belum Ada Pas Foto
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {onOpenEditProfile && (
+                <button
+                  type="button"
+                  onClick={onOpenEditProfile}
+                  className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white shadow-md transition-all cursor-pointer"
+                  title="Ubah Foto Profil & Berkas"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 mb-1.5">
+              Kader Anggota Resmi
+            </span>
+
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-snug">
+              {activePengurusMember?.namaLengkap || session.adminName}
+            </h2>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Partai NasDem Sulawesi Utara
+            </p>
+
+            <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Status: Aktif Terdaftar</span>
+            </div>
+          </div>
+
+          {/* Tombol Ubah Data */}
+          {onOpenEditProfile && (
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>Edit Profil &amp; Unggah Foto</span>
+            </button>
+          )}
+        </div>
+
+        {/* Kolom Kanan: Detail Dokumen, Kontak & Domisili */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Identitas Resmi */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>Nomor Identitas Resmi</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Nomor NIK KTP</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+                  {activePengurusMember?.nik || session.adminNik || '-'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Nomor e-KTA (Pusat DPP)</span>
+                <span className="font-mono font-bold text-blue-700 dark:text-blue-400 text-sm">
+                  {activePengurusMember?.nomorEKTA || activePengurusMember?.nik || '-'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Tempat &amp; Tanggal Lahir</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activePengurusMember?.tempatLahir || '-'}
+                  {activePengurusMember?.tanggalLahir ? `, ${activePengurusMember.tanggalLahir}` : ''}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Jenis Kelamin &amp; Agama</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activePengurusMember?.jenisKelamin || '-'} • {activePengurusMember?.agama || '-'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Kontak & Domisili Wilayah */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-blue-600" />
+              <span>Kontak &amp; Wilayah Domisili</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Nomor WhatsApp / HP</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activePengurusMember?.nomorHP || '-'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Email / Media Sosial</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activePengurusMember?.email || activePengurusMember?.sosmed || '-'}
+                </span>
+              </div>
+
+              <div className="sm:col-span-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 block text-[11px] mb-1">Wilayah Domisili</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {activePengurusMember?.dpd || session.dpdAccess || 'Sulawesi Utara'}
+                  {activePengurusMember?.dpc && activePengurusMember.dpc !== '-' ? ` • Kec. ${activePengurusMember.dpc}` : ''}
+                  {activePengurusMember?.dprt && activePengurusMember.dprt !== '-' ? ` • Desa/Kel. ${activePengurusMember.dprt}` : ''}
+                </span>
+                {activePengurusMember?.alamatLengkap && (
+                  <p className="text-slate-600 dark:text-slate-400 mt-1 text-[11px]">
+                    {activePengurusMember.alamatLengkap}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Berkas KTP */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                <span>Berkas Foto KTP Fisik</span>
+              </h3>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                memberKtp
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+              }`}>
+                {memberKtp ? 'Foto KTP Terlampir' : 'Belum Ada Foto KTP'}
+              </span>
+            </div>
+
+            {memberKtp ? (
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-56 bg-slate-50 dark:bg-slate-800 flex items-center justify-center p-2">
+                <img
+                  src={memberKtp}
+                  alt="Foto KTP"
+                  className="max-h-52 w-auto object-contain rounded-lg"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Berkas foto KTP belum diunggah. Anda dapat melengkapi foto KTP Anda melalui tombol <strong>Edit Profil &amp; Unggah Foto</strong>.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ================= TAMPILAN PENGURUS STRUKTURAL (REFERRAL & SUPERVISI) =================
   return (
-    <div className={`grid grid-cols-1 ${!isAnggota && ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
+    <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
       {/* Kolom Kiri: Profil & Status SK */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
         <div>
@@ -67,9 +265,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 mb-1">
-                {session.role === 'ANGGOTA' || activePengurusMember?.tingkatKepengurusan === 'Bukan Pengurus'
-                  ? 'Kader Anggota Resmi'
-                  : `Pengurus ${activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '')}`}
+                Pengurus {activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '')}
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                 {activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName}
@@ -112,7 +308,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
                 {activePengurusMember?.nomorSK ? 'Nomor SK' : 'Status SK'}
               </span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">
-                {activePengurusMember?.nomorSK || (session.role === 'ANGGOTA' ? 'Belum Ada SK (Kader Biasa)' : 'SK-DPW-SULUT-2024')}
+                {activePengurusMember?.nomorSK || 'SK-DPW-SULUT-2024'}
               </span>
             </div>
           </div>
@@ -139,123 +335,8 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
         </div>
       </div>
 
-      {/* Kolom Kanan: Pratinjau e-KTA Digital (untuk ANGGOTA) ATAU Referral & Supervisi (untuk PENGURUS/ADMIN) */}
-      {isAnggota ? (
-        <div className="rounded-2xl bg-gradient-to-br from-[#002B49] via-[#003865] to-[#081b2c] border border-blue-900/50 p-6 text-white shadow-md flex flex-col justify-between relative overflow-hidden">
-          {/* Efek Cahaya Halus & Watermark */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-blue-500/15 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="relative z-10 space-y-4">
-            {/* Header Kartu e-KTA */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
-                  ND
-                </div>
-                <div>
-                  <h4 className="text-xs font-black tracking-wider uppercase text-white leading-tight">
-                    PARTAI NASDEM
-                  </h4>
-                  <p className="text-[10px] text-amber-400 font-semibold tracking-wide leading-tight">
-                    DEWAN PIMPINAN WILAYAH SULAWESI UTARA
-                  </p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-400 text-slate-900 shadow-2xs">
-                e-KTA RESMI
-              </span>
-            </div>
-
-            {/* Konten Kartu */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 items-center">
-              {/* Foto Profil */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-24 h-28 rounded-xl bg-slate-800 border-2 border-amber-400/80 overflow-hidden shadow-inner flex items-center justify-center">
-                  {memberPhoto ? (
-                    <img
-                      src={memberPhoto}
-                      alt={activePengurusMember?.namaLengkap || 'Foto Profil'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center p-2">
-                      <User className="w-8 h-8 text-white/40 mx-auto mb-1" />
-                      <span className="text-[9px] text-white/50 block">Belum Ada Foto</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-[9px] text-slate-300 font-medium tracking-tight text-center">
-                  Pas Foto Resmi
-                </span>
-              </div>
-
-              {/* Data Identitas Kader */}
-              <div className="sm:col-span-2 space-y-2.5">
-                <div>
-                  <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
-                    Nama Lengkap
-                  </span>
-                  <div className="text-base font-bold text-white tracking-wide">
-                    {activePengurusMember?.namaLengkap || session.adminName}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
-                      Nomor e-KTA
-                    </span>
-                    <span className="font-mono text-xs font-bold text-amber-300 block">
-                      {activePengurusMember?.nomorEKTA || activePengurusMember?.nik || '-'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
-                      NIK KTP
-                    </span>
-                    <span className="font-mono text-xs text-white/90 block">
-                      {activePengurusMember?.nik || session.adminNik || '-'}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
-                    Wilayah Domisili
-                  </span>
-                  <p className="text-xs text-slate-200 font-medium">
-                    {activePengurusMember?.dpd || session.dpdAccess}
-                    {activePengurusMember?.dpc && activePengurusMember.dpc !== '-' ? ` • Kec. ${activePengurusMember.dpc}` : ''}
-                    {activePengurusMember?.dprt && activePengurusMember.dprt !== '-' ? ` • Desa/Kel. ${activePengurusMember.dprt}` : ''}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Kartu & Aksi */}
-          <div className="relative z-10 pt-4 mt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-[11px] text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Status: <strong className="text-white">Kader Aktif Terdaftar</strong></span>
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {onOpenCardModal && activePengurusMember && (
-                <button
-                  type="button"
-                  onClick={() => onOpenCardModal(activePengurusMember)}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-sm transition-all cursor-pointer"
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Lihat e-KTA Penuh / Cetak</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : ketuaLangsung ? (
+      {/* Kolom Kanan: Dua Kartu (jika ada ketua langsung) ATAU Kartu Registrasi Tunggal (jika Super Admin) */}
+      {ketuaLangsung ? (
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* KARTU 1: KODE REFERRAL SAYA */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">

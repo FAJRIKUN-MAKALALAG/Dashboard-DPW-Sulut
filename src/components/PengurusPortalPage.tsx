@@ -6,6 +6,7 @@ import {
   DirectLeaderInfo,
 } from '../types';
 import { referralService } from '../services/referralService';
+import { MemberService } from '../services/memberService';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 import {
   UserCheck,
@@ -51,6 +52,23 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   const [showQr, setShowQr] = useState<boolean>(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState<boolean>(false);
 
+  // State profil mandiri khusus anggota untuk memastikan foto profil & foto ktp langsung update seketika
+  const [selfUpdatedMember, setSelfUpdatedMember] = useState<Member | null>(null);
+
+  useEffect(() => {
+    if (isAnggota) {
+      MemberService.getMyProfile()
+        .then((res) => {
+          if (res) {
+            setSelfUpdatedMember(res);
+          }
+        })
+        .catch((err) => {
+          console.warn('Gagal memuat profil mandiri anggota:', err);
+        });
+    }
+  }, [isAnggota]);
+
   // Selector untuk Super Admin agar dapat melihat simulasi halaman sebagai pengurus DPRt / DPC / DPD
   const isSuperUser = session.role === 'SUPER_ADMIN';
   const pengurusList = useMemo(() => {
@@ -63,6 +81,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   // Anggota aktif yang sedang ditampilkan
   const activePengurusMember = useMemo(() => {
     if (isAnggota) {
+      if (selfUpdatedMember) return selfUpdatedMember;
       if (session.adminNik) {
         const match = members.find((m) => m.nik === session.adminNik);
         if (match) return match;
@@ -81,7 +100,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       return null;
     }
     return pengurusList[0] || members[0] || null;
-  }, [isAnggota, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
+  }, [isAnggota, selfUpdatedMember, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
 
   // Load profil referral dari backend (khusus pengurus/admin)
   const loadReferralProfile = async () => {
@@ -409,11 +428,11 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL KERJA MANDIRI PENGURUS'}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            {isAnggota ? 'Profil Saya & e-KTA Digital' : 'Profil Pengurus & Perekrutan Anggota'}
+            {isAnggota ? 'Profil Saya' : 'Profil Pengurus & Perekrutan Anggota'}
           </h1>
           <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
             {isAnggota
-              ? 'Halaman resmi keanggotaan Anda di Partai NasDem Sulawesi Utara. Pantau kartu tanda anggota digital Anda dan lengkapi data profil serta foto secara mandiri.'
+              ? 'Halaman resmi identitas keanggotaan Anda di Partai NasDem Sulawesi Utara. Lengkapi biodata kontak, wilayah domisili, serta unggah pas foto profil dan berkas secara mandiri.'
               : 'Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.'}
           </p>
         </div>
@@ -560,6 +579,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
           onClose={() => setIsEditProfileModalOpen(false)}
           member={activePengurusMember}
           onProfileUpdated={(updatedMember) => {
+            setSelfUpdatedMember(updatedMember);
             if (onRefreshCloud) {
               onRefreshCloud();
             }

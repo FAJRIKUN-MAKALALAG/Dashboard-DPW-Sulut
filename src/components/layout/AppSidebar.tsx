@@ -267,7 +267,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                             : 'text-slate-400 dark:text-slate-500'
                         }`}
                       >
-                        {session?.role === 'ANGGOTA' ? 'Data Identitas & e-KTA' : 'Profil & Rekrutmen'}
+                        {session?.role === 'ANGGOTA' ? 'Data Identitas & Profil' : 'Profil & Rekrutmen'}
                       </span>
                     </div>
                   </div>
@@ -278,7 +278,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
-                    {session?.role === 'ANGGOTA' ? 'e-KTA' : 'SK/KTA'}
+                    {session?.role === 'ANGGOTA' ? 'KADER' : 'SK/KTA'}
                   </span>
                 </button>
 
