@@ -19,6 +19,7 @@ import {
   upsertMembersToSupabase,
   deleteMemberFromSupabase,
   deleteMembersFromSupabase,
+  changeMemberStatusInApi,
   insertAuditLogToSupabase,
   insertDeletionRequestToSupabase,
   updateDeletionRequestInSupabase,
@@ -107,8 +108,9 @@ export function useMemberCrudHandlers({
     showToast(`Data kader ${updatedMember.namaLengkap} berhasil diperbarui.`);
 
     if (isSupabaseConfigured()) {
-      updateSingleMemberToSupabase(updatedMember, originalNik).catch((err) => {
+      updateSingleMemberToSupabase(updatedMember, originalNik || updatedMember.nik).catch((err: any) => {
         console.error('Gagal memperbarui data kader di backend:', err);
+        showToast(`Gagal menyimpan ke server: ${err?.message || 'Terjadi kesalahan'}`);
       });
     }
 
@@ -149,8 +151,13 @@ export function useMemberCrudHandlers({
     saveMembers(updated);
 
     if (updatedMemberTarget && isSupabaseConfigured()) {
-      upsertSingleMemberToSupabase(updatedMemberTarget).catch((err) => {
-        console.error('Gagal update status di Supabase:', err);
+      changeMemberStatusInApi(nik, newStatus, reason).catch((err) => {
+        console.warn('Gagal changeStatus via API khusus, mencoba updateOne:', err);
+        if (updatedMemberTarget) {
+          updateSingleMemberToSupabase(updatedMemberTarget, nik).catch((updateErr) => {
+            console.error('Gagal update status di backend:', updateErr);
+          });
+        }
       });
     }
 
@@ -296,10 +303,10 @@ export function useMemberCrudHandlers({
 
 
 
-  // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN DPW)
+  // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN & ADMIN DPW)
   const handleDirectDeleteMember = async (member: Member) => {
-    if (session.role !== 'SUPER_ADMIN') {
-      alert('Hanya Super Admin DPW yang memiliki hak menghapus data kader secara langsung.');
+    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      alert('Hanya Super Admin dan Admin DPW yang memiliki hak menghapus data kader secara langsung.');
       return;
     }
     if (
@@ -314,8 +321,9 @@ export function useMemberCrudHandlers({
       showToast(`Data kader ${member.namaLengkap} berhasil dihapus permanen.`);
 
       if (isSupabaseConfigured()) {
-        deleteMemberFromSupabase(member.nik).catch((err) => {
-          console.error('Gagal menghapus anggota dari Supabase:', err);
+        deleteMemberFromSupabase(member.nik).catch((err: any) => {
+          console.error('Gagal menghapus anggota dari backend:', err);
+          showToast(`Gagal menghapus dari server: ${err?.message || 'Terjadi kesalahan'}`);
         });
       }
 
@@ -323,7 +331,7 @@ export function useMemberCrudHandlers({
         memberNik: member.nik,
         memberName: member.namaLengkap,
         action: 'DELETE',
-        reason: 'Penghapusan permanen langsung oleh Super Admin DPW Partai NasDem Sulut.',
+        reason: `Penghapusan permanen langsung oleh ${session.adminName}.`,
         actor: session.adminName,
         dpd: member.dpd,
       });

@@ -1,4 +1,5 @@
-import { UserSession } from '../types';
+import { UserSession, Member } from '../types';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from './structureReadinessUtils';
 
 /**
  * Memeriksa apakah jabatan pengguna merupakan posisi "Ketua"
@@ -152,4 +153,62 @@ export function getUserTerritoryLabel(session?: UserSession): string {
   if (session.role === 'ADMIN_DPRT') return `DPRt Desa/Kel. ${session.dprtAccess}`;
   if (session.role === 'ANGGOTA') return `Kader Anggota Resmi (${session.dpdAccess || 'Sulut'})`;
   return session.dpdAccess || 'Sulawesi Utara';
+}
+
+/**
+ * Hak Akses Edit Data Anggota:
+ * - SUPER_ADMIN & ADMIN_DPW: Penuh ke seluruh anggota se-Sulut.
+ * - ADMIN_DPD: Berhak mengedit seluruh kader di DPD wilayahnya (semua DPC & DPRt).
+ * - ADMIN_DPC: Berhak mengedit seluruh kader di DPC kecamatannya (semua DPRt rantingnya).
+ * - ADMIN_DPRT: Berhak mengedit kader di DPRt desa/kelurahannya.
+ * - ANGGOTA (Kader Biasa): TIDAK BISA mengedit kader lain di database (hanya profil sendiri di Portal).
+ */
+export function canEditMember(session?: UserSession, member?: Member | null): boolean {
+  if (!session || !member) return false;
+  if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') return true;
+  if (session.role === 'ANGGOTA') return false;
+
+  if (session.role === 'ADMIN_DPD') {
+    return isDpdMatch(member.dpd, session.dpdAccess);
+  }
+  if (session.role === 'ADMIN_DPC') {
+    return isDpdMatch(member.dpd, session.dpdAccess) && isDpcMatch(member.dpc, session.dpcAccess);
+  }
+  if (session.role === 'ADMIN_DPRT') {
+    return (
+      isDpdMatch(member.dpd, session.dpdAccess) &&
+      isDpcMatch(member.dpc, session.dpcAccess) &&
+      isDprtMatch(member.dprt, session.dprtAccess)
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Hak Akses Hapus Langsung Anggota (Direct Delete):
+ * HANYA Super Admin dan Admin DPW yang memiliki wewenang menghapus data kader secara langsung.
+ * Pengurus DPD, DPC, dan DPRt harus melalui prosedur 'Ajukan Permohonan Hapus' ke DPW.
+ */
+export function canDirectDeleteMember(session?: UserSession): boolean {
+  if (!session) return false;
+  return session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+}
+
+/**
+ * Hak Akses Mengubah Status Keanggotaan:
+ * Sama dengan hak edit: Super Admin, Admin DPW (seluruh Sulut), dan Admin DPD/DPC/DPRt di wilayahnya masing-masing.
+ */
+export function canChangeMemberStatus(session?: UserSession, member?: Member | null): boolean {
+  return canEditMember(session, member);
+}
+
+/**
+ * Hak Akses Mengajukan Penghapusan:
+ * Admin DPD, DPC, DPRt yang berwenang di wilayah tersebut (bukan Super Admin/Admin DPW karena mereka sudah direct delete).
+ */
+export function canRequestDeleteMember(session?: UserSession, member?: Member | null): boolean {
+  if (!session || !member) return false;
+  if (canDirectDeleteMember(session)) return false;
+  return canEditMember(session, member);
 }

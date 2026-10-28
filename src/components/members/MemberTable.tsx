@@ -4,6 +4,7 @@ import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 import { exportMembersToExcel, exportMembersToCsv } from '../../utils/excelUtils';
+import { canEditMember, canDirectDeleteMember } from '../../utils/permissionUtils';
 import {
   Search,
   Eye,
@@ -241,11 +242,8 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                   const globalIdx = (currentPage - 1) * pageSize + idx + 1;
                   const statusConfig = STATUS_BADGE_CONFIG[member.status];
                   const isSelected = selectedNiks.has(member.nik);
-                  const canEdit =
-                    session.role === 'SUPER_ADMIN' ||
-                    (session.role === 'ADMIN_DPD' && session.dpdAccess === member.dpd) ||
-                    (session.role === 'ADMIN_DPC' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc) ||
-                    (session.role === 'ADMIN_DPRT' && session.dpdAccess === member.dpd && session.dpcAccess === member.dpc && session.dprtAccess === member.dprt);
+                  const canEdit = canEditMember(session, member);
+                  const canDirectDelete = canDirectDeleteMember(session);
 
                   return (
                     <tr
@@ -461,10 +459,10 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                             <span>Edit</span>
                           </button>
 
-                          {session.role === 'SUPER_ADMIN' ? (
+                          {canDirectDelete ? (
                             <button
                               onClick={() => onDirectDelete(member)}
-                              title="Hapus Data Kader Permanen (Super Admin DPW)"
+                              title="Hapus Data Kader Permanen (Super Admin / Admin DPW)"
                               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer shadow-2xs"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -474,7 +472,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                             <button
                               disabled={!canEdit}
                               onClick={() => onOpenDeletionRequest(member)}
-                              title="Ajukan Permohonan Hapus Data ke DPW"
+                              title={canEdit ? "Ajukan Permohonan Hapus Data ke DPW" : "Di luar wilayah wewenang"}
                               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
                             >
                               <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
