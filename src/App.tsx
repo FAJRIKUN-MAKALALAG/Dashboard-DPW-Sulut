@@ -138,6 +138,13 @@ export default function App() {
     }
   };
 
+  // Guard: Anggota biasa tanpa SK HANYA boleh mengakses portal (Profil Saya)
+  useEffect(() => {
+    if (session?.role === 'ANGGOTA' && activeTab !== 'portal') {
+      setActiveTab('portal');
+    }
+  }, [session?.role, activeTab]);
+
   const handleLoginSuccess = (userSession: UserSession) => {
     setSession(userSession);
     saveSession(userSession);
@@ -369,7 +376,7 @@ export default function App() {
                     : activeTab === 'analytics'
                     ? 'Pusat Analisis & Visualisasi Data Teritorial'
                     : activeTab === 'portal'
-                    ? 'Portal Kerja Mandiri Pengurus & Rekrutmen'
+                    ? (session?.role === 'ANGGOTA' ? 'Profil Saya & e-KTA Digital' : 'Portal Kerja Mandiri Pengurus & Rekrutmen')
                     : activeTab === 'dpw'
                     ? 'Susunan Pengurus DPW Sulut'
                     : activeTab === 'dpd'
@@ -383,7 +390,7 @@ export default function App() {
               >
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
                 {activeTab === 'analytics' && 'Pusat Analisis & Visualisasi Data (Command Center)'}
-                {activeTab === 'portal' && 'Portal Kerja Mandiri Pengurus'}
+                {activeTab === 'portal' && (session?.role === 'ANGGOTA' ? 'Profil Saya & e-KTA Digital' : 'Portal Kerja Mandiri Pengurus')}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
@@ -427,24 +434,28 @@ export default function App() {
               </button>
             )}
 
-            <button
-              onClick={() => modals.setIsTemplateHubOpen(true)}
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-              title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Unduh Template Excel</span>
-              <span className="sm:hidden">Template</span>
-            </button>
+            {session?.role !== 'ANGGOTA' && (
+              <button
+                onClick={() => modals.setIsTemplateHubOpen(true)}
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">Unduh Template Excel</span>
+                <span className="sm:hidden">Template</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => modals.setIsPrintReportOpen(true)}
-              className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
-              title="Cetak Laporan PDF Ringkasan Atasan"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Laporan PDF</span>
-            </button>
+            {session?.role !== 'ANGGOTA' && (
+              <button
+                onClick={() => modals.setIsPrintReportOpen(true)}
+                className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
+                title="Cetak Laporan PDF Ringkasan Atasan"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Laporan PDF</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -489,7 +500,7 @@ export default function App() {
             />
           )}
 
-          {/* Tab 1.5: Portal Mandiri Pengurus (DPW, DPD, DPC, DPRt) */}
+          {/* Tab 1.5: Portal Mandiri Pengurus (DPW, DPD, DPC, DPRt) / Profil Saya (Anggota) */}
           {activeTab === 'portal' && (
             <PengurusPortalPage
               members={accessibleMembers}
@@ -497,6 +508,7 @@ export default function App() {
               onAddMember={crud.handleAddMember}
               onRefreshCloud={handleRefreshFromSupabase}
               isRefreshingCloud={isRefreshingCloud}
+              onOpenCardModal={modals.openCardModal}
             />
           )}
 

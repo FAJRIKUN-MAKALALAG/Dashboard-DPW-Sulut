@@ -54,11 +54,29 @@ export function canAccessAnalytics(session?: UserSession): boolean {
 
 /**
  * Aturan Kode Referral:
- * Super Admin TIDAK memakai kode referral (karena Super Admin adalah administrator teknis).
- * Semua pengurus & ketua lapangan (DPW, DPD, DPC, DPRt) memakai kode referral.
+ * - Super Admin: TIDAK memakai kode referral (karena Super Admin adalah administrator teknis).
+ * - Anggota Biasa (role ANGGOTA): TIDAK memakai kode referral (hanya mengelola profil diri & e-KTA).
+ * - Semua pengurus & ketua lapangan (DPW, DPD, DPC, DPRt): memakai kode referral.
  */
 export function isReferralApplicable(session?: UserSession): boolean {
-  return session?.role !== 'SUPER_ADMIN';
+  if (!session) return false;
+  return session.role !== 'SUPER_ADMIN' && session.role !== 'ANGGOTA';
+}
+
+/**
+ * Menentukan apakah pengguna boleh melihat / mengakses database seluruh anggota:
+ * Anggota biasa tanpa SK (role ANGGOTA) HANYA boleh melihat profilnya sendiri,
+ * dan TIDAK BISA mengakses pencarian atau daftar anggota lain.
+ */
+export function canAccessMemberDatabase(session?: UserSession): boolean {
+  return session?.role !== 'ANGGOTA';
+}
+
+/**
+ * Memeriksa apakah pengguna berstatus anggota biasa tanpa SK kepengurusan
+ */
+export function isAnggotaBiasa(session?: UserSession): boolean {
+  return session?.role === 'ANGGOTA';
 }
 
 /**
