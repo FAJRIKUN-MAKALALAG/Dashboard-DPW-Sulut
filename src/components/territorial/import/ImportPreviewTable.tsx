@@ -27,7 +27,7 @@ export const ImportPreviewTable: React.FC<ImportPreviewTableProps> = ({
     <div className="space-y-3">
       {/* Filter & Search Bar Tabel Preview */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
           <button
             onClick={() => setFilterMode('filled')}
             className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
@@ -36,7 +36,7 @@ export const ImportPreviewTable: React.FC<ImportPreviewTableProps> = ({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
-            Hanya Yang Terisi ({filledRowsCount})
+            Hanya Terisi ({filledRowsCount})
           </button>
           <button
             onClick={() => setFilterMode('all')}
@@ -56,7 +56,7 @@ export const ImportPreviewTable: React.FC<ImportPreviewTableProps> = ({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
-            Posisi Kosong ({emptyRowsCount})
+            Kosong ({emptyRowsCount})
           </button>
         </div>
 
@@ -72,9 +72,9 @@ export const ImportPreviewTable: React.FC<ImportPreviewTableProps> = ({
         </div>
       </div>
 
-      {/* Tabel Preview */}
-      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
-        <table className="w-full text-left text-xs">
+      {/* Tabel Preview (Responsive Horizontal Scroll) */}
+      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-72 overflow-y-auto overflow-x-auto">
+        <table className="w-full min-w-[550px] text-left text-xs">
           <thead className="bg-slate-100 dark:bg-slate-800/80 sticky top-0 z-10 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
             <tr>
               <th className="py-2 px-3 w-10">No</th>

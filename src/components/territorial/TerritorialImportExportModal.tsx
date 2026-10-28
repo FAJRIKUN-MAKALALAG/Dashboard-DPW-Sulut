@@ -310,20 +310,20 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
 
           {/* Tab Pemilihan Sumber Impor: Berkas Excel vs Query SQL Editor */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1.5">
               <button
                 type="button"
                 onClick={() => {
                   setActiveImportTab('excel');
                   setParseError(null);
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   activeImportTab === 'excel'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <FileSpreadsheet className="w-4 h-4" />
+                <FileSpreadsheet className="w-4 h-4 shrink-0" />
                 <span>Metode 1: Unggah Berkas Excel (.xlsx)</span>
               </button>
 
@@ -333,13 +333,13 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                   setActiveImportTab('sql');
                   setParseError(null);
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   activeImportTab === 'sql'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <Terminal className="w-4 h-4" />
+                <Terminal className="w-4 h-4 shrink-0" />
                 <span>Metode 2: Tempel Query SQL Editor (INSERT INTO)</span>
               </button>
             </div>
@@ -537,8 +537,8 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/75 flex items-center justify-between gap-3">
-          <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+        <div className="px-4 sm:px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/75 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
             {parseResult ? (
               <span>
                 Siap mengimpor{' '}
@@ -551,18 +551,18 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
               <span>Silakan pilih berkas Excel pengurus terlebih dahulu</span>
             )}
           </div>
-          <div className="flex items-center gap-2.5 ml-auto">
+          <div className="flex items-center gap-2 sm:ml-auto">
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium rounded-lg btn-white cursor-pointer"
+              className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-lg btn-white cursor-pointer"
             >
               Batal
             </button>
             <button
               onClick={handleApplyImport}
               disabled={!parseResult || parseResult.membersToSave.length === 0 || isSubmitting}
-              className={`inline-flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer ${
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer ${
                 parseResult && parseResult.membersToSave.length > 0 && !isSubmitting
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
@@ -577,7 +577,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
                 <>
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
-                    Simpan & Terapkan Data ({parseResult?.membersToSave.length || 0})
+                    Simpan Data ({parseResult?.membersToSave.length || 0})
                   </span>
                 </>
               )}
