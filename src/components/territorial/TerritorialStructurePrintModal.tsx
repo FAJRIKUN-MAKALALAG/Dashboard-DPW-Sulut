@@ -502,18 +502,18 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
 
         {/* Printable Official Document Body */}
         <div
-          className={`p-6 sm:p-10 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible ${
+          className={`p-3 sm:p-6 lg:p-10 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible ${
             orientation === 'landscape' ? 'print:landscape' : 'print:portrait'
           }`}
         >
           {/* Official Letterhead (KOP SURAT RESMI PARTAI NASDEM) */}
-          <div className="border-b-4 border-double border-slate-900 pb-4 mb-5 flex items-center justify-between gap-4">
+          <div className="border-b-4 border-double border-slate-900 pb-3 sm:pb-4 mb-4 sm:mb-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 print:flex-row print:justify-between text-center sm:text-left">
             {/* Logo Utama Partai NasDem */}
-            <div className="w-24 h-24 flex items-center justify-center shrink-0">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center shrink-0">
               <img
                 src={nasdemLogo}
                 alt="Logo Resmi Partai NasDem"
-                className="max-h-24 max-w-full object-contain"
+                className="max-h-16 sm:max-h-24 max-w-full object-contain"
               />
             </div>
 
@@ -628,16 +628,16 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
           {/* Tabel Susunan Pengurus */}
           <div className="mb-6 space-y-5 print:space-y-4">
             {groupedRows.map(([subOrgName, rows], groupIdx) => (
-              <div key={groupIdx} className="border border-slate-300 rounded-lg overflow-hidden print:break-inside-avoid">
+              <div key={groupIdx} className="border border-slate-300 rounded-lg overflow-hidden overflow-x-auto print:overflow-visible print:break-inside-avoid shadow-2xs">
                 {/* Sub Organisasi Header Banner */}
-                <div className="bg-slate-800 text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between print:bg-slate-900">
+                <div className="bg-slate-800 text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between print:bg-slate-900 sticky left-0">
                   <span>{subOrgName}</span>
                   <span className="text-[10px] font-mono text-slate-300 font-normal">
                     {rows.filter((r) => r.namaLengkap.trim() !== '').length} / {rows.length} Terisi
                   </span>
                 </div>
 
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[650px] print:min-w-0 text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-900 font-bold text-[11px] border-b border-slate-300">
                       <th className="p-2 border-r border-slate-300 text-center w-8">No</th>
