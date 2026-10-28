@@ -376,7 +376,7 @@ export default function App() {
                     : activeTab === 'analytics'
                     ? 'Pusat Analisis & Visualisasi Data Teritorial'
                     : activeTab === 'portal'
-                    ? (session?.role === 'ANGGOTA' ? 'Profil Saya & e-KTA Digital' : 'Portal Kerja Mandiri Pengurus & Rekrutmen')
+                    ? (session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Kerja Mandiri Pengurus & Rekrutmen')
                     : activeTab === 'dpw'
                     ? 'Susunan Pengurus DPW Sulut'
                     : activeTab === 'dpd'
@@ -390,7 +390,7 @@ export default function App() {
               >
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
                 {activeTab === 'analytics' && 'Pusat Analisis & Visualisasi Data (Command Center)'}
-                {activeTab === 'portal' && (session?.role === 'ANGGOTA' ? 'Profil Saya & e-KTA Digital' : 'Portal Kerja Mandiri Pengurus')}
+                {activeTab === 'portal' && (session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Kerja Mandiri Pengurus')}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
