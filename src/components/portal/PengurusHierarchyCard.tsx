@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Copy, Check, Share2, QrCode, Shield, Edit3, User } from 'lucide-react';
+import { Sparkles, Copy, Check, Share2, QrCode, Shield, Edit3, User, CreditCard } from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { resolveImageUrl } from '../../utils/imageUtils';
 
@@ -23,6 +23,7 @@ interface PengurusHierarchyCardProps {
   showQr: boolean;
   setShowQr: (show: boolean) => void;
   onOpenEditProfile?: () => void;
+  onOpenCardModal?: (member: Member) => void;
 }
 
 export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
@@ -37,11 +38,13 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
   showQr,
   setShowQr,
   onOpenEditProfile,
+  onOpenCardModal,
 }) => {
   const memberPhoto = resolveImageUrl(activePengurusMember?.fotoProfilUrl);
+  const isAnggota = session.role === 'ANGGOTA';
 
   return (
-    <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
+    <div className={`grid grid-cols-1 ${!isAnggota && ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
       {/* Kolom Kiri: Profil & Status SK */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
         <div>
@@ -136,8 +139,123 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
         </div>
       </div>
 
-      {/* Kolom Kanan: Dua Kartu (jika ada ketua langsung) ATAU Kartu Registrasi Tunggal (jika Super Admin) */}
-      {ketuaLangsung ? (
+      {/* Kolom Kanan: Pratinjau e-KTA Digital (untuk ANGGOTA) ATAU Referral & Supervisi (untuk PENGURUS/ADMIN) */}
+      {isAnggota ? (
+        <div className="rounded-2xl bg-gradient-to-br from-[#002B49] via-[#003865] to-[#081b2c] border border-blue-900/50 p-6 text-white shadow-md flex flex-col justify-between relative overflow-hidden">
+          {/* Efek Cahaya Halus & Watermark */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-blue-500/15 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 space-y-4">
+            {/* Header Kartu e-KTA */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
+                  ND
+                </div>
+                <div>
+                  <h4 className="text-xs font-black tracking-wider uppercase text-white leading-tight">
+                    PARTAI NASDEM
+                  </h4>
+                  <p className="text-[10px] text-amber-400 font-semibold tracking-wide leading-tight">
+                    DEWAN PIMPINAN WILAYAH SULAWESI UTARA
+                  </p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-400 text-slate-900 shadow-2xs">
+                e-KTA RESMI
+              </span>
+            </div>
+
+            {/* Konten Kartu */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 items-center">
+              {/* Foto Profil */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-24 h-28 rounded-xl bg-slate-800 border-2 border-amber-400/80 overflow-hidden shadow-inner flex items-center justify-center">
+                  {memberPhoto ? (
+                    <img
+                      src={memberPhoto}
+                      alt={activePengurusMember?.namaLengkap || 'Foto Profil'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center p-2">
+                      <User className="w-8 h-8 text-white/40 mx-auto mb-1" />
+                      <span className="text-[9px] text-white/50 block">Belum Ada Foto</span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-[9px] text-slate-300 font-medium tracking-tight text-center">
+                  Pas Foto Resmi
+                </span>
+              </div>
+
+              {/* Data Identitas Kader */}
+              <div className="sm:col-span-2 space-y-2.5">
+                <div>
+                  <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
+                    Nama Lengkap
+                  </span>
+                  <div className="text-base font-bold text-white tracking-wide">
+                    {activePengurusMember?.namaLengkap || session.adminName}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
+                      Nomor e-KTA
+                    </span>
+                    <span className="font-mono text-xs font-bold text-amber-300 block">
+                      {activePengurusMember?.nomorEKTA || activePengurusMember?.nik || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
+                      NIK KTP
+                    </span>
+                    <span className="font-mono text-xs text-white/90 block">
+                      {activePengurusMember?.nik || session.adminNik || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-blue-200/80 font-medium uppercase tracking-wider block">
+                    Wilayah Domisili
+                  </span>
+                  <p className="text-xs text-slate-200 font-medium">
+                    {activePengurusMember?.dpd || session.dpdAccess}
+                    {activePengurusMember?.dpc && activePengurusMember.dpc !== '-' ? ` • Kec. ${activePengurusMember.dpc}` : ''}
+                    {activePengurusMember?.dprt && activePengurusMember.dprt !== '-' ? ` • Desa/Kel. ${activePengurusMember.dprt}` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Kartu & Aksi */}
+          <div className="relative z-10 pt-4 mt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-[11px] text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Status: <strong className="text-white">Kader Aktif Terdaftar</strong></span>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {onOpenCardModal && activePengurusMember && (
+                <button
+                  type="button"
+                  onClick={() => onOpenCardModal(activePengurusMember)}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-sm transition-all cursor-pointer"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Lihat e-KTA Penuh / Cetak</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : ketuaLangsung ? (
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* KARTU 1: KODE REFERRAL SAYA */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">

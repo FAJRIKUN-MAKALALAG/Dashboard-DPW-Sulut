@@ -29,6 +29,7 @@ interface PengurusPortalPageProps {
   onAddMember: (newMember: Member) => void;
   onRefreshCloud?: () => void;
   isRefreshingCloud?: boolean;
+  onOpenCardModal?: (member: Member) => void;
 }
 
 export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
@@ -36,7 +37,10 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   session,
   onAddMember,
   onRefreshCloud,
+  onOpenCardModal,
 }) => {
+  const isAnggota = session.role === 'ANGGOTA';
+
   // Mode Tab Internal: 'profil' (Profil, Referral & Form) | 'pencarian' (Pencarian Anggota Wilayah)
   const [activePortalTab, setActivePortalTab] = useState<'profil' | 'pencarian'>('profil');
 
@@ -56,8 +60,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   const [selectedPengurusNik, setSelectedPengurusNik] = useState<string>('');
   const isSuperAdminActingAsSelf = session.role === 'SUPER_ADMIN' && !selectedPengurusNik;
 
-  // Anggota aktif pengurus yang sedang ditampilkan
+  // Anggota aktif yang sedang ditampilkan
   const activePengurusMember = useMemo(() => {
+    if (isAnggota) {
+      if (session.adminNik) {
+        const match = members.find((m) => m.nik === session.adminNik);
+        if (match) return match;
+      }
+      return members[0] || null;
+    }
     if (selectedPengurusNik) {
       return members.find((m) => m.nik === selectedPengurusNik) || null;
     }
@@ -69,11 +80,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     if (session.role === 'SUPER_ADMIN') {
       return null;
     }
-    return pengurusList[0] || null;
-  }, [selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
+    return pengurusList[0] || members[0] || null;
+  }, [isAnggota, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
 
-  // Load profil referral dari backend
+  // Load profil referral dari backend (khusus pengurus/admin)
   const loadReferralProfile = async () => {
+    if (isAnggota) {
+      setLoadingProfile(false);
+      return;
+    }
     if (session.role === 'SUPER_ADMIN' && !selectedPengurusNik) {
       setLoadingProfile(false);
       return;
@@ -97,10 +112,13 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
 
   useEffect(() => {
     loadReferralProfile();
-  }, [selectedPengurusNik]);
+  }, [selectedPengurusNik, isAnggota]);
 
-  // Menentukan Kode Referral Pengurus
+  // Menentukan Kode Referral Pengurus (kosong untuk kader biasa tanpa SK)
   const myReferralCode = useMemo(() => {
+    if (isAnggota) {
+      return '';
+    }
     if (activePengurusMember?.kodeReferral) {
       return activePengurusMember.kodeReferral;
     }
@@ -109,11 +127,11 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     }
     const tingkat = (activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '') || 'DPD').toUpperCase();
     return `NSD-${tingkat.substring(0, 3)}-${activePengurusMember?.nik ? activePengurusMember.nik.slice(-4) : '0001'}`;
-  }, [activePengurusMember, profile, session]);
+  }, [isAnggota, activePengurusMember, profile, session]);
 
-  // Hierarki Ketua Langsung (Otomatis Tracking Sistem)
+  // Hierarki Ketua Langsung (Otomatis Tracking Sistem - dinonaktifkan untuk kader biasa)
   const ketuaLangsung: DirectLeaderInfo | null = useMemo(() => {
-    if (isSuperAdminActingAsSelf) {
+    if (isAnggota || isSuperAdminActingAsSelf) {
       return null;
     }
 
@@ -279,6 +297,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   // Filter rekrutmen saya (Kader yang direkrut oleh pengurus aktif ini)
   const [searchRecruit, setSearchRecruit] = useState<string>('');
   const myRecruits = useMemo(() => {
+    if (isAnggota) return [];
     const currentCode = myReferralCode.toUpperCase();
     const currentNik = activePengurusMember?.nik || session.adminNik;
     const currentName = (activePengurusMember?.namaLengkap || session.adminName || '').toLowerCase();
@@ -289,9 +308,10 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       if (m.kaderPerekrutNama && m.kaderPerekrutNama.toLowerCase() === currentName) return true;
       return false;
     });
-  }, [members, myReferralCode, activePengurusMember, session]);
+  }, [isAnggota, members, myReferralCode, activePengurusMember, session]);
 
   const filteredRecruits = useMemo(() => {
+    if (isAnggota) return [];
     if (!searchRecruit.trim()) return myRecruits;
     const q = searchRecruit.toLowerCase();
     return myRecruits.filter(
@@ -301,14 +321,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         m.dpd.toLowerCase().includes(q) ||
         m.dpc.toLowerCase().includes(q)
     );
-  }, [myRecruits, searchRecruit]);
+  }, [isAnggota, myRecruits, searchRecruit]);
 
   // ---------------- PENCARIAN ANGGOTA WILAYAH (BATASAN TINGKAT) ----------------
   const [searchMemberQuery, setSearchMemberQuery] = useState('');
   const [filterMembershipType, setFilterMembershipType] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
 
-  // Anggota yang dapat dicari sesuai batasan wilayah pengurus
+  // Anggota yang dapat dicari sesuai batasan wilayah pengurus (kosong untuk kader biasa)
   const territoryMembers = useMemo(() => {
+    if (isAnggota) return [];
     const userRole = session.role;
     const userDpd = activePengurusMember?.dpd || session.dpdAccess;
     const userDpc = activePengurusMember?.dpc || session.dpcAccess;
@@ -385,45 +406,49 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-blue-900/60 text-blue-200 border border-blue-700/60 text-[11px] font-bold tracking-wide">
             <UserCheck className="w-3.5 h-3.5" />
-            <span>PORTAL KERJA MANDIRI PENGURUS</span>
+            <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL KERJA MANDIRI PENGURUS'}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            Profil Pengurus &amp; Perekrutan Anggota
+            {isAnggota ? 'Profil Saya & e-KTA Digital' : 'Profil Pengurus & Perekrutan Anggota'}
           </h1>
           <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-            Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.
+            {isAnggota
+              ? 'Halaman resmi keanggotaan Anda di Partai NasDem Sulawesi Utara. Pantau kartu tanda anggota digital Anda dan lengkapi data profil serta foto secara mandiri.'
+              : 'Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.'}
           </p>
         </div>
       </div>
 
-      {/* Tabs Menu Portal: Profil & Form vs Pencarian Data Wilayah */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <button
-          type="button"
-          onClick={() => setActivePortalTab('profil')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activePortalTab === 'profil'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <IdCard className="w-4 h-4" />
-          <span>Profil, Referral &amp; Rekrutmen</span>
-        </button>
+      {/* Tabs Menu Portal: HANYA TAMPIL UNTUK PENGURUS BER-SK & ADMIN (Anggota biasa tidak ada pencarian wilayah) */}
+      {!isAnggota && (
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <button
+            type="button"
+            onClick={() => setActivePortalTab('profil')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+              activePortalTab === 'profil'
+                ? 'bg-blue-700 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <IdCard className="w-4 h-4" />
+            <span>Profil, Referral &amp; Rekrutmen</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setActivePortalTab('pencarian')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activePortalTab === 'pencarian'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          <span>{searchTerritoryTitle} ({territoryMembers.length})</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setActivePortalTab('pencarian')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+              activePortalTab === 'pencarian'
+                ? 'bg-blue-700 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>{searchTerritoryTitle} ({territoryMembers.length})</span>
+          </button>
+        </div>
+      )}
 
       <div key={activePortalTab} className="animate-tab-enter space-y-6">
         {/* ================= TAB 1: PROFIL, REFERRAL & FORM REKRUTMEN ================= */}
@@ -443,7 +468,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             </div>
           )}
 
-          {/* 2. Kartu Identitas Resmi Pengurus & Kode Referral */}
+          {/* 2. Kartu Identitas Resmi Pengurus & Kode Referral (atau e-KTA untuk Anggota) */}
           <PengurusHierarchyCard
             activePengurusMember={activePengurusMember}
             profile={profile}
@@ -456,59 +481,64 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             showQr={showQr}
             setShowQr={setShowQr}
             onOpenEditProfile={() => setIsEditProfileModalOpen(true)}
+            onOpenCardModal={onOpenCardModal}
           />
 
-          {/* 3. Formulir Pendaftaran Anggota Baru (Khusus Pemegang SK Resmi) */}
-          {canAddMembers(session) ? (
-            <PengurusRegisterMemberForm
-              members={members}
-              session={session}
-              activePengurusMember={activePengurusMember}
-              myReferralCode={myReferralCode}
-              ketuaLangsung={ketuaLangsung}
-              onAddMember={onAddMember}
-              perekrutNama={perekrutNama}
-              perekrutJabatan={perekrutJabatan}
-              perekrutNik={perekrutNik}
-            />
-          ) : (
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-900 border border-amber-200 dark:border-amber-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[11px] font-bold">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>HAK AKSES PENDAFTARAN ANGGOTA</span>
+          {/* 3. Formulir Pendaftaran Anggota Baru (HANYA UNTUK PENGURUS BER-SK RESMI) */}
+          {!isAnggota && (
+            canAddMembers(session) ? (
+              <PengurusRegisterMemberForm
+                members={members}
+                session={session}
+                activePengurusMember={activePengurusMember}
+                myReferralCode={myReferralCode}
+                ketuaLangsung={ketuaLangsung}
+                onAddMember={onAddMember}
+                perekrutNama={perekrutNama}
+                perekrutJabatan={perekrutJabatan}
+                perekrutNik={perekrutNik}
+              />
+            ) : (
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-900 border border-amber-200 dark:border-amber-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[11px] font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>HAK AKSES PENDAFTARAN ANGGOTA</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Pendaftaran Anggota Baru Dikelola Khusus Pengurus Ber-SK
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+                    Sebagai Pengurus tanpa kewenangan pendaftaran mandiri, silakan koordinasikan data kader baru dengan pengurus ber-SK wilayah Anda.
+                  </p>
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Pendaftaran Anggota Baru Dikelola Khusus Pengurus Ber-SK
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
-                  Sebagai Kader/Anggota Biasa, Anda dapat melihat e-KTA digital, pembina wilayah, dan memperbarui foto profil &amp; KTP Anda sendiri. Form penambahan kader baru dikhususkan bagi Pengurus Struktural resmi yang memiliki SK.
-                </p>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setIsEditProfileModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors shrink-0 cursor-pointer"
-              >
-                <span>Edit Profil &amp; Berkas Foto</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors shrink-0 cursor-pointer"
+                >
+                  <span>Edit Profil &amp; Berkas Foto</span>
+                </button>
+              </div>
+            )
           )}
 
-          {/* 4. Riwayat Anggota Hasil Rekrutmen Pengurus Ini */}
-          <PengurusRecruitsList
-            filteredRecruits={filteredRecruits}
-            myRecruitsCount={myRecruits.length}
-            myReferralCode={myReferralCode}
-            searchRecruit={searchRecruit}
-            setSearchRecruit={setSearchRecruit}
-          />
+          {/* 4. Riwayat Anggota Hasil Rekrutmen Pengurus Ini (HANYA UNTUK PENGURUS/ADMIN) */}
+          {!isAnggota && (
+            <PengurusRecruitsList
+              filteredRecruits={filteredRecruits}
+              myRecruitsCount={myRecruits.length}
+              myReferralCode={myReferralCode}
+              searchRecruit={searchRecruit}
+              setSearchRecruit={setSearchRecruit}
+            />
+          )}
         </div>
       )}
 
-      {/* ================= TAB 2: PENCARIAN ANGGOTA WILAYAH ================= */}
-      {activePortalTab === 'pencarian' && (
+      {/* ================= TAB 2: PENCARIAN ANGGOTA WILAYAH (HANYA PENGURUS & ADMIN) ================= */}
+      {!isAnggota && activePortalTab === 'pencarian' && (
         <PengurusTerritorySearchTab
           searchTerritoryTitle={searchTerritoryTitle}
           filterMembershipType={filterMembershipType}

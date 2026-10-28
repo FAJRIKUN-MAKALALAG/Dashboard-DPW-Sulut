@@ -180,7 +180,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             {/* Section 1: Dashboard & Struktur Organisasi */}
             <div>
               <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
-                Struktur &amp; Tata Kelola
+                {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Struktur & Tata Kelola'}
               </span>
               <div className="space-y-1">
                 {/* 1. Dashboard Utama (HANYA untuk Super Admin, Ketua DPW, Ketua DPD, Ketua DPC) */}
@@ -247,7 +247,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   </button>
                 )}
 
-                {/* 2. Portal Mandiri Pengurus & Rekrutmen (DPW s/d DPRt) */}
+                {/* 2. Portal Mandiri Pengurus (atau Profil Saya untuk Anggota Biasa) */}
                 <button
                   onClick={() => handleNavClick('portal')}
                   className={navItemClass(activeTab === 'portal')}
@@ -257,7 +257,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       <UserCheck className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <span className="block leading-none">Portal Pengurus</span>
+                      <span className="block leading-none">
+                        {session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Pengurus'}
+                      </span>
                       <span
                         className={`text-[10px] block mt-0.5 leading-none ${
                           activeTab === 'portal'
@@ -265,7 +267,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                             : 'text-slate-400 dark:text-slate-500'
                         }`}
                       >
-                        Profil &amp; Rekrutmen
+                        {session?.role === 'ANGGOTA' ? 'Data Identitas & e-KTA' : 'Profil & Rekrutmen'}
                       </span>
                     </div>
                   </div>
@@ -276,7 +278,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
-                    SK/KTA
+                    {session?.role === 'ANGGOTA' ? 'e-KTA' : 'SK/KTA'}
                   </span>
                 </button>
 
@@ -426,153 +428,157 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </div>
             </div>
 
-            {/* Section 2: Database & Pencarian Anggota */}
-            <div>
-              <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
-                Pencarian &amp; Data Anggota
-              </span>
-              <div className="space-y-1">
-                {/* Pencarian Anggota / Database Kader */}
-                <button
-                  onClick={() => handleNavClick('members')}
-                  className={navItemClass(activeTab === 'members')}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={iconContainerClass(activeTab === 'members')}>
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-none">{membersNavTitle}</span>
-                      <span
-                        className={`text-[10px] block mt-0.5 leading-none ${
-                          activeTab === 'members'
-                            ? 'text-white/80'
-                            : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        {membersNavSubtitle}
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                      activeTab === 'members'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {totalMembersCount}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Section 3: Alat Operasional */}
-            <div>
-              <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
-                Alat Operasional
-              </span>
-              <div className="space-y-1">
-                {/* Kode Referral Saya (HANYA UNTUK PENGURUS - SUPER ADMIN TIDAK PERLU REFERRAL) */}
-                {showReferral && onOpenReferralHub && (
+            {/* Section 2: Database & Pencarian Anggota (Hanya Pengurus Ber-SK & Admin) */}
+            {session?.role !== 'ANGGOTA' && (
+              <div>
+                <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
+                  Pencarian &amp; Data Anggota
+                </span>
+                <div className="space-y-1">
+                  {/* Pencarian Anggota / Database Kader */}
                   <button
-                    onClick={() => {
-                      onOpenReferralHub();
-                      onCloseMobile();
-                    }}
-                    className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    onClick={() => handleNavClick('members')}
+                    className={navItemClass(activeTab === 'members')}
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold">
-                        <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <div className={iconContainerClass(activeTab === 'members')}>
+                        <Users className="w-4 h-4" />
                       </div>
                       <div className="text-left">
-                        <span className="block leading-none font-semibold">Kode Referral Saya</span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
-                          Rekrutmen &amp; Ketua Langsung
+                        <span className="block leading-none">{membersNavTitle}</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'members'
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          {membersNavSubtitle}
                         </span>
                       </div>
                     </div>
-                    <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                      KODE
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                        activeTab === 'members'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {totalMembersCount}
                     </span>
                   </button>
-                )}
+                </div>
+              </div>
+            )}
 
-
-                {/* Riwayat Audit (SUPER ADMIN & DPW) */}
-                {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
-                  <button
-                    onClick={() => {
-                      onOpenAuditModal();
-                      onCloseMobile();
-                    }}
-                    className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                        <History className="w-4 h-4" />
+            {/* Section 3: Alat Operasional (Hanya Pengurus & Admin) */}
+            {session?.role !== 'ANGGOTA' && (showReferral || session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW' || session?.role === 'ADMIN_DPD' || showUserMgmt) && (
+              <div>
+                <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
+                  Alat Operasional
+                </span>
+                <div className="space-y-1">
+                  {/* Kode Referral Saya (HANYA UNTUK PENGURUS - SUPER ADMIN TIDAK PERLU REFERRAL) */}
+                  {showReferral && onOpenReferralHub && (
+                    <button
+                      onClick={() => {
+                        onOpenReferralHub();
+                        onCloseMobile();
+                      }}
+                      className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold">
+                          <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block leading-none font-semibold">Kode Referral Saya</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
+                            Rekrutmen &amp; Ketua Langsung
+                          </span>
+                        </div>
                       </div>
-                      <span>Riwayat Audit</span>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono">
-                      {auditLogsCount}
-                    </span>
-                  </button>
-                )}
-
-                {/* Status Hapus / Permohonan Hapus */}
-                {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW' || session?.role === 'ADMIN_DPD') && (
-                  <button
-                    onClick={() => {
-                      onOpenDeletionApproval();
-                      onCloseMobile();
-                    }}
-                    className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <span>
-                        {session?.role === 'SUPER_ADMIN' ? 'Permohonan Hapus' : 'Status Hapus'}
+                      <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                        KODE
                       </span>
-                    </div>
-                    {pendingDeletionCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white animate-pulse">
-                        {pendingDeletionCount}
-                      </span>
-                    )}
-                  </button>
-                )}
+                    </button>
+                  )}
 
-                {/* Manajemen Akun Admin: HANYA SUPER ADMIN (KETUA DPW TIDAK BISA MEMBUAT AKUN) */}
-                {showUserMgmt && onOpenUserManagement && (
-                  <button
-                    onClick={() => {
-                      onOpenUserManagement();
-                      onCloseMobile();
-                    }}
-                    className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-colors cursor-pointer mt-1"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-700 text-white flex items-center justify-center font-bold">
-                        <KeyRound className="w-4 h-4" />
+
+                  {/* Riwayat Audit (SUPER ADMIN & DPW) */}
+                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
+                    <button
+                      onClick={() => {
+                        onOpenAuditModal();
+                        onCloseMobile();
+                      }}
+                      className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                          <History className="w-4 h-4" />
+                        </div>
+                        <span>Riwayat Audit</span>
                       </div>
-                      <div className="text-left">
-                        <span className="block leading-none">Manajemen Akun</span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 block">
-                          Kelola Akses Admin
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono">
+                        {auditLogsCount}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Status Hapus / Permohonan Hapus */}
+                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW' || session?.role === 'ADMIN_DPD') && (
+                    <button
+                      onClick={() => {
+                        onOpenDeletionApproval();
+                        onCloseMobile();
+                      }}
+                      className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <span>
+                          {session?.role === 'SUPER_ADMIN' ? 'Permohonan Hapus' : 'Status Hapus'}
                         </span>
                       </div>
-                    </div>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-bold uppercase">
-                      SUPER
-                    </span>
-                  </button>
-                )}
+                      {pendingDeletionCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white animate-pulse">
+                          {pendingDeletionCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Manajemen Akun Admin: HANYA SUPER ADMIN (KETUA DPW TIDAK BISA MEMBUAT AKUN) */}
+                  {showUserMgmt && onOpenUserManagement && (
+                    <button
+                      onClick={() => {
+                        onOpenUserManagement();
+                        onCloseMobile();
+                      }}
+                      className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-colors cursor-pointer mt-1"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-700 text-white flex items-center justify-center font-bold">
+                          <KeyRound className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block leading-none">Manajemen Akun</span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 block">
+                            Kelola Akses Admin
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-bold uppercase">
+                        SUPER
+                      </span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -617,14 +623,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               )}
             </button>
 
-            <button
-              onClick={onOpenPrintReport}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Cetak Laporan PDF Ringkasan Atasan"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="text-[11px]">Cetak</span>
-            </button>
+            {session?.role !== 'ANGGOTA' && (
+              <button
+                onClick={onOpenPrintReport}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Cetak Laporan PDF Ringkasan Atasan"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span className="text-[11px]">Cetak</span>
+              </button>
+            )}
 
             <button
               onClick={onLogout}
