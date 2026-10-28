@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { Member, UserSession } from '../../types';
 import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
-import { getInitials, getAvatarColor } from '../../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 import { exportMembersToExcel, exportMembersToCsv } from '../../utils/excelUtils';
 import {
@@ -283,7 +283,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                             <div className="w-9 h-11 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-2xs group-hover/avatar:ring-2 group-hover/avatar:ring-amber-400 transition-all">
                               {member.fotoProfilUrl ? (
                                 <img
-                                  src={member.fotoProfilUrl}
+                                  src={resolveImageUrl(member.fotoProfilUrl)}
                                   alt={member.namaLengkap}
                                   className="w-full h-full object-cover"
                                 />

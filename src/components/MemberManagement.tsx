@@ -5,6 +5,7 @@ import { MemberFilterBar } from './members/MemberFilterBar';
 import { MemberStatsCards } from './members/MemberStatsCards';
 import { MemberTable } from './members/MemberTable';
 import { exportMembersToExcel, exportMembersToCsv } from '../utils/excelUtils';
+import { canAddMembers } from '../utils/permissionUtils';
 import {
   ArrowLeft,
   FileDown,
@@ -155,14 +156,16 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
             <span>Excel ({filteredMembers.length})</span>
           </button>
 
-          <button
-            onClick={onOpenAddModal}
-            className="btn-white flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"
-            title="Tambah Kader Baru"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Tambah Kader</span>
-          </button>
+          {canAddMembers(session) && (
+            <button
+              onClick={onOpenAddModal}
+              className="btn-white flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"
+              title="Tambah Kader Baru"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Tambah Kader</span>
+            </button>
+          )}
         </div>
       </div>
 

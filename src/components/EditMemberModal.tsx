@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
 import { SULUT_REGIONS, LEVEL_PARTY_ROLES, STATUS_OPTIONS } from '../data/sulutRegions';
-import { compressImageFile, generateSimulatedKtp, getInitials, getAvatarColor } from '../utils/imageUtils';
+import { compressImageFile, generateSimulatedKtp, getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
 import {
   Edit3,
   X,
@@ -427,7 +427,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                       <div className="w-14 h-18 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
                         {fotoProfilUrl ? (
                           <img
-                            src={fotoProfilUrl}
+                            src={resolveImageUrl(fotoProfilUrl)}
                             alt="Preview"
                             className="w-full h-full object-cover"
                           />
@@ -486,7 +486,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
                       <div className="w-20 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
                         {fotoKtpUrl ? (
                           <img
-                            src={fotoKtpUrl}
+                            src={resolveImageUrl(fotoKtpUrl)}
                             alt="Preview KTP"
                             className="w-full h-full object-cover"
                           />

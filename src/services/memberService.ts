@@ -80,16 +80,53 @@ export const MemberService = {
   },
 
   /**
-   * Menyimpan anggota: daftar baru (POST), atau perbarui bila NIK sudah ada (PUT).
+   * Mendaftarkan anggota baru ke database (POST).
    */
-  async upsertOne(member: Member): Promise<boolean> {
+  async createOne(member: Member): Promise<boolean> {
     try {
+      const payload = toApiPayload(member);
+      await apiFetch('/members', { method: 'POST', body: payload });
+      return true;
+    } catch (err) {
+      console.error('[API] Gagal mendaftarkan anggota baru:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Memperbarui data anggota yang sudah terdaftar (PUT).
+   */
+  async updateOne(member: Member, originalNik?: string): Promise<boolean> {
+    try {
+      const targetNik = originalNik || member.nik;
+      const payload = toApiPayload(member);
+      await apiFetch(`/members/${encodeURIComponent(targetNik)}`, {
+        method: 'PUT',
+        body: payload,
+      });
+      return true;
+    } catch (err) {
+      console.error('[API] Gagal memperbarui data anggota:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Menyimpan anggota: jika mode edit atau originalNik tersedia, langsung panggil PUT.
+   */
+  async upsertOne(member: Member, originalNik?: string): Promise<boolean> {
+    try {
+      const targetNik = originalNik || member.nik;
+      if (originalNik) {
+        return await this.updateOne(member, originalNik);
+      }
+
       const payload = toApiPayload(member);
       try {
         await apiFetch('/members', { method: 'POST', body: payload });
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
-          await apiFetch(`/members/${encodeURIComponent(payload.nik)}`, { method: 'PUT', body: payload });
+          await apiFetch(`/members/${encodeURIComponent(targetNik)}`, { method: 'PUT', body: payload });
         } else {
           throw err;
         }
@@ -172,6 +209,10 @@ export const MemberService = {
       return true;
     } catch (err) {
       console.error('[API] Gagal hapus massal:', err);
+      return false;
+    }
+  },
+
   /**
    * Mengambil data profil lengkap milik user/kader yang sedang login.
    */

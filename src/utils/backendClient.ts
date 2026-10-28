@@ -27,6 +27,8 @@ export {
 
 // API Function bindings
 export const getMembersFromApi = MemberService.getAll;
+export const createMemberInApi = MemberService.createOne;
+export const updateMemberInApi = MemberService.updateOne;
 export const upsertSingleMemberToApi = MemberService.upsertOne;
 export const changeMemberStatusInApi = MemberService.changeStatus;
 export const upsertMembersToApi = MemberService.upsertBatch;
@@ -43,6 +45,8 @@ export const updateDeletionRequestInApi = DeletionRequestService.update;
 // Legacy alias compatibility (memastikan semua pemanggilan lama otomatis memakai backend API)
 export const isSupabaseConfigured = isBackendConfigured;
 export const getMembersFromSupabase = MemberService.getAll;
+export const createSingleMemberToSupabase = MemberService.createOne;
+export const updateSingleMemberToSupabase = MemberService.updateOne;
 export const upsertSingleMemberToSupabase = MemberService.upsertOne;
 export const upsertMembersToSupabase = MemberService.upsertBatch;
 export const deleteMemberFromSupabase = MemberService.deleteOne;

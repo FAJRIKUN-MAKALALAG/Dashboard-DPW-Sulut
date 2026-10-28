@@ -812,13 +812,15 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     filteredUsers.map((user) => {
                       const isMaster = user.username === MASTER_SUPER_ADMIN.username || user.username === '7106033003050001';
 
-                      const roleBadgeColor = {
+                      const roleBadgeColor: Record<string, string> = {
                         SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
                         ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
                         ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
                         ADMIN_DPC: 'bg-teal-100 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700',
                         ADMIN_DPRT: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
-                      }[user.role] || 'bg-slate-100 text-slate-700';
+                        ANGGOTA: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+                      };
+                      const userBadge = roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700';
 
                       return (
                         <tr
@@ -866,7 +868,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                           {/* Role */}
                           <td className="py-3 px-4">
                             <span
-                              className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${roleBadgeColor}`}
+                              className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${userBadge}`}
                             >
                               {user.role}
                             </span>
