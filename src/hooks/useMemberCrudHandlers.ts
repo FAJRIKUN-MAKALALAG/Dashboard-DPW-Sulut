@@ -13,6 +13,8 @@ import {
 import {
   isSupabaseConfigured,
   getMembersFromSupabase,
+  createSingleMemberToSupabase,
+  updateSingleMemberToSupabase,
   upsertSingleMemberToSupabase,
   upsertMembersToSupabase,
   deleteMemberFromSupabase,
@@ -69,8 +71,8 @@ export function useMemberCrudHandlers({
     showToast(`Kader baru ${newMember.namaLengkap} (${newMember.dpd}) berhasil didaftarkan.`);
 
     if (isSupabaseConfigured()) {
-      upsertSingleMemberToSupabase(newMember).catch((err) => {
-        console.error('Gagal menyimpan kader baru ke Supabase:', err);
+      createSingleMemberToSupabase(newMember).catch((err) => {
+        console.error('Gagal menyimpan kader baru ke backend:', err);
       });
     }
 
@@ -105,8 +107,8 @@ export function useMemberCrudHandlers({
     showToast(`Data kader ${updatedMember.namaLengkap} berhasil diperbarui.`);
 
     if (isSupabaseConfigured()) {
-      upsertSingleMemberToSupabase(updatedMember).catch((err) => {
-        console.error('Gagal memperbarui data kader di Supabase:', err);
+      updateSingleMemberToSupabase(updatedMember, originalNik).catch((err) => {
+        console.error('Gagal memperbarui data kader di backend:', err);
       });
     }
 

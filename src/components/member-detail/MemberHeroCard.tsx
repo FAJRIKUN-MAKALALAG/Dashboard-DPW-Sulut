@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Member } from '../../types';
 import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
-import { getInitials, getAvatarColor } from '../../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 
 interface MemberHeroCardProps {
@@ -53,7 +53,7 @@ export const MemberHeroCard: React.FC<MemberHeroCardProps> = ({
             <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl overflow-hidden border-2 border-amber-400/80 shadow-lg bg-slate-800 flex items-center justify-center relative">
               {member.fotoProfilUrl ? (
                 <img
-                  src={member.fotoProfilUrl}
+                  src={resolveImageUrl(member.fotoProfilUrl)}
                   alt={member.namaLengkap}
                   className="w-full h-full object-cover"
                 />

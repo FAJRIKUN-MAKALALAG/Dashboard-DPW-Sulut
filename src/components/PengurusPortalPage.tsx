@@ -12,12 +12,15 @@ import {
   IdCard,
   Search,
   Info,
+  ShieldCheck,
 } from 'lucide-react';
+import { canAddMembers } from '../utils/permissionUtils';
 import {
   PengurusHierarchyCard,
   PengurusRegisterMemberForm,
   PengurusRecruitsList,
   PengurusTerritorySearchTab,
+  EditProfileModal,
 } from './portal';
 
 interface PengurusPortalPageProps {
@@ -32,6 +35,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   members,
   session,
   onAddMember,
+  onRefreshCloud,
 }) => {
   // Mode Tab Internal: 'profil' (Profil, Referral & Form) | 'pencarian' (Pencarian Anggota Wilayah)
   const [activePortalTab, setActivePortalTab] = useState<'profil' | 'pencarian'>('profil');
@@ -41,6 +45,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   const [, setLoadingProfile] = useState<boolean>(true);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [showQr, setShowQr] = useState<boolean>(false);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState<boolean>(false);
 
   // Selector untuk Super Admin agar dapat melihat simulasi halaman sebagai pengurus DPRt / DPC / DPD
   const isSuperUser = session.role === 'SUPER_ADMIN';
@@ -450,20 +455,46 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             shareText={shareText}
             showQr={showQr}
             setShowQr={setShowQr}
+            onOpenEditProfile={() => setIsEditProfileModalOpen(true)}
           />
 
-          {/* 3. Formulir Pendaftaran Anggota Baru */}
-          <PengurusRegisterMemberForm
-            members={members}
-            session={session}
-            activePengurusMember={activePengurusMember}
-            myReferralCode={myReferralCode}
-            ketuaLangsung={ketuaLangsung}
-            onAddMember={onAddMember}
-            perekrutNama={perekrutNama}
-            perekrutJabatan={perekrutJabatan}
-            perekrutNik={perekrutNik}
-          />
+          {/* 3. Formulir Pendaftaran Anggota Baru (Khusus Pemegang SK Resmi) */}
+          {canAddMembers(session) ? (
+            <PengurusRegisterMemberForm
+              members={members}
+              session={session}
+              activePengurusMember={activePengurusMember}
+              myReferralCode={myReferralCode}
+              ketuaLangsung={ketuaLangsung}
+              onAddMember={onAddMember}
+              perekrutNama={perekrutNama}
+              perekrutJabatan={perekrutJabatan}
+              perekrutNik={perekrutNik}
+            />
+          ) : (
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-900 border border-amber-200 dark:border-amber-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[11px] font-bold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>HAK AKSES PENDAFTARAN ANGGOTA</span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Pendaftaran Anggota Baru Dikelola Khusus Pengurus Ber-SK
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
+                  Sebagai Kader/Anggota Biasa, Anda dapat melihat e-KTA digital, pembina wilayah, dan memperbarui foto profil &amp; KTP Anda sendiri. Form penambahan kader baru dikhususkan bagi Pengurus Struktural resmi yang memiliki SK.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <span>Edit Profil &amp; Berkas Foto</span>
+              </button>
+            </div>
+          )}
 
           {/* 4. Riwayat Anggota Hasil Rekrutmen Pengurus Ini */}
           <PengurusRecruitsList
@@ -491,6 +522,20 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         />
       )}
       </div>
+
+      {/* Modal Edit Profil & Unggah Berkas Foto */}
+      {activePengurusMember && (
+        <EditProfileModal
+          isOpen={isEditProfileModalOpen}
+          onClose={() => setIsEditProfileModalOpen(false)}
+          member={activePengurusMember}
+          onProfileUpdated={(updatedMember) => {
+            if (onRefreshCloud) {
+              onRefreshCloud();
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { Member } from '../types';
 import { STATUS_BADGE_CONFIG } from '../data/sulutRegions';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
-import { getInitials, getAvatarColor } from '../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
 import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, IdCard } from 'lucide-react';
 
 interface EKtaCardModalProps {
@@ -93,7 +93,7 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
                 <div className="w-16 h-20 rounded-lg bg-slate-800 border border-amber-500/40 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-inner">
                   {member.fotoProfilUrl ? (
                     <img
-                      src={member.fotoProfilUrl}
+                      src={resolveImageUrl(member.fotoProfilUrl)}
                       alt={member.namaLengkap}
                       className="w-full h-full object-cover"
                     />

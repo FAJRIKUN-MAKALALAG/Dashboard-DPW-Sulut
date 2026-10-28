@@ -119,7 +119,7 @@ export function canAddMembers(session?: UserSession): boolean {
   if (!session) return false;
   if (session.role === 'ANGGOTA') return false;
   if (session.canAddMembers !== undefined) return Boolean(session.canAddMembers);
-  return session.role !== 'ANGGOTA';
+  return true;
 }
 
 /**

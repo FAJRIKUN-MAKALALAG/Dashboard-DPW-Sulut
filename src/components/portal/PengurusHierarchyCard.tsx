@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sparkles, Copy, Check, Share2, QrCode, Shield } from 'lucide-react';
+import { Sparkles, Copy, Check, Share2, QrCode, Shield, Edit3, User } from 'lucide-react';
 import { Member, UserSession } from '../../types';
+import { resolveImageUrl } from '../../utils/imageUtils';
 
 interface KetuaLangsungInfo {
   nik: string;
@@ -21,6 +22,7 @@ interface PengurusHierarchyCardProps {
   shareText: string;
   showQr: boolean;
   setShowQr: (show: boolean) => void;
+  onOpenEditProfile?: () => void;
 }
 
 export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
@@ -34,24 +36,37 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
   shareText,
   showQr,
   setShowQr,
+  onOpenEditProfile,
 }) => {
+  const memberPhoto = resolveImageUrl(activePengurusMember?.fotoProfilUrl);
+
   return (
     <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
       {/* Kolom Kiri: Profil & Status SK */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
         <div>
           <div className="flex items-start gap-3.5">
-            <div className="w-14 h-14 rounded-xl bg-blue-700 text-white font-bold text-lg flex items-center justify-center shrink-0">
-              {(activePengurusMember?.namaLengkap || session.adminName || 'ND')
-                .split(' ')
-                .map((n: string) => n[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase()}
+            <div className="w-14 h-14 rounded-xl bg-blue-700 text-white font-bold text-lg flex items-center justify-center shrink-0 overflow-hidden border border-blue-600/30">
+              {memberPhoto ? (
+                <img
+                  src={memberPhoto}
+                  alt={activePengurusMember?.namaLengkap || 'Foto Profil'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                (activePengurusMember?.namaLengkap || session.adminName || 'ND')
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 mb-1">
-                Pengurus {activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '')}
+                {session.role === 'ANGGOTA' || activePengurusMember?.tingkatKepengurusan === 'Bukan Pengurus'
+                  ? 'Kader Anggota Resmi'
+                  : `Pengurus ${activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '')}`}
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                 {activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName}
@@ -90,19 +105,34 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-500 font-medium">Nomor SK</span>
+              <span className="text-slate-500 font-medium">
+                {activePengurusMember?.nomorSK ? 'Nomor SK' : 'Status SK'}
+              </span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">
-                {activePengurusMember?.nomorSK || 'SK-DPW-SULUT-2024'}
+                {activePengurusMember?.nomorSK || (session.role === 'ANGGOTA' ? 'Belum Ada SK (Kader Biasa)' : 'SK-DPW-SULUT-2024')}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-          <span className="text-slate-500">Status Keaktifan</span>
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-            {activePengurusMember?.status || 'Aktif'}
-          </span>
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500">Status:</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              {activePengurusMember?.status || 'Aktif'}
+            </span>
+          </div>
+
+          {onOpenEditProfile && (
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit Profil &amp; Foto</span>
+            </button>
+          )}
         </div>
       </div>
 
