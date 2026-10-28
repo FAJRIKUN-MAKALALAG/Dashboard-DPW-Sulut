@@ -70,7 +70,7 @@ export interface MemberPosition {
   urutan?: number;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT' | 'ANGGOTA';
 
 export interface UserSession {
   role: UserRole;
@@ -80,6 +80,8 @@ export interface UserSession {
   adminName: string;
   adminNik?: string;
   jabatan: string;
+  canAddMembers?: boolean;
+  hasSk?: boolean;
 }
 
 export interface AppUser {

@@ -111,6 +111,18 @@ export function canAccessStructureTab(
 }
 
 /**
+ * Memeriksa wewenang pendaftaran/penambahan anggota baru:
+ * HANYA Super Admin dan Pengurus struktural resmi pemegang SK yang berwenang.
+ * Anggota biasa (role 'ANGGOTA' atau canAddMembers === false) TIDAK BISA menambah anggota.
+ */
+export function canAddMembers(session?: UserSession): boolean {
+  if (!session) return false;
+  if (session.role === 'ANGGOTA') return false;
+  if (session.canAddMembers !== undefined) return Boolean(session.canAddMembers);
+  return session.role !== 'ANGGOTA';
+}
+
+/**
  * Mendapatkan label wilayah penugasan pengguna untuk ditampilkan di header / breadcrumb
  */
 export function getUserTerritoryLabel(session?: UserSession): string {
@@ -120,5 +132,6 @@ export function getUserTerritoryLabel(session?: UserSession): string {
   if (session.role === 'ADMIN_DPD') return `DPD ${session.dpdAccess}`;
   if (session.role === 'ADMIN_DPC') return `DPC Kec. ${session.dpcAccess} (${session.dpdAccess})`;
   if (session.role === 'ADMIN_DPRT') return `DPRt Desa/Kel. ${session.dprtAccess}`;
+  if (session.role === 'ANGGOTA') return `Kader Anggota Resmi (${session.dpdAccess || 'Sulut'})`;
   return session.dpdAccess || 'Sulawesi Utara';
 }
