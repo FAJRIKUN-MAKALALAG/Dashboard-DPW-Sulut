@@ -185,7 +185,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
       {/* Main High-Density Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs transition-colors">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[760px]">
             <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
               <tr>
                 <th className="p-3 w-10 text-center">
@@ -492,8 +492,8 @@ export const MemberTable: React.FC<MemberTableProps> = ({
         </div>
 
         {/* Pagination Bar */}
-        <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 font-mono">
-          <div>
+        <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 font-mono gap-2">
+          <div className="text-center sm:text-left">
             Halaman <strong className="text-slate-900 dark:text-white">{currentPage}</strong> dari{' '}
             <strong className="text-slate-900 dark:text-white">{totalPages}</strong> ({filteredMembers.length} total)
           </div>

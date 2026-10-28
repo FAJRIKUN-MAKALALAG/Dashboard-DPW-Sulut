@@ -36,9 +36,6 @@ export const AnalyticsCommandCenterHeader: React.FC<AnalyticsCommandCenterHeader
             <span className="text-xs sm:text-sm font-extrabold text-white tracking-wider uppercase font-mono">
               DPW PARTAI NASDEM SULUT
             </span>
-            <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-mono font-bold">
-              LIVE MONITORING
-            </span>
           </div>
           <span className="text-[11px] text-zinc-400 block">
             Pusat Analisis Teritorial &bull; <strong className="text-blue-400 font-mono">15 DPD</strong> &bull; <strong className="text-amber-400 font-mono">171 DPC</strong> &bull; <strong className="text-emerald-400 font-mono">1.602 DPRt</strong>

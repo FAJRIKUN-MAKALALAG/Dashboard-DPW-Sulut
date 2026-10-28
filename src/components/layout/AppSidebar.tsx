@@ -31,7 +31,7 @@ import {
   Tv,
 } from 'lucide-react';
 
-export type MainNavTab = 'dashboard' | 'analytics' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members' | 'sync';
+export type MainNavTab = 'dashboard' | 'analytics' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -464,32 +464,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     {totalMembersCount}
                   </span>
                 </button>
-
-                {/* Sinkronisasi ID (HANYA SUPER ADMIN & DPW) */}
-                {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
-                  <button
-                    onClick={() => handleNavClick('sync')}
-                    className={navItemClass(activeTab === 'sync')}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'sync')}>
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block leading-none">Sinkronisasi ID</span>
-                        <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
-                            activeTab === 'sync'
-                              ? 'text-white/80'
-                              : 'text-slate-400 dark:text-slate-500'
-                          }`}
-                        >
-                          KTA &amp; NIK Rekonsiliasi
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                )}
               </div>
             </div>
 
@@ -620,17 +594,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   </span>
                 </div>
               </div>
-
-              {/* Role Switcher button (Hanya untuk Super Admin) */}
-              {session?.role === 'SUPER_ADMIN' && (
-                <button
-                  onClick={onOpenRoleModal}
-                  className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-300 transition-colors cursor-pointer shrink-0"
-                  title="Simulasi Peran Sesi (Khusus Super Admin)"
-                >
-                  Simulasi
-                </button>
-              )}
             </div>
           </div>
 

@@ -206,20 +206,20 @@ export const GrowthInteractiveChart: React.FC<GrowthInteractiveChartProps> = ({
               : 'bg-slate-50/80 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Calendar className="w-5 h-5" />
+          <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900 dark:text-white text-sm">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                   {activeInspectorPoint.dayName}, {activeInspectorPoint.displayDate}
                 </span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full text-xs">
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full text-[11px] sm:text-xs shrink-0">
                   +{activeInspectorPoint.count} Anggota Baru
                 </span>
                 {pinnedDate === activeInspectorPoint.date && (
-                  <span className="text-[10px] bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  <span className="text-[10px] bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
                     Terfilter Aktif
                   </span>
                 )}

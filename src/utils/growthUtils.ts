@@ -1,5 +1,6 @@
 import { Member } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import { isDpdMatch } from './structureReadinessUtils';
 
 export type GrowthPeriod = 'today' | '7days' | '30days' | 'month' | 'all';
 
@@ -108,13 +109,26 @@ export function computeGrowthAnalytics(
 
   const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // Filter members by period and filters
+  // 1. Filter base members by DPD and Recruiter
+  const baseMembers = members.filter((m) => {
+    if (filterDpd && filterDpd !== 'ALL' && !isDpdMatch(m.dpd, filterDpd)) {
+      return false;
+    }
+
+    if (filterRecruiter && m.kaderPerekrutNama !== filterRecruiter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // 2. Count period summaries strictly from baseMembers
   let todayCount = 0;
   let last7DaysCount = 0;
   let last30DaysCount = 0;
   let thisMonthCount = 0;
 
-  members.forEach((m) => {
+  baseMembers.forEach((m) => {
     const d = m.tanggalBergabung || '';
     if (!d) return;
 
@@ -124,15 +138,8 @@ export function computeGrowthAnalytics(
     if (d.startsWith(thisMonthPrefix)) thisMonthCount++;
   });
 
-  const targetMembers = members.filter((m) => {
-    if (filterDpd && filterDpd !== 'ALL' && m.dpd !== filterDpd) {
-      return false;
-    }
-
-    if (filterRecruiter && m.kaderPerekrutNama !== filterRecruiter) {
-      return false;
-    }
-
+  // 3. Filter targetMembers by period/pinned date
+  const targetMembers = baseMembers.filter((m) => {
     const d = m.tanggalBergabung || '';
     if (!d) return false;
 

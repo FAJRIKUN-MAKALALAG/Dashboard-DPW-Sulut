@@ -156,7 +156,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex items-center gap-2 mt-5 overflow-x-auto no-scrollbar pt-1 border-t border-white/10 text-xs">
+          <div className="flex items-center gap-2 mt-5 overflow-x-auto pt-1 border-t border-white/10 text-xs">
             <button
               onClick={() => setActiveTab('my_code')}
               className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap ${
