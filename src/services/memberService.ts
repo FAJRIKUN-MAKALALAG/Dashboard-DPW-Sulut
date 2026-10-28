@@ -172,7 +172,35 @@ export const MemberService = {
       return true;
     } catch (err) {
       console.error('[API] Gagal hapus massal:', err);
-      return false;
+  /**
+   * Mengambil data profil lengkap milik user/kader yang sedang login.
+   */
+  async getMyProfile(): Promise<Member | null> {
+    try {
+      const res = await apiFetch<{ member: any }>('/members/me/profile');
+      return res.member ? mapApiMember(res.member) : null;
+    } catch (err) {
+      console.error('[API] Gagal mengambil profil mandiri:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Memperbarui biodata kontak dan foto pribadi secara mandiri oleh kader/pengurus.
+   */
+  async updateMyProfile(data: Partial<Member>): Promise<{ success: boolean; member?: Member; error?: string }> {
+    try {
+      const payload = mapMemberToDbPayload(data as Member);
+      delete payload.terakhir_diubah;
+      delete payload.diubah_oleh;
+      const res = await apiFetch<{ member: any; message?: string }>('/members/me/profile', {
+        method: 'PUT',
+        body: payload,
+      });
+      return { success: true, member: res.member ? mapApiMember(res.member) : undefined };
+    } catch (err: any) {
+      console.error('[API] Gagal memperbarui profil mandiri:', err);
+      return { success: false, error: err?.message || 'Gagal memperbarui profil' };
     }
   },
 };

@@ -1,9 +1,27 @@
+import { API_BASE_URL } from '../config/api';
+
 /**
- * Utility for handling member photo profile and KTP images:
- * - Compress image files to compact base64 data URLs for localStorage
- * - Generate simulated high-res Indonesian e-KTP card canvas for preview/testing
- * - Avatar color generators
+ * Normalizes an image URL:
+ * - If data URI (base64) or blob: or absolute http(s):// -> returns as is
+ * - If backend relative URL (e.g. /api/uploads/profile/xyz.webp) -> resolves to full backend URL
  */
+export function resolveImageUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://')
+  ) {
+    return trimmed;
+  }
+
+  const base = API_BASE_URL.replace(/\/api\/?$/, '');
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${base}${cleanPath}`;
+}
 
 export function compressImageFile(
   file: File,
