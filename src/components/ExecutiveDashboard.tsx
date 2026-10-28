@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
 import { TerritorialGrowthModal } from './TerritorialGrowthModal';
 import { StructureDrilldownModal } from './StructureDrilldownModal';
@@ -53,11 +53,18 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 }) => {
   const [selectedDpdFilter, setSelectedDpdFilter] = useState<string>('ALL');
 
-  // Growth Analytics State
   const [growthPeriod, setGrowthPeriod] = useState<GrowthPeriod>('30days');
   const [pinnedDate, setPinnedDate] = useState<string | undefined>(undefined);
   const [filterRecruiter, setFilterRecruiter] = useState<string | undefined>(undefined);
   const [growthViewTab, setGrowthViewTab] = useState<'territory' | 'recruiters'>('territory');
+  const [growthDpdFilter, setGrowthDpdFilter] = useState<string>('ALL');
+
+  // Sync growthDpdFilter when top-level selectedDpdFilter changes
+  useEffect(() => {
+    if (selectedDpdFilter) {
+      setGrowthDpdFilter(selectedDpdFilter);
+    }
+  }, [selectedDpdFilter]);
 
   const [isGrowthModalOpen, setIsGrowthModalOpen] = useState(false);
   const [modalInitialDpd, setModalInitialDpd] = useState<string | undefined>(undefined);
@@ -87,7 +94,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   // Filtered members by region if selected or scoped by role with robust matching
   const scopedMembers = useMemo(() => {
     let list = members;
-    if (session && session.role !== 'SUPER_ADMIN') {
+    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
       if (session.role === 'ADMIN_DPD') {
         list = list.filter((m) => isDpdMatch(m.dpd, session.dpdAccess));
       } else if (session.role === 'ADMIN_DPC') {
@@ -123,18 +130,24 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Compute Real Structural Completeness KPI (DPW, DPD, DPC, DPRt templates)
   const structureKpi = useMemo(() => {
-    const activeDpd =
-      session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW'
-        ? session.dpdAccess
-        : selectedDpdFilter;
-    return computeStructureKpiStats(members, activeDpd);
+    const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+    const activeDpd = isRegionalScoped ? session.dpdAccess : selectedDpdFilter;
+    const activeDpc =
+      isRegionalScoped && (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT')
+        ? session.dpcAccess
+        : undefined;
+    const activeDprt = isRegionalScoped && session.role === 'ADMIN_DPRT' ? session.dprtAccess : undefined;
+
+    return computeStructureKpiStats(members, activeDpd, activeDpc, activeDprt);
   }, [members, selectedDpdFilter, session]);
 
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
-    const targetSource = !session || session.role === 'SUPER_ADMIN' ? members : scopedMembers;
-    const activeDpd =
-      !session || session.role === 'SUPER_ADMIN' ? selectedDpdFilter : session.dpdAccess;
+    const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+    // If regional scoped (DPD, DPC, DPRt), data is strictly restricted to their own territory (scopedMembers)
+    const targetSource = isRegionalScoped ? scopedMembers : members;
+    const activeDpd = isRegionalScoped ? session.dpdAccess : growthDpdFilter;
+
     return computeGrowthAnalytics(
       targetSource,
       growthPeriod,
@@ -142,7 +155,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       pinnedDate,
       filterRecruiter
     );
-  }, [members, scopedMembers, session, growthPeriod, selectedDpdFilter, pinnedDate, filterRecruiter]);
+  }, [members, scopedMembers, session, growthPeriod, growthDpdFilter, pinnedDate, filterRecruiter]);
 
   // Handler for quick scenario injection
   const handleLoadTestScenario = () => {
@@ -218,14 +231,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         countPengurusDpw={countPengurusDpw}
         selectedDpdFilter={selectedDpdFilter}
         structureKpi={structureKpi}
-        onNavigateToMembers={(membership) =>
+        onNavigateToMembers={(membership) => {
+          const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+          const navDpd = isRegionalScoped ? session.dpdAccess : (selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter);
           onNavigateToMembers(
-            selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter,
+            navDpd,
             'Aktif',
             membership || 'ALL'
-          )
-        }
-        onOpenStructureModal={(level) => handleOpenStructureModal(selectedDpdFilter, level)}
+          );
+        }}
+        onOpenStructureModal={(level) => {
+          const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+          const modalDpd = isRegionalScoped ? session.dpdAccess : selectedDpdFilter;
+          handleOpenStructureModal(modalDpd, level);
+        }}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
@@ -233,6 +252,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       <UnifiedTerritorialReadiness
         members={members}
         session={session}
+        selectedDpdFilter={selectedDpdFilter}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         onOpenStructureModal={handleOpenStructureModal}
       />
@@ -257,6 +277,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         handleLoadTestScenario={handleLoadTestScenario}
         session={session}
         selectedDpdFilter={selectedDpdFilter}
+        growthDpdFilter={growthDpdFilter}
+        setGrowthDpdFilter={setGrowthDpdFilter}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
         hasAddMembers={!!onAddMembers}
       />

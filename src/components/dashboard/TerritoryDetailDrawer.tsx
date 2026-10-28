@@ -243,18 +243,20 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
           />
 
           {/* 2. Navigation Tabs */}
-          <div className="px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-4 text-xs font-medium">
+          <div className="px-4 sm:px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 sm:gap-4 text-xs font-medium overflow-x-auto whitespace-nowrap">
             <button
               type="button"
               onClick={() => setActiveTab('dpd')}
-              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold ${
+              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                 activeTab === 'dpd'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Formasi 36 Jabatan DPD</span>
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <span className="hidden xs:inline">Formasi </span>36 DPD
+              </span>
               <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                 {compliance.filledCount}/36
               </span>
@@ -263,26 +265,26 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('dpc')}
-              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold ${
+              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                 activeTab === 'dpc'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <MapPin className="w-3.5 h-3.5" />
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
               <span>DPC Kecamatan ({regionInfo.subdistricts.length})</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('dprt')}
-              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold ${
+              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                 activeTab === 'dprt'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers className="w-3.5 h-3.5 shrink-0" />
               <span>Basis Ranting DPRt</span>
             </button>
           </div>

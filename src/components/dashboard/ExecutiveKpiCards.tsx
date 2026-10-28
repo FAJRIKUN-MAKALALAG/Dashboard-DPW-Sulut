@@ -1,7 +1,8 @@
 import React from 'react';
 import { UserSession } from '../../types';
-import { UserCheck, TrendingUp, Building2, ChevronRight } from 'lucide-react';
-import { StructureKpiStats } from '../../utils/structureReadinessUtils';
+import { UserCheck, TrendingUp, Building2, ChevronRight, MapPin } from 'lucide-react';
+import { StructureKpiStats, isDpdMatch } from '../../utils/structureReadinessUtils';
+import { SULUT_REGIONS } from '../../data/sulutRegions';
 
 interface ExecutiveKpiCardsProps {
   session?: UserSession;
@@ -32,7 +33,20 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
   onOpenStructureModal,
   onOpenTerritorialMatrix,
 }) => {
-  const isSuperAdmin = !session || session.role === 'SUPER_ADMIN';
+  const isSuperAdminOrDpw = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+  const isDpdScoped = session?.role === 'ADMIN_DPD';
+  const isDpcScoped = session?.role === 'ADMIN_DPC';
+  const isDprtScoped = session?.role === 'ADMIN_DPRT';
+  const isRegionalScoped = !isSuperAdminOrDpw;
+
+  const currentRegion = React.useMemo(() => {
+    const targetDpd = isRegionalScoped ? session?.dpdAccess : (selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined);
+    if (!targetDpd) return null;
+    return SULUT_REGIONS.find((r) => isDpdMatch(r.name, targetDpd)) || null;
+  }, [isRegionalScoped, session?.dpdAccess, selectedDpdFilter]);
+
+  const totalDpcsInDpd = currentRegion?.subdistricts.length || 0;
+  const totalDprtsInDpd = currentRegion?.subdistricts.reduce((sum, s) => sum + s.villages.length, 0) || 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -48,15 +62,21 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             </div>
           </div>
 
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2">
             <span
-              className="text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight"
+              className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight"
               data-tabular="true"
             >
               {totalActive.toLocaleString('id-ID')}
             </span>
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-              Total Kader
+            <span className="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 truncate max-w-[200px] sm:max-w-none">
+              {isDprtScoped
+                ? `Kader Desa ${session?.dprtAccess || ''}`
+                : isDpcScoped
+                ? `Kader Kec. ${session?.dpcAccess || ''}`
+                : isDpdScoped
+                ? `Kader ${session?.dpdAccess || ''}`
+                : 'Total Kader'}
             </span>
           </div>
 
@@ -65,17 +85,17 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             {/* Box 1: Pengurus Ber-SK */}
             <div
               onClick={() => onNavigateToMembers('PENGURUS')}
-              className="bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl p-2.5 cursor-pointer hover:border-blue-400 hover:shadow-xs transition-all group"
+              className="bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl p-2 sm:p-2.5 cursor-pointer hover:border-blue-400 hover:shadow-xs transition-all group min-w-0"
               title="Klik untuk membuka data khusus Pengurus Ber-SK"
             >
-              <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide flex items-center justify-between">
-                <span>Pengurus Ber-SK</span>
-                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide flex items-center justify-between gap-1">
+                <span className="truncate">Pengurus SK</span>
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </div>
-              <div className="text-xl font-black text-blue-800 dark:text-blue-200 font-mono mt-1" data-tabular="true">
+              <div className="text-lg sm:text-xl font-black text-blue-800 dark:text-blue-200 font-mono mt-1" data-tabular="true">
                 {totalPengurusBerSk.toLocaleString('id-ID')}
               </div>
-              <div className="text-[9.5px] text-blue-600/80 dark:text-blue-400 mt-0.5 font-medium">
+              <div className="text-[9px] sm:text-[9.5px] text-blue-600/80 dark:text-blue-400 mt-0.5 font-medium truncate">
                 Struktural SK Terbit
               </div>
             </div>
@@ -83,17 +103,17 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             {/* Box 2: Anggota Biasa (Basis KTP) */}
             <div
               onClick={() => onNavigateToMembers('ANGGOTA')}
-              className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-2.5 cursor-pointer hover:border-emerald-400 hover:shadow-xs transition-all group"
+              className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-2 sm:p-2.5 cursor-pointer hover:border-emerald-400 hover:shadow-xs transition-all group min-w-0"
               title="Klik untuk membuka data khusus Anggota Biasa (Basis KTP)"
             >
-              <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide flex items-center justify-between">
-                <span>Anggota Biasa</span>
-                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide flex items-center justify-between gap-1">
+                <span className="truncate">Anggota KTP</span>
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </div>
-              <div className="text-xl font-black text-emerald-800 dark:text-emerald-200 font-mono mt-1" data-tabular="true">
+              <div className="text-lg sm:text-xl font-black text-emerald-800 dark:text-emerald-200 font-mono mt-1" data-tabular="true">
                 {totalAnggotaBiasa.toLocaleString('id-ID')}
               </div>
-              <div className="text-[9.5px] text-emerald-600/80 dark:text-emerald-400 mt-0.5 font-medium">
+              <div className="text-[9px] sm:text-[9.5px] text-emerald-600/80 dark:text-emerald-400 mt-0.5 font-medium truncate">
                 Kader Basis KTP
               </div>
             </div>
@@ -104,14 +124,17 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
           onClick={() => onNavigateToMembers('ALL')}
           className="btn-white w-full justify-between mt-3 text-xs font-semibold px-3 py-2 rounded-xl flex items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
         >
-          <span>Buka Semua {totalActive.toLocaleString('id-ID')} Kader</span>
-          <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="truncate">Buka Semua {totalActive.toLocaleString('id-ID')} Kader</span>
+          <ChevronRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
         </button>
       </div>
 
-      {/* Metric 2: Tingkat Keterisian Struktur Riil (DPW, DPD, DPC, DPRt) */}
+      {/* Metric 2: Tingkat Keterisian Struktur Riil (Adaptif DPD, DPC, DPRt) */}
       <div
-        onClick={() => onOpenStructureModal('ALL')}
+        onClick={() => {
+          const levelToOpen = isDprtScoped ? 'DPRt' : isDpcScoped ? 'DPC' : isDpdScoped ? 'DPD' : 'ALL';
+          onOpenStructureModal(levelToOpen);
+        }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-blue-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
         title="Klik untuk membuka rincian kelengkapan seluruh struktur organisasi"
       >
@@ -126,15 +149,15 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             <TrendingUp className="w-4.5 h-4.5" />
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2">
           <span
-            className="text-3xl sm:text-4xl font-extrabold text-blue-600 dark:text-blue-400 font-mono tracking-tight"
+            className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-blue-600 dark:text-blue-400 font-mono tracking-tight"
             data-tabular="true"
           >
             {structureKpi.percentage}%
           </span>
           <span
-            className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+            className={`text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full border truncate max-w-[190px] sm:max-w-none ${
               structureKpi.percentage >= 100
                 ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800'
                 : structureKpi.percentage > 0
@@ -205,75 +228,84 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               </div>
             )}
 
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenTerritorialMatrix) {
-                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPD');
-                } else {
-                  onOpenStructureModal('DPD');
-                }
-              }}
-              className="bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/70 dark:hover:bg-blue-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-blue-300 dark:border-slate-700/60 dark:hover:border-blue-700/60 text-[10px] cursor-pointer transition-colors group/row"
-              title="Buka Halaman Susunan Pengurus DPD Kab/Kota"
-            >
-              <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                <span className="text-blue-700 dark:text-blue-300 group-hover/row:underline flex items-center gap-1">
-                  <span>Tingkat DPD Kab/Kota</span>
-                  <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
-                </span>
-                <span className="font-mono">{structureKpi.dpdFilled}/{structureKpi.dpdRequired}</span>
+            {!isDpcScoped && !isDprtScoped && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const targetDpd = isRegionalScoped ? session?.dpdAccess : (selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined);
+                  if (onOpenTerritorialMatrix) {
+                    onOpenTerritorialMatrix(targetDpd, undefined, 'DPD');
+                  } else {
+                    onOpenStructureModal('DPD');
+                  }
+                }}
+                className="bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/70 dark:hover:bg-blue-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-blue-300 dark:border-slate-700/60 dark:hover:border-blue-700/60 text-[10px] cursor-pointer transition-colors group/row"
+                title="Buka Halaman Susunan Pengurus DPD Kab/Kota"
+              >
+                <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
+                  <span className="text-blue-700 dark:text-blue-300 group-hover/row:underline flex items-center gap-1">
+                    <span>{isDpdScoped ? `Tingkat DPD ${session?.dpdAccess || ''}` : 'Tingkat DPD Kab/Kota'}</span>
+                    <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                  </span>
+                  <span className="font-mono">{structureKpi.dpdFilled}/{structureKpi.dpdRequired}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
+                  <span className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                    Pimpinan: <strong className="text-slate-900 dark:text-white">{structureKpi.dpdBreakdown?.pimpinanFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pimpinanRequired || 0}
+                  </span>
+                  <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                    Pertimbangan: <strong>{structureKpi.dpdBreakdown?.pertimbanganFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pertimbanganRequired || 0}
+                  </span>
+                  <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                    Pakar: <strong>{structureKpi.dpdBreakdown?.pakarFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pakarRequired || 0}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
-                <span className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                  Pimpinan: <strong className="text-slate-900 dark:text-white">{structureKpi.dpdBreakdown?.pimpinanFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pimpinanRequired || 0}
-                </span>
-                <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                  Pertimbangan: <strong>{structureKpi.dpdBreakdown?.pertimbanganFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pertimbanganRequired || 0}
-                </span>
-                <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
-                  Pakar: <strong>{structureKpi.dpdBreakdown?.pakarFilled || 0}</strong>/{structureKpi.dpdBreakdown?.pakarRequired || 0}
-                </span>
+            )}
+
+            {!isDprtScoped && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const targetDpd = isRegionalScoped ? session?.dpdAccess : (selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined);
+                  const targetDpc = isDpcScoped ? session?.dpcAccess : undefined;
+                  if (onOpenTerritorialMatrix) {
+                    onOpenTerritorialMatrix(targetDpd, targetDpc, 'DPC');
+                  } else {
+                    onOpenStructureModal('DPC');
+                  }
+                }}
+                className="bg-slate-50 hover:bg-emerald-50 dark:bg-slate-800/70 dark:hover:bg-emerald-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-emerald-300 dark:border-slate-700/60 dark:hover:border-emerald-700/60 text-[10px] cursor-pointer transition-colors group/row"
+                title="Buka Halaman Susunan Pengurus DPC Kecamatan"
+              >
+                <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
+                  <span className="text-emerald-700 dark:text-emerald-400 group-hover/row:underline flex items-center gap-1">
+                    <span>{isDpcScoped ? `Tingkat DPC Kec. ${session?.dpcAccess || ''}` : 'Tingkat DPC Kecamatan'}</span>
+                    <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                  </span>
+                  <span className="font-mono">{structureKpi.dpcFilled}/{structureKpi.dpcRequired}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
+                  <span className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                    Pimpinan: <strong className="text-slate-900 dark:text-white">{structureKpi.dpcBreakdown?.pimpinanFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pimpinanRequired || 0}
+                  </span>
+                  <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                    Pertimbangan: <strong>{structureKpi.dpcBreakdown?.pertimbanganFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pertimbanganRequired || 0}
+                  </span>
+                  <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                    Pakar: <strong>{structureKpi.dpcBreakdown?.pakarFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pakarRequired || 0}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div
               onClick={(e) => {
                 e.stopPropagation();
+                const targetDpd = isRegionalScoped ? session?.dpdAccess : (selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined);
+                const targetDpc = (isDpcScoped || isDprtScoped) ? session?.dpcAccess : undefined;
                 if (onOpenTerritorialMatrix) {
-                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPC');
-                } else {
-                  onOpenStructureModal('DPC');
-                }
-              }}
-              className="bg-slate-50 hover:bg-emerald-50 dark:bg-slate-800/70 dark:hover:bg-emerald-950/40 p-1.5 rounded-lg border border-slate-200/60 hover:border-emerald-300 dark:border-slate-700/60 dark:hover:border-emerald-700/60 text-[10px] cursor-pointer transition-colors group/row"
-              title="Buka Halaman Susunan Pengurus DPC Kecamatan"
-            >
-              <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                <span className="text-emerald-700 dark:text-emerald-400 group-hover/row:underline flex items-center gap-1">
-                  <span>Tingkat DPC Kecamatan</span>
-                  <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
-                </span>
-                <span className="font-mono">{structureKpi.dpcFilled}/{structureKpi.dpcRequired}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1 text-[9.5px] text-slate-600 dark:text-slate-300">
-                <span className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                  Pimpinan: <strong className="text-slate-900 dark:text-white">{structureKpi.dpcBreakdown?.pimpinanFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pimpinanRequired || 0}
-                </span>
-                <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                  Pertimbangan: <strong>{structureKpi.dpcBreakdown?.pertimbanganFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pertimbanganRequired || 0}
-                </span>
-                <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
-                  Pakar: <strong>{structureKpi.dpcBreakdown?.pakarFilled || 0}</strong>/{structureKpi.dpcBreakdown?.pakarRequired || 0}
-                </span>
-              </div>
-            </div>
-
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenTerritorialMatrix) {
-                  onOpenTerritorialMatrix(selectedDpdFilter !== 'ALL' ? selectedDpdFilter : undefined, undefined, 'DPRt');
+                  onOpenTerritorialMatrix(targetDpd, targetDpc, 'DPRt');
                 } else {
                   onOpenStructureModal('DPRt');
                 }
@@ -282,7 +314,13 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               title="Buka Halaman Susunan Pengurus DPRt Ranting Desa"
             >
               <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover/row:text-purple-700 dark:group-hover/row:text-purple-300 flex items-center gap-1">
-                <span>Tingkat DPRt (Basis Desa/Kel)</span>
+                <span>
+                  {isDprtScoped
+                    ? `Tingkat DPRt Desa ${session?.dprtAccess || ''}`
+                    : isDpcScoped
+                    ? `DPRt Desa se-Kecamatan`
+                    : 'Tingkat DPRt (Basis Desa/Kel)'}
+                </span>
                 <ChevronRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity" />
               </span>
               <span className="font-mono font-bold text-slate-900 dark:text-white">{structureKpi.dprtFilled}/{structureKpi.dprtRequired}</span>
@@ -297,48 +335,116 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
         </div>
       </div>
 
-      {/* Metric 3: Struktur DPW & Pengurus Ber-SK */}
+      {/* Metric 3: Legalitas SK Teritorial (Adaptif DPRt, DPC, DPD, DPW) */}
       <div
         onClick={() => {
-          if (onOpenTerritorialMatrix) {
-            onOpenTerritorialMatrix(undefined, undefined, 'DPW');
+          if (isDprtScoped) {
+            if (onOpenTerritorialMatrix) {
+              onOpenTerritorialMatrix(session?.dpdAccess, session?.dpcAccess, 'DPRt');
+            } else {
+              onOpenStructureModal('DPRt');
+            }
+          } else if (isDpcScoped) {
+            if (onOpenTerritorialMatrix) {
+              onOpenTerritorialMatrix(session?.dpdAccess, session?.dpcAccess, 'DPC');
+            } else {
+              onOpenStructureModal('DPC');
+            }
+          } else if (isDpdScoped) {
+            if (onOpenTerritorialMatrix) {
+              onOpenTerritorialMatrix(session?.dpdAccess, undefined, 'DPD');
+            } else {
+              onOpenStructureModal('DPD');
+            }
           } else {
-            onOpenStructureModal('DPW');
+            if (onOpenTerritorialMatrix) {
+              onOpenTerritorialMatrix(undefined, undefined, 'DPW');
+            } else {
+              onOpenStructureModal('DPW');
+            }
           }
         }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-indigo-500 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-        title="Klik untuk membuka susunan pengurus DPW Sulut"
+        title="Klik untuk membuka susunan kepengurusan ber-SK"
       >
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2.5">
           <span className="font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider text-[11px]">
-            Struktur DPW & Legalitas SK
+            {isDprtScoped
+              ? 'Struktur DPRt & Legalitas SK'
+              : isDpcScoped
+              ? 'Struktur DPC & Legalitas SK'
+              : isDpdScoped
+              ? 'Struktur DPD & Legalitas SK'
+              : 'Struktur DPW & Legalitas SK'}
           </span>
           <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs group-hover:scale-110 transition-transform">
             <Building2 className="w-4.5 h-4.5" />
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
+
+        {/* Big number & Status Badge */}
+        <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2">
           <span
-            className="text-3xl sm:text-4xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight"
+            className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight"
             data-tabular="true"
           >
-            {countPengurusDpw > 0 ? countPengurusDpw : (isSuperAdmin ? '15' : '1')}
+            {isDprtScoped
+              ? structureKpi.dprtFilled
+              : isDpcScoped
+              ? structureKpi.dpcFilled
+              : isDpdScoped
+              ? structureKpi.dpdFilled
+              : countPengurusDpw > 0 ? countPengurusDpw : 15}
           </span>
-          <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-            {countPengurusDpw > 0 ? 'Pengurus DPW Ber-SK' : (!isSuperAdmin ? 'DPD Yurisdiksi' : 'DPD Kab/Kota')}
+          <span className="text-[11px] sm:text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 truncate max-w-[190px] sm:max-w-none">
+            {isDprtScoped
+              ? (structureKpi.dprtFilled >= 9 ? 'Lengkap 9/9' : 'Pengurus Ranting')
+              : isDpcScoped
+              ? (structureKpi.dpcFilled >= 17 ? 'Formasi Lengkap' : 'Pengurus DPC Ber-SK')
+              : isDpdScoped
+              ? (structureKpi.dpdFilled >= 36 ? 'Formasi Lengkap' : 'Pengurus DPD Ber-SK')
+              : countPengurusDpw > 0 ? 'Pengurus DPW Ber-SK' : 'DPD Kab/Kota'}
           </span>
         </div>
+
+        {/* Subtitle Teritorial */}
         <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-          <p className="font-medium text-slate-800 dark:text-slate-200">
-            15 DPD &middot; 167 DPC &middot; DPRt Basis Desa
+          <p className="font-medium text-slate-800 dark:text-slate-200 truncate">
+            {isDprtScoped
+              ? `Basis Desa ${session?.dprtAccess || ''} · Kec. ${session?.dpcAccess || ''}`
+              : isDpcScoped
+              ? `Kec. ${session?.dpcAccess || ''} · ${structureKpi.dprtRequired / 9 || 0} DPRt Basis Desa`
+              : isDpdScoped
+              ? `${totalDpcsInDpd} DPC Kecamatan · ${totalDprtsInDpd} DPRt Basis Desa`
+              : '15 DPD · 167 DPC · DPRt Basis Desa'}
           </p>
-          <p className="text-indigo-600 dark:text-indigo-400 group-hover:underline text-[10px] font-semibold">
-            Buka Halaman Susunan Pengurus DPW &raquo;
+          <p className="text-indigo-600 dark:text-indigo-400 group-hover:underline text-[10px] font-semibold truncate">
+            {isDprtScoped
+              ? 'Buka Halaman Susunan Pengurus DPRt »'
+              : isDpcScoped
+              ? 'Buka Halaman Susunan Pengurus DPC »'
+              : isDpdScoped
+              ? 'Buka Halaman Susunan Pengurus DPD »'
+              : 'Buka Halaman Susunan Pengurus DPW »'}
           </p>
         </div>
-        <div className="mt-3 pt-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 p-2 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">
-          <span>Total Pengurus Ber-SK:</span>
-          <span className="font-mono font-bold text-slate-900 dark:text-white">{totalPengurusBerSk} Orang</span>
+
+        {/* Footer Info Box */}
+        <div className="mt-3 pt-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 p-2 border border-indigo-100 dark:border-indigo-900/50 flex flex-col xs:flex-row xs:items-center justify-between gap-1 text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">
+          <span className="truncate">
+            {isDprtScoped
+              ? 'Keterisian Formasi DPRt:'
+              : isDpcScoped
+              ? 'Total Pengurus Ber-SK di Kec:'
+              : isDpdScoped
+              ? 'Total Pengurus Ber-SK di Wilayah Ini:'
+              : 'Total Pengurus Ber-SK Se-Sulut:'}
+          </span>
+          <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
+            {isDprtScoped
+              ? `${structureKpi.dprtFilled} / 9 Jabatan`
+              : `${totalPengurusBerSk} Orang`}
+          </span>
         </div>
       </div>
     </div>

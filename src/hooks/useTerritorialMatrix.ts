@@ -65,11 +65,28 @@ export function useTerritorialMatrix({
       (r) => !r.namaLengkap || r.namaLengkap.trim() === '' || r.namaLengkap === '-'
     );
 
+    const isKetuaFilled = filledPimpinan.some(
+      (r) => r.jabatan.toLowerCase().includes('ketua') && !r.jabatan.toLowerCase().includes('wakil')
+    );
+    const isSekretarisFilled = filledPimpinan.some(
+      (r) => r.jabatan.toLowerCase().includes('sekretaris') && !r.jabatan.toLowerCase().includes('wakil')
+    );
+    const isBendaharaFilled = filledPimpinan.some(
+      (r) => r.jabatan.toLowerCase().includes('bendahara') && !r.jabatan.toLowerCase().includes('wakil')
+    );
+
     return {
+      dpdName: selectedDpd,
       totalRequired,
       filledCount: filledPimpinan.length,
       vacantCount: vacantPimpinan.length,
+      percentage: totalRequired > 0 ? Math.round((filledPimpinan.length / totalRequired) * 100) : 0,
       isComplete: vacantPimpinan.length === 0 && filledPimpinan.length > 0,
+      ksbStatus: {
+        ketua: isKetuaFilled,
+        sekretaris: isSekretarisFilled,
+        bendahara: isBendaharaFilled,
+      },
       slots: pimpinanRows.map((r) => ({
         no: r.no,
         subOrg: r.subOrg,
@@ -97,7 +114,7 @@ export function useTerritorialMatrix({
         isFilled: false,
       })),
     };
-  }, [level, gridRows]);
+  }, [level, gridRows, selectedDpd]);
 
   const cleanDpd = useMemo(
     () => (selectedDpd || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_'),
@@ -166,7 +183,26 @@ export function useTerritorialMatrix({
         const savedJson = localStorage.getItem(matrixStorageKey);
         if (savedJson) {
           const cachedRows: GridRowItem[] = JSON.parse(savedJson);
-          if (Array.isArray(cachedRows) && cachedRows.length > 0) {
+
+          // Cache basi: seluruh baris kosong, padahal wilayah ini sudah punya pengurus riil (mis. baru diimpor)
+          const cacheHasFilledRow =
+            Array.isArray(cachedRows) &&
+            cachedRows.some((r) => !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-');
+          const liveTerritoryMembers = getExpandedStructuralMembers(members).filter((m) => {
+            if (m.tingkatKepengurusan !== level) return false;
+            if (level === 'DPW') return true;
+            if (!isDpdMatch(m.dpd, selectedDpd)) return false;
+            if (level === 'DPD') return true;
+            if (!isDpcMatch(m.dpc, selectedDpc)) return false;
+            if (level === 'DPC') return true;
+            return isDprtMatch(m.dprt, selectedDprt);
+          });
+          const isStaleEmptyCache = !cacheHasFilledRow && liveTerritoryMembers.length > 0;
+          if (isStaleEmptyCache) {
+            localStorage.removeItem(matrixStorageKey);
+          }
+
+          if (!isStaleEmptyCache && Array.isArray(cachedRows) && cachedRows.length > 0) {
             // Sinkronkan data profil personil terbaru dari database
             const sourceMembers = getExpandedStructuralMembers(members);
             const memberMapByNik = new Map<string, Member>();

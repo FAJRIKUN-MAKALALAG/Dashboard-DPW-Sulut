@@ -389,27 +389,6 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.
           </p>
         </div>
-
-        {/* Super Admin Simulator: Pilih Pengurus untuk Ditampilkan */}
-        {isSuperUser && (
-          <div className="bg-slate-900/95 border border-slate-700 p-3 rounded-xl shrink-0 w-full md:w-80 space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-200 flex items-center justify-between">
-              <span>Simulasi Pengurus (Super Admin):</span>
-            </label>
-            <select
-              value={selectedPengurusNik}
-              onChange={(e) => setSelectedPengurusNik(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-            >
-              <option value="">-- Akun Super Admin ({session.adminName}) --</option>
-              {pengurusList.slice(0, 100).map((p) => (
-                <option key={p.nik} value={p.nik}>
-                  [{p.tingkatKepengurusan || 'DPD'}] {p.namaLengkap} - {p.jabatan} ({p.dpd})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* Tabs Menu Portal: Profil & Form vs Pencarian Data Wilayah */}
@@ -445,7 +424,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         {/* ================= TAB 1: PROFIL, REFERRAL & FORM REKRUTMEN ================= */}
         {activePortalTab === 'profil' && (
           <div className="space-y-6">
-          {session.role === 'SUPER_ADMIN' && !selectedPengurusNik && (
+          {session.role === 'SUPER_ADMIN' && (
             <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
               <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div>
@@ -453,7 +432,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
                   Mode Administrator Sistem (Super Admin)
                 </strong>
                 <span>
-                  Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dan <strong>tidak terikat pada hierarki supervisi wilayah</strong>. Untuk melihat simulasi tampilan portal pengurus DPRt, DPC, atau DPD beserta pimpinan supervisinya, silakan pilih salah satu pengurus pada dropdown simulasi di atas.
+                  Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dengan akses penuh pada seluruh jenjang kepengurusan (DPW, DPD, DPC, dan DPRt).
                 </span>
               </div>
             </div>

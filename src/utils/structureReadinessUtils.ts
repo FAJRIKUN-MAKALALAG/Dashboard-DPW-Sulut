@@ -557,10 +557,15 @@ export interface StructureKpiStats {
  */
 export function computeStructureKpiStats(
   members: Member[],
-  selectedDpdFilter: string = 'ALL'
+  selectedDpdFilter: string = 'ALL',
+  selectedDpcFilter?: string,
+  selectedDprtFilter?: string
 ): StructureKpiStats {
   const activeMembers = getExpandedStructuralMembers(members).filter((m) => m.status === 'Aktif');
-  const isAllSulut = !selectedDpdFilter || selectedDpdFilter === 'ALL';
+  const isDprtScoped = Boolean(selectedDprtFilter && selectedDprtFilter !== 'ALL');
+  const isDpcScoped = Boolean(!isDprtScoped && selectedDpcFilter && selectedDpcFilter !== 'ALL');
+  const isDpdScoped = Boolean(!isDprtScoped && !isDpcScoped && selectedDpdFilter && selectedDpdFilter !== 'ALL');
+  const isAllSulut = !isDprtScoped && !isDpcScoped && !isDpdScoped;
 
   let dpwRequired = 0;
   let dpwFilled = 0;
@@ -658,103 +663,118 @@ export function computeStructureKpiStats(
   const dprtTemplate = DPRT_STRUCTURE_TEMPLATE;
 
   targetRegions.forEach((region) => {
-    // A. DPD level untuk region ini
-    dpdRequired += dpdTemplate.length;
-    dpdBreakdown.pimpinanRequired += dpdPimSlots.length;
-    dpdBreakdown.pertimbanganRequired += dpdPerSlots.length;
-    dpdBreakdown.pakarRequired += dpdPakSlots.length;
+    // A. DPD level untuk region ini (Hanya jika bukan DPC/DPRt scoped)
+    if (!isDpcScoped && !isDprtScoped) {
+      dpdRequired += dpdTemplate.length;
+      dpdBreakdown.pimpinanRequired += dpdPimSlots.length;
+      dpdBreakdown.pertimbanganRequired += dpdPerSlots.length;
+      dpdBreakdown.pakarRequired += dpdPakSlots.length;
 
-    const dpdMembers = activeMembers.filter((m) => {
-      if (!isDpdMatch(m.dpd, region.name)) return false;
-      const jLower = (m.jabatan || '').toLowerCase();
-      const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
-      return (
-        m.tingkatKepengurusan === 'DPD' ||
-        jLower.includes('dpd') ||
-        jLower.includes('daerah') ||
-        m.dpc === 'Umum (DPD)' ||
-        m.dpc === 'Wilayah DPD' ||
-        !m.dpc ||
-        m.dpc === '-' ||
-        (m.isPengurus && isNotOtherLevel) ||
-        (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
-      );
-    });
-
-    const regPimFilled = dpdPimSlots.filter((slot) =>
-      dpdMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    const regPerFilled = dpdPerSlots.filter((slot) =>
-      dpdMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    const regPakFilled = dpdPakSlots.filter((slot) =>
-      dpdMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    dpdBreakdown.pimpinanFilled += Math.min(regPimFilled, dpdPimSlots.length);
-    dpdBreakdown.pertimbanganFilled += Math.min(regPerFilled, dpdPerSlots.length);
-    dpdBreakdown.pakarFilled += Math.min(regPakFilled, dpdPakSlots.length);
-    dpdFilled +=
-      Math.min(regPimFilled, dpdPimSlots.length) +
-      Math.min(regPerFilled, dpdPerSlots.length) +
-      Math.min(regPakFilled, dpdPakSlots.length);
-
-    // B. DPC level untuk kecamatan di region ini
-    region.subdistricts.forEach((sub) => {
-      dpcRequired += dpcTemplate.length;
-      dpcBreakdown.pimpinanRequired += dpcPimSlots.length;
-      dpcBreakdown.pertimbanganRequired += dpcPerSlots.length;
-      dpcBreakdown.pakarRequired += dpcPakSlots.length;
-
-      const subMembers = activeMembers.filter((m) => {
-        if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+      const dpdMembers = activeMembers.filter((m) => {
+        if (!isDpdMatch(m.dpd, region.name)) return false;
         const jLower = (m.jabatan || '').toLowerCase();
-        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
         return (
-          m.tingkatKepengurusan === 'DPC' ||
-          jLower.includes('dpc') ||
-          jLower.includes('cabang') ||
-          (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
-          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+          m.tingkatKepengurusan === 'DPD' ||
+          jLower.includes('dpd') ||
+          jLower.includes('daerah') ||
+          m.dpc === 'Umum (DPD)' ||
+          m.dpc === 'Wilayah DPD' ||
+          !m.dpc ||
+          m.dpc === '-' ||
+          (m.isPengurus && isNotOtherLevel) ||
+          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
         );
       });
 
-      const subPimFilled = dpcPimSlots.filter((slot) =>
-        subMembers.some(
+      const regPimFilled = dpdPimSlots.filter((slot) =>
+        dpdMembers.some(
           (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
         )
       ).length;
 
-      const subPerFilled = dpcPerSlots.filter((slot) =>
-        subMembers.some(
+      const regPerFilled = dpdPerSlots.filter((slot) =>
+        dpdMembers.some(
           (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
         )
       ).length;
 
-      const subPakFilled = dpcPakSlots.filter((slot) =>
-        subMembers.some(
+      const regPakFilled = dpdPakSlots.filter((slot) =>
+        dpdMembers.some(
           (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
         )
       ).length;
 
-      dpcBreakdown.pimpinanFilled += Math.min(subPimFilled, dpcPimSlots.length);
-      dpcBreakdown.pertimbanganFilled += Math.min(subPerFilled, dpcPerSlots.length);
-      dpcBreakdown.pakarFilled += Math.min(subPakFilled, dpcPakSlots.length);
-      dpcFilled +=
-        Math.min(subPimFilled, dpcPimSlots.length) +
-        Math.min(subPerFilled, dpcPerSlots.length) +
-        Math.min(subPakFilled, dpcPakSlots.length);
+      dpdBreakdown.pimpinanFilled += Math.min(regPimFilled, dpdPimSlots.length);
+      dpdBreakdown.pertimbanganFilled += Math.min(regPerFilled, dpdPerSlots.length);
+      dpdBreakdown.pakarFilled += Math.min(regPakFilled, dpdPakSlots.length);
+      dpdFilled +=
+        Math.min(regPimFilled, dpdPimSlots.length) +
+        Math.min(regPerFilled, dpdPerSlots.length) +
+        Math.min(regPakFilled, dpdPakSlots.length);
+    }
+
+    // B. DPC level untuk kecamatan di region ini
+    region.subdistricts.forEach((sub) => {
+      // Jika DPC-scoped, lewati kecamatan yang bukan wilayah tugasnya
+      if (isDpcScoped && !isDpcMatch(sub.name, selectedDpcFilter)) {
+        return;
+      }
+
+      // Jika DPRt-scoped, lewati evaluasi jabatan DPC
+      if (!isDprtScoped) {
+        dpcRequired += dpcTemplate.length;
+        dpcBreakdown.pimpinanRequired += dpcPimSlots.length;
+        dpcBreakdown.pertimbanganRequired += dpcPerSlots.length;
+        dpcBreakdown.pakarRequired += dpcPakSlots.length;
+
+        const subMembers = activeMembers.filter((m) => {
+          if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+          const jLower = (m.jabatan || '').toLowerCase();
+          const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
+          return (
+            m.tingkatKepengurusan === 'DPC' ||
+            jLower.includes('dpc') ||
+            jLower.includes('cabang') ||
+            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
+            (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
+          );
+        });
+
+        const subPimFilled = dpcPimSlots.filter((slot) =>
+          subMembers.some(
+            (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
+          )
+        ).length;
+
+        const subPerFilled = dpcPerSlots.filter((slot) =>
+          subMembers.some(
+            (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
+          )
+        ).length;
+
+        const subPakFilled = dpcPakSlots.filter((slot) =>
+          subMembers.some(
+            (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
+          )
+        ).length;
+
+        dpcBreakdown.pimpinanFilled += Math.min(subPimFilled, dpcPimSlots.length);
+        dpcBreakdown.pertimbanganFilled += Math.min(subPerFilled, dpcPerSlots.length);
+        dpcBreakdown.pakarFilled += Math.min(subPakFilled, dpcPakSlots.length);
+        dpcFilled +=
+          Math.min(subPimFilled, dpcPimSlots.length) +
+          Math.min(subPerFilled, dpcPerSlots.length) +
+          Math.min(subPakFilled, dpcPakSlots.length);
+      }
 
       // C. DPRt level untuk desa/kelurahan di kecamatan ini
       sub.villages.forEach((village) => {
+        // Jika DPRt-scoped, hanya hitung desa spesifik tersebut
+        if (isDprtScoped && !isDprtMatch(village, selectedDprtFilter)) {
+          return;
+        }
+
         dprtRequired += dprtTemplate.length;
         const villageMembers = activeMembers.filter(
           (m) =>
@@ -776,6 +796,14 @@ export function computeStructureKpiStats(
   const totalEmpty = Math.max(0, totalRequired - totalFilled);
   const percentage = totalRequired > 0 ? Number(((totalFilled / totalRequired) * 100).toFixed(1)) : 0;
 
+  const territoryName = isDprtScoped
+    ? selectedDprtFilter!
+    : isDpcScoped
+    ? selectedDpcFilter!
+    : isDpdScoped
+    ? selectedDpdFilter
+    : 'Sulawesi Utara';
+
   return {
     dpwRequired,
     dpwFilled,
@@ -793,7 +821,7 @@ export function computeStructureKpiStats(
     totalEmpty,
     percentage,
     isAllSulut,
-    territoryName: isAllSulut ? 'Sulawesi Utara' : selectedDpdFilter,
+    territoryName,
   };
 }
 
@@ -815,6 +843,11 @@ export interface DpdPimpinanCompliance {
   slots: DpdPimpinanSlotCompliance[];
   vacantSlots: DpdPimpinanSlotCompliance[];
   filledSlots: DpdPimpinanSlotCompliance[];
+  ksbStatus: {
+    ketua: boolean;
+    sekretaris: boolean;
+    bendahara: boolean;
+  };
 }
 
 export type DpdComplianceInfo = DpdPimpinanCompliance;
@@ -884,6 +917,10 @@ export function getDpdPimpinanCompliance(
   const vacantCount = vacantSlots.length;
   const percentage = Math.round((filledCount / totalRequired) * 100);
 
+  const hasKetua = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'ketua');
+  const hasSekretaris = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'sekretaris');
+  const hasBendahara = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'bendahara');
+
   return {
     dpdName,
     totalRequired,
@@ -894,5 +931,10 @@ export function getDpdPimpinanCompliance(
     slots,
     vacantSlots,
     filledSlots,
+    ksbStatus: {
+      ketua: hasKetua,
+      sekretaris: hasSekretaris,
+      bendahara: hasBendahara,
+    },
   };
 }

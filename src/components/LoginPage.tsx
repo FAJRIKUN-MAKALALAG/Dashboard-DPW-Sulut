@@ -141,25 +141,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between items-center p-6 sm:p-12 font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between items-center p-4 sm:p-8 lg:p-12 font-sans selection:bg-blue-100 selection:text-blue-900">
       <div className="w-full" />
 
       {/* Main Container - Left & Right Columns */}
-      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24 my-auto">
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-10 lg:gap-20 my-auto py-4">
         {/* Left Side: Large Anniversary Logo & Tagline */}
         <div className="flex-1 flex flex-col items-center justify-center text-center select-none">
           <div className="relative group p-2">
             <img
               src={nasdem15Logo}
               alt="Logo 15 Tahun Partai NasDem"
-              className="w-64 sm:w-80 md:w-96 lg:w-[620px] max-h-[660px] object-contain drop-shadow-md transition-all duration-0 group-hover:0"
+              className="w-44 sm:w-72 md:w-88 lg:w-[580px] max-h-[240px] sm:max-h-[500px] lg:max-h-[640px] object-contain drop-shadow-md transition-all duration-0"
             />
           </div>
-          <div className="mt-6 space-y-1.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#002B49] uppercase">
+          <div className="mt-3 sm:mt-6 space-y-1">
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-[#002B49] uppercase">
               Partai NasDem
             </h1>
-            <p className="text-xs sm:text-sm font-bold tracking-widest text-[#E31B23] uppercase">
+            <p className="text-[11px] sm:text-sm font-bold tracking-widest text-[#E31B23] uppercase">
               GERAKAN PERUBAHAN &middot; DPW SULAWESI UTARA
             </p>
           </div>
@@ -167,7 +167,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         {/* Right Side: Login & Activation Card */}
         <div className="w-full max-w-sm sm:max-w-md flex flex-col">
-          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-100 shadow-xl shadow-slate-100/80">
+          <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-100 shadow-xl shadow-slate-100/80">
             {/* Header Tabs: Masuk vs Aktivasi Akun Pengurus */}
             <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6 text-xs font-semibold">
               <button

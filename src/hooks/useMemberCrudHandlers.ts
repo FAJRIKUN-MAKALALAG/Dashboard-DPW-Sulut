@@ -292,18 +292,7 @@ export function useMemberCrudHandlers({
     });
   };
 
-  // 6. FITUR SINKRONISASI IDENTITAS & KTA
-  const handleBatchUpdateMembers = async (updated: Member[]) => {
-    setMembers(updated);
-    saveMembers(updated);
-    showToast('Standardisasi Nomor e-KTA Pusat berhasil disimpan.');
 
-    if (isSupabaseConfigured()) {
-      upsertMembersToSupabase(updated).catch((e) =>
-        console.error('Gagal sinkronisasi nomor KTA ke Supabase:', e)
-      );
-    }
-  };
 
   // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN DPW)
   const handleDirectDeleteMember = async (member: Member) => {
@@ -482,7 +471,6 @@ export function useMemberCrudHandlers({
     handleBatchSaveTerritorialMembers,
     handleBatchDeleteTerritorialMembers,
     handleImportSuccess,
-    handleBatchUpdateMembers,
     handleDirectDeleteMember,
     handleSubmitDeletionRequest,
     handleApproveDeletionRequest,
