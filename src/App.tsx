@@ -25,7 +25,6 @@ import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
-  isReferralApplicable,
   getDefaultActiveTab,
   canAccessStructureTab,
   canAccessAnalytics,
@@ -43,7 +42,6 @@ import {
   Menu,
   ArrowLeft,
   Download,
-  Sparkles,
 } from 'lucide-react';
 
 export default function App() {
@@ -410,7 +408,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={toggleTheme}
               className="btn-white p-2 rounded-xl text-xs font-medium cursor-pointer"
@@ -423,37 +421,27 @@ export default function App() {
               )}
             </button>
 
-            {isReferralApplicable(session) && (
-              <button
-                onClick={() => modals.setIsReferralHubOpen(true)}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                title="Pusat Kode Referral & Rekrutmen Kader Partai NasDem Sulut"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span className="hidden sm:inline">Kode Referral</span>
-              </button>
-            )}
-
             {session?.role !== 'ANGGOTA' && (
               <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                 title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
+                aria-label="Unduh Template Excel"
               >
-                <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">Unduh Template Excel</span>
-                <span className="sm:hidden">Template</span>
+                <Download className="w-4 h-4 md:w-3.5 md:h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden md:inline whitespace-nowrap">Unduh Template Excel</span>
               </button>
             )}
 
             {session?.role !== 'ANGGOTA' && (
               <button
                 onClick={() => modals.setIsPrintReportOpen(true)}
-                className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
                 title="Cetak Laporan PDF Ringkasan Atasan"
+                aria-label="Laporan PDF"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Laporan PDF</span>
+                <Printer className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                <span className="hidden md:inline whitespace-nowrap">Laporan PDF</span>
               </button>
             )}
           </div>

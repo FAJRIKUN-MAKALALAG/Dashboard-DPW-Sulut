@@ -199,9 +199,6 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenPrintReport={onOpenPrintReport}
         onOpenUserManagement={onOpenUserManagement}
         onOpenDownloadTemplate={onOpenDownloadTemplate}
-        onRefreshCloud={onRefreshCloud}
-        isRefreshingCloud={isRefreshingCloud}
-        onOpenReferralHub={onOpenReferralHub}
       />
 
       {/* 2. Scope & Territory Filter */}

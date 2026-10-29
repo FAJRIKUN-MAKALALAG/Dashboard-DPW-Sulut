@@ -5,8 +5,6 @@ import {
   Printer,
   KeyRound,
   Download,
-  RefreshCw,
-  Sparkles,
   ShieldCheck,
   Building2,
 } from 'lucide-react';
@@ -17,9 +15,6 @@ interface DashboardHeaderProps {
   onOpenPrintReport: () => void;
   onOpenUserManagement?: () => void;
   onOpenDownloadTemplate?: () => void;
-  onRefreshCloud?: () => void;
-  isRefreshingCloud?: boolean;
-  onOpenReferralHub?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -28,9 +23,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenPrintReport,
   onOpenUserManagement,
   onOpenDownloadTemplate,
-  onRefreshCloud,
-  isRefreshingCloud = false,
-  onOpenReferralHub,
 }) => {
   const isSuperAdmin = session?.role === 'SUPER_ADMIN';
   const isDpc = session?.role === 'ADMIN_DPC';
@@ -106,27 +98,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {/* RIGHT SECTION: RESPONSIVE ACTIONS (MOBILE vs TABLET vs PC LANDSCAPE)     */}
       {/* ========================================================================= */}
       <div className="flex flex-col sm:flex-row lg:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full lg:w-auto">
-        {/* ROW 1 (Mobile) / PRIMARY ACTIONS (Tablet & Desktop): SYNC & ADMIN */}
+        {/* PRIMARY ACTIONS: ADMIN (Super Admin only) */}
+        {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Cloud Sync Button */}
-          {onRefreshCloud && (
-            <button
-              onClick={onRefreshCloud}
-              disabled={isRefreshingCloud}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white cursor-pointer shadow-xs transition-all active:scale-[0.98]"
-              title="Tarik & sinkronkan ulang seluruh data kader dan pengurus langsung dari Supabase live"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 shrink-0 ${isRefreshingCloud ? 'animate-spin' : ''}`}
-              />
-              <span className="whitespace-nowrap">
-                {isRefreshingCloud ? 'Menarik Data...' : 'Sinkron Supabase'}
-              </span>
-            </button>
-          )}
-
           {/* Super Admin User Management */}
-          {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
+          {(
             <button
               onClick={onOpenUserManagement}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-2.5 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
@@ -136,19 +112,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <span className="whitespace-nowrap">Kelola Akun</span>
             </button>
           )}
-
-          {/* Referral Hub for Non-Super Admin */}
-          {session?.role !== 'SUPER_ADMIN' && onOpenReferralHub && (
-            <button
-              onClick={onOpenReferralHub}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-2.5 text-xs font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs transition-all active:scale-[0.98]"
-              title="Buka panel kode referral pengurus, bagikan ke WhatsApp, dan pantau rekrutmen"
-            >
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span className="whitespace-nowrap">Kode Referral</span>
-            </button>
-          )}
         </div>
+        )}
 
         {/* ROW 2 (Mobile) / SECONDARY ACTIONS (Tablet & Desktop): TEMPLATE, EXCEL, PRINT */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
