@@ -129,10 +129,21 @@ export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
  */
 export function normalizeDprtName(raw?: string): string {
   if (!raw) return '';
-  return raw
+  let str = raw
     .toLowerCase()
     .trim()
     .replace(/^(desa|kelurahan|kel\.|kel|des)\s+/gi, '')
+    .trim();
+
+  // Normalize roman numerals and digits to Indonesian words for uniform matching
+  str = str
+    .replace(/\b(i|1)\b/g, 'satu')
+    .replace(/\b(ii|2)\b/g, 'dua')
+    .replace(/\b(iii|3)\b/g, 'tiga')
+    .replace(/\b(iv|4)\b/g, 'empat')
+    .replace(/\b(v|5)\b/g, 'lima');
+
+  return str
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

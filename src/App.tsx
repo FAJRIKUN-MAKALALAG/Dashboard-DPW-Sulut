@@ -25,7 +25,6 @@ import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
-  isReferralApplicable,
   getDefaultActiveTab,
   canAccessStructureTab,
   canAccessAnalytics,
@@ -43,7 +42,6 @@ import {
   Menu,
   ArrowLeft,
   Download,
-  Sparkles,
 } from 'lucide-react';
 
 export default function App() {
@@ -198,6 +196,47 @@ export default function App() {
 
   const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
 
+  // Auto-repair & sanitize DPC/DPRt access for ADMIN_DPC and ADMIN_DPRT if cached as 'ALL' or 'Umum'
+  useEffect(() => {
+    if (session && session.role === 'ADMIN_DPC' && (!session.dpcAccess || session.dpcAccess === 'ALL' || session.dpcAccess === 'Umum (DPD)')) {
+      const myMember = members.find((m) => m.nik === session.adminNik);
+      if (myMember) {
+        const dpcPos = myMember.positions?.find(
+          (p) => p.tingkatKepengurusan === 'DPC' && p.dpc && p.dpc !== 'ALL' && p.dpc !== 'Umum (DPD)' && p.dpc !== '-'
+        );
+        const resolvedDpc = dpcPos?.dpc || (myMember.dpc && myMember.dpc !== 'ALL' && myMember.dpc !== 'Umum (DPD)' && myMember.dpc !== '-' ? myMember.dpc : '');
+        if (resolvedDpc) {
+          const updatedSession: UserSession = {
+            ...session,
+            dpcAccess: resolvedDpc,
+            jabatan: dpcPos?.jabatan || session.jabatan,
+          };
+          setSession(updatedSession);
+          saveSession(updatedSession);
+        }
+      }
+    } else if (session && session.role === 'ADMIN_DPRT' && (!session.dprtAccess || session.dprtAccess === 'ALL' || session.dprtAccess === 'Pusat/Umum')) {
+      const myMember = members.find((m) => m.nik === session.adminNik);
+      if (myMember) {
+        const dprtPos = myMember.positions?.find(
+          (p) => p.tingkatKepengurusan === 'DPRt' && p.dprt && p.dprt !== 'ALL' && p.dprt !== 'Pusat/Umum' && p.dprt !== '-'
+        );
+        const resolvedDprt = dprtPos?.dprt || (myMember.dprt && myMember.dprt !== 'ALL' && myMember.dprt !== 'Pusat/Umum' && myMember.dprt !== '-' ? myMember.dprt : '');
+        const resolvedDpc = dprtPos?.dpc || (myMember.dpc && myMember.dpc !== 'ALL' && myMember.dpc !== 'Umum (DPD)' && myMember.dpc !== '-' ? myMember.dpc : session.dpcAccess);
+        if (resolvedDprt) {
+          const updatedSession: UserSession = {
+            ...session,
+            dpcAccess: resolvedDpc,
+            dprtAccess: resolvedDprt,
+            jabatan: dprtPos?.jabatan || session.jabatan,
+          };
+          setSession(updatedSession);
+          saveSession(updatedSession);
+        }
+      }
+    }
+  }, [session, members]);
+
   // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt)
   const accessibleMembers = useMemo(() => {
     if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
@@ -208,13 +247,19 @@ export default function App() {
         if (!isDpdMatch(m.dpd, session.dpdAccess)) return false;
       }
       if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
-        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
-          if (!isDpcMatch(m.dpc, session.dpcAccess)) return false;
+        const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)'
+          ? session.dpcAccess
+          : '';
+        if (targetDpc) {
+          if (!isDpcMatch(m.dpc, targetDpc)) return false;
         }
       }
       if (session.role === 'ADMIN_DPRT') {
-        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
-          if (!isDprtMatch(m.dprt, session.dprtAccess)) return false;
+        const targetDprt = session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum'
+          ? session.dprtAccess
+          : '';
+        if (targetDprt) {
+          if (!isDprtMatch(m.dprt, targetDprt)) return false;
         }
       }
       return true;
@@ -410,7 +455,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={toggleTheme}
               className="btn-white p-2 rounded-xl text-xs font-medium cursor-pointer"
@@ -423,37 +468,27 @@ export default function App() {
               )}
             </button>
 
-            {isReferralApplicable(session) && (
-              <button
-                onClick={() => modals.setIsReferralHubOpen(true)}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                title="Pusat Kode Referral & Rekrutmen Kader Partai NasDem Sulut"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span className="hidden sm:inline">Kode Referral</span>
-              </button>
-            )}
-
             {session?.role !== 'ANGGOTA' && (
               <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                 title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
+                aria-label="Unduh Template Excel"
               >
-                <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">Unduh Template Excel</span>
-                <span className="sm:hidden">Template</span>
+                <Download className="w-4 h-4 md:w-3.5 md:h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden md:inline whitespace-nowrap">Unduh Template Excel</span>
               </button>
             )}
 
             {session?.role !== 'ANGGOTA' && (
               <button
                 onClick={() => modals.setIsPrintReportOpen(true)}
-                className="btn-white hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
                 title="Cetak Laporan PDF Ringkasan Atasan"
+                aria-label="Laporan PDF"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Laporan PDF</span>
+                <Printer className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                <span className="hidden md:inline whitespace-nowrap">Laporan PDF</span>
               </button>
             )}
           </div>
@@ -630,11 +665,11 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800 dark:text-slate-300">DPW Partai NasDem Sulut</span>
               <span>·</span>
-              <span>Sistem Manajemen Keanggotaan Terpadu Realtime</span>
+              <span>Sistem Manajemen kepengurusan dan keanggotaan Realtime</span>
             </div>
             <div className="flex items-center gap-4 text-[11px] text-slate-500">
               <span className="hidden md:inline font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                {members.filter((m) => m.status === 'Aktif').length} Kader Aktif Riil
+                {members.filter((m) => m.status === 'Aktif').length} Kader Aktif
               </span>
               <button
                 onClick={crud.handleResetDemoData}
@@ -642,7 +677,6 @@ export default function App() {
                 title="Reset database demonstrasi"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Reset Demo</span>
               </button>
             </div>
           </div>
@@ -665,6 +699,7 @@ export default function App() {
         onRejectDeletionRequest={crud.handleRejectDeletionRequest}
         onRecordAuditLog={crud.recordAuditLog}
         onNavigateToTerritory={handleNavigateToTerritory}
+        onClearAuditLogs={() => setAuditLogs([])}
       />
     </div>
   );

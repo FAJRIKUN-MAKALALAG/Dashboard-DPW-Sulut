@@ -18,6 +18,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { referralService } from '../services/referralService';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -34,9 +35,14 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   existingMembers,
   session,
 }) => {
+  const matchedDpd = session.dpdAccess && session.dpdAccess !== 'ALL'
+    ? SULUT_REGIONS.find((r) => isDpdMatch(r.name, session.dpdAccess))
+    : null;
+  const canonicalDpd = matchedDpd ? matchedDpd.name : (session.dpdAccess || SULUT_REGIONS[0].name);
+
   const defaultDpd =
-    session.role !== 'SUPER_ADMIN' && session.dpdAccess && session.dpdAccess !== 'ALL'
-      ? session.dpdAccess
+    session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess && session.dpdAccess !== 'ALL'
+      ? canonicalDpd
       : SULUT_REGIONS[0].name;
 
   const defaultDpc =
@@ -55,10 +61,14 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     Boolean(session.dpdAccess && session.dpdAccess !== 'ALL');
 
   const isDpcLocked =
+    session.role !== 'SUPER_ADMIN' &&
+    session.role !== 'ADMIN_DPW' &&
     (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') &&
     Boolean(session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)');
 
   const isDprtLocked =
+    session.role !== 'SUPER_ADMIN' &&
+    session.role !== 'ADMIN_DPW' &&
     session.role === 'ADMIN_DPRT' &&
     Boolean(session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum');
 
@@ -317,20 +327,24 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     // Gunakan nomor e-KTA persis seperti yang diinput (nomor e-KTA resmi DPP NasDem)
     const finalEkta = nomorEKTA.trim() || cleanedNik || '-';
 
-    const finalDpd =
-      session.role !== 'SUPER_ADMIN' && session.dpdAccess && session.dpdAccess !== 'ALL'
-        ? session.dpdAccess
-        : dpd;
+    const finalDpd = isDpdLocked ? canonicalDpd : dpd;
+    const finalDpc = isDpcLocked ? defaultDpc : (dpc || 'Umum');
+    const finalDprt = isDprtLocked ? defaultDprt : (dprt.trim() || 'Umum');
 
-    const finalDpc =
-      (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess
-        ? session.dpcAccess
-        : dpc || 'Umum';
+    if (isDpdLocked && !isDpdMatch(finalDpd, canonicalDpd)) {
+      setErrorMsg(`Akses Dibatasi: Akun Anda hanya berwenang merekrut kader di wilayah ${canonicalDpd}.`);
+      return;
+    }
 
-    const finalDprt =
-      session.role === 'ADMIN_DPRT' && session.dprtAccess
-        ? session.dprtAccess
-        : dprt.trim() || 'Umum';
+    if (isDpcLocked && !isDpcMatch(finalDpc, defaultDpc)) {
+      setErrorMsg(`Akses Dibatasi: Akun Anda hanya berwenang merekrut kader di kecamatan ${defaultDpc}.`);
+      return;
+    }
+
+    if (isDprtLocked && !isDprtMatch(finalDprt, defaultDprt)) {
+      setErrorMsg(`Akses Dibatasi: Akun Anda hanya berwenang merekrut kader di kelurahan/desa ${defaultDprt}.`);
+      return;
+    }
 
     const newMember: Member = {
       nik: cleanedNik,
@@ -750,9 +764,10 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                       {isDpdLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
                     </label>
                     <select
-                      value={dpd}
+                      value={isDpdLocked ? canonicalDpd : dpd}
                       disabled={isDpdLocked}
                       onChange={(e) => {
+                        if (isDpdLocked) return;
                         setDpd(e.target.value);
                         const region = SULUT_REGIONS.find((r) => r.name === e.target.value);
                         if (region && region.subdistricts.length > 0) {
@@ -765,11 +780,15 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                           : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
                       }`}
                     >
-                      {SULUT_REGIONS.map((r) => (
-                        <option key={r.name} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
+                      {isDpdLocked ? (
+                        <option value={canonicalDpd}>{canonicalDpd}</option>
+                      ) : (
+                        SULUT_REGIONS.map((r) => (
+                          <option key={r.name} value={r.name}>
+                            {r.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 
@@ -779,20 +798,27 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                       {isDpcLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
                     </label>
                     <select
-                      value={dpc}
+                      value={isDpcLocked ? defaultDpc : dpc}
                       disabled={isDpcLocked}
-                      onChange={(e) => setDpc(e.target.value)}
+                      onChange={(e) => {
+                        if (isDpcLocked) return;
+                        setDpc(e.target.value);
+                      }}
                       className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 ${
                         isDpcLocked
                           ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
                           : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
                       }`}
                     >
-                      {availableSubdistricts.map((sub) => (
-                        <option key={sub.name} value={sub.name}>
-                          Kec. {sub.name}
-                        </option>
-                      ))}
+                      {isDpcLocked ? (
+                        <option value={defaultDpc}>Kec. {defaultDpc}</option>
+                      ) : (
+                        availableSubdistricts.map((sub) => (
+                          <option key={sub.name} value={sub.name}>
+                            Kec. {sub.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 

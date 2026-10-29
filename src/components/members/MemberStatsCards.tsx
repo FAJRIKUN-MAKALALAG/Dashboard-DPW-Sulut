@@ -115,7 +115,7 @@ export const MemberStatsCards: React.FC<MemberStatsCardsProps> = ({
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium px-2">
+        <div className="hidden md:block text-[11px] text-slate-500 dark:text-slate-400 font-medium px-2">
           {membershipFilter === 'PENGURUS'
             ? 'Menampilkan pejabat struktural & dewan ber-SK'
             : membershipFilter === 'ANGGOTA'
@@ -126,10 +126,10 @@ export const MemberStatsCards: React.FC<MemberStatsCardsProps> = ({
 
       {/* SUB-ORGANISASI SEPARATION BAR: DEWAN PERTIMBANGAN, DEWAN PAKAR, DEWAN PIMPINAN */}
       {membershipFilter !== 'ANGGOTA' && (
-        <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 rounded-xl shadow-2xs text-xs animate-in fade-in">
-          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-semibold text-[11px]">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl shadow-2xs text-xs animate-in fade-in">
+          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-semibold text-[10.5px] sm:text-[11px]">
             <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="whitespace-nowrap">Pemisahan Sub-Organisasi:</span>
+            <span className="whitespace-nowrap">Sub-Organisasi:</span>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full shrink-0 py-0.5">

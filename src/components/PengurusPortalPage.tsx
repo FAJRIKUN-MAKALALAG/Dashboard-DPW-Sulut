@@ -421,16 +421,16 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in pb-12 font-sans">
       {/* 1. Header Bar Minimalis */}
-      <div className="bg-[#002B49] dark:bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#002B49] dark:bg-slate-900 text-white p-3.5 sm:p-5 md:p-6 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-blue-900/60 text-blue-200 border border-blue-700/60 text-[11px] font-bold tracking-wide">
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL KERJA MANDIRI PENGURUS'}</span>
+          <div className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-md bg-blue-900/60 text-blue-200 border border-blue-700/60 text-[10px] sm:text-[11px] font-bold tracking-wide">
+            <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL MANDIRI PENGURUS'}</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            {isAnggota ? 'Profil Saya' : 'Profil Pengurus & Perekrutan Anggota'}
+          <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
+            {isAnggota ? 'Profil Saya' : 'Profil Pengurus & Perekrutan'}
           </h1>
-          <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+          <p className="hidden sm:block text-xs text-slate-300 max-w-2xl leading-relaxed">
             {isAnggota
               ? 'Halaman resmi identitas keanggotaan Anda di Partai NasDem Sulawesi Utara. Lengkapi biodata kontak, wilayah domisili, serta unggah pas foto profil dan berkas secara mandiri.'
               : 'Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.'}

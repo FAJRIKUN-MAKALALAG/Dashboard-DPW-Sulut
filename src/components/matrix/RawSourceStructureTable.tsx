@@ -20,6 +20,7 @@ import * as XLSX from 'xlsx';
 import { Member } from '../../types';
 import { getMemberSubOrgCategory } from '../../utils/structureReadinessUtils';
 import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 interface RawSourceStructureTableProps {
   members: Member[];
@@ -214,18 +215,18 @@ export const RawSourceStructureTable: React.FC<RawSourceStructureTableProps> = (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
-                  <th className="py-2.5 px-3 w-12 text-center">No</th>
-                  <th className="py-2.5 px-4 min-w-[220px]">Jabatan Pengurus (SK / Excel)</th>
-                  <th className="py-2.5 px-4 min-w-[200px]">Nama Lengkap (Sesuai KTP)</th>
-                  <th className="py-2.5 px-4 min-w-[150px]">No. NIK KTP</th>
-                  <th className="py-2.5 px-4 min-w-[150px]">E-KTA NasDem</th>
-                  <th className="py-2.5 px-3 min-w-[130px]">No. Telepon / WA</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">Email</th>
-                  <th className="py-2.5 px-3 w-24 text-center">Status</th>
+                <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[10px] sm:text-[11px]">
+                  <th className="py-1.5 px-2 w-10 text-center">No</th>
+                  <th className="py-1.5 px-2.5 min-w-[150px]">Jabatan Pengurus</th>
+                  <th className="py-1.5 px-2.5 min-w-[150px]">Nama Lengkap</th>
+                  <th className="py-1.5 px-2 min-w-[125px]">No. NIK KTP</th>
+                  <th className="py-1.5 px-2 min-w-[115px]">E-KTA NasDem</th>
+                  <th className="py-1.5 px-2 min-w-[100px]">No. Telepon / WA</th>
+                  <th className="py-1.5 px-2 min-w-[120px]">Email</th>
+                  <th className="py-1.5 px-2 w-20 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300 text-[10.5px]">
                 {list.map((m, idx) => {
                   const isGenNik = isGeneratedNik(m.nik);
                   const isGenEkta = isGeneratedEkta(m.nomorEKTA);
@@ -237,36 +238,55 @@ export const RawSourceStructureTable: React.FC<RawSourceStructureTableProps> = (
                       className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors"
                     >
                       {/* No */}
-                      <td className="py-2.5 px-3 text-center font-bold text-slate-500 dark:text-slate-400">
+                      <td className="py-1.5 px-2 text-center font-bold text-slate-500 dark:text-slate-400">
                         {displayNo}
                       </td>
 
                       {/* Jabatan Asli */}
-                      <td className="py-2.5 px-4">
+                      <td className="py-1.5 px-2.5">
                         <div className="font-semibold text-slate-900 dark:text-white leading-snug">
                           {m.jabatan || 'Pengurus'}
                         </div>
                         {m.wilayahPenugasan && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <div className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-0.5">
                             {m.wilayahPenugasan}
                           </div>
                         )}
                       </td>
 
                       {/* Nama Lengkap */}
-                      <td className="py-2.5 px-4">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200">
-                          {m.namaLengkap}
+                      <td className="py-1.5 px-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-9 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                            {m.fotoProfilUrl ? (
+                              <img
+                                src={resolveImageUrl(m.fotoProfilUrl)}
+                                alt={m.namaLengkap}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={`w-full h-full flex items-center justify-center text-[9px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                              >
+                                {getInitials(m.namaLengkap)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {m.namaLengkap}
+                            </div>
+                            {m.jenisKelamin && m.jenisKelamin !== '-' && (
+                              <span className="text-[9.5px] text-slate-400">
+                                {m.jenisKelamin}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {m.jenisKelamin && m.jenisKelamin !== '-' && (
-                          <span className="text-[10px] text-slate-400">
-                            {m.jenisKelamin}
-                          </span>
-                        )}
                       </td>
 
                       {/* NIK */}
-                      <td className="py-2.5 px-4">
+                      <td className="py-1.5 px-2">
                         <div className="flex items-center gap-1.5 font-mono text-[11px]">
                           <span
                             className={

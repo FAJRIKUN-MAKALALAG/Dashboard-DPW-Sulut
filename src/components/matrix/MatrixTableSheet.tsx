@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
 import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 export interface GridRowItem {
   id: string;
@@ -30,6 +31,7 @@ export interface GridRowItem {
   sosmed: string;
   isExisting: boolean;
   originalNik?: string;
+  fotoProfilUrl?: string;
 }
 
 interface MatrixTableSheetProps {
@@ -105,15 +107,15 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
   }, [gridRows]);
 
   return (
-    <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-100/70 dark:bg-slate-950/70">
-      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-xl p-5 sm:p-7 max-w-full space-y-6">
+    <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-100/70 dark:bg-slate-950/70">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-xl p-3 sm:p-7 max-w-full space-y-4 sm:space-y-6">
         {/* 1. Official Header & Title */}
         <div className="text-center pb-5 border-b-2 border-slate-900 dark:border-white">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider mb-1.5 border border-blue-200 dark:border-blue-800">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Matriks Resmi Susunan Pengurus Partai NasDem</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-[10px] sm:text-xs uppercase tracking-wider mb-1.5 border border-blue-200 dark:border-blue-800">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span>Matriks Resmi Susunan Pengurus</span>
           </div>
-          <h2 className="text-lg sm:text-xl font-black tracking-wider text-slate-900 dark:text-white uppercase font-sans">
+          <h2 className="text-base sm:text-xl font-black tracking-wider text-slate-900 dark:text-white uppercase font-sans break-words">
             {officialTitle.line1}
           </h2>
           <h3 className="text-sm sm:text-base font-bold tracking-wider text-blue-700 dark:text-blue-400 uppercase mt-0.5 font-sans">
@@ -155,7 +157,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
           </div>
 
           <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center justify-between gap-2">
-            <span>
+            <span className="hidden sm:inline">
               💡 <strong>Tips Cepat:</strong> Baris bergaris oranye (⚡ <strong>LOWONG</strong>) menandakan jabatan formasi yang belum terisi di SK. Anda dapat mengunduh <strong>Template Excel</strong> di atas untuk diisi bersama tim, lalu klik <strong>Import Excel</strong>, atau klik <strong>Mode Edit</strong> untuk mengetik langsung.
             </span>
             <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
@@ -251,7 +253,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
               >
                 {/* Section Header Card */}
                 <div
-                  className={`px-4.5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-white ${
+                  className={`px-3 sm:px-4.5 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 text-white ${
                     sec.isPertimbangan
                       ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900'
                       : sec.isPakar
@@ -296,7 +298,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={() => {
@@ -312,7 +314,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                           return next;
                         });
                       }}
-                      className="text-[11px] font-semibold bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
+                      className="flex-1 sm:flex-initial justify-center text-[11px] font-semibold bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 sm:py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
                     >
                       <CheckSquare className="w-3.5 h-3.5" />
                       <span>Pilih Bagian Ini</span>
@@ -320,7 +322,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                     {onAddNewRowForSubOrg && (
                       <button
                         onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
-                        className="text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
+                        className="flex-1 sm:flex-initial justify-center text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
                         title={`Tambah baris jabatan baru di ${sec.subOrg}`}
                       >
                         <Plus className="w-3.5 h-3.5 text-blue-600" />
@@ -330,12 +332,36 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                   </div>
                 </div>
 
-                {/* Section Table */}
-                <div className="overflow-x-auto">
+                {/* Mobile Card List (< md) */}
+                <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+                  {sec.rows.map((row, idx) => (
+                    <MobileRowCard
+                      key={row.id}
+                      row={row}
+                      idx={idx}
+                      isEditMode={isEditMode}
+                      isSelected={selectedIds.has(row.id)}
+                      onToggleSelect={(checked) =>
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        })
+                      }
+                      onCellChange={onCellChange}
+                      onDeleteRow={onDeleteRow}
+                      onInsertRow={onInsertRow}
+                    />
+                  ))}
+                </div>
+
+                {/* Section Table (md and up) */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-800 dark:bg-slate-950 text-white text-[11px] font-bold uppercase tracking-wider text-center">
-                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-10 text-center">
+                      <tr className="bg-slate-800 dark:bg-slate-950 text-white text-[10px] font-bold uppercase tracking-wider text-center">
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-8 text-center">
                           <input
                             type="checkbox"
                             checked={sec.rows.length > 0 && sec.rows.every((r) => selectedIds.has(r.id))}
@@ -354,34 +380,34 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                             title="Pilih semua baris di seksi ini"
                           />
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-12">
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-9">
                           NO
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 w-28 text-center">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 w-24 text-center">
                           STATUS
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[210px] text-left">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2.5 py-1.5 min-w-[150px] text-left">
                           JABATAN PENGURUS
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[230px] text-left">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2.5 py-1.5 min-w-[160px] text-left">
                           NAMA LENGKAP (SESUAI KTP)
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[150px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[125px]">
                           NO. NIK KTP
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[140px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[115px]">
                           E-KTA NASDEM
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[130px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[105px]">
                           NO TELEPON / WA
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[150px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[115px]">
                           EMAIL
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-3 py-2.5 min-w-[120px]">
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[95px]">
                           SOSIAL MEDIA
                         </th>
-                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-2.5 w-24 text-center bg-slate-900 text-white">
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-20 text-center bg-slate-900 text-white">
                           AKSI
                         </th>
                       </tr>
@@ -505,9 +531,26 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                   }`}
                                 />
                               ) : isFilled ? (
-                                <span className="font-bold text-slate-900 dark:text-white">
-                                  {row.namaLengkap}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-7.5 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                    {row.fotoProfilUrl ? (
+                                      <img
+                                        src={resolveImageUrl(row.fotoProfilUrl)}
+                                        alt={row.namaLengkap}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div
+                                        className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
+                                      >
+                                        {getInitials(row.namaLengkap)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-slate-900 dark:text-white truncate">
+                                    {row.namaLengkap}
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-white/80 dark:bg-slate-900 text-amber-900 dark:text-amber-300 border border-dashed border-amber-400 dark:border-amber-700 shadow-2xs">
                                   <span className="text-amber-600 font-extrabold">+</span>
@@ -642,6 +685,199 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
           })
         )}
       </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// Mobile Card: satu kartu per posisi pengurus, field ditumpuk vertikal
+// =============================================================================
+interface MobileRowCardProps {
+  row: GridRowItem;
+  idx: number;
+  isEditMode: boolean;
+  isSelected: boolean;
+  onToggleSelect: (checked: boolean) => void;
+  onCellChange: (id: string, field: keyof GridRowItem, value: string) => void;
+  onDeleteRow: (id: string) => void;
+  onInsertRow?: (targetId: string, position: 'above' | 'below') => void;
+}
+
+const mobileInputCls =
+  'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+const MobileRowCard: React.FC<MobileRowCardProps> = ({
+  row,
+  idx,
+  isEditMode,
+  isSelected,
+  onToggleSelect,
+  onCellChange,
+  onDeleteRow,
+  onInsertRow,
+}) => {
+  const isFilled = row.namaLengkap.trim() !== '';
+  const isLeader = isDefinitiveLeader(row.jabatan);
+  const nik = isGeneratedNik(row.nik) ? '' : row.nik;
+  const ekta = isGeneratedEkta(row.nomorEKTA) ? '' : row.nomorEKTA;
+
+  const details: { label: string; field: keyof GridRowItem; value: string; placeholder: string; mono?: boolean; type?: string }[] = [
+    { label: 'NIK KTP', field: 'nik', value: nik, placeholder: '16 Digit NIK', mono: true },
+    { label: 'E-KTA', field: 'nomorEKTA', value: ekta, placeholder: 'Nomor E-KTA', mono: true },
+    { label: 'Telepon / WA', field: 'nomorHP', value: row.nomorHP, placeholder: '08xxxxxxxxxx', mono: true, type: 'tel' },
+    { label: 'Email', field: 'email', value: row.email, placeholder: 'email@nasdem.id', type: 'email' },
+    { label: 'Sosial Media', field: 'sosmed', value: row.sosmed, placeholder: '@instagram' },
+  ];
+
+  return (
+    <div
+      className={`p-3 border-l-4 transition-colors ${
+        isSelected
+          ? 'bg-rose-50 dark:bg-rose-950/40 border-l-rose-600'
+          : !isFilled
+          ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-amber-500'
+          : 'bg-white dark:bg-slate-900 border-l-emerald-500'
+      }`}
+    >
+      {/* Top row: checkbox, number, status, actions */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onToggleSelect(e.target.checked)}
+          className="w-4 h-4 rounded cursor-pointer shrink-0"
+          aria-label={`Pilih baris ${idx + 1}`}
+        />
+        {isLeader ? (
+          <span className="px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950">#1</span>
+        ) : (
+          <span className="font-mono font-bold text-xs text-slate-500 dark:text-slate-400">{idx + 1}.</span>
+        )}
+        {isFilled ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+            <CheckCircle2 className="w-3 h-3" /> TERISI
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700">
+            <AlertCircle className="w-3 h-3" /> LOWONG
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {onInsertRow && (
+            <button
+              type="button"
+              onClick={() => onInsertRow(row.id, 'below')}
+              className="inline-flex items-center gap-0.5 px-2 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 rounded-lg border border-blue-300 dark:border-blue-800 active:bg-blue-600 active:text-white cursor-pointer"
+              title="Sisipkan baris di bawah"
+            >
+              <Plus className="w-3.5 h-3.5" /> Sisip
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onDeleteRow(row.id)}
+            className="p-1.5 text-rose-500 rounded-lg border border-rose-200 dark:border-rose-900/50 active:bg-rose-600 active:text-white cursor-pointer"
+            title={!isFilled ? 'Hapus slot lowong ini' : `Hapus baris: ${row.namaLengkap || row.jabatan}`}
+            aria-label="Hapus baris"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Jabatan & Nama */}
+      <div className="mt-2.5 space-y-2">
+        {isEditMode ? (
+          <>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Jabatan</span>
+              <input
+                type="text"
+                value={row.jabatan}
+                onChange={(e) => onCellChange(row.id, 'jabatan', e.target.value)}
+                className={`${mobileInputCls} mt-0.5 font-semibold`}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nama Lengkap (KTP)</span>
+              <input
+                type="text"
+                placeholder="Masukkan Nama KTP..."
+                value={row.namaLengkap}
+                onChange={(e) => onCellChange(row.id, 'namaLengkap', e.target.value)}
+                className={`${mobileInputCls} mt-0.5 font-bold ${!isFilled ? 'border-2 border-amber-400' : ''}`}
+              />
+            </label>
+          </>
+        ) : (
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isLeader && (
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 tracking-wider">KETUA</span>
+              )}
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 break-words">{row.jabatan}</span>
+            </div>
+            {isFilled ? (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-6 h-7.5 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                  {row.fotoProfilUrl ? (
+                    <img
+                      src={resolveImageUrl(row.fotoProfilUrl)}
+                      alt={row.namaLengkap}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
+                    >
+                      {getInitials(row.namaLengkap)}
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white break-words">{row.namaLengkap}</p>
+              </div>
+            ) : (
+              <p className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold text-amber-900 dark:text-amber-300 border border-dashed border-amber-400 dark:border-amber-700">
+                + Lowong (Siap Diisi)
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Detail fields */}
+      {isEditMode ? (
+        <div className="mt-2 grid grid-cols-1 xs:grid-cols-2 gap-2">
+          {details.map((d) => (
+            <label key={d.field} className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{d.label}</span>
+              <input
+                type={d.type || 'text'}
+                inputMode={d.field === 'nik' || d.field === 'nomorHP' ? 'numeric' : undefined}
+                placeholder={d.placeholder}
+                value={d.value}
+                onChange={(e) => onCellChange(row.id, d.field, e.target.value)}
+                className={`${mobileInputCls} mt-0.5 ${d.mono ? 'font-mono' : ''}`}
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        isFilled && (
+          <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5 text-[10px] sm:text-[11px]">
+            {details
+              .filter((d) => Boolean(d.value && d.value.trim() !== '' && d.value !== '-'))
+              .map((d) => (
+                <React.Fragment key={d.field}>
+                  <dt className="text-slate-500 dark:text-slate-400 font-medium">{d.label}:</dt>
+                  <dd className={`text-slate-800 dark:text-slate-200 break-all font-semibold ${d.mono ? 'font-mono' : ''}`}>
+                    {d.value}
+                  </dd>
+                </React.Fragment>
+              ))}
+          </dl>
+        )
+      )}
     </div>
   );
 };

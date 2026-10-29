@@ -37,30 +37,37 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
   onClose,
   regionName,
   members,
+  session,
   initialTab,
   initialDpcName,
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dpd' | 'dpc' | 'dprt'>(initialTab || 'dpd');
+  const isDpcScoped = session?.role === 'ADMIN_DPC' || (Boolean(session?.dpcAccess && session.dpcAccess !== 'ALL') && session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW');
+  const isDprtScoped = session?.role === 'ADMIN_DPRT';
+  const defaultTab = isDpcScoped || isDprtScoped ? 'dprt' : (initialTab || 'dpd');
+
+  const [activeTab, setActiveTab] = useState<'dpd' | 'dpc' | 'dprt'>(defaultTab);
   const [dpdSlotFilter, setDpdSlotFilter] = useState<'ALL' | 'FILLED' | 'VACANT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDpcForDrilldown, setSelectedDpcForDrilldown] = useState<string | null>(initialDpcName || null);
+  const [selectedDpcForDrilldown, setSelectedDpcForDrilldown] = useState<string | null>(session?.dpcAccess || initialDpcName || null);
   const [dpcSearchTerm, setDpcSearchTerm] = useState('');
   const [dprtSearchTerm, setDprtSearchTerm] = useState('');
 
   // Sync state when drawer opens or region / initialTab changes
   useEffect(() => {
     if (isOpen) {
-      if (initialTab) {
+      if (isDpcScoped || isDprtScoped) {
+        setActiveTab('dprt');
+      } else if (initialTab) {
         setActiveTab(initialTab);
       }
-      setSelectedDpcForDrilldown(initialDpcName || null);
+      setSelectedDpcForDrilldown(session?.dpcAccess || initialDpcName || null);
       setSearchTerm('');
       setDpcSearchTerm('');
       setDprtSearchTerm('');
     }
-  }, [isOpen, initialTab, initialDpcName, regionName]);
+  }, [isOpen, initialTab, initialDpcName, regionName, isDpcScoped, isDprtScoped, session]);
 
   // Close on Escape key press
   useEffect(() => {
@@ -237,6 +244,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             totalDprtTarget={totalDprtTarget}
             leaders={leaders}
             pengurusInRegionCount={pengurusInRegion.length}
+            session={session}
             onClose={onClose}
             onOpenTerritorialMatrix={onOpenTerritorialMatrix}
             onOpenStructureModal={onOpenStructureModal}
@@ -244,36 +252,40 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
 
           {/* 2. Navigation Tabs */}
           <div className="px-4 sm:px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 sm:gap-4 text-xs font-medium overflow-x-auto whitespace-nowrap">
-            <button
-              type="button"
-              onClick={() => setActiveTab('dpd')}
-              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
-                activeTab === 'dpd'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-              <span>
-                <span className="hidden xs:inline">Formasi </span>36 DPD
-              </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                {compliance.filledCount}/36
-              </span>
-            </button>
+            {!isDpcScoped && !isDprtScoped && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('dpd')}
+                className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
+                  activeTab === 'dpd'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  <span className="hidden xs:inline">Formasi </span>36 DPD
+                </span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  {compliance.filledCount}/36
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('dpc')}
-              className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
-                activeTab === 'dpc'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span>DPC Kecamatan ({regionInfo.subdistricts.length})</span>
-            </button>
+            {!isDpcScoped && !isDprtScoped && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('dpc')}
+                className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
+                  activeTab === 'dpc'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span>DPC Kecamatan ({regionInfo.subdistricts.length})</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -285,7 +297,9 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5 shrink-0" />
-              <span>Basis Ranting DPRt</span>
+              <span>
+                {isDpcScoped ? `DPRt Desa Kec. ${session?.dpcAccess}` : 'Basis Ranting DPRt'}
+              </span>
             </button>
           </div>
 

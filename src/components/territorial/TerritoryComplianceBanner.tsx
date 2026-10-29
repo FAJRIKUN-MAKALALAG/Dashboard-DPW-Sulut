@@ -24,46 +24,46 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
   return (
     <>
       <div
-        className={`p-4 rounded-xl border transition-all ${
+        className={`p-3 sm:p-4 rounded-xl border transition-all ${
           dpdPimpinanCompliance.isComplete
             ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800'
             : 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
           <div className="flex items-start gap-2.5">
             <div
-              className={`p-2 rounded-lg shrink-0 ${
+              className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${
                 dpdPimpinanCompliance.isComplete
                   ? 'bg-emerald-600 text-white'
                   : 'bg-amber-600 text-white'
               }`}
             >
               {dpdPimpinanCompliance.isComplete ? (
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               ) : (
-                <AlertCircle className="w-4 h-4" />
+                <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               )}
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                  Status Formasi DPD Bagian A (Dewan Pimpinan Daerah):
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white">
+                  Formasi DPD Bagian A:
                 </h4>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                  className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-mono font-bold ${
                     dpdPimpinanCompliance.isComplete
                       ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
                       : 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
                   }`}
                 >
-                  {dpdPimpinanCompliance.filledCount}/{dpdPimpinanCompliance.totalRequired} Jabatan Terisi
+                  {dpdPimpinanCompliance.filledCount}/{dpdPimpinanCompliance.totalRequired} Terisi
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+              <p className="hidden sm:block text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
                 {dpdPimpinanCompliance.isComplete
                   ? `Seluruh ${dpdPimpinanCompliance.totalRequired} formasi resmi pengurus harian DPD ${selectedDpd} telah lengkap terisi.`
-                  : `Data pengurus DPD ${selectedDpd} baru mengisi ${dpdPimpinanCompliance.filledCount} dari ${dpdPimpinanCompliance.totalRequired} formasi resmi. Terdapat ${dpdPimpinanCompliance.vacantCount} jabatan yang belum terisi (lowong).`}
+                  : `Data pengurus DPD ${selectedDpd} baru mengisi ${dpdPimpinanCompliance.filledCount} dari ${dpdPimpinanCompliance.totalRequired} formasi resmi. Terdapat ${dpdPimpinanCompliance.vacantCount} jabatan lowong.`}
               </p>
             </div>
           </div>
@@ -72,9 +72,9 @@ export const TerritoryComplianceBanner: React.FC<TerritoryComplianceBannerProps>
             <button
               type="button"
               onClick={() => setShowVacantModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer transition-colors shrink-0"
+              className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer transition-colors shrink-0"
             >
-              <span>Buka {dpdPimpinanCompliance.vacantCount} Jabatan Belum Terisi</span>
+              <span>{dpdPimpinanCompliance.vacantCount} Lowong</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}

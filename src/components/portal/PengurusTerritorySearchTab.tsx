@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Users } from 'lucide-react';
 import { Member } from '../../types';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 interface PengurusTerritorySearchTabProps {
   searchTerritoryTitle: string;
@@ -116,9 +117,28 @@ export const PengurusTerritorySearchTab: React.FC<PengurusTerritorySearchTabProp
               {filteredTerritoryMembers.slice(0, 100).map((m) => (
                 <tr key={m.nik} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="p-3 font-bold text-slate-900 dark:text-white">
-                    <div>{m.namaLengkap}</div>
-                    <div className="text-[10px] text-slate-400 font-normal">
-                      Gabung: {m.tanggalBergabung || '-'}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                        {m.fotoProfilUrl ? (
+                          <img
+                            src={resolveImageUrl(m.fotoProfilUrl)}
+                            alt={m.namaLengkap}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                          >
+                            {getInitials(m.namaLengkap)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate">{m.namaLengkap}</div>
+                        <div className="text-[10px] text-slate-400 font-normal">
+                          Gabung: {m.tanggalBergabung || '-'}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td className="p-3 font-mono text-slate-600 dark:text-slate-400">

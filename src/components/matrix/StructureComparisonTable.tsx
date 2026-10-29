@@ -188,9 +188,9 @@ export const StructureComparisonTable: React.FC<StructureComparisonTableProps> =
               </span>
             </div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">
-              Perbandingan Matriks Sistem vs Berkas Asli SK / Excel
+              Perbandingan Matriks Sistem vs Berkas SK
             </h2>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            <p className="hidden sm:block text-xs font-medium text-slate-500 dark:text-slate-400">
               Membandingkan posisi slot jabatan resmi di sistem dengan jabatan dan personil yang diimpor langsung dari berkas Excel asli.
             </p>
           </div>
@@ -336,21 +336,21 @@ export const StructureComparisonTable: React.FC<StructureComparisonTableProps> =
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
-                    <th className="py-2.5 px-3 w-10 text-center">No</th>
-                    <th className="py-2.5 px-4 min-w-[200px]">Slot Template Matriks</th>
-                    <th className="py-2.5 px-3 w-24 text-center">Status</th>
-                    <th className="py-2.5 px-4 min-w-[200px]">Pengurus di Sistem</th>
-                    <th className="py-2.5 px-4 min-w-[220px] bg-indigo-50/40 dark:bg-indigo-950/20">
-                      Jabatan Asli di SK / Excel
+                  <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[10px] sm:text-[11px]">
+                    <th className="py-1.5 px-2 w-9 text-center">No</th>
+                    <th className="py-1.5 px-2.5 min-w-[140px]">Slot Template</th>
+                    <th className="py-1.5 px-2 w-20 text-center">Status</th>
+                    <th className="py-1.5 px-2.5 min-w-[150px]">Pengurus Sistem</th>
+                    <th className="py-1.5 px-2.5 min-w-[150px] bg-indigo-50/40 dark:bg-indigo-950/20">
+                      Jabatan Asli SK
                     </th>
-                    <th className="py-2.5 px-4 min-w-[180px]">Catatan Kesesuaian</th>
+                    <th className="py-1.5 px-2.5 min-w-[130px]">Kesesuaian</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300 text-[10.5px]">
                   {sec.rows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-6 text-center text-slate-400">
+                      <td colSpan={6} className="py-4 text-center text-slate-400">
                         Tidak ada baris yang sesuai dengan kriteria filter.
                       </td>
                     </tr>
@@ -371,17 +371,17 @@ export const StructureComparisonTable: React.FC<StructureComparisonTableProps> =
                           }
                         >
                           {/* No Slot */}
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-400">
+                          <td className="py-1.5 px-2 text-center font-bold text-slate-400">
                             {r.no}
                           </td>
 
                           {/* Jabatan Slot Template */}
-                          <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-slate-100">
+                          <td className="py-1.5 px-2.5 font-semibold text-slate-900 dark:text-slate-100">
                             {r.jabatan}
                           </td>
 
                           {/* Status */}
-                          <td className="py-2.5 px-3 text-center">
+                          <td className="py-1.5 px-2 text-center">
                             {isFilled ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircle2 className="w-2.5 h-2.5" />

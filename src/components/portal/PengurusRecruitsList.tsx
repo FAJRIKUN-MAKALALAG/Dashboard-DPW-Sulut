@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Search } from 'lucide-react';
 import { Member } from '../../types';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 interface PengurusRecruitsListProps {
   filteredRecruits: Member[];
@@ -69,7 +70,24 @@ export const PengurusRecruitsList: React.FC<PengurusRecruitsListProps> = ({
               {filteredRecruits.map((m) => (
                 <tr key={m.nik} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="p-3 font-bold text-slate-900 dark:text-white">
-                    {m.namaLengkap}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                        {m.fotoProfilUrl ? (
+                          <img
+                            src={resolveImageUrl(m.fotoProfilUrl)}
+                            alt={m.namaLengkap}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                          >
+                            {getInitials(m.namaLengkap)}
+                          </div>
+                        )}
+                      </div>
+                      <span className="truncate">{m.namaLengkap}</span>
+                    </div>
                   </td>
                   <td className="p-3 font-mono text-slate-600 dark:text-slate-400">
                     <div>{m.nik}</div>

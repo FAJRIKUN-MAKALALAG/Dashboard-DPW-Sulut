@@ -226,7 +226,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   {/* NIK / Username Input */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      NIK KTP / Username
+                      NIK KTP
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -282,9 +282,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   {/* Box Bantuan Lupa Password (Expandable) */}
                   {showHelp && (
                     <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed animate-fadeIn space-y-1">
-                      <p className="font-bold text-[#002B49]">Petunjuk Masuk &amp; Sandi:</p>
+                      <p className="font-bold text-[#002B49]">Bantuan Masuk &amp; Sandi:</p>
                       <p className="text-[11px] text-slate-600">
-                        2. Jika ingin mereset atau membuat kata sandi mandiri, klik{' '}
+                        Jika Anda lupa kata sandi atau merupakan pengurus baru, silakan gunakan menu{' '}
                         <button
                           type="button"
                           onClick={() => {
@@ -294,7 +294,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           className="font-bold text-blue-700 underline hover:text-blue-900 cursor-pointer"
                         >
                           Aktivasi Pengurus &raquo;
-                        </button>
+                        </button>{' '}
+                        untuk memverifikasi NIK KTP dan membuat kata sandi baru secara mandiri.
                       </p>
                     </div>
                   )}

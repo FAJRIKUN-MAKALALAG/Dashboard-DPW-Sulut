@@ -98,17 +98,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       if (session.role === 'ADMIN_DPD') {
         list = list.filter((m) => isDpdMatch(m.dpd, session.dpdAccess));
       } else if (session.role === 'ADMIN_DPC') {
+        const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' ? session.dpcAccess : '';
         list = list.filter(
           (m) =>
             isDpdMatch(m.dpd, session.dpdAccess) &&
-            (!session.dpcAccess || isDpcMatch(m.dpc, session.dpcAccess))
+            (targetDpc ? isDpcMatch(m.dpc, targetDpc) : true)
         );
       } else if (session.role === 'ADMIN_DPRT') {
+        const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' ? session.dpcAccess : '';
+        const targetDprt = session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' ? session.dprtAccess : '';
         list = list.filter(
           (m) =>
             isDpdMatch(m.dpd, session.dpdAccess) &&
-            (!session.dpcAccess || isDpcMatch(m.dpc, session.dpcAccess)) &&
-            (!session.dprtAccess || isDprtMatch(m.dprt, session.dprtAccess))
+            (targetDpc ? isDpcMatch(m.dpc, targetDpc) : true) &&
+            (targetDprt ? isDprtMatch(m.dprt, targetDprt) : true)
         );
       }
     } else if (selectedDpdFilter !== 'ALL') {
@@ -199,9 +202,6 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenPrintReport={onOpenPrintReport}
         onOpenUserManagement={onOpenUserManagement}
         onOpenDownloadTemplate={onOpenDownloadTemplate}
-        onRefreshCloud={onRefreshCloud}
-        isRefreshingCloud={isRefreshingCloud}
-        onOpenReferralHub={onOpenReferralHub}
       />
 
       {/* 2. Scope & Territory Filter */}

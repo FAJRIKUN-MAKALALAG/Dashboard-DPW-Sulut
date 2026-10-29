@@ -99,6 +99,7 @@ export function useTerritorialMatrix({
           nomorEKTA: r.nomorEKTA,
           nomorHP: r.nomorHP,
           email: r.email,
+          fotoProfilUrl: r.fotoProfilUrl,
         } as Member,
       })),
       filledSlots: filledPimpinan.map((r) => ({
@@ -220,6 +221,7 @@ export function useTerritorialMatrix({
                   email: liveMember.email || r.email,
                   nomorHP: liveMember.nomorHP || r.nomorHP,
                   sosmed: liveMember.sosmed || r.sosmed,
+                  fotoProfilUrl: liveMember.fotoProfilUrl || r.fotoProfilUrl,
                   isExisting: true,
                 };
               }
@@ -377,6 +379,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -468,6 +471,7 @@ export function useTerritorialMatrix({
             email: matched.email || '',
             nomorHP: matched.nomorHP || '',
             sosmed: matched.sosmed || '',
+            fotoProfilUrl: matched.fotoProfilUrl || '',
             isExisting: true,
             originalNik: matched.nik,
           });
@@ -502,6 +506,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -524,6 +529,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -554,6 +560,7 @@ export function useTerritorialMatrix({
             email: matched.email || '',
             nomorHP: matched.nomorHP || '',
             sosmed: matched.sosmed || '',
+            fotoProfilUrl: matched.fotoProfilUrl || '',
             isExisting: true,
             originalNik: matched.nik,
           });
@@ -588,6 +595,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -610,6 +618,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -641,6 +650,7 @@ export function useTerritorialMatrix({
             email: matched.email || '',
             nomorHP: matched.nomorHP || '',
             sosmed: matched.sosmed || '',
+            fotoProfilUrl: matched.fotoProfilUrl || '',
             isExisting: true,
             originalNik: matched.nik,
           });
@@ -675,6 +685,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -693,6 +704,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
@@ -722,6 +734,7 @@ export function useTerritorialMatrix({
           email: m.email || '',
           nomorHP: m.nomorHP || '',
           sosmed: m.sosmed || '',
+          fotoProfilUrl: m.fotoProfilUrl || '',
           isExisting: true,
           originalNik: m.nik,
         });
