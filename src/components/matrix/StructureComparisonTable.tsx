@@ -333,18 +333,18 @@ export const StructureComparisonTable: React.FC<StructureComparisonTableProps> =
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[52vh] sm:max-h-[58vh]">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
-                    <th className="py-2.5 px-3 w-10 text-center">No</th>
-                    <th className="py-2.5 px-4 min-w-[200px]">Slot Template Matriks</th>
-                    <th className="py-2.5 px-3 w-24 text-center">Status</th>
-                    <th className="py-2.5 px-4 min-w-[200px]">Pengurus di Sistem</th>
-                    <th className="py-2.5 px-4 min-w-[220px] bg-indigo-50/40 dark:bg-indigo-950/20">
+                <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-800/95 shadow-2xs">
+                  <tr className="text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
+                    <th className="py-2 px-3 w-10 text-center">No</th>
+                    <th className="py-2 px-3 min-w-[190px]">Slot Template Matriks</th>
+                    <th className="py-2 px-2.5 w-24 text-center">Status</th>
+                    <th className="py-2 px-3 min-w-[190px]">Pengurus di Sistem</th>
+                    <th className="py-2 px-3 min-w-[210px] bg-indigo-50/70 dark:bg-indigo-950/40">
                       Jabatan Asli di SK / Excel
                     </th>
-                    <th className="py-2.5 px-4 min-w-[180px]">Catatan Kesesuaian</th>
+                    <th className="py-2 px-3 min-w-[170px]">Catatan Kesesuaian</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300">

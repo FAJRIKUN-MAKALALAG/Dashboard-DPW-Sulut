@@ -211,18 +211,18 @@ export const RawSourceStructureTable: React.FC<RawSourceStructureTableProps> = (
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[52vh] sm:max-h-[58vh]">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
-                  <th className="py-2.5 px-3 w-12 text-center">No</th>
-                  <th className="py-2.5 px-4 min-w-[220px]">Jabatan Pengurus (SK / Excel)</th>
-                  <th className="py-2.5 px-4 min-w-[200px]">Nama Lengkap (Sesuai KTP)</th>
-                  <th className="py-2.5 px-4 min-w-[150px]">No. NIK KTP</th>
-                  <th className="py-2.5 px-4 min-w-[150px]">E-KTA NasDem</th>
-                  <th className="py-2.5 px-3 min-w-[130px]">No. Telepon / WA</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">Email</th>
-                  <th className="py-2.5 px-3 w-24 text-center">Status</th>
+              <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-800/95 shadow-2xs">
+                <tr className="text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px]">
+                  <th className="py-2 px-3 w-12 text-center">No</th>
+                  <th className="py-2 px-3 min-w-[200px]">Jabatan Pengurus (SK / Excel)</th>
+                  <th className="py-2 px-3 min-w-[190px]">Nama Lengkap (Sesuai KTP)</th>
+                  <th className="py-2 px-3 min-w-[140px]">No. NIK KTP</th>
+                  <th className="py-2 px-3 min-w-[140px]">E-KTA NasDem</th>
+                  <th className="py-2 px-3 min-w-[120px]">No. Telepon / WA</th>
+                  <th className="py-2 px-3 min-w-[160px]">Email</th>
+                  <th className="py-2 px-3 w-24 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-slate-700 dark:text-slate-300">
