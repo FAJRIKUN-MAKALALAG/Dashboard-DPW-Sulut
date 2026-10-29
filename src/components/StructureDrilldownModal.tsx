@@ -10,6 +10,7 @@ import {
   getDpdPimpinanCompliance,
 } from '../utils/structureReadinessUtils';
 import { sortMembersByHierarchy, isDefinitiveLeader } from '../utils/jobMatchingUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
 import {
   X,
   Building,
@@ -538,8 +539,25 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                             {slot.jabatan}
                           </div>
                           {slot.isFilled && slot.member ? (
-                            <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                              ✓ Terisi: {slot.member.namaLengkap} (NIK: {slot.member.nik})
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                {slot.member.fotoProfilUrl ? (
+                                  <img
+                                    src={resolveImageUrl(slot.member.fotoProfilUrl)}
+                                    alt={slot.member.namaLengkap}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(slot.member.namaLengkap).bgClass} ${getAvatarColor(slot.member.namaLengkap).textClass}`}
+                                  >
+                                    {getInitials(slot.member.namaLengkap)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
+                                ✓ Terisi: <strong className="font-semibold text-slate-800 dark:text-slate-200">{slot.member.namaLengkap}</strong> (NIK: {slot.member.nik})
+                              </div>
                             </div>
                           ) : (
                             <div className="text-[11px] text-rose-500 dark:text-rose-400 font-medium">
@@ -616,16 +634,35 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                           )}
                         </td>
                         <td className="p-3">
-                          <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
-                            <span>{m.namaLengkap}</span>
-                            {isKetua && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-400/50">
-                                Ketua #{m.tingkatKepengurusan || ''}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                            NIK: {m.nik}
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                              {m.fotoProfilUrl ? (
+                                <img
+                                  src={resolveImageUrl(m.fotoProfilUrl)}
+                                  alt={m.namaLengkap}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                                >
+                                  {getInitials(m.namaLengkap)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                                <span>{m.namaLengkap}</span>
+                                {isKetua && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-400/50">
+                                    Ketua #{m.tingkatKepengurusan || ''}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                                NIK: {m.nik}
+                              </div>
+                            </div>
                           </div>
                         </td>
                       <td className="p-3">

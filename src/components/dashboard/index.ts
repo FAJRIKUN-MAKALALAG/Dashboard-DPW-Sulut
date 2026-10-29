@@ -6,5 +6,6 @@ export * from './StructureReadinessGrid';
 export * from './UnifiedTerritorialReadiness';
 export * from './TerritoryDetailDrawer';
 export * from './RecruitmentAnalyticsSection';
+export * from './Growth15KabKotaChart';
 export * from './TerritorialBarDistribution';
 export * from './ExecutiveOperationalNote';

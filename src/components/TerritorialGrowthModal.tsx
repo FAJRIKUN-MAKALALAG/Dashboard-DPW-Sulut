@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { exportMembersToExcel } from '../utils/excelUtils';
 import { DpdGrowthNode, RecruiterNode } from '../utils/growthUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
 
 interface TerritorialGrowthModalProps {
   isOpen: boolean;
@@ -696,11 +697,30 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
                           >
                             <td className="py-3 px-4 font-mono text-slate-400">{idx + 1}</td>
                             <td className="py-3 px-4">
-                              <div className="font-semibold text-slate-900 dark:text-white">
-                                {m.namaLengkap}
-                              </div>
-                              <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                {m.nik} · {m.nomorEKTA || '-'}
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                  {m.fotoProfilUrl ? (
+                                    <img
+                                      src={resolveImageUrl(m.fotoProfilUrl)}
+                                      alt={m.namaLengkap}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                                    >
+                                      {getInitials(m.namaLengkap)}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-900 dark:text-white truncate">
+                                    {m.namaLengkap}
+                                  </div>
+                                  <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                                    {m.nik} · {m.nomorEKTA || '-'}
+                                  </div>
+                                </div>
                               </div>
                             </td>
                             <td className="py-3 px-4">

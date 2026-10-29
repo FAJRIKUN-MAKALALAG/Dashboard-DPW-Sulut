@@ -39,6 +39,14 @@ export const AuditService = {
   },
 
   /**
+   * Menghapus seluruh riwayat audit (khusus Super Admin).
+   */
+  async clearAll(): Promise<boolean> {
+    await apiFetch('/audit-logs', { method: 'DELETE' });
+    return true;
+  },
+
+  /**
    * Backend sudah mencatat audit sendiri untuk setiap aksi data, sehingga pencatatan dari
    * klien tidak lagi dikirim (mencegah catatan ganda dan pemalsuan log).
    */

@@ -21,13 +21,17 @@ import {
   Calendar,
   Building2,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
+import { AuditService } from '../services/auditService';
+import { saveAuditLogs } from '../utils/storage';
 
 interface AuditTrailModalProps {
   isOpen: boolean;
   onClose: () => void;
   logs: AuditLog[];
   session?: UserSession;
+  onClearLogs?: () => void;
 }
 
 type ActionFilterType = 'ALL' | 'STATUS_CHANGE' | 'CREATE' | 'IMPORT_MASSAL' | 'UPDATE' | 'DELETE' | 'DELETE_REQUEST';
@@ -38,7 +42,14 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({
   onClose,
   logs,
   session,
+  onClearLogs,
 }) => {
+  // Clear All Audit State (Khusus Super Admin)
+  const [isClearing, setIsClearing] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [clearSuccessMsg, setClearSuccessMsg] = useState<string | null>(null);
+  const [clearErrorMsg, setClearErrorMsg] = useState<string | null>(null);
+
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDpd, setSelectedDpd] = useState<string>('ALL');
@@ -46,6 +57,23 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedTime, setSelectedTime] = useState<TimeFilterType>('ALL');
   const [selectedActor, setSelectedActor] = useState<string>('ALL');
+
+  const handleExecuteClearAll = async () => {
+    setIsClearing(true);
+    setClearErrorMsg(null);
+    try {
+      await AuditService.clearAll();
+      saveAuditLogs([]);
+      if (onClearLogs) onClearLogs();
+      setShowConfirmClear(false);
+      setClearSuccessMsg('Seluruh riwayat audit berhasil dibersihkan dari server database.');
+      setTimeout(() => setClearSuccessMsg(null), 4000);
+    } catch (err: any) {
+      setClearErrorMsg(err.message || 'Gagal menghapus riwayat audit.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   // Set default DPD filter if user is local admin
   React.useEffect(() => {
@@ -243,6 +271,17 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {session?.role === 'SUPER_ADMIN' && logs.length > 0 && (
+                  <button
+                    onClick={() => setShowConfirmClear(true)}
+                    disabled={isClearing}
+                    className="btn-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900"
+                    title="Hapus Seluruh Riwayat Audit (Khusus Super Admin)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span className="hidden sm:inline">Hapus Seluruh Riwayat</span>
+                  </button>
+                )}
                 <button
                   onClick={handleExportCsv}
                   className="btn-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs hover:border-emerald-400"
@@ -260,6 +299,68 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Dialog Konfirmasi Hapus Seluruh Riwayat Audit (Khusus Super Admin) */}
+            {showConfirmClear && (
+              <div className="mt-3 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 space-y-2.5 animate-in fade-in">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0 text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-900 dark:text-rose-100">
+                      Konfirmasi Penghapusan Seluruh Riwayat Audit
+                    </h4>
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5 leading-relaxed">
+                      Tindakan ini akan menghapus permanen <strong>{logs.length} catatan log audit mutasi</strong> dari server database. Apakah Anda yakin ingin membersihkan seluruh riwayat audit?
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isClearing}
+                    onClick={() => setShowConfirmClear(false)}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isClearing}
+                    onClick={handleExecuteClearAll}
+                    className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {isClearing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menghapus...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus Seluruhnya</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {clearSuccessMsg && (
+              <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{clearSuccessMsg}</span>
+              </div>
+            )}
+
+            {clearErrorMsg && (
+              <div className="mt-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{clearErrorMsg}</span>
+              </div>
+            )}
 
             {/* FILTER TOOLBAR SECTION */}
             <div className="mt-4 pt-4 border-t border-slate-200/70 dark:border-slate-800/70 space-y-3">

@@ -7,23 +7,16 @@ import {
   Building2,
   CheckCircle2,
   AlertCircle,
+  Info,
   Sparkles,
+  FileSpreadsheet,
   CheckSquare,
-  Search,
-  X,
-  Edit3,
-  Copy,
-  Check,
-  Phone,
-  MessageCircle,
-  ChevronRight,
-  User,
+  Square,
   AlertTriangle,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react';
 import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
 import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 export interface GridRowItem {
   id: string;
@@ -38,6 +31,7 @@ export interface GridRowItem {
   sosmed: string;
   isExisting: boolean;
   originalNik?: string;
+  fotoProfilUrl?: string;
 }
 
 interface MatrixTableSheetProps {
@@ -63,18 +57,13 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showConfirmBulkDelete, setShowConfirmBulkDelete] = useState(false);
-  const [activeSubOrgFilter, setActiveSubOrgFilter] = useState<string>('ALL');
-  const [tableSearch, setTableSearch] = useState('');
-  const [isExpandedHeight, setIsExpandedHeight] = useState(false);
-  const [activeDetailRow, setActiveDetailRow] = useState<GridRowItem | null>(null);
-
-  // Overall metric counts
+  // Hitung metrik keseluruhan
   const totalRows = gridRows.length;
   const totalFilled = gridRows.filter((r) => r.namaLengkap.trim() !== '').length;
   const totalEmpty = totalRows - totalFilled;
   const completionPercentage = totalRows > 0 ? Math.round((totalFilled / totalRows) * 100) : 0;
 
-  // Group rows by subOrg (Dewan Pertimbangan -> Dewan Pakar -> Dewan Pimpinan)
+  // Kelompokkan baris berdasarkan subOrg agar Dewan Pertimbangan dan Dewan Pakar menjadi tabel terpisah di paling atas
   const sections = useMemo(() => {
     const map = new Map<string, GridRowItem[]>();
     gridRows.forEach((row) => {
@@ -83,6 +72,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
       map.get(key)!.push(row);
     });
 
+    // Urutan resmi: I. Dewan Pertimbangan -> II. Dewan Pakar -> III. Dewan Pimpinan Daerah
     const sortPriority = (title: string) => {
       const t = title.toUpperCase();
       if (t.includes('PERTIMBANGAN')) return 1;
@@ -116,1073 +106,778 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
       });
   }, [gridRows]);
 
-  // Filter sections and rows based on activeSubOrgFilter and tableSearch
-  const filteredSections = useMemo(() => {
-    let result = sections;
-
-    if (activeSubOrgFilter === 'LOWONG') {
-      result = result
-        .map((sec) => ({
-          ...sec,
-          rows: sec.rows.filter((r) => r.namaLengkap.trim() === ''),
-        }))
-        .filter((sec) => sec.rows.length > 0);
-    } else if (activeSubOrgFilter !== 'ALL') {
-      result = result.filter((sec) => sec.subOrg === activeSubOrgFilter);
-    }
-
-    if (tableSearch.trim()) {
-      const q = tableSearch.toLowerCase().trim();
-      result = result
-        .map((sec) => ({
-          ...sec,
-          rows: sec.rows.filter(
-            (r) =>
-              r.jabatan.toLowerCase().includes(q) ||
-              r.namaLengkap.toLowerCase().includes(q) ||
-              r.nik.toLowerCase().includes(q) ||
-              r.nomorEKTA.toLowerCase().includes(q) ||
-              r.nomorHP.toLowerCase().includes(q)
-          ),
-        }))
-        .filter((sec) => sec.rows.length > 0);
-    }
-
-    return result;
-  }, [sections, activeSubOrgFilter, tableSearch]);
-
-  const displayedRowCount = useMemo(() => {
-    return filteredSections.reduce((acc, sec) => acc + sec.rows.length, 0);
-  }, [filteredSections]);
-
-  const handleToggleSelectAll = (checked: boolean) => {
-    if (!checked) {
-      setSelectedIds(new Set());
-    } else {
-      const allDisplayedIds = filteredSections.flatMap((s) => s.rows.map((r) => r.id));
-      setSelectedIds(new Set(allDisplayedIds));
-    }
-  };
-
-  const handleToggleSelectSection = (secRows: GridRowItem[]) => {
-    const ids = secRows.map((r) => r.id);
-    const allSelected = ids.every((id) => selectedIds.has(id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) {
-        ids.forEach((id) => next.delete(id));
-      } else {
-        ids.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  };
-
-  const isAllDisplayedSelected =
-    displayedRowCount > 0 &&
-    filteredSections.every((sec) => sec.rows.every((r) => selectedIds.has(r.id)));
-
   return (
-    <div className="flex flex-col bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-      {/* 1. Header Ringkas (Compact Banner) */}
-      <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-extrabold text-[10px] uppercase tracking-wider shrink-0 border border-blue-200 dark:border-blue-900">
-            <Sparkles className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-            <span>Matriks Resmi</span>
-          </span>
-          <div className="min-w-0 truncate">
-            <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase truncate font-sans">
-              {officialTitle.line1}{' '}
-              {officialTitle.line2 && (
-                <span className="font-bold text-blue-700 dark:text-blue-400 text-xs ml-1">
-                  • {officialTitle.line2}
-                </span>
-              )}
-            </h3>
+    <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-100/70 dark:bg-slate-950/70">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-xl p-3 sm:p-7 max-w-full space-y-4 sm:space-y-6">
+        {/* 1. Official Header & Title */}
+        <div className="text-center pb-5 border-b-2 border-slate-900 dark:border-white">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-[10px] sm:text-xs uppercase tracking-wider mb-1.5 border border-blue-200 dark:border-blue-800">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span>Matriks Resmi Susunan Pengurus</span>
+          </div>
+          <h2 className="text-base sm:text-xl font-black tracking-wider text-slate-900 dark:text-white uppercase font-sans break-words">
+            {officialTitle.line1}
+          </h2>
+          <h3 className="text-sm sm:text-base font-bold tracking-wider text-blue-700 dark:text-blue-400 uppercase mt-0.5 font-sans">
+            {officialTitle.line2}
+          </h3>
+        </div>
+
+        {/* 2. Visual Guide & Status Legend Bar (Memudahkan Pembacaan & Input Excel) */}
+        <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50/80 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-slate-900/40 space-y-3 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Panduan Visual Input Matriks & Sinkronisasi Excel
+                </h4>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  Warna dan badge baris diselaraskan langsung dengan format template Excel:
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Status Legend Badges */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Terisi: {totalFilled} Posisi</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Lowong: {totalEmpty} Posisi</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-blue-100 text-blue-900 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-300 dark:border-blue-800 shadow-2xs">
+                <span>Total Formasi: {totalRows}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center justify-between gap-2">
+            <span className="hidden sm:inline">
+              💡 <strong>Tips Cepat:</strong> Baris bergaris oranye (⚡ <strong>LOWONG</strong>) menandakan jabatan formasi yang belum terisi di SK. Anda dapat mengunduh <strong>Template Excel</strong> di atas untuk diisi bersama tim, lalu klik <strong>Import Excel</strong>, atau klik <strong>Mode Edit</strong> untuk mengetik langsung.
+            </span>
+            <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
+              Kelengkapan: {completionPercentage}%
+            </span>
           </div>
         </div>
 
-        {/* Status Chips Ringkas */}
-        <div className="flex items-center gap-1.5 flex-wrap text-[10px] sm:text-xs">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Terisi: {totalFilled}</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-            <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>Lowong: {totalEmpty}</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-            <span>Total: {totalRows}</span>
-          </span>
-          <span className="font-mono font-bold text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900">
-            {completionPercentage}%
-          </span>
-        </div>
-      </div>
-
-      {/* 2. Quick Filter Tabs & Inline Search Toolbar */}
-      <div className="px-3 py-1.5 bg-slate-100/80 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-        {/* Section Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-          <button
-            type="button"
-            onClick={() => setActiveSubOrgFilter('ALL')}
-            className={`px-2.5 py-1 rounded-md font-bold text-[11px] whitespace-nowrap transition-all cursor-pointer ${
-              activeSubOrgFilter === 'ALL'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            Semua Bagian ({totalRows})
-          </button>
-
-          {sections.map((sec) => (
-            <button
-              key={sec.subOrg}
-              type="button"
-              onClick={() => setActiveSubOrgFilter(sec.subOrg)}
-              className={`px-2 py-1 rounded-md font-bold text-[11px] whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                activeSubOrgFilter === sec.subOrg
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span className="truncate max-w-[140px] sm:max-w-none">{sec.subOrg}</span>
-              <span className="text-[10px] opacity-75 font-mono">({sec.rows.length})</span>
-            </button>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => setActiveSubOrgFilter('LOWONG')}
-            className={`px-2 py-1 rounded-md font-bold text-[11px] whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-              activeSubOrgFilter === 'LOWONG'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-900 hover:bg-amber-100/60'
-            }`}
-          >
-            <span>⚡ Lowong Saja</span>
-            <span className="text-[10px] font-mono">({totalEmpty})</span>
-          </button>
-        </div>
-
-        {/* Search & Height View Toggle */}
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-          <div className="relative flex-1 sm:w-56">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari nama / jabatan / NIK..."
-              value={tableSearch}
-              onChange={(e) => setTableSearch(e.target.value)}
-              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-7 pr-7 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {tableSearch && (
+        {/* Bar Seleksi Multi-Baris & Hard Delete Terpilih */}
+        {selectedIds.size > 0 && (
+          <div className="p-3.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/60 flex flex-wrap items-center justify-between gap-3 shadow-md animate-in fade-in">
+            <div className="flex items-center gap-2 text-rose-900 dark:text-rose-200 text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>{selectedIds.size} baris pengurus dipilih di matriks ini.</span>
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setTableSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
               >
-                <X className="w-3 h-3" />
+                Batalkan Pilihan
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setShowConfirmBulkDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hard Delete {selectedIds.size} Data Terpilih</span>
+              </button>
+            </div>
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => setIsExpandedHeight((prev) => !prev)}
-            className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer shrink-0"
-            title={isExpandedHeight ? 'Kecilkan Tinggi Tabel' : 'Perluas Tinggi Tabel'}
-          >
-            {isExpandedHeight ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Bar Seleksi Multi-Baris & Bulk Delete */}
-      {selectedIds.size > 0 && (
-        <div className="px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/70 border-b border-rose-200 dark:border-rose-900 flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-rose-900 dark:text-rose-200 font-semibold text-[11px]">
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span>{selectedIds.size} baris dipilih</span>
+        {/* Modal Konfirmasi Hard Delete Bulk */}
+        {showConfirmBulkDelete && (
+          <div className="p-4 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/80 space-y-3 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-950 dark:text-rose-100">
+                <p className="font-bold text-sm">
+                  Konfirmasi Hard Delete Permanen ({selectedIds.size} Data Pengurus)?
+                </p>
+                <p className="mt-1 text-rose-800 dark:text-rose-300">
+                  Data pengurus yang dipilih akan <strong>dihapus permanen dari database Supabase (melalui backend)</strong> dan slot posisinya akan dikosongkan/dibersihkan dari matriks ini.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmBulkDelete(false)}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteSelectedRows) {
+                    onDeleteSelectedRows(Array.from(selectedIds));
+                  }
+                  setSelectedIds(new Set());
+                  setShowConfirmBulkDelete(false);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Ya, Hapus Permanen Sekarang</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="px-2 py-0.5 text-[11px] font-medium rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowConfirmBulkDelete(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Hapus ({selectedIds.size})</span>
-            </button>
+        )}
+
+        {/* 3. Section Tables Rendering */}
+        {sections.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 italic border border-slate-300 dark:border-slate-700 rounded-lg">
+            Belum ada data untuk wilayah ini. Klik Tambah Baris atau Edit Tabel untuk mulai mengisi.
           </div>
-        </div>
-      )}
-
-      {/* Modal Konfirmasi Bulk Delete */}
-      {showConfirmBulkDelete && (
-        <div className="p-3 bg-rose-100 dark:bg-rose-950 border-b border-rose-300 dark:border-rose-800 flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in">
-          <span className="text-rose-950 dark:text-rose-100 font-medium text-[11px]">
-            Yakin ingin <strong>hard delete permanen</strong> {selectedIds.size} baris pengurus dari database?
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowConfirmBulkDelete(false)}
-              className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px]"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onDeleteSelectedRows) {
-                  onDeleteSelectedRows(Array.from(selectedIds));
-                }
-                setSelectedIds(new Set());
-                setShowConfirmBulkDelete(false);
-              }}
-              className="px-3 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px]"
-            >
-              Ya, Hapus Sekarang
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Table Scroll Container (Bounded max-height & Sticky Header) */}
-      <div
-        className={`overflow-x-auto overflow-y-auto ${
-          isExpandedHeight ? 'max-h-[75vh]' : 'max-h-[56vh] sm:max-h-[62vh]'
-        } border-collapse relative bg-white dark:bg-slate-900`}
-      >
-        <table className="w-full text-left border-collapse text-xs">
-          {/* Main Column Header (Sticky top-0) */}
-          <thead className="sticky top-0 z-20 bg-slate-900 text-white shadow-xs">
-            <tr className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-center border-b border-slate-700">
-              <th className="border border-slate-700 px-1.5 py-1.5 w-8 text-center bg-slate-900">
-                <input
-                  type="checkbox"
-                  checked={isAllDisplayedSelected}
-                  onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                  className="rounded cursor-pointer w-3.5 h-3.5"
-                  title="Pilih semua baris yang tampil"
-                  aria-label="Pilih semua baris"
-                />
-              </th>
-              <th className="border border-slate-700 px-1 py-1.5 w-10 bg-slate-900">NO</th>
-              <th className="border border-slate-700 px-1.5 py-1.5 w-20 bg-slate-900 text-center">
-                STATUS
-              </th>
-              <th className="border border-slate-700 px-2.5 py-1.5 min-w-[190px] text-left bg-slate-900">
-                JABATAN PENGURUS
-              </th>
-              <th className="border border-slate-700 px-2.5 py-1.5 min-w-[210px] text-left bg-slate-900">
-                NAMA LENGKAP (SESUAI KTP)
-              </th>
-              <th className="border border-slate-700 px-2 py-1.5 min-w-[130px] bg-slate-900 text-center">
-                NO. NIK KTP
-              </th>
-              <th className="border border-slate-700 px-2 py-1.5 min-w-[120px] bg-slate-900 text-center">
-                E-KTA NASDEM
-              </th>
-              <th className="border border-slate-700 px-2 py-1.5 min-w-[110px] bg-slate-900 text-center">
-                NO TELP / WA
-              </th>
-              <th className="border border-slate-700 px-2 py-1.5 min-w-[130px] bg-slate-900 text-left">
-                EMAIL
-              </th>
-              <th className="border border-slate-700 px-2 py-1.5 min-w-[110px] bg-slate-900 text-left">
-                SOSMED
-              </th>
-              <th className="border border-slate-700 px-1 py-1.5 w-20 text-center bg-slate-950">
-                AKSI
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredSections.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={11}
-                  className="p-8 text-center text-slate-400 italic bg-slate-50 dark:bg-slate-800/40"
+        ) : (
+          sections.map((sec) => {
+            return (
+              <div
+                key={sec.subOrg}
+                className={`mb-8 last:mb-0 rounded-2xl overflow-hidden border shadow-sm transition-all ${
+                  sec.isPertimbangan
+                    ? 'border-indigo-300 dark:border-indigo-800/80 shadow-indigo-100/30'
+                    : sec.isPakar
+                    ? 'border-purple-300 dark:border-purple-800/80 shadow-purple-100/30'
+                    : 'border-blue-300 dark:border-blue-900 shadow-blue-100/30'
+                }`}
+              >
+                {/* Section Header Card */}
+                <div
+                  className={`px-3 sm:px-4.5 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 text-white ${
+                    sec.isPertimbangan
+                      ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900'
+                      : sec.isPakar
+                      ? 'bg-gradient-to-r from-purple-950 via-slate-900 to-purple-900'
+                      : 'bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950'
+                  }`}
                 >
-                  {tableSearch
-                    ? `Tidak ada baris yang cocok dengan kata kunci "${tableSearch}".`
-                    : 'Tidak ada data untuk kategori ini.'}
-                </td>
-              </tr>
-            ) : (
-              filteredSections.map((sec) => {
-                return (
-                  <React.Fragment key={sec.subOrg}>
-                    {/* Compact Section Subheader (Sticky top-[29px]) */}
-                    <tr className="sticky top-[29px] z-10 bg-slate-800/95 dark:bg-slate-950/95 backdrop-blur-xs text-white border-y border-slate-700 shadow-2xs">
-                      <td colSpan={11} className="py-1 px-2.5 text-[10px] sm:text-[11px] font-bold">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2">
-                            {sec.isPertimbangan ? (
-                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                            ) : sec.isPakar ? (
-                              <Award className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                            ) : (
-                              <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                            )}
-                            <span className="uppercase tracking-wide font-black">
-                              {sec.subOrg}
-                            </span>
-                            <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-white/15 text-white">
-                              {sec.filledCount}/{sec.rows.length} Terisi
-                            </span>
-                            {sec.emptyCount > 0 ? (
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500 text-amber-950 font-bold">
-                                ⚡ {sec.emptyCount} Lowong
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500 text-emerald-950 font-bold">
-                                ✓ Lengkap
-                              </span>
-                            )}
-                          </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-white/10 border border-white/20">
+                      {sec.isPertimbangan ? (
+                        <ShieldCheck className="w-5 h-5 text-indigo-300 shrink-0" />
+                      ) : sec.isPakar ? (
+                        <Award className="w-5 h-5 text-purple-300 shrink-0" />
+                      ) : (
+                        <Building2 className="w-5 h-5 text-blue-300 shrink-0" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xs sm:text-sm font-black tracking-wider uppercase">
+                          {sec.subOrg}
+                        </h4>
+                        <span className="text-[10px] sm:text-xs font-mono px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 font-semibold text-white">
+                          {sec.filledCount} / {sec.rows.length} Terisi
+                        </span>
+                        {sec.emptyCount > 0 ? (
+                          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/90 text-amber-950 border border-amber-300">
+                            ⚡ {sec.emptyCount} Lowong
+                          </span>
+                        ) : (
+                          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/90 text-emerald-950 border border-emerald-300">
+                            ✓ 100% Lengkap
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-300 flex items-center gap-1.5 mt-0.5">
+                        <span>Wilayah Teritorial:</span>
+                        <span className="font-bold underline text-white">
+                          {officialTitle.line2 || officialTitle.line1}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleSelectSection(sec.rows)}
-                              className="text-[10px] font-semibold bg-white/10 hover:bg-white/20 text-slate-200 px-2 py-0.5 rounded cursor-pointer transition-all border border-white/20 flex items-center gap-1"
-                            >
-                              <CheckSquare className="w-3 h-3" />
-                              <span>Pilih Seksi</span>
-                            </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const secIds = sec.rows.map((r) => r.id);
+                        const allSelected = secIds.every((id) => selectedIds.has(id));
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (allSelected) {
+                            secIds.forEach((id) => next.delete(id));
+                          } else {
+                            secIds.forEach((id) => next.add(id));
+                          }
+                          return next;
+                        });
+                      }}
+                      className="flex-1 sm:flex-initial justify-center text-[11px] font-semibold bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 sm:py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>Pilih Bagian Ini</span>
+                    </button>
+                    {onAddNewRowForSubOrg && (
+                      <button
+                        onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
+                        className="flex-1 sm:flex-initial justify-center text-xs font-bold bg-white text-slate-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-white/40"
+                        title={`Tambah baris jabatan baru di ${sec.subOrg}`}
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Tambah Baris</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-                            {onAddNewRowForSubOrg && (
-                              <button
-                                type="button"
-                                onClick={() => onAddNewRowForSubOrg(sec.subOrg)}
-                                className="text-[10px] font-bold bg-white text-slate-900 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                                title={`Tambah baris jabatan di ${sec.subOrg}`}
-                              >
-                                <Plus className="w-3 h-3 text-blue-600" />
-                                <span>+ Baris</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
+                {/* Mobile Card List (< md) */}
+                <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+                  {sec.rows.map((row, idx) => (
+                    <MobileRowCard
+                      key={row.id}
+                      row={row}
+                      idx={idx}
+                      isEditMode={isEditMode}
+                      isSelected={selectedIds.has(row.id)}
+                      onToggleSelect={(checked) =>
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        })
+                      }
+                      onCellChange={onCellChange}
+                      onDeleteRow={onDeleteRow}
+                      onInsertRow={onInsertRow}
+                    />
+                  ))}
+                </div>
 
-                    {/* Section Data Rows */}
-                    {sec.rows.map((row, idx) => {
-                      const isFilled = row.namaLengkap.trim() !== '';
-                      const isRowSelected = selectedIds.has(row.id);
-                      const isLeader = isDefinitiveLeader(row.jabatan);
-
-                      return (
-                        <tr
-                          key={row.id}
-                          className={`transition-colors text-[11px] leading-tight ${
-                            isRowSelected
-                              ? 'bg-rose-50/90 dark:bg-rose-950/40 border-l-3 border-l-rose-600'
-                              : !isFilled
-                              ? 'bg-amber-50/60 dark:bg-amber-950/25 border-l-3 border-l-amber-500 hover:bg-amber-100/50 dark:hover:bg-amber-950/40'
-                              : 'bg-white dark:bg-slate-900 border-l-3 border-l-emerald-500 hover:bg-blue-50/30 dark:hover:bg-slate-800/30'
-                          }`}
-                        >
-                          {/* 0. Checkbox */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-1 py-1 text-center">
-                            <input
-                              type="checkbox"
-                              checked={isRowSelected}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setSelectedIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (checked) next.add(row.id);
-                                  else next.delete(row.id);
-                                  return next;
+                {/* Section Table (md and up) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-800 dark:bg-slate-950 text-white text-[10px] font-bold uppercase tracking-wider text-center">
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-8 text-center">
+                          <input
+                            type="checkbox"
+                            checked={sec.rows.length > 0 && sec.rows.every((r) => selectedIds.has(r.id))}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                sec.rows.forEach((r) => {
+                                  if (checked) next.add(r.id);
+                                  else next.delete(r.id);
                                 });
-                              }}
-                              className="rounded cursor-pointer w-3.5 h-3.5"
-                              aria-label={`Pilih baris ${row.jabatan}`}
-                            />
-                          </td>
+                                return next;
+                              });
+                            }}
+                            className="rounded cursor-pointer"
+                            title="Pilih semua baris di seksi ini"
+                          />
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-9">
+                          NO
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 w-24 text-center">
+                          STATUS
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2.5 py-1.5 min-w-[150px] text-left">
+                          JABATAN PENGURUS
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2.5 py-1.5 min-w-[160px] text-left">
+                          NAMA LENGKAP (SESUAI KTP)
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[125px]">
+                          NO. NIK KTP
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[115px]">
+                          E-KTA NASDEM
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[105px]">
+                          NO TELEPON / WA
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[115px]">
+                          EMAIL
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-2 py-1.5 min-w-[95px]">
+                          SOSIAL MEDIA
+                        </th>
+                        <th className="border border-slate-400 dark:border-slate-700 px-1.5 py-1.5 w-20 text-center bg-slate-900 text-white">
+                          AKSI
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sec.rows.map((row, idx) => {
+                        const isFilled = row.namaLengkap.trim() !== '';
+                        const isRowSelected = selectedIds.has(row.id);
 
-                          {/* 1. NO */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-1 py-1 text-center font-mono font-bold text-slate-600 dark:text-slate-400 text-[10px]">
-                            {isLeader ? (
-                              <span
-                                className="inline-flex items-center justify-center px-1 py-0.2 rounded font-black text-[9px] bg-amber-500 text-slate-950 shadow-2xs"
-                                title="Ketua Definitif #1"
-                              >
-                                #1
-                              </span>
-                            ) : (
-                              idx + 1
-                            )}
-                          </td>
+                        return (
+                          <tr
+                            key={row.id}
+                            className={`transition-colors text-[11px] ${
+                              isRowSelected
+                                ? 'bg-rose-100/70 dark:bg-rose-950/40 border-l-4 border-l-rose-600'
+                                : !isFilled
+                                ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-4 border-l-amber-500 hover:bg-amber-100/60 dark:hover:bg-amber-950/40'
+                                : 'bg-white dark:bg-slate-900 border-l-4 border-l-emerald-500 hover:bg-blue-50/30 dark:hover:bg-slate-800/30'
+                            }`}
+                          >
+                            {/* Checkbox Seleksi Baris */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isRowSelected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setSelectedIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add(row.id);
+                                    else next.delete(row.id);
+                                    return next;
+                                  });
+                                }}
+                                className="rounded cursor-pointer"
+                              />
+                            </td>
 
-                          {/* 2. STATUS FORMASI */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-1.5 py-1 text-center">
-                            {isFilled ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                                <span>TERISI</span>
-                              </span>
-                            ) : (
-                              <div className="inline-flex items-center justify-center gap-1">
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-200 border border-amber-400 dark:border-amber-700">
-                                  <AlertCircle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                                  <span>LOWONG</span>
+                            {/* 1. NO */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-2 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                              {isDefinitiveLeader(row.jabatan) ? (
+                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950 shadow-xs" title="Ketua Definitif #1">
+                                  #1
                                 </span>
+                              ) : (
+                                idx + 1
+                              )}
+                            </td>
+
+                            {/* 2. STATUS FORMASI */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-center">
+                              {isFilled ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                  <span>TERISI</span>
+                                </span>
+                              ) : (
+                                <div className="inline-flex items-center justify-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700 shadow-2xs">
+                                    <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                    <span>LOWONG</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteRow(row.id)}
+                                    className="p-1 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-md transition-all cursor-pointer border border-rose-200 dark:border-rose-900/50 hover:border-rose-600 shadow-2xs"
+                                    title="Hapus slot lowong ini"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* 3. JABATAN PENGURUS */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-semibold">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  value={row.jabatan}
+                                  onChange={(e) => onCellChange(row.id, 'jabatan', e.target.value)}
+                                  className="w-full bg-blue-50/60 dark:bg-slate-800 border border-blue-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`w-2 h-2 rounded-full shrink-0 ${
+                                      isFilled ? 'bg-emerald-500' : 'bg-amber-500'
+                                    }`}
+                                  ></span>
+                                  {isDefinitiveLeader(row.jabatan) && (
+                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 tracking-wider">
+                                      KETUA
+                                    </span>
+                                  )}
+                                  <span
+                                    className={
+                                      isFilled
+                                        ? 'text-slate-800 dark:text-slate-200 font-semibold'
+                                        : 'text-amber-950 dark:text-amber-200 font-bold'
+                                    }
+                                  >
+                                    {row.jabatan}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* 4. NAMA LENGKAP */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-medium">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder="👉 Masukkan Nama KTP..."
+                                  value={row.namaLengkap}
+                                  onChange={(e) => onCellChange(row.id, 'namaLengkap', e.target.value)}
+                                  className={`w-full rounded px-2.5 py-1 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 ${
+                                    isFilled
+                                      ? 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:ring-blue-500'
+                                      : 'bg-amber-50/90 dark:bg-amber-950/60 border-2 border-amber-400 dark:border-amber-500 placeholder-amber-700/60 dark:placeholder-amber-400/60 focus:ring-amber-500'
+                                  }`}
+                                />
+                              ) : isFilled ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-7.5 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                    {row.fotoProfilUrl ? (
+                                      <img
+                                        src={resolveImageUrl(row.fotoProfilUrl)}
+                                        alt={row.namaLengkap}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div
+                                        className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
+                                      >
+                                        {getInitials(row.namaLengkap)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-slate-900 dark:text-white truncate">
+                                    {row.namaLengkap}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-white/80 dark:bg-slate-900 text-amber-900 dark:text-amber-300 border border-dashed border-amber-400 dark:border-amber-700 shadow-2xs">
+                                  <span className="text-amber-600 font-extrabold">+</span>
+                                  <span>Lowong (Siap Diisi)</span>
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 5. NO. NIK */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder={isGeneratedNik(row.nik) ? '- (Belum ada NIK)' : '16 Digit NIK...'}
+                                  value={isGeneratedNik(row.nik) ? '' : row.nik}
+                                  onChange={(e) => onCellChange(row.id, 'nik', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : isGeneratedNik(row.nik) || !row.nik ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-sans italic font-normal" title="NIK belum ada / tidak tertera di Excel">
+                                  -
+                                </span>
+                              ) : (
+                                <span className="text-slate-700 dark:text-slate-300">
+                                  {row.nik}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 6. E-KTA NASDEM */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder={isGeneratedEkta(row.nomorEKTA) ? '- (Belum ada KTA)' : 'Nomor E-KTA...'}
+                                  value={isGeneratedEkta(row.nomorEKTA) ? '' : row.nomorEKTA}
+                                  onChange={(e) => onCellChange(row.id, 'nomorEKTA', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : isGeneratedEkta(row.nomorEKTA) || !row.nomorEKTA ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-sans italic font-normal" title="E-KTA belum ada">
+                                  -
+                                </span>
+                              ) : (
+                                <span className="font-semibold text-blue-700 dark:text-blue-400">
+                                  {row.nomorEKTA}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 7. NO TELEPON / WA */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 font-mono text-center text-slate-700 dark:text-slate-300">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder="08xxxxxxxxxx"
+                                  value={row.nomorHP}
+                                  onChange={(e) => onCellChange(row.id, 'nomorHP', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                <span>{row.nomorHP || '-'}</span>
+                              )}
+                            </td>
+
+                            {/* 8. EMAIL */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-600 dark:text-slate-400">
+                              {isEditMode ? (
+                                <input
+                                  type="email"
+                                  placeholder="email@nasdem.id"
+                                  value={row.email}
+                                  onChange={(e) => onCellChange(row.id, 'email', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                <span className="truncate block max-w-[160px]">
+                                  {row.email || '-'}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 9. SOSIAL MEDIA */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-600 dark:text-slate-400">
+                              {isEditMode ? (
+                                <input
+                                  type="text"
+                                  placeholder="@instagram / facebook"
+                                  value={row.sosmed}
+                                  onChange={(e) => onCellChange(row.id, 'sosmed', e.target.value)}
+                                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                <span className="truncate block max-w-[130px]">
+                                  {row.sosmed || '-'}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Action Column */}
+                            <td className="border border-slate-300 dark:border-slate-700 px-1.5 py-1 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {onInsertRow && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onInsertRow(row.id, 'below')}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 hover:text-white hover:bg-blue-600 dark:hover:bg-blue-600 rounded-md transition-all cursor-pointer border border-blue-300 dark:border-blue-800 shadow-2xs"
+                                    title={`Sisipkan baris baru di bawah No. ${idx + 1}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>Sisip</span>
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => onDeleteRow(row.id)}
-                                  className="p-0.5 text-rose-500 hover:text-white hover:bg-rose-600 rounded transition-all cursor-pointer"
-                                  title="Hapus slot lowong ini"
+                                  className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 rounded-md transition-all cursor-pointer border border-rose-200 dark:border-rose-900/50 hover:border-rose-600 shadow-2xs"
+                                  title={!isFilled ? 'Hapus slot lowong ini' : `Hapus baris: ${row.namaLengkap || row.jabatan}`}
                                 >
-                                  <Trash2 className="w-2.5 h-2.5" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
-                            )}
-                          </td>
-
-                          {/* 3. JABATAN PENGURUS */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 font-semibold">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                value={row.jabatan}
-                                onChange={(e) => onCellChange(row.id, 'jabatan', e.target.value)}
-                                className="w-full bg-blue-50/50 dark:bg-slate-800 border border-blue-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                    isFilled ? 'bg-emerald-500' : 'bg-amber-500'
-                                  }`}
-                                />
-                                {isLeader && (
-                                  <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-amber-500 text-slate-950 tracking-wider">
-                                    KETUA
-                                  </span>
-                                )}
-                                <span
-                                  className={
-                                    isFilled
-                                      ? 'text-slate-800 dark:text-slate-200 font-semibold'
-                                      : 'text-amber-950 dark:text-amber-200 font-bold'
-                                  }
-                                >
-                                  {row.jabatan}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 4. NAMA LENGKAP */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 font-medium">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                placeholder="Nama sesuai KTP..."
-                                value={row.namaLengkap}
-                                onChange={(e) =>
-                                  onCellChange(row.id, 'namaLengkap', e.target.value)
-                                }
-                                className={`w-full rounded px-2 py-0.5 text-xs font-bold focus:outline-none focus:ring-1 ${
-                                  isFilled
-                                    ? 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white focus:ring-blue-500'
-                                    : 'bg-amber-50 dark:bg-amber-950/60 border border-amber-400 text-slate-900 dark:text-white placeholder-amber-700/60 focus:ring-amber-500'
-                                }`}
-                              />
-                            ) : isFilled ? (
-                              <span className="font-bold text-slate-900 dark:text-white">
-                                {row.namaLengkap}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-950/40 border border-dashed border-amber-400 dark:border-amber-700">
-                                <span>+ Lowong (Siap Diisi)</span>
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 5. NO. NIK KTP */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 font-mono text-center text-[10px]">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                placeholder={isGeneratedNik(row.nik) ? '-' : '16 Digit NIK'}
-                                value={isGeneratedNik(row.nik) ? '' : row.nik}
-                                onChange={(e) => onCellChange(row.id, 'nik', e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[10px] text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : isGeneratedNik(row.nik) || !row.nik ? (
-                              <span className="text-slate-400 dark:text-slate-500 italic">-</span>
-                            ) : (
-                              <span className="text-slate-700 dark:text-slate-300">{row.nik}</span>
-                            )}
-                          </td>
-
-                          {/* 6. E-KTA NASDEM */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 font-mono text-center text-[10px]">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                placeholder={isGeneratedEkta(row.nomorEKTA) ? '-' : 'Nomor E-KTA'}
-                                value={isGeneratedEkta(row.nomorEKTA) ? '' : row.nomorEKTA}
-                                onChange={(e) =>
-                                  onCellChange(row.id, 'nomorEKTA', e.target.value)
-                                }
-                                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[10px] text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : isGeneratedEkta(row.nomorEKTA) || !row.nomorEKTA ? (
-                              <span className="text-slate-400 dark:text-slate-500 italic">-</span>
-                            ) : (
-                              <span className="font-semibold text-blue-700 dark:text-blue-400">
-                                {row.nomorEKTA}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 7. NO TELEPON / WA */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 font-mono text-center text-[10px] text-slate-700 dark:text-slate-300">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                placeholder="08xxxxxxxxxx"
-                                value={row.nomorHP}
-                                onChange={(e) => onCellChange(row.id, 'nomorHP', e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[10px] text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : (
-                              <span>{row.nomorHP || '-'}</span>
-                            )}
-                          </td>
-
-                          {/* 8. EMAIL */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 text-slate-600 dark:text-slate-400 text-[10px]">
-                            {isEditMode ? (
-                              <input
-                                type="email"
-                                placeholder="email@nasdem.id"
-                                value={row.email}
-                                onChange={(e) => onCellChange(row.id, 'email', e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : (
-                              <span className="truncate block max-w-[140px]">
-                                {row.email || '-'}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 9. SOSIAL MEDIA */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-2 py-1 text-slate-600 dark:text-slate-400 text-[10px]">
-                            {isEditMode ? (
-                              <input
-                                type="text"
-                                placeholder="@sosmed"
-                                value={row.sosmed}
-                                onChange={(e) => onCellChange(row.id, 'sosmed', e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            ) : (
-                              <span className="truncate block max-w-[110px]">
-                                {row.sosmed || '-'}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 10. AKSI */}
-                          <td className="border border-slate-200 dark:border-slate-800 px-1 py-1 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {/* Quick Info & Direct Contact Modal Trigger */}
-                              <button
-                                type="button"
-                                onClick={() => setActiveDetailRow(row)}
-                                className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                                title="Lihat detail & hubungi pengurus ini"
-                              >
-                                <User className="w-3 h-3" />
-                              </button>
-
-                              {onInsertRow && (
-                                <button
-                                  type="button"
-                                  onClick={() => onInsertRow(row.id, 'below')}
-                                  className="p-1 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                                  title={`Sisipkan baris baru di bawah No. ${idx + 1}`}
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() => onDeleteRow(row.id)}
-                                className="p-1 rounded text-rose-500 hover:text-white hover:bg-rose-600 transition-all cursor-pointer"
-                                title={
-                                  !isFilled
-                                    ? 'Hapus slot lowong ini'
-                                    : `Hapus baris: ${row.namaLengkap || row.jabatan}`
-                                }
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
-
-      {/* 5. Mobile Detail Modal & Direct Communication */}
-      {activeDetailRow && (
-        <MobileDetailModal
-          row={activeDetailRow}
-          isEditMode={isEditMode}
-          onClose={() => setActiveDetailRow(null)}
-          onCellChange={(field, value) => {
-            onCellChange(activeDetailRow.id, field, value);
-            setActiveDetailRow((prev) => (prev ? { ...prev, [field]: value } : null));
-          }}
-          onDeleteRow={() => {
-            onDeleteRow(activeDetailRow.id);
-            setActiveDetailRow(null);
-          }}
-          onInsertRow={
-            onInsertRow
-              ? () => {
-                  onInsertRow(activeDetailRow.id, 'below');
-                  setActiveDetailRow(null);
-                }
-              : undefined
-          }
-        />
-      )}
     </div>
   );
 };
 
 // =============================================================================
-// Quick Contact & Detail Modal (Bottom Sheet Slide-up)
+// Mobile Card: satu kartu per posisi pengurus, field ditumpuk vertikal
 // =============================================================================
-interface MobileDetailModalProps {
+interface MobileRowCardProps {
   row: GridRowItem;
+  idx: number;
   isEditMode: boolean;
-  onClose: () => void;
-  onCellChange: (field: keyof GridRowItem, value: string) => void;
-  onDeleteRow: () => void;
-  onInsertRow?: () => void;
+  isSelected: boolean;
+  onToggleSelect: (checked: boolean) => void;
+  onCellChange: (id: string, field: keyof GridRowItem, value: string) => void;
+  onDeleteRow: (id: string) => void;
+  onInsertRow?: (targetId: string, position: 'above' | 'below') => void;
 }
 
-const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
+const mobileInputCls =
+  'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+const MobileRowCard: React.FC<MobileRowCardProps> = ({
   row,
+  idx,
   isEditMode,
-  onClose,
+  isSelected,
+  onToggleSelect,
   onCellChange,
   onDeleteRow,
   onInsertRow,
 }) => {
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isQuickEditing, setIsQuickEditing] = useState(false);
   const isFilled = row.namaLengkap.trim() !== '';
   const isLeader = isDefinitiveLeader(row.jabatan);
   const nik = isGeneratedNik(row.nik) ? '' : row.nik;
   const ekta = isGeneratedEkta(row.nomorEKTA) ? '' : row.nomorEKTA;
 
-  const handleCopy = (text: string, key: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 1500);
-  };
-
-  const getWhatsAppLink = (hp?: string) => {
-    if (!hp) return null;
-    const digits = hp.replace(/\D/g, '');
-    if (!digits) return null;
-    let phone = digits;
-    if (phone.startsWith('0')) {
-      phone = '62' + phone.substring(1);
-    } else if (!phone.startsWith('62')) {
-      phone = '62' + phone;
-    }
-    return `https://wa.me/${phone}`;
-  };
-
-  const canEdit = isEditMode || isQuickEditing;
+  const details: { label: string; field: keyof GridRowItem; value: string; placeholder: string; mono?: boolean; type?: string }[] = [
+    { label: 'NIK KTP', field: 'nik', value: nik, placeholder: '16 Digit NIK', mono: true },
+    { label: 'E-KTA', field: 'nomorEKTA', value: ekta, placeholder: 'Nomor E-KTA', mono: true },
+    { label: 'Telepon / WA', field: 'nomorHP', value: row.nomorHP, placeholder: '08xxxxxxxxxx', mono: true, type: 'tel' },
+    { label: 'Email', field: 'email', value: row.email, placeholder: 'email@nasdem.id', type: 'email' },
+    { label: 'Sosial Media', field: 'sosmed', value: row.sosmed, placeholder: '@instagram' },
+  ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in"
-      onClick={onClose}
+      className={`p-3 border-l-4 transition-colors ${
+        isSelected
+          ? 'bg-rose-50 dark:bg-rose-950/40 border-l-rose-600'
+          : !isFilled
+          ? 'bg-amber-50/70 dark:bg-amber-950/25 border-l-amber-500'
+          : 'bg-white dark:bg-slate-900 border-l-emerald-500'
+      }`}
     >
-      <div
-        className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 bg-slate-50/80 dark:bg-slate-950/60">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {isLeader && (
-                <span className="px-2 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950 uppercase tracking-wider">
-                  #1 KETUA
-                </span>
-              )}
-              {isFilled ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>TERISI</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>LOWONG (BELUM TERISI)</span>
-                </span>
-              )}
-            </div>
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-              {row.jabatan}
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {row.subOrg || 'Dewan Pimpinan'}
-            </p>
-          </div>
-
+      {/* Top row: checkbox, number, status, actions */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onToggleSelect(e.target.checked)}
+          className="w-4 h-4 rounded cursor-pointer shrink-0"
+          aria-label={`Pilih baris ${idx + 1}`}
+        />
+        {isLeader ? (
+          <span className="px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-500 text-slate-950">#1</span>
+        ) : (
+          <span className="font-mono font-bold text-xs text-slate-500 dark:text-slate-400">{idx + 1}.</span>
+        )}
+        {isFilled ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+            <CheckCircle2 className="w-3 h-3" /> TERISI
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-700">
+            <AlertCircle className="w-3 h-3" /> LOWONG
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {onInsertRow && (
+            <button
+              type="button"
+              onClick={() => onInsertRow(row.id, 'below')}
+              className="inline-flex items-center gap-0.5 px-2 py-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 rounded-lg border border-blue-300 dark:border-blue-800 active:bg-blue-600 active:text-white cursor-pointer"
+              title="Sisipkan baris di bawah"
+            >
+              <Plus className="w-3.5 h-3.5" /> Sisip
+            </button>
+          )}
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            onClick={() => onDeleteRow(row.id)}
+            className="p-1.5 text-rose-500 rounded-lg border border-rose-200 dark:border-rose-900/50 active:bg-rose-600 active:text-white cursor-pointer"
+            title={!isFilled ? 'Hapus slot lowong ini' : `Hapus baris: ${row.namaLengkap || row.jabatan}`}
+            aria-label="Hapus baris"
           >
-            <X className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
+      </div>
 
-        {/* Content Body */}
-        <div className="p-4 overflow-y-auto space-y-3.5 text-xs">
-          {canEdit ? (
-            <div className="space-y-2.5">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                  Nama Lengkap (Sesuai KTP)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ketik nama lengkap..."
-                  value={row.namaLengkap}
-                  onChange={(e) => onCellChange('namaLengkap', e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                  Jabatan Pengurus
-                </label>
-                <input
-                  type="text"
-                  value={row.jabatan}
-                  onChange={(e) => onCellChange('jabatan', e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    No. NIK KTP (16 Digit)
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="16 Digit NIK"
-                    value={nik}
-                    onChange={(e) => onCellChange('nik', e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    Nomor E-KTA NasDem
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Nomor E-KTA"
-                    value={ekta}
-                    onChange={(e) => onCellChange('nomorEKTA', e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    No. Telepon / WhatsApp
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="08xxxxxxxxxx"
-                    value={row.nomorHP}
-                    onChange={(e) => onCellChange('nomorHP', e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    Alamat Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="email@nasdem.id"
-                    value={row.email}
-                    onChange={(e) => onCellChange('email', e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                  Sosial Media
-                </label>
-                <input
-                  type="text"
-                  placeholder="@instagram / facebook"
-                  value={row.sosmed}
-                  onChange={(e) => onCellChange('sosmed', e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+      {/* Jabatan & Nama */}
+      <div className="mt-2.5 space-y-2">
+        {isEditMode ? (
+          <>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Jabatan</span>
+              <input
+                type="text"
+                value={row.jabatan}
+                onChange={(e) => onCellChange(row.id, 'jabatan', e.target.value)}
+                className={`${mobileInputCls} mt-0.5 font-semibold`}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nama Lengkap (KTP)</span>
+              <input
+                type="text"
+                placeholder="Masukkan Nama KTP..."
+                value={row.namaLengkap}
+                onChange={(e) => onCellChange(row.id, 'namaLengkap', e.target.value)}
+                className={`${mobileInputCls} mt-0.5 font-bold ${!isFilled ? 'border-2 border-amber-400' : ''}`}
+              />
+            </label>
+          </>
+        ) : (
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isLeader && (
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 tracking-wider">KETUA</span>
+              )}
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 break-words">{row.jabatan}</span>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Nama Kader Section */}
-              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 block mb-0.5">
-                  Nama Pengurus Terdaftar
-                </span>
-                {isFilled ? (
-                  <p className="text-sm font-black text-slate-900 dark:text-white">
-                    {row.namaLengkap}
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                      ⚡ Posisi ini belum memiliki pengurus aktif (Lowong).
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsQuickEditing(true)}
-                      className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+            {isFilled ? (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-6 h-7.5 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                  {row.fotoProfilUrl ? (
+                    <img
+                      src={resolveImageUrl(row.fotoProfilUrl)}
+                      alt={row.namaLengkap}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>Ketik & Isi Data Kader Ini</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Data Identitas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] font-semibold text-slate-400 uppercase block">
-                      NIK KTP
-                    </span>
-                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
-                      {nik || <span className="text-slate-400 italic font-normal">Belum ada</span>}
-                    </span>
-                  </div>
-                  {nik && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(nik, 'nik')}
-                      className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-white dark:hover:bg-slate-700 cursor-pointer"
-                      title="Salin NIK"
-                    >
-                      {copiedKey === 'nik' ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] font-semibold text-slate-400 uppercase block">
-                      E-KTA NasDem
-                    </span>
-                    <span className="font-mono font-bold text-blue-700 dark:text-blue-400 text-xs">
-                      {ekta || <span className="text-slate-400 italic font-normal">Belum ada</span>}
-                    </span>
-                  </div>
-                  {ekta && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(ekta, 'ekta')}
-                      className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-white dark:hover:bg-slate-700 cursor-pointer"
-                      title="Salin E-KTA"
-                    >
-                      {copiedKey === 'ekta' ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Kontak & Direct Actions */}
-              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                  Kontak & Komunikasi Langsung
-                </span>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    {row.nomorHP || (
-                      <span className="text-slate-400 font-sans italic text-[11px] font-normal">
-                        Nomor HP belum terdaftar
-                      </span>
-                    )}
-                  </div>
-
-                  {row.nomorHP && (
-                    <div className="flex items-center gap-1.5">
-                      {getWhatsAppLink(row.nomorHP) && (
-                        <a
-                          href={getWhatsAppLink(row.nomorHP)!}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px]"
-                        >
-                          <MessageCircle className="w-3 h-3" />
-                          <span>WhatsApp</span>
-                        </a>
-                      )}
-                      <a
-                        href={`tel:${row.nomorHP}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px]"
-                      >
-                        <Phone className="w-3 h-3" />
-                        <span>Telepon</span>
-                      </a>
+                      {getInitials(row.namaLengkap)}
                     </div>
                   )}
                 </div>
-
-                {(row.email || row.sosmed) && (
-                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
-                    {row.email && (
-                      <div>
-                        <span className="text-slate-400 block">Email:</span>
-                        <a
-                          href={`mailto:${row.email}`}
-                          className="font-medium text-blue-600 dark:text-blue-400 hover:underline break-all"
-                        >
-                          {row.email}
-                        </a>
-                      </div>
-                    )}
-                    {row.sosmed && (
-                      <div>
-                        <span className="text-slate-400 block">Sosial Media:</span>
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {row.sosmed}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <p className="text-sm font-bold text-slate-900 dark:text-white break-words">{row.namaLengkap}</p>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            {onInsertRow && (
-              <button
-                type="button"
-                onClick={onInsertRow}
-                className="px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 rounded-lg hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Sisip Baris</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onDeleteRow}
-              className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 rounded-lg hover:bg-rose-100 flex items-center gap-1 cursor-pointer"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Hapus Posisi</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {!isEditMode && isFilled && !isQuickEditing && (
-              <button
-                type="button"
-                onClick={() => setIsQuickEditing(true)}
-                className="px-3 py-1 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-              >
-                <Edit3 className="w-3 h-3" />
-                <span>Edit Data</span>
-              </button>
-            )}
-
-            {isQuickEditing && (
-              <button
-                type="button"
-                onClick={() => setIsQuickEditing(false)}
-                className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer shadow-2xs"
-              >
-                Selesai Edit
-              </button>
-            )}
-
-            {!isQuickEditing && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[11px] cursor-pointer hover:bg-slate-300"
-              >
-                Tutup
-              </button>
+            ) : (
+              <p className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold text-amber-900 dark:text-amber-300 border border-dashed border-amber-400 dark:border-amber-700">
+                + Lowong (Siap Diisi)
+              </p>
             )}
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Detail fields */}
+      {isEditMode ? (
+        <div className="mt-2 grid grid-cols-1 xs:grid-cols-2 gap-2">
+          {details.map((d) => (
+            <label key={d.field} className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{d.label}</span>
+              <input
+                type={d.type || 'text'}
+                inputMode={d.field === 'nik' || d.field === 'nomorHP' ? 'numeric' : undefined}
+                placeholder={d.placeholder}
+                value={d.value}
+                onChange={(e) => onCellChange(row.id, d.field, e.target.value)}
+                className={`${mobileInputCls} mt-0.5 ${d.mono ? 'font-mono' : ''}`}
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        isFilled && (
+          <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5 text-[10px] sm:text-[11px]">
+            {details
+              .filter((d) => Boolean(d.value && d.value.trim() !== '' && d.value !== '-'))
+              .map((d) => (
+                <React.Fragment key={d.field}>
+                  <dt className="text-slate-500 dark:text-slate-400 font-medium">{d.label}:</dt>
+                  <dd className={`text-slate-800 dark:text-slate-200 break-all font-semibold ${d.mono ? 'font-mono' : ''}`}>
+                    {d.value}
+                  </dd>
+                </React.Fragment>
+              ))}
+          </dl>
+        )
+      )}
     </div>
   );
 };

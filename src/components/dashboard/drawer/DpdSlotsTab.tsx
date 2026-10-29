@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, CheckCircle2 } from 'lucide-react';
 import { Member } from '../../../types';
 import { DpdComplianceInfo } from '../../../utils/structureReadinessUtils';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../../utils/imageUtils';
 
 interface DpdSlotsTabProps {
   filteredSlots: DpdComplianceInfo['slots'];
@@ -103,15 +104,32 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
                     {slot.jabatan}
                   </span>
                   {slot.isFilled && slot.member ? (
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {slot.member.namaLengkap}
-                      </span>
-                      {slot.member.nomorEKTA && (
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          · e-KTA: {slot.member.nomorEKTA}
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                        {slot.member.fotoProfilUrl ? (
+                          <img
+                            src={resolveImageUrl(slot.member.fotoProfilUrl)}
+                            alt={slot.member.namaLengkap}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(slot.member.namaLengkap).bgClass} ${getAvatarColor(slot.member.namaLengkap).textClass}`}
+                          >
+                            {getInitials(slot.member.namaLengkap)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {slot.member.namaLengkap}
                         </span>
-                      )}
+                        {slot.member.nomorEKTA && (
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            · e-KTA: {slot.member.nomorEKTA}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <span className="text-[11px] text-slate-400 italic">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Table, Users } from 'lucide-react';
-import { Member, SulutRegion } from '../../../types';
+import { Member, SulutRegion, UserSession } from '../../../types';
 import { DpdComplianceInfo } from '../../../utils/structureReadinessUtils';
 
 interface DrawerHeaderProps {
@@ -16,6 +16,7 @@ interface DrawerHeaderProps {
     bendahara: Member | null;
   };
   pengurusInRegionCount: number;
+  session?: UserSession;
   onClose: () => void;
   onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
@@ -30,10 +31,14 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
   totalDprtTarget,
   leaders,
   pengurusInRegionCount,
+  session,
   onClose,
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
+  const isDpcScoped = session?.role === 'ADMIN_DPC' || (Boolean(session?.dpcAccess && session.dpcAccess !== 'ALL') && session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW');
+  const isDprtScoped = session?.role === 'ADMIN_DPRT';
+
   return (
     <>
       {/* 1. Header Title & Status */}
@@ -53,7 +58,9 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
               }`}
             >
-              {compliance.isComplete
+              {isDpcScoped
+                ? `Wilayah DPC Kec. ${session?.dpcAccess}`
+                : compliance.isComplete
                 ? 'Lengkap 36/36'
                 : compliance.filledCount > 0
                 ? `${compliance.filledCount}/36 Terisi`
@@ -61,10 +68,12 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
             </span>
           </div>
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
-            {regionInfo.name}
+            {isDpcScoped ? `Kecamatan ${session?.dpcAccess} (${regionInfo.name})` : regionInfo.name}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 sm:line-clamp-none">
-            Pusat data terpadu struktur kepengurusan DPD, DPC kecamatan, dan DPRt desa.
+            {isDpcScoped
+              ? `Pusat data terpadu struktur kepengurusan DPC dan penetrasi DPRt desa di Kecamatan ${session?.dpcAccess}.`
+              : 'Pusat data terpadu struktur kepengurusan DPD, DPC kecamatan, dan DPRt desa.'}
           </p>
         </div>
 
@@ -81,92 +90,98 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
       {/* 2. Top Summary & Quick Actions */}
       <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800 space-y-4">
         {/* Quick Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+        <div className={`grid gap-2.5 text-xs ${isDpcScoped ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
           <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Kader Aktif</span>
             <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
               {activeMembersCount}
             </span>
-            <span className="text-[10px] text-slate-500">Basis KTP Wilayah</span>
+            <span className="text-[10px] text-slate-500">{isDpcScoped ? `Kec. ${session?.dpcAccess}` : 'Basis KTP Wilayah'}</span>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Formasi DPD</span>
-            <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5 block">
-              {compliance.filledCount} / {compliance.totalRequired}
-            </span>
-            <span className="text-[10px] text-slate-500">{compliance.percentage}% Terisi</span>
-          </div>
+          {!isDpcScoped && (
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Formasi DPD</span>
+              <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5 block">
+                {compliance.filledCount} / {compliance.totalRequired}
+              </span>
+              <span className="text-[10px] text-slate-500">{compliance.percentage}% Terisi</span>
+            </div>
+          )}
 
-          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">DPC Kecamatan</span>
-            <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
-              {activeKecamatanCount} / {regionInfo.subdistricts.length}
-            </span>
-            <span className="text-[10px] text-slate-500">Kecamatan Aktif</span>
-          </div>
+          {!isDpcScoped && (
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">DPC Kecamatan</span>
+              <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
+                {activeKecamatanCount} / {regionInfo.subdistricts.length}
+              </span>
+              <span className="text-[10px] text-slate-500">Kecamatan Aktif</span>
+            </div>
+          )}
 
           <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">DPRt Ranting</span>
             <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
               {countDprtMembers}
             </span>
-            <span className="text-[10px] text-slate-500">Dari {totalDprtTarget} Desa</span>
+            <span className="text-[10px] text-slate-500">Dari {totalDprtTarget} Desa/Kel</span>
           </div>
         </div>
 
-        {/* Core Leadership Cards (KSB) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-          {/* Ketua */}
-          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
-            <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 font-bold text-xs">
-              K
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Ketua DPD</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
-                {leaders.ketua?.namaLengkap || (
-                  <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
-                )}
-              </span>
-              {leaders.ketua?.nomorSK && (
-                <span className="text-[9.5px] text-slate-500 font-mono truncate block">
-                  SK: {leaders.ketua.nomorSK}
+        {/* Core Leadership Cards (KSB) - Only for DPW/DPD Admin */}
+        {!isDpcScoped && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            {/* Ketua */}
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
+              <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 font-bold text-xs">
+                K
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Ketua DPD</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
+                  {leaders.ketua?.namaLengkap || (
+                    <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
+                  )}
                 </span>
-              )}
-            </div>
-          </div>
-
-          {/* Sekretaris */}
-          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
-            <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 font-bold text-xs">
-              S
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Sekretaris DPD</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
-                {leaders.sekretaris?.namaLengkap || (
-                  <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
+                {leaders.ketua?.nomorSK && (
+                  <span className="text-[9.5px] text-slate-500 font-mono truncate block">
+                    SK: {leaders.ketua.nomorSK}
+                  </span>
                 )}
-              </span>
+              </div>
             </div>
-          </div>
 
-          {/* Bendahara */}
-          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
-            <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 font-bold text-xs">
-              B
+            {/* Sekretaris */}
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
+              <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 font-bold text-xs">
+                S
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Sekretaris DPD</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
+                  {leaders.sekretaris?.namaLengkap || (
+                    <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
+                  )}
+                </span>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Bendahara DPD</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
-                {leaders.bendahara?.namaLengkap || (
-                  <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
-                )}
-              </span>
+
+            {/* Bendahara */}
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
+              <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 font-bold text-xs">
+                B
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Bendahara DPD</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 truncate block text-[11px]">
+                  {leaders.bendahara?.namaLengkap || (
+                    <span className="text-slate-400 italic font-normal">Belum ditentukan</span>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Quick Action Navigation Buttons */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
@@ -174,13 +189,21 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
             <button
               type="button"
               onClick={() => {
-                onOpenTerritorialMatrix(regionInfo.name, undefined, 'DPD');
+                if (isDpcScoped) {
+                  onOpenTerritorialMatrix(regionInfo.name, session?.dpcAccess, 'DPRt');
+                } else {
+                  onOpenTerritorialMatrix(regionInfo.name, undefined, 'DPD');
+                }
                 onClose();
               }}
               className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
             >
               <Table className="w-3.5 h-3.5" />
-              <span>Buka Tabel Matriks & Input Data</span>
+              <span>
+                {isDpcScoped
+                  ? `Buka Matriks DPRt Kec. ${session?.dpcAccess} & Import`
+                  : 'Buka Tabel Matriks & Input Data'}
+              </span>
             </button>
           )}
 
@@ -188,7 +211,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
             <button
               type="button"
               onClick={() => {
-                onOpenStructureModal(regionInfo.name, 'ALL');
+                onOpenStructureModal(regionInfo.name, isDpcScoped ? 'DPC' : 'ALL');
                 onClose();
               }}
               className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"

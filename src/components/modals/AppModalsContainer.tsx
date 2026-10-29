@@ -32,6 +32,7 @@ interface AppModalsContainerProps {
   onRejectDeletionRequest: (requestId: string, notes: string) => void;
   onRecordAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
   onNavigateToTerritory: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onClearAuditLogs?: () => void;
 }
 
 export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
@@ -49,6 +50,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   onRejectDeletionRequest,
   onRecordAuditLog,
   onNavigateToTerritory,
+  onClearAuditLogs,
 }) => {
   return (
     <>
@@ -119,6 +121,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onClose={() => modals.setIsAuditModalOpen(false)}
         logs={auditLogs}
         session={session}
+        onClearLogs={onClearAuditLogs}
       />
 
       <MemberDetailModal

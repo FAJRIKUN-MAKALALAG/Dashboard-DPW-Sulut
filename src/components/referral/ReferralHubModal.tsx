@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { UserSession, Member, MyReferralProfile, ReferralTrackingData } from '../../types';
 import { referralService } from '../../services/referralService';
+import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 interface ReferralHubModalProps {
   isOpen: boolean;
@@ -468,7 +469,24 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                             {filteredMyRecruits.map((m) => (
                               <tr key={m.nik} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="p-3 font-semibold text-slate-900 dark:text-white">
-                                  {m.namaLengkap}
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                      {m.fotoProfilUrl ? (
+                                        <img
+                                          src={resolveImageUrl(m.fotoProfilUrl)}
+                                          alt={m.namaLengkap}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div
+                                          className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                                        >
+                                          {getInitials(m.namaLengkap)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="truncate">{m.namaLengkap}</span>
+                                  </div>
                                 </td>
                                 <td className="p-3 font-mono text-slate-600 dark:text-slate-400">
                                   <div>{m.nik}</div>
@@ -540,8 +558,27 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                             {filteredTeamRecruits.map((m) => (
                               <tr key={m.nik} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="p-3 font-semibold text-slate-900 dark:text-white">
-                                  <div>{m.namaLengkap}</div>
-                                  <div className="text-[10px] text-slate-400 font-mono">{m.nik}</div>
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                                      {m.fotoProfilUrl ? (
+                                        <img
+                                          src={resolveImageUrl(m.fotoProfilUrl)}
+                                          alt={m.namaLengkap}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div
+                                          className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(m.namaLengkap).bgClass} ${getAvatarColor(m.namaLengkap).textClass}`}
+                                        >
+                                          {getInitials(m.namaLengkap)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="truncate">{m.namaLengkap}</div>
+                                      <div className="text-[10px] text-slate-400 font-mono">{m.nik}</div>
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="p-3">
                                   <div className="font-bold text-amber-600 dark:text-amber-400">

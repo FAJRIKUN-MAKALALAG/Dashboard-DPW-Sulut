@@ -196,6 +196,47 @@ export default function App() {
 
   const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
 
+  // Auto-repair & sanitize DPC/DPRt access for ADMIN_DPC and ADMIN_DPRT if cached as 'ALL' or 'Umum'
+  useEffect(() => {
+    if (session && session.role === 'ADMIN_DPC' && (!session.dpcAccess || session.dpcAccess === 'ALL' || session.dpcAccess === 'Umum (DPD)')) {
+      const myMember = members.find((m) => m.nik === session.adminNik);
+      if (myMember) {
+        const dpcPos = myMember.positions?.find(
+          (p) => p.tingkatKepengurusan === 'DPC' && p.dpc && p.dpc !== 'ALL' && p.dpc !== 'Umum (DPD)' && p.dpc !== '-'
+        );
+        const resolvedDpc = dpcPos?.dpc || (myMember.dpc && myMember.dpc !== 'ALL' && myMember.dpc !== 'Umum (DPD)' && myMember.dpc !== '-' ? myMember.dpc : '');
+        if (resolvedDpc) {
+          const updatedSession: UserSession = {
+            ...session,
+            dpcAccess: resolvedDpc,
+            jabatan: dpcPos?.jabatan || session.jabatan,
+          };
+          setSession(updatedSession);
+          saveSession(updatedSession);
+        }
+      }
+    } else if (session && session.role === 'ADMIN_DPRT' && (!session.dprtAccess || session.dprtAccess === 'ALL' || session.dprtAccess === 'Pusat/Umum')) {
+      const myMember = members.find((m) => m.nik === session.adminNik);
+      if (myMember) {
+        const dprtPos = myMember.positions?.find(
+          (p) => p.tingkatKepengurusan === 'DPRt' && p.dprt && p.dprt !== 'ALL' && p.dprt !== 'Pusat/Umum' && p.dprt !== '-'
+        );
+        const resolvedDprt = dprtPos?.dprt || (myMember.dprt && myMember.dprt !== 'ALL' && myMember.dprt !== 'Pusat/Umum' && myMember.dprt !== '-' ? myMember.dprt : '');
+        const resolvedDpc = dprtPos?.dpc || (myMember.dpc && myMember.dpc !== 'ALL' && myMember.dpc !== 'Umum (DPD)' && myMember.dpc !== '-' ? myMember.dpc : session.dpcAccess);
+        if (resolvedDprt) {
+          const updatedSession: UserSession = {
+            ...session,
+            dpcAccess: resolvedDpc,
+            dprtAccess: resolvedDprt,
+            jabatan: dprtPos?.jabatan || session.jabatan,
+          };
+          setSession(updatedSession);
+          saveSession(updatedSession);
+        }
+      }
+    }
+  }, [session, members]);
+
   // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt)
   const accessibleMembers = useMemo(() => {
     if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
@@ -206,13 +247,19 @@ export default function App() {
         if (!isDpdMatch(m.dpd, session.dpdAccess)) return false;
       }
       if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
-        if (session.dpcAccess && session.dpcAccess !== 'ALL') {
-          if (!isDpcMatch(m.dpc, session.dpcAccess)) return false;
+        const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)'
+          ? session.dpcAccess
+          : '';
+        if (targetDpc) {
+          if (!isDpcMatch(m.dpc, targetDpc)) return false;
         }
       }
       if (session.role === 'ADMIN_DPRT') {
-        if (session.dprtAccess && session.dprtAccess !== 'ALL') {
-          if (!isDprtMatch(m.dprt, session.dprtAccess)) return false;
+        const targetDprt = session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum'
+          ? session.dprtAccess
+          : '';
+        if (targetDprt) {
+          if (!isDprtMatch(m.dprt, targetDprt)) return false;
         }
       }
       return true;
@@ -618,11 +665,11 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-800 dark:text-slate-300">DPW Partai NasDem Sulut</span>
               <span>·</span>
-              <span>Sistem Manajemen Keanggotaan Terpadu Realtime</span>
+              <span>Sistem Manajemen kepengurusan dan keanggotaan Realtime</span>
             </div>
             <div className="flex items-center gap-4 text-[11px] text-slate-500">
               <span className="hidden md:inline font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                {members.filter((m) => m.status === 'Aktif').length} Kader Aktif Riil
+                {members.filter((m) => m.status === 'Aktif').length} Kader Aktif
               </span>
               <button
                 onClick={crud.handleResetDemoData}
@@ -630,7 +677,6 @@ export default function App() {
                 title="Reset database demonstrasi"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Reset Demo</span>
               </button>
             </div>
           </div>
@@ -653,6 +699,7 @@ export default function App() {
         onRejectDeletionRequest={crud.handleRejectDeletionRequest}
         onRecordAuditLog={crud.recordAuditLog}
         onNavigateToTerritory={handleNavigateToTerritory}
+        onClearAuditLogs={() => setAuditLogs([])}
       />
     </div>
   );

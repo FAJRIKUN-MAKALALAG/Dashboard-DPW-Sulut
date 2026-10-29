@@ -197,6 +197,22 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       return;
     }
 
+    if (formRole === 'ADMIN_DPC' && (formDpcAccess === 'ALL' || !formDpcAccess.trim())) {
+      setFormError('Untuk Akun Role Admin DPC, wajib memilih wilayah Kecamatan (DPC) spesifik.');
+      return;
+    }
+
+    if (formRole === 'ADMIN_DPRT') {
+      if (formDpcAccess === 'ALL' || !formDpcAccess.trim()) {
+        setFormError('Untuk Akun Role Admin DPRt, wajib memilih wilayah Kecamatan (DPC).');
+        return;
+      }
+      if (formDprtAccess === 'ALL' || !formDprtAccess.trim()) {
+        setFormError('Untuk Akun Role Admin DPRt, wajib memilih desa/kelurahan (DPRt) spesifik.');
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       if (editingUserId) {
