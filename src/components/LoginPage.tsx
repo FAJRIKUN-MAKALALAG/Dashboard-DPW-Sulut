@@ -278,31 +278,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                       </button>
                     </div>
                   </div>
-
-                  {/* Box Bantuan Lupa Password (Expandable) */}
-                  {showHelp && (
-                    <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed animate-fadeIn space-y-1">
-                      <p className="font-bold text-[#002B49]">Bantuan Masuk &amp; Sandi:</p>
-                      <p className="text-[11px] text-slate-600">
-                        Jika Anda lupa kata sandi atau merupakan pengurus baru, silakan gunakan menu{' '}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode('activate');
-                            setShowHelp(false);
-                          }}
-                          className="font-bold text-blue-700 underline hover:text-blue-900 cursor-pointer"
-                        >
-                          Aktivasi Pengurus &raquo;
-                        </button>{' '}
-                        untuk memverifikasi NIK KTP dan membuat kata sandi baru secara mandiri.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Petunjuk Sandi Awal Pengurus Baru */}
-
-                  {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -380,7 +355,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           type="text"
                           value={actNik}
                           onChange={(e) => setActNik(e.target.value)}
-                          placeholder="Contoh: 7105011204850003"
+                          placeholder="Contoh: 71050"
                           className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#002B49] focus:ring-1 focus:ring-[#002B49] rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all font-mono"
                           required
                           maxLength={20}
