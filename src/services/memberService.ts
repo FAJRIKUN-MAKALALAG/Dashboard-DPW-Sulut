@@ -39,7 +39,7 @@ export const MemberService = {
   async getAll(): Promise<Member[] | null> {
     try {
       const first = await apiFetch<MemberListResponse>('/members', {
-        query: { page: 1, per_page: FETCH_PAGE_SIZE },
+        query: { page: 1, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
       });
       const rows: any[] = [...first.items];
 
@@ -50,7 +50,9 @@ export const MemberService = {
         const batch = remaining.slice(i, i + PARALLEL_PAGES);
         const pages = await Promise.all(
           batch.map((page) =>
-            apiFetch<MemberListResponse>('/members', { query: { page, per_page: FETCH_PAGE_SIZE } })
+            apiFetch<MemberListResponse>('/members', {
+              query: { page, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
+            })
           )
         );
         pages.forEach((pg) => rows.push(...pg.items));
@@ -65,12 +67,21 @@ export const MemberService = {
   },
 
   /**
-   * Mengambil 1 anggota berdasarkan NIK (tanpa foto). Null jika tidak ada / di luar cakupan.
+   * Mengambil 1 anggota berdasarkan NIK (lengkap dengan foto). Null jika tidak ada / di luar cakupan.
    */
   async getByNik(nik: string): Promise<Member | null> {
     try {
+      const singleRes = await apiFetch<any>(`/members/${encodeURIComponent(nik)}`);
+      const item = singleRes?.member || singleRes;
+      if (item && item.nik) {
+        return mapApiMember(item);
+      }
+    } catch {
+      // Fallback ke list endpoint jika single endpoint gagal
+    }
+    try {
       const res = await apiFetch<MemberListResponse>('/members', {
-        query: { q: nik, search_by: 'nik', per_page: 1 },
+        query: { q: nik, search_by: 'nik', per_page: 1, include_photos: 'true' },
       });
       const found = res.items.find((i) => i.nik === nik);
       return found ? mapApiMember(found) : null;
@@ -85,7 +96,12 @@ export const MemberService = {
   async createOne(member: Member): Promise<boolean> {
     try {
       const payload = toApiPayload(member);
-      await apiFetch('/members', { method: 'POST', body: payload });
+      const res = await apiFetch<any>('/members', { method: 'POST', body: payload });
+      if (res && typeof res === 'object') {
+        const item = res.member || res;
+        if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
+        if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
+      }
       return true;
     } catch (err) {
       console.error('[API] Gagal mendaftarkan anggota baru:', err);
@@ -100,10 +116,15 @@ export const MemberService = {
     try {
       const targetNik = originalNik || member.nik;
       const payload = toApiPayload(member);
-      await apiFetch(`/members/${encodeURIComponent(targetNik)}`, {
+      const res = await apiFetch<any>(`/members/${encodeURIComponent(targetNik)}`, {
         method: 'PUT',
         body: payload,
       });
+      if (res && typeof res === 'object') {
+        const item = res.member || res;
+        if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
+        if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
+      }
       return true;
     } catch (err) {
       console.error('[API] Gagal memperbarui data anggota:', err);

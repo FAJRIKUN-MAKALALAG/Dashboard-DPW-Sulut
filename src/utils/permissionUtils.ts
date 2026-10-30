@@ -186,11 +186,17 @@ export function canEditMember(session?: UserSession, member?: Member | null): bo
 }
 
 /**
- * Hak Akses Hapus Langsung Anggota (Direct Delete):
- * HANYA Super Admin dan Admin DPW yang memiliki wewenang menghapus data kader secara langsung.
+ * Hak Akses Hapus Langsung Anggota (Direct Delete) & Persetujuan Permohonan Hapus:
+ * HANYA Super Admin dan Admin DPW yang memiliki wewenang menghapus data kader secara langsung
+ * maupun menyetujui/menolak permohonan penghapusan dari DPD, DPC, dan DPRt.
  * Pengurus DPD, DPC, dan DPRt harus melalui prosedur 'Ajukan Permohonan Hapus' ke DPW.
  */
 export function canDirectDeleteMember(session?: UserSession): boolean {
+  if (!session) return false;
+  return session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+}
+
+export function canApproveDeletionRequest(session?: UserSession): boolean {
   if (!session) return false;
   return session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
 }

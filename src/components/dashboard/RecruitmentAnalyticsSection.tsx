@@ -121,6 +121,11 @@ export const RecruitmentAnalyticsSection: React.FC<RecruitmentAnalyticsSectionPr
     return leaderboard15.filter((b) => b.total > 0).length;
   }, [leaderboard15]);
 
+  // Hanya tampilkan section ini pada role SUPER_ADMIN dan ADMIN_DPW
+  if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+    return null;
+  }
+
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 md:p-6 shadow-sm transition-colors space-y-4 sm:space-y-6">
       {/* 1. SECTION HEADER (2-TIER: TITLE FULL WIDTH & TOOLBAR ROW) */}

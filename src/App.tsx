@@ -194,7 +194,28 @@ export default function App() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const pendingDeletionCount = deletionRequests.filter((r) => r.status === 'PENDING').length;
+  const pendingDeletionCount = useMemo(() => {
+    const pending = deletionRequests.filter((r) => r.status === 'PENDING');
+    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+      return pending.length;
+    }
+    return pending.filter((r) => {
+      if (session.dpdAccess && session.dpdAccess !== 'ALL') {
+        if (!isDpdMatch(r.dpd, session.dpdAccess)) return false;
+      }
+      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+        if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
+          if (!isDpcMatch(r.dpc, session.dpcAccess)) return false;
+        }
+      }
+      if (session.role === 'ADMIN_DPRT') {
+        if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
+          if (!isDprtMatch(r.dprt, session.dprtAccess)) return false;
+        }
+      }
+      return true;
+    }).length;
+  }, [deletionRequests, session]);
 
   // Auto-repair & sanitize DPC/DPRt access for ADMIN_DPC and ADMIN_DPRT if cached as 'ALL' or 'Umum'
   useEffect(() => {

@@ -72,9 +72,23 @@ export function useMemberCrudHandlers({
     showToast(`Kader baru ${newMember.namaLengkap} (${newMember.dpd}) berhasil didaftarkan.`);
 
     if (isSupabaseConfigured()) {
-      createSingleMemberToSupabase(newMember).catch((err) => {
-        console.error('Gagal menyimpan kader baru ke backend:', err);
-      });
+      createSingleMemberToSupabase(newMember)
+        .then(() => {
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.nik === newMember.nik
+                ? {
+                    ...m,
+                    fotoProfilUrl: newMember.fotoProfilUrl || m.fotoProfilUrl,
+                    fotoKtpUrl: newMember.fotoKtpUrl || m.fotoKtpUrl,
+                  }
+                : m
+            )
+          );
+        })
+        .catch((err) => {
+          console.error('Gagal menyimpan kader baru ke backend:', err);
+        });
     }
 
     recordAuditLog({
@@ -108,10 +122,24 @@ export function useMemberCrudHandlers({
     showToast(`Data kader ${updatedMember.namaLengkap} berhasil diperbarui.`);
 
     if (isSupabaseConfigured()) {
-      updateSingleMemberToSupabase(updatedMember, originalNik || updatedMember.nik).catch((err: any) => {
-        console.error('Gagal memperbarui data kader di backend:', err);
-        showToast(`Gagal menyimpan ke server: ${err?.message || 'Terjadi kesalahan'}`);
-      });
+      updateSingleMemberToSupabase(updatedMember, originalNik || updatedMember.nik)
+        .then(() => {
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.nik === (originalNik || updatedMember.nik) || m.nik === updatedMember.nik
+                ? {
+                    ...m,
+                    fotoProfilUrl: updatedMember.fotoProfilUrl || m.fotoProfilUrl,
+                    fotoKtpUrl: updatedMember.fotoKtpUrl || m.fotoKtpUrl,
+                  }
+                : m
+            )
+          );
+        })
+        .catch((err: any) => {
+          console.error('Gagal memperbarui data kader di backend:', err);
+          showToast(`Gagal menyimpan ke server: ${err?.message || 'Terjadi kesalahan'}`);
+        });
     }
 
     recordAuditLog({
@@ -353,9 +381,10 @@ export function useMemberCrudHandlers({
       reason,
     };
 
+    const tempId = `del-req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const newLocalReq = {
       ...payload,
-      id: `del-req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: tempId,
       requestedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       status: 'PENDING' as const,
     };
@@ -364,9 +393,19 @@ export function useMemberCrudHandlers({
     saveDeletionRequests(updatedList);
 
     if (isSupabaseConfigured()) {
-      insertDeletionRequestToSupabase(payload).catch((err) => {
-        console.error('Gagal mengirim permohonan hapus ke Supabase:', err);
-      });
+      insertDeletionRequestToSupabase(payload)
+        .then((created) => {
+          if (created && created.id) {
+            setDeletionRequests((prev) => {
+              const synced = prev.map((r) => (r.id === tempId ? { ...r, id: created.id } : r));
+              saveDeletionRequests(synced);
+              return synced;
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Gagal mengirim permohonan hapus ke Supabase:', err);
+        });
     }
 
     recordAuditLog({
@@ -381,8 +420,13 @@ export function useMemberCrudHandlers({
     showToast(`Permohonan penghapusan kader ${member.namaLengkap} berhasil dikirim ke DPW.`);
   };
 
-  // 9. APPROVAL PERMOHONAN HAPUS (SUPER ADMIN DPW MENYETUJUI)
+  // 9. APPROVAL PERMOHONAN HAPUS (HANYA SUPER ADMIN & ADMIN DPW YANG BERWENANG MENYETUJUI)
   const handleApproveDeletionRequest = async (requestId: string, notes?: string) => {
+    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Admin DPW yang berwenang menyetujui penghapusan data.');
+      return;
+    }
+
     const target = deletionRequests.find((r) => r.id === requestId);
     if (!target) return;
 
@@ -424,8 +468,13 @@ export function useMemberCrudHandlers({
     showToast(`Permohonan disetujui. Data kader ${target.memberName} telah dihapus permanen.`);
   };
 
-  // 10. REJECT PERMOHONAN HAPUS (SUPER ADMIN DPW MENOLAK)
+  // 10. REJECT PERMOHONAN HAPUS (HANYA SUPER ADMIN & ADMIN DPW YANG BERWENANG MENOLAK)
   const handleRejectDeletionRequest = async (requestId: string, notes: string) => {
+    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Admin DPW yang berwenang menolak permohonan penghapusan.');
+      return;
+    }
+
     const target = deletionRequests.find((r) => r.id === requestId);
     if (!target) return;
 

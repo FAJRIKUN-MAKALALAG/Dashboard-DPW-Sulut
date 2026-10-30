@@ -43,14 +43,25 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
-  const isDpcScoped = session?.role === 'ADMIN_DPC' || (Boolean(session?.dpcAccess && session.dpcAccess !== 'ALL') && session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW');
+  // Pastikan hanya ADMIN_DPC dengan dpcAccess yang valid yang dianggap isDpcScoped (bukan ADMIN_DPD yang punya dpcAccess='ALL')
+  const validSessionDpc =
+    session?.dpcAccess &&
+    session.dpcAccess !== 'ALL' &&
+    session.dpcAccess !== 'Umum (DPD)' &&
+    session.dpcAccess !== '-'
+      ? session.dpcAccess
+      : null;
+
+  const isDpcScoped = session?.role === 'ADMIN_DPC' && Boolean(validSessionDpc);
   const isDprtScoped = session?.role === 'ADMIN_DPRT';
   const defaultTab = isDpcScoped || isDprtScoped ? 'dprt' : (initialTab || 'dpd');
 
   const [activeTab, setActiveTab] = useState<'dpd' | 'dpc' | 'dprt'>(defaultTab);
   const [dpdSlotFilter, setDpdSlotFilter] = useState<'ALL' | 'FILLED' | 'VACANT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDpcForDrilldown, setSelectedDpcForDrilldown] = useState<string | null>(session?.dpcAccess || initialDpcName || null);
+  const [selectedDpcForDrilldown, setSelectedDpcForDrilldown] = useState<string | null>(
+    isDpcScoped ? validSessionDpc : (initialDpcName || null)
+  );
   const [dpcSearchTerm, setDpcSearchTerm] = useState('');
   const [dprtSearchTerm, setDprtSearchTerm] = useState('');
 
@@ -59,15 +70,16 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     if (isOpen) {
       if (isDpcScoped || isDprtScoped) {
         setActiveTab('dprt');
-      } else if (initialTab) {
-        setActiveTab(initialTab);
+        setSelectedDpcForDrilldown(validSessionDpc || initialDpcName || null);
+      } else {
+        setActiveTab(initialTab || 'dpd');
+        setSelectedDpcForDrilldown(initialDpcName || null);
       }
-      setSelectedDpcForDrilldown(session?.dpcAccess || initialDpcName || null);
       setSearchTerm('');
       setDpcSearchTerm('');
       setDprtSearchTerm('');
     }
-  }, [isOpen, initialTab, initialDpcName, regionName, isDpcScoped, isDprtScoped, session]);
+  }, [isOpen, initialTab, initialDpcName, regionName, isDpcScoped, isDprtScoped, validSessionDpc]);
 
   // Close on Escape key press
   useEffect(() => {
@@ -113,16 +125,32 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
         isDpcMatch(d.name, sub.name)
       );
 
-      const subMembers = activeMembersInRegion.filter((m) =>
-        isDpcMatch(m.dpc, sub.name)
+      const subMembers = activeMembersInRegion.filter(
+        (m) =>
+          isDpcMatch(m.dpc, sub.name) ||
+          m.positions?.some((p) => isDpcMatch(p.dpc, sub.name))
       );
 
-      const pengurusDpc = subMembers.filter((m) => m.tingkatKepengurusan === 'DPC');
+      const pengurusDpc = activeMembersInRegion.filter(
+        (m) =>
+          (m.tingkatKepengurusan === 'DPC' && isDpcMatch(m.dpc, sub.name)) ||
+          m.positions?.some(
+            (p) => p.tingkatKepengurusan === 'DPC' && isDpcMatch(p.dpc, sub.name)
+          )
+      );
 
       const villageStats = sub.villages.map((v) => {
-        const cadresInVillage = subMembers.filter((m) => isDprtMatch(m.dprt, v));
+        const cadresInVillage = subMembers.filter(
+          (m) =>
+            isDprtMatch(m.dprt, v) ||
+            m.positions?.some((p) => isDprtMatch(p.dprt, v))
+        );
         const pengurusDprt = cadresInVillage.filter(
-          (m) => m.tingkatKepengurusan === 'DPRt' || m.isPengurus
+          (m) =>
+            m.tingkatKepengurusan === 'DPRt' ||
+            m.positions?.some(
+              (p) => p.tingkatKepengurusan === 'DPRt' && isDprtMatch(p.dprt, v)
+            )
         );
         return {
           name: v,
@@ -152,7 +180,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     });
   }, [regionInfo, dpcReadinessList, activeMembersInRegion]);
 
-  // Active subdistrict currently selected for DPRt drilldown
+  // Active subdistrict currently selected for drilldown
   const activeSubDetail = useMemo(() => {
     if (!selectedDpcForDrilldown || !subdistrictDetails.length) return null;
     return (
@@ -162,7 +190,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     );
   }, [selectedDpcForDrilldown, subdistrictDetails]);
 
-  // Core leadership (Ketua, Sekretaris, Bendahara)
+  // Core leadership (Ketua, Sekretaris, Bendahara DPD)
   const leaders = useMemo(() => {
     if (!compliance) {
       return { ketua: null, sekretaris: null, bendahara: null };
@@ -184,13 +212,21 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     };
   }, [compliance]);
 
-  // Council organs
+  // Council organs for DPD level
   const pertimbanganMembers = useMemo(() => {
-    return pengurusInRegion.filter((m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN');
+    return pengurusInRegion.filter(
+      (m) =>
+        (m.tingkatKepengurusan === 'DPD' || !m.tingkatKepengurusan) &&
+        getMemberSubOrgCategory(m) === 'PERTIMBANGAN'
+    );
   }, [pengurusInRegion]);
 
   const pakarMembers = useMemo(() => {
-    return pengurusInRegion.filter((m) => getMemberSubOrgCategory(m) === 'PAKAR');
+    return pengurusInRegion.filter(
+      (m) =>
+        (m.tingkatKepengurusan === 'DPD' || !m.tingkatKepengurusan) &&
+        getMemberSubOrgCategory(m) === 'PAKAR'
+    );
   }, [pengurusInRegion]);
 
   // Filtered DPD 36 slots
@@ -216,6 +252,10 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
     return regionInfo.subdistricts.reduce((sum, sub) => sum + sub.villages.length, 0);
   }, [regionInfo]);
 
+  const filledDprtVillagesCount = useMemo(() => {
+    return subdistrictDetails.reduce((sum, sub) => sum + sub.filledVillagesCount, 0);
+  }, [subdistrictDetails]);
+
   const countDprtMembers = useMemo(() => {
     return pengurusInRegion.filter((m) => m.tingkatKepengurusan === 'DPRt').length;
   }, [pengurusInRegion]);
@@ -240,6 +280,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             compliance={compliance}
             activeMembersCount={activeMembersInRegion.length}
             activeKecamatanCount={dpcReadinessList.filter((d) => d.totalFilled > 0).length}
+            filledDprtVillagesCount={filledDprtVillagesCount}
             countDprtMembers={countDprtMembers}
             totalDprtTarget={totalDprtTarget}
             leaders={leaders}
@@ -255,7 +296,9 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             {!isDpcScoped && !isDprtScoped && (
               <button
                 type="button"
-                onClick={() => setActiveTab('dpd')}
+                onClick={() => {
+                  setActiveTab('dpd');
+                }}
                 className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                   activeTab === 'dpd'
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -275,7 +318,10 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             {!isDpcScoped && !isDprtScoped && (
               <button
                 type="button"
-                onClick={() => setActiveTab('dpc')}
+                onClick={() => {
+                  setSelectedDpcForDrilldown(null);
+                  setActiveTab('dpc');
+                }}
                 className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                   activeTab === 'dpc'
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -289,7 +335,12 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab('dprt')}
+              onClick={() => {
+                if (!isDpcScoped && !isDprtScoped) {
+                  setSelectedDpcForDrilldown(null);
+                }
+                setActiveTab('dprt');
+              }}
               className={`pb-2.5 transition-colors cursor-pointer flex items-center gap-1.5 border-b-2 font-semibold shrink-0 ${
                 activeTab === 'dprt'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -298,7 +349,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
             >
               <Layers className="w-3.5 h-3.5 shrink-0" />
               <span>
-                {isDpcScoped ? `DPRt Desa Kec. ${session?.dpcAccess}` : 'Basis Ranting DPRt'}
+                {isDpcScoped ? `DPRt Desa Kec. ${validSessionDpc}` : `Basis Ranting DPRt (${totalDprtTarget})`}
               </span>
             </button>
           </div>
@@ -333,6 +384,10 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
                   activeSubDetail={activeSubDetail}
                   dprtSearchTerm={dprtSearchTerm}
                   setDprtSearchTerm={setDprtSearchTerm}
+                  onSwitchToDprt={(dpcName) => {
+                    setSelectedDpcForDrilldown(dpcName);
+                    setActiveTab('dprt');
+                  }}
                   onOpenTerritorialMatrix={onOpenTerritorialMatrix}
                   onClose={onClose}
                 />
