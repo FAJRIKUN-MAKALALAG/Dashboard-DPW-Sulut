@@ -191,6 +191,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     setIsStructureModalOpen(true);
   };
 
+  const canViewRecruitmentAnalytics = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+
   return (
     <div className="space-y-6">
       {/* 1. Header & Actions */}
@@ -257,31 +259,32 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenStructureModal={handleOpenStructureModal}
       />
 
-
-      {/* 6. Cadre-Driven Recruitment Analytics */}
-      <RecruitmentAnalyticsSection
-        growthAnalytics={growthAnalytics}
-        growthPeriod={growthPeriod}
-        setGrowthPeriod={setGrowthPeriod}
-        pinnedDate={pinnedDate}
-        setPinnedDate={setPinnedDate}
-        filterRecruiter={filterRecruiter}
-        setFilterRecruiter={setFilterRecruiter}
-        growthViewTab={growthViewTab}
-        setGrowthViewTab={setGrowthViewTab}
-        expandedDpds={expandedDpds}
-        toggleDpdAccordion={toggleDpdAccordion}
-        expandedDpcs={expandedDpcs}
-        toggleDpcAccordion={toggleDpcAccordion}
-        openDrilldownModalWithFocus={openDrilldownModalWithFocus}
-        handleLoadTestScenario={handleLoadTestScenario}
-        session={session}
-        selectedDpdFilter={selectedDpdFilter}
-        growthDpdFilter={growthDpdFilter}
-        setGrowthDpdFilter={setGrowthDpdFilter}
-        onOpenTerritorialMatrix={onOpenTerritorialMatrix}
-        hasAddMembers={!!onAddMembers}
-      />
+      {/* 6. Cadre-Driven Recruitment Analytics (Hanya tampil pada role SUPER_ADMIN dan ADMIN_DPW) */}
+      {canViewRecruitmentAnalytics && (
+        <RecruitmentAnalyticsSection
+          growthAnalytics={growthAnalytics}
+          growthPeriod={growthPeriod}
+          setGrowthPeriod={setGrowthPeriod}
+          pinnedDate={pinnedDate}
+          setPinnedDate={setPinnedDate}
+          filterRecruiter={filterRecruiter}
+          setFilterRecruiter={setFilterRecruiter}
+          growthViewTab={growthViewTab}
+          setGrowthViewTab={setGrowthViewTab}
+          expandedDpds={expandedDpds}
+          toggleDpdAccordion={toggleDpdAccordion}
+          expandedDpcs={expandedDpcs}
+          toggleDpcAccordion={toggleDpcAccordion}
+          openDrilldownModalWithFocus={openDrilldownModalWithFocus}
+          handleLoadTestScenario={handleLoadTestScenario}
+          session={session}
+          selectedDpdFilter={selectedDpdFilter}
+          growthDpdFilter={growthDpdFilter}
+          setGrowthDpdFilter={setGrowthDpdFilter}
+          onOpenTerritorialMatrix={onOpenTerritorialMatrix}
+          hasAddMembers={!!onAddMembers}
+        />
+      )}
 
       {/* 7. Operational Notes */}
       <ExecutiveOperationalNote />

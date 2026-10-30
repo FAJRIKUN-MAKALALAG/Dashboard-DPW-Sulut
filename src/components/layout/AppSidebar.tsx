@@ -80,7 +80,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   // Hak Akses Berdasarkan Peran & Posisi Jabatan
   const hasDashboard = canAccessDashboard(session);
   const showAnalytics = canAccessAnalytics(session);
-  const showReferral = isReferralApplicable(session);
+  const showReferral =
+    isReferralApplicable(session) &&
+    session?.role !== 'ADMIN_DPD' &&
+    session?.role !== 'ADMIN_DPC' &&
+    session?.role !== 'ADMIN_DPRT';
   const showUserMgmt = canManageUsers(session);
 
   const canAccessDpw = canAccessStructureTab('dpw', session);
@@ -474,7 +478,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             )}
 
             {/* Section 3: Alat Operasional (Hanya Pengurus & Admin) */}
-            {session?.role !== 'ANGGOTA' && (showReferral || session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW' || session?.role === 'ADMIN_DPD' || showUserMgmt) && (
+            {session?.role !== 'ANGGOTA' && (
               <div>
                 <span className="px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5">
                   Alat Operasional
@@ -528,8 +532,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
 
-                  {/* Status Hapus / Permohonan Hapus */}
-                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW' || session?.role === 'ADMIN_DPD') && (
+                  {/* Persetujuan Hapus (SUPER_ADMIN & ADMIN_DPW) / Status Pengajuan Hapus (ADMIN_DPD, ADMIN_DPC, ADMIN_DPRT) */}
+                  {session?.role !== 'ANGGOTA' && (
                     <button
                       onClick={() => {
                         onOpenDeletionApproval();
@@ -542,7 +546,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                           <ShieldCheck className="w-4 h-4" />
                         </div>
                         <span>
-                          {session?.role === 'SUPER_ADMIN' ? 'Permohonan Hapus' : 'Status Hapus'}
+                          {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                            ? 'Persetujuan Hapus'
+                            : 'Status Pengajuan Hapus'}
                         </span>
                       </div>
                       {pendingDeletionCount > 0 && (

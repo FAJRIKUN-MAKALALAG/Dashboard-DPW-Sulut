@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   User,
@@ -15,7 +15,7 @@ import {
   Briefcase,
   Share2,
 } from 'lucide-react';
-import { Member } from '../../types';
+import { Member, UserSession } from '../../types';
 import { compressImageFile, resolveImageUrl } from '../../utils/imageUtils';
 import { MemberService } from '../../services/memberService';
 
@@ -23,6 +23,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   member: Member;
+  session?: UserSession;
   onProfileUpdated: (updatedMember: Member) => void;
 }
 
@@ -30,6 +31,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   isOpen,
   onClose,
   member,
+  session,
   onProfileUpdated,
 }) => {
   const [namaLengkap, setNamaLengkap] = useState(member.namaLengkap || '');
@@ -45,6 +47,21 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const [fotoProfilUrl, setFotoProfilUrl] = useState<string>(member.fotoProfilUrl || '');
   const [fotoKtpUrl, setFotoKtpUrl] = useState<string>(member.fotoKtpUrl || '');
+
+  useEffect(() => {
+    setNamaLengkap(member.namaLengkap || '');
+    setNomorHP(member.nomorHP && member.nomorHP !== '-' ? member.nomorHP : '');
+    setEmail(member.email || '');
+    setSosmed(member.sosmed || '');
+    setAlamatLengkap(member.alamatLengkap || '');
+    setAgama(member.agama || '');
+    setPekerjaan(member.pekerjaan || '');
+    setTempatLahir(member.tempatLahir || '');
+    setTanggalLahir(member.tanggalLahir || '');
+    setJenisKelamin(member.jenisKelamin || 'Laki-laki');
+    setFotoProfilUrl(member.fotoProfilUrl || '');
+    setFotoKtpUrl(member.fotoKtpUrl || '');
+  }, [member, isOpen]);
 
   const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const [isCompressingKtp, setIsCompressingKtp] = useState(false);
@@ -114,15 +131,35 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     };
 
     try {
-      const res = await MemberService.updateMyProfile(updatedData);
-      if (res.success && res.member) {
+      let resMember: Member | null = null;
+      if (session?.role === 'ANGGOTA' || (session?.adminNik && session.adminNik === member.nik)) {
+        const res = await MemberService.updateMyProfile(updatedData);
+        if (res.success && res.member) {
+          resMember = res.member;
+        } else {
+          setErrorMsg(res.error || 'Terjadi kesalahan saat menyimpan profil.');
+          return;
+        }
+      } else {
+        const fullMemberData: Member = {
+          ...member,
+          ...updatedData,
+        };
+        const ok = await MemberService.updateOne(fullMemberData, member.nik);
+        if (ok) {
+          resMember = fullMemberData;
+        } else {
+          setErrorMsg('Gagal memperbarui data profil di server.');
+          return;
+        }
+      }
+
+      if (resMember) {
         setSuccessMsg('Profil dan berkas foto Anda berhasil diperbarui!');
-        onProfileUpdated(res.member);
+        onProfileUpdated(resMember);
         setTimeout(() => {
           onClose();
         }, 1200);
-      } else {
-        setErrorMsg(res.error || 'Terjadi kesalahan saat menyimpan profil.');
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Gagal terhubung ke server.');

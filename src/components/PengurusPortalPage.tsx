@@ -80,8 +80,12 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
 
   // Anggota aktif yang sedang ditampilkan
   const activePengurusMember = useMemo(() => {
+    if (selfUpdatedMember) {
+      if (isAnggota) return selfUpdatedMember;
+      if (selectedPengurusNik && selfUpdatedMember.nik === selectedPengurusNik) return selfUpdatedMember;
+      if (session.adminNik && selfUpdatedMember.nik === session.adminNik) return selfUpdatedMember;
+    }
     if (isAnggota) {
-      if (selfUpdatedMember) return selfUpdatedMember;
       if (session.adminNik) {
         const match = members.find((m) => m.nik === session.adminNik);
         if (match) return match;
@@ -97,7 +101,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     }
     // Jika Super Admin belum memilih pengurus simulasi
     if (session.role === 'SUPER_ADMIN') {
-      return null;
+      return pengurusList[0] || members[0] || null;
     }
     return pengurusList[0] || members[0] || null;
   }, [isAnggota, selfUpdatedMember, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
@@ -474,16 +478,34 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         {activePortalTab === 'profil' && (
           <div className="space-y-6">
           {session.role === 'SUPER_ADMIN' && (
-            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block font-bold text-slate-900 dark:text-white mb-0.5">
-                  Mode Administrator Sistem (Super Admin)
-                </strong>
-                <span>
-                  Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dengan akses penuh pada seluruh jenjang kepengurusan (DPW, DPD, DPC, dan DPRt).
-                </span>
+            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-bold text-slate-900 dark:text-white mb-0.5">
+                    Mode Administrator Sistem (Super Admin)
+                  </strong>
+                  <span>
+                    Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dengan akses penuh pada seluruh jenjang kepengurusan (DPW, DPD, DPC, dan DPRt).
+                  </span>
+                </div>
               </div>
+              {pengurusList.length > 0 && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Pilih Pengurus:</label>
+                  <select
+                    value={selectedPengurusNik || activePengurusMember?.nik || ''}
+                    onChange={(e) => setSelectedPengurusNik(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
+                  >
+                    {pengurusList.map((p) => (
+                      <option key={p.nik} value={p.nik}>
+                        {p.namaLengkap} ({p.tingkatKepengurusan || 'Pengurus'} - {p.jabatan})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -578,6 +600,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
           isOpen={isEditProfileModalOpen}
           onClose={() => setIsEditProfileModalOpen(false)}
           member={activePengurusMember}
+          session={session}
           onProfileUpdated={(updatedMember) => {
             setSelfUpdatedMember(updatedMember);
             if (onRefreshCloud) {

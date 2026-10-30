@@ -8,6 +8,7 @@ interface DrawerHeaderProps {
   compliance: DpdComplianceInfo;
   activeMembersCount: number;
   activeKecamatanCount: number;
+  filledDprtVillagesCount?: number;
   countDprtMembers: number;
   totalDprtTarget: number;
   leaders: {
@@ -27,6 +28,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
   compliance,
   activeMembersCount,
   activeKecamatanCount,
+  filledDprtVillagesCount,
   countDprtMembers,
   totalDprtTarget,
   leaders,
@@ -36,7 +38,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
   onOpenTerritorialMatrix,
   onOpenStructureModal,
 }) => {
-  const isDpcScoped = session?.role === 'ADMIN_DPC' || (Boolean(session?.dpcAccess && session.dpcAccess !== 'ALL') && session?.role !== 'SUPER_ADMIN' && session?.role !== 'ADMIN_DPW');
+  const isDpcScoped = session?.role === 'ADMIN_DPC';
   const isDprtScoped = session?.role === 'ADMIN_DPRT';
 
   return (
@@ -122,9 +124,13 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
           <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">DPRt Ranting</span>
             <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
-              {countDprtMembers}
+              {filledDprtVillagesCount !== undefined ? `${filledDprtVillagesCount} / ${totalDprtTarget}` : countDprtMembers}
             </span>
-            <span className="text-[10px] text-slate-500">Dari {totalDprtTarget} Desa/Kel</span>
+            <span className="text-[10px] text-slate-500">
+              {filledDprtVillagesCount !== undefined
+                ? `Desa/Kel Aktif (${countDprtMembers} Pengurus)`
+                : `Dari ${totalDprtTarget} Desa/Kel`}
+            </span>
           </div>
         </div>
 
