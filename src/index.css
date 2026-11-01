@@ -291,6 +291,23 @@
     padding: 0 !important;
   }
 
+  /* Isolasi Penuh Modal Cetak PDF: sembunyikan aplikasi latar belakang (#root) saat modal cetak dibuka via Portal */
+  body:has(.print-portal-root) > #root {
+    display: none !important;
+  }
+
+  .print-portal-root {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -327,4 +344,3 @@
     display: none !important;
   }
 }
-

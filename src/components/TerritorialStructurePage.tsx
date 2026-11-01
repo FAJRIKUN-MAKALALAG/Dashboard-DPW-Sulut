@@ -322,22 +322,22 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       />
 
       {/* 4. Mode Tampilan: Matriks Template vs Data Asli SK / Excel vs Komparasi */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2 rounded-xl shadow-2xs">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-lg text-xs overflow-x-auto">
           <button
             onClick={() => setActiveViewMode('matrix')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-all shrink-0 ${
               activeViewMode === 'matrix'
-                ? 'bg-blue-600 text-white shadow-xs'
+                ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Matriks Standar Template</span>
+            <span>Matriks Standar</span>
             <span
-              className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
                 activeViewMode === 'matrix'
-                  ? 'bg-blue-700 text-white'
+                  ? 'bg-white/20 text-white'
                   : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}
             >
@@ -347,39 +347,39 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
           <button
             onClick={() => setActiveViewMode('raw_excel')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-all shrink-0 ${
               activeViewMode === 'raw_excel'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Data Asli Berkas SK / Excel</span>
+            <span>Data Asli SK</span>
             <span
-              className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
                 activeViewMode === 'raw_excel'
-                  ? 'bg-emerald-700 text-white'
+                  ? 'bg-white/20 text-white'
                   : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}
             >
-              {rawTerritoryMembers.length} Personil
+              {rawTerritoryMembers.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveViewMode('comparison')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold cursor-pointer transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold cursor-pointer transition-all shrink-0 ${
               activeViewMode === 'comparison'
-                ? 'bg-indigo-600 text-white shadow-xs'
+                ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
-            <span>Komparasi Matriks vs SK</span>
+            <span>Komparasi</span>
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 hidden lg:block px-2">
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 hidden xl:block px-2">
           {activeViewMode === 'matrix' && 'Menampilkan formasi baku template matriks resmi partai dengan status keterisian.'}
           {activeViewMode === 'raw_excel' && 'Menampilkan daftar personil murni sesuai SK tanpa slot lowong template.'}
           {activeViewMode === 'comparison' && 'Audit perbandingan 1-to-1 antara slot baku matriks dengan data berkas SK.'}
@@ -464,6 +464,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         dpc={selectedDpc}
         dprt={selectedDprt}
         gridRows={gridRows}
+        members={members}
         session={session}
       />
     </div>

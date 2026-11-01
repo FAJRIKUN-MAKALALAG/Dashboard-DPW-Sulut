@@ -73,27 +73,27 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 md:p-6 shadow-xs transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xs transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
       {/* ========================================================================= */}
       {/* LEFT SECTION: BRANDING, TITLE & RESPONSIVE SUBTITLE                       */}
       {/* ========================================================================= */}
-      <div className="space-y-1 sm:space-y-1.5 flex-1 min-w-0">
+      <div className="space-y-1 flex-1 min-w-0">
         {/* Top Badges & Role Status */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {isSuperAdmin ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 uppercase tracking-wider font-mono">
-              <ShieldCheck className="w-3 h-3 text-amber-400" />
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#1A3282] text-white dark:bg-[#21409A] uppercase tracking-wider font-mono">
+              <ShieldCheck className="w-3 h-3 text-[#FFDD00]" />
               SUPER ADMIN
             </span>
           ) : (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#1A3282]/10 text-[#1A3282] dark:bg-slate-800 dark:text-slate-200 border border-[#1A3282]/20 dark:border-slate-700">
               {session?.jabatan || 'Pengurus DPW'}
             </span>
           )}
 
           <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&bull;</span>
 
-          <span className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono hidden sm:inline">
+          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono hidden sm:inline">
             {isSuperAdmin
               ? session?.adminNik
                 ? `NIK: ${session.adminNik}`
@@ -108,8 +108,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </span>
 
           {/* Quick Territorial Counts Pill (Tablet & PC Landscape) */}
-          <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-400 dark:text-slate-500 pl-2 border-l border-slate-200 dark:border-slate-800">
-            <Building2 className="w-3 h-3 text-blue-500" />
+          <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 pl-2 border-l border-slate-200 dark:border-slate-800">
+            <Building2 className="w-3 h-3 text-slate-400" />
             {isDpc && session?.dpcAccess && session.dpcAccess !== 'ALL' ? (
               <span>1 DPC Kec. {session.dpcAccess} &bull; {dpcVillagesCount} DPRt (Desa/Kelurahan)</span>
             ) : isDprt && session?.dprtAccess && session.dprtAccess !== 'ALL' ? (
@@ -122,13 +122,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </span>
         </div>
 
-        {/* Responsive Heading - Scaled down for sleek readability */}
-        <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug break-words">
+        {/* Responsive Heading */}
+        <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-snug break-words">
           {dashboardTitle}
         </h2>
 
-        {/* Responsive Subtitle - Hidden on mobile to remove micro-text clutter */}
-        <p className="hidden sm:block text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">
+        {/* Responsive Subtitle */}
+        <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-4xl">
           {dashboardSubtitle}
         </p>
       </div>
@@ -141,7 +141,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         {session?.role === 'SUPER_ADMIN' && onOpenUserManagement && (
           <button
             onClick={onOpenUserManagement}
-            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#1A3282] hover:bg-[#21409A] text-white dark:bg-[#21409A] dark:hover:bg-blue-700 cursor-pointer shadow-2xs transition-all"
             title="Buka panel manajemen akun & hak akses admin se-Sulut"
           >
             <KeyRound className="w-3.5 h-3.5 shrink-0" />
@@ -153,19 +153,19 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <button
           type="button"
           onClick={() => setShowActions(!showActions)}
-          className={`flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl border cursor-pointer transition-colors shadow-2xs ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border cursor-pointer transition-colors shadow-2xs ${
             showActions
-              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-              : 'btn-white text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white border-slate-300 dark:border-slate-600'
+              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
           }`}
           title={showActions ? 'Sembunyikan tombol ekspor dan aksi' : 'Tampilkan tombol ekspor dan dokumen'}
         >
           {showActions ? (
-            <EyeOff className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <EyeOff className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
           ) : (
             <Eye className="w-3.5 h-3.5 text-slate-500" />
           )}
-          <span>{showActions ? 'Hide Tombol' : 'Aksi & Ekspor'}</span>
+          <span>{showActions ? 'Tutup Aksi' : 'Aksi & Ekspor'}</span>
         </button>
 
         {/* Secondary Actions Collapsible */}
@@ -174,7 +174,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             {onOpenDownloadTemplate && (
               <button
                 onClick={onOpenDownloadTemplate}
-                className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
                 title="Unduh format template resmi Excel"
               >
                 <Download className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
@@ -184,19 +184,19 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
             <button
               onClick={onExportExcel}
-              className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
               title="Unduh data anggota aktif dalam format Excel"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
               <span>Ekspor Excel</span>
             </button>
 
             <button
               onClick={onOpenPrintReport}
-              className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs transition-colors"
               title="Cetak laporan eksekutif resmi / PDF"
             >
-              <Printer className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+              <Printer className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
               <span>Cetak PDF</span>
             </button>
           </div>

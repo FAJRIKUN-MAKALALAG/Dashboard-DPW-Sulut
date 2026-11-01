@@ -21,6 +21,7 @@ import {
   FileText,
   Award,
   FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 
 interface MemberTableProps {
@@ -40,6 +41,7 @@ interface MemberTableProps {
   onOpenEditModal: (m: Member) => void;
   onOpenDeletionRequest: (m: Member) => void;
   onDirectDelete: (m: Member) => void;
+  onOpenPrintWithMembers?: (membersList: Member[], titleContext?: string) => void;
 }
 
 export const MemberTable: React.FC<MemberTableProps> = ({
@@ -59,6 +61,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
   onOpenEditModal,
   onOpenDeletionRequest,
   onDirectDelete,
+  onOpenPrintWithMembers,
 }) => {
   const [selectedNiks, setSelectedNiks] = React.useState<Set<string>>(new Set());
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -159,12 +162,28 @@ export const MemberTable: React.FC<MemberTableProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {onOpenPrintWithMembers && (
+              <button
+                onClick={() => {
+                  const selectedList = members.filter((m) => selectedNiks.has(m.nik));
+                  if (selectedList.length === 0) return;
+                  onOpenPrintWithMembers(
+                    selectedList,
+                    `${selectedList.length} Kader Terpilih (${selectedDpd !== 'ALL' ? selectedDpd : 'Sulawesi Utara'})`
+                  );
+                }}
+                className="btn-white flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                <span>Cetak PDF ({selectedNiks.size})</span>
+              </button>
+            )}
             <button
               onClick={handleExportSelectedCsv}
               className="btn-white flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
             >
               <FileDown className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Ekspor Terpilih ke CSV (.csv)</span>
+              <span>Ekspor CSV (.csv)</span>
             </button>
             <button
               onClick={handleExportSelectedExcel}

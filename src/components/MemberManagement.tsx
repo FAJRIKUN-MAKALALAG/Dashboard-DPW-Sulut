@@ -13,6 +13,7 @@ import {
   UserPlus,
   Eye,
   EyeOff,
+  Printer,
 } from 'lucide-react';
 
 interface MemberManagementProps {
@@ -29,6 +30,7 @@ interface MemberManagementProps {
   onOpenDeletionRequest: (member: Member) => void;
   onDirectDelete: (member: Member) => void;
   onBackToDashboard?: () => void;
+  onOpenPrintWithMembers?: (membersList: Member[], titleContext?: string) => void;
 }
 
 export const MemberManagement: React.FC<MemberManagementProps> = ({
@@ -45,6 +47,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   onOpenDeletionRequest,
   onDirectDelete,
   onBackToDashboard,
+  onOpenPrintWithMembers,
 }) => {
   const [showExportOptions, setShowExportOptions] = useState<boolean>(false);
 
@@ -143,6 +146,27 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
             </button>
           )}
 
+          {onOpenPrintWithMembers && (
+            <button
+              type="button"
+              onClick={() => {
+                const scopeParts: string[] = [];
+                if (selectedDpd !== 'ALL') scopeParts.push(selectedDpd);
+                else scopeParts.push('Se-Sulawesi Utara');
+                if (selectedDpcFilter !== 'ALL') scopeParts.push(`Kec. ${selectedDpcFilter}`);
+                if (selectedDprtFilter !== 'ALL') scopeParts.push(`Desa/Kel. ${selectedDprtFilter}`);
+                if (membershipFilter === 'PENGURUS') scopeParts.push('Pengurus Ber-SK');
+                else if (membershipFilter === 'ANGGOTA') scopeParts.push('Anggota');
+                onOpenPrintWithMembers(filteredMembers, scopeParts.join(' • '));
+              }}
+              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
+              title="Cetak / Export PDF Daftar Kader sesuai filter yang aktif saat ini"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+              <span>Cetak PDF ({filteredMembers.length})</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowExportOptions(!showExportOptions)}
@@ -158,7 +182,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
             ) : (
               <Eye className="w-3.5 h-3.5 text-slate-500" />
             )}
-            <span>{showExportOptions ? 'Hide Ekspor' : 'Ekspor Data'}</span>
+            <span>{showExportOptions ? 'Hide Ekspor' : 'CSV / Excel'}</span>
           </button>
 
           {showExportOptions && (
@@ -257,6 +281,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
         onOpenEditModal={onOpenEditModal}
         onOpenDeletionRequest={onOpenDeletionRequest}
         onDirectDelete={onDirectDelete}
+        onOpenPrintWithMembers={onOpenPrintWithMembers}
       />
     </div>
   );

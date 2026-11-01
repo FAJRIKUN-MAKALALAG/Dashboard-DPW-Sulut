@@ -1,26 +1,28 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Printer,
-  Download,
   X,
   FileSpreadsheet,
-  CheckCircle2,
-  Building2,
-  Building,
-  MapPin,
-  Home,
-  ShieldCheck,
-  Award,
-  Settings,
   ChevronDown,
   ChevronUp,
-  FileText,
   RotateCcw,
+  PenTool,
 } from 'lucide-react';
-import { UserSession } from '../../types';
+import { Member, UserSession } from '../../types';
+import { SULUT_REGIONS } from '../../data/sulutRegions';
+import {
+  isDpdMatch,
+  isDpcMatch,
+  isDprtMatch,
+  getExpandedStructuralMembers,
+  getMemberSubOrgCategory,
+} from '../../utils/structureReadinessUtils';
+import { getCouncilRank, getPimpinanRank } from '../../utils/jobMatchingUtils';
+import { getStructureTemplate } from '../../data/structureTemplates';
+import { loadMembers } from '../../utils/storage';
 import { GridRowItem } from '../matrix';
 import nasdemLogo from '../../assets/logo/logo_nasdem.png';
-import anniversaryLogo from '../../assets/logo/Logo_15_Ultah.png';
 import * as XLSX from 'xlsx';
 
 interface TerritorialStructurePrintModalProps {
@@ -31,32 +33,302 @@ interface TerritorialStructurePrintModalProps {
   dpc?: string;
   dprt?: string;
   gridRows: GridRowItem[];
+  members?: Member[];
   session?: UserSession;
 }
+
+const isRealNik = (nik?: string) => {
+  if (!nik) return false;
+  const clean = nik.trim();
+  if (!clean || clean === '-') return false;
+  if (/^7100\d{12}$/.test(clean)) return false;
+  return true;
+};
+
+const isRealEkta = (ekta?: string) => {
+  if (!ekta) return false;
+  const clean = ekta.trim();
+  if (!clean || clean === '-') return false;
+  if (/^ND-(GEN|IMP|NEW|DPC|DPRT|DPW|DPD)/i.test(clean)) return false;
+  return true;
+};
 
 export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintModalProps> = ({
   isOpen,
   onClose,
-  level,
-  dpd,
-  dpc,
-  dprt,
+  level: initialLevel,
+  dpd: initialDpd,
+  dpc: initialDpc,
+  dprt: initialDprt,
   gridRows,
-  session,
+  members: propMembers,
 }) => {
-  const [filterMode, setFilterMode] = useState<'all' | 'filled'>('all');
+  // Active Level & Territory Selection inside the Modal
+  const [activeLevel, setActiveLevel] = useState<'DPW' | 'DPD' | 'DPC' | 'DPRt'>(initialLevel);
+  const [activeDpd, setActiveDpd] = useState<string>(initialDpd || 'ALL');
+  const [activeDpc, setActiveDpc] = useState<string>(initialDpc || 'ALL');
+  const [activeDprt, setActiveDprt] = useState<string>(initialDprt || 'ALL');
+
+  const [filterMode, setFilterMode] = useState<'all' | 'filled'>('filled');
   const [selectedSubOrg, setSelectedSubOrg] = useState<string>('ALL');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showStamp, setShowStamp] = useState<boolean>(false);
+  const [pageBreakPerGroup, setPageBreakPerGroup] = useState<boolean>(false);
 
-  // Penentuan Ibu Kota / Nama Kota Penandatanganan Otomatis
+  // Sync when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveLevel(initialLevel);
+      setActiveDpd(initialDpd || 'ALL');
+      setActiveDpc(initialDpc || 'ALL');
+      setActiveDprt(initialDprt || 'ALL');
+      setSelectedSubOrg('ALL');
+      const hasFilled = gridRows.some((r) => r.namaLengkap && r.namaLengkap.trim() !== '');
+      setFilterMode(hasFilled ? 'filled' : 'all');
+    }
+  }, [isOpen, initialLevel, initialDpd, initialDpc, initialDprt, gridRows]);
+
+  const allSourceMembers = useMemo(() => {
+    if (propMembers && propMembers.length > 0) return propMembers;
+    return loadMembers();
+  }, [propMembers]);
+
+  const expandedMembers = useMemo(
+    () => getExpandedStructuralMembers(allSourceMembers.filter((m) => m.status === 'Aktif')),
+    [allSourceMembers]
+  );
+
+  // Check if user is still viewing the exact same territory passed from the parent matrix page
+  const isSameAsInitialContext = useMemo(() => {
+    if (activeLevel !== initialLevel) return false;
+    if (activeLevel === 'DPW') return true;
+    if (activeLevel === 'DPD') return isDpdMatch(activeDpd, initialDpd);
+    if (activeLevel === 'DPC') {
+      return isDpdMatch(activeDpd, initialDpd) && isDpcMatch(activeDpc, initialDpc);
+    }
+    if (activeLevel === 'DPRt') {
+      return (
+        isDpdMatch(activeDpd, initialDpd) &&
+        isDpcMatch(activeDpc, initialDpc) &&
+        isDprtMatch(activeDprt, initialDprt)
+      );
+    }
+    return false;
+  }, [
+    activeLevel,
+    initialLevel,
+    activeDpd,
+    initialDpd,
+    activeDpc,
+    initialDpc,
+    activeDprt,
+    initialDprt,
+  ]);
+
+  // Available DPD options with count for activeLevel
+  const dpdOptionsWithCount = useMemo(() => {
+    return SULUT_REGIONS.map((r) => {
+      const count = expandedMembers.filter(
+        (m) => m.tingkatKepengurusan === activeLevel && isDpdMatch(m.dpd, r.name)
+      ).length;
+      return { name: r.name, count };
+    });
+  }, [expandedMembers, activeLevel]);
+
+  // Available DPC options with count for activeLevel & activeDpd
+  const dpcOptionsWithCount = useMemo(() => {
+    const subMap = new Map<string, string>();
+    if (activeDpd !== 'ALL') {
+      const reg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, activeDpd));
+      reg?.subdistricts.forEach((s) => subMap.set(s.name.toLowerCase().trim(), s.name));
+    }
+    expandedMembers.forEach((m) => {
+      if (activeDpd !== 'ALL' && !isDpdMatch(m.dpd, activeDpd)) return;
+      if (m.dpc && m.dpc !== '-' && m.dpc !== 'ALL' && m.dpc !== 'Umum (DPD)') {
+        const clean = m.dpc.replace(/^(kecamatan|kec\.|kec)\s+/gi, '').trim();
+        if (!Array.from(subMap.keys()).some((k) => isDpcMatch(k, clean))) {
+          subMap.set(clean.toLowerCase(), clean);
+        }
+      }
+    });
+
+    return Array.from(subMap.values())
+      .map((dpcName) => {
+        const count = expandedMembers.filter(
+          (m) =>
+            m.tingkatKepengurusan === activeLevel &&
+            (activeDpd === 'ALL' || isDpdMatch(m.dpd, activeDpd)) &&
+            isDpcMatch(m.dpc, dpcName)
+        ).length;
+        return { name: dpcName, count };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [expandedMembers, activeLevel, activeDpd]);
+
+  // Available DPRt options with count for activeDpd & activeDpc
+  const dprtOptionsWithCount = useMemo(() => {
+    const vilMap = new Map<string, string>();
+    if (activeDpd !== 'ALL' && activeDpc !== 'ALL') {
+      const reg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, activeDpd));
+      const sub = reg?.subdistricts.find((s) => isDpcMatch(s.name, activeDpc));
+      sub?.villages.forEach((v) => vilMap.set(v.toLowerCase().trim(), v));
+    }
+    expandedMembers.forEach((m) => {
+      if (activeDpd !== 'ALL' && !isDpdMatch(m.dpd, activeDpd)) return;
+      if (activeDpc !== 'ALL' && !isDpcMatch(m.dpc, activeDpc)) return;
+      if (m.dprt && m.dprt !== '-' && m.dprt !== 'ALL' && m.dprt !== 'Pusat/Umum') {
+        const clean = m.dprt.replace(/^(desa|kelurahan|kel\.|kel|des)\s+/gi, '').trim();
+        if (!Array.from(vilMap.keys()).some((k) => isDprtMatch(k, clean))) {
+          vilMap.set(clean.toLowerCase(), clean);
+        }
+      }
+    });
+
+    return Array.from(vilMap.values())
+      .map((dprtName) => {
+        const count = expandedMembers.filter(
+          (m) =>
+            m.tingkatKepengurusan === 'DPRt' &&
+            (activeDpd === 'ALL' || isDpdMatch(m.dpd, activeDpd)) &&
+            (activeDpc === 'ALL' || isDpcMatch(m.dpc, activeDpc)) &&
+            isDprtMatch(m.dprt, dprtName)
+        ).length;
+        return { name: dprtName, count };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [expandedMembers, activeDpd, activeDpc]);
+
+  // Dynamic Rows Builder: uses parent `gridRows` if same context, otherwise builds from `expandedMembers`
+  const effectiveRows: GridRowItem[] = useMemo(() => {
+    if (isSameAsInitialContext) {
+      return gridRows;
+    }
+
+    const tplSlots = getStructureTemplate(activeLevel);
+    const filtered = expandedMembers
+      .filter((m) => {
+        if (activeLevel === 'DPW') {
+          return m.tingkatKepengurusan === 'DPW' || m.dpd === 'Sulawesi Utara';
+        }
+        if (activeLevel === 'DPD') {
+          return (
+            m.tingkatKepengurusan === 'DPD' &&
+            (activeDpd === 'ALL' || isDpdMatch(m.dpd, activeDpd))
+          );
+        }
+        if (activeLevel === 'DPC') {
+          return (
+            m.tingkatKepengurusan === 'DPC' &&
+            (activeDpd === 'ALL' || isDpdMatch(m.dpd, activeDpd)) &&
+            (activeDpc === 'ALL' || isDpcMatch(m.dpc, activeDpc))
+          );
+        }
+        if (activeLevel === 'DPRt') {
+          return (
+            m.tingkatKepengurusan === 'DPRt' &&
+            (activeDpd === 'ALL' || isDpdMatch(m.dpd, activeDpd)) &&
+            (activeDpc === 'ALL' || isDpcMatch(m.dpc, activeDpc)) &&
+            (activeDprt === 'ALL' || isDprtMatch(m.dprt, activeDprt))
+          );
+        }
+        return false;
+      })
+      .sort((a, b) => {
+        const dpdComp = (a.dpd || '').localeCompare(b.dpd || '');
+        if (dpdComp !== 0 && activeLevel !== 'DPW') return dpdComp;
+        if (activeLevel === 'DPC' || activeLevel === 'DPRt') {
+          const dpcComp = (a.dpc || '').localeCompare(b.dpc || '');
+          if (dpcComp !== 0) return dpcComp;
+        }
+        if (activeLevel === 'DPRt') {
+          const dprtComp = (a.dprt || '').localeCompare(b.dprt || '');
+          if (dprtComp !== 0) return dprtComp;
+        }
+        const catOrder: Record<string, number> = { PERTIMBANGAN: 1, PAKAR: 2, PIMPINAN: 3 };
+        const catA = catOrder[getMemberSubOrgCategory(a)] || 3;
+        const catB = catOrder[getMemberSubOrgCategory(b)] || 3;
+        if (catA !== catB) return catA - catB;
+
+        if (catA === 1 || catA === 2) {
+          return getCouncilRank(a.jabatan) - getCouncilRank(b.jabatan);
+        }
+        return getPimpinanRank(a.jabatan, tplSlots) - getPimpinanRank(b.jabatan, tplSlots);
+      });
+
+    return filtered.map((m, i) => {
+      const subCat = getMemberSubOrgCategory(m);
+      let groupLabel = '';
+      if (activeLevel === 'DPW') {
+        groupLabel =
+          subCat === 'PERTIMBANGAN'
+            ? 'DEWAN PERTIMBANGAN WILAYAH'
+            : subCat === 'PAKAR'
+            ? 'DEWAN PAKAR WILAYAH'
+            : 'DEWAN PIMPINAN WILAYAH';
+      } else if (activeLevel === 'DPD') {
+        const subName =
+          subCat === 'PERTIMBANGAN'
+            ? 'DEWAN PERTIMBANGAN DAERAH'
+            : subCat === 'PAKAR'
+            ? 'DEWAN PAKAR DAERAH'
+            : 'DEWAN PIMPINAN DAERAH';
+        groupLabel =
+          activeDpd === 'ALL' ? `DPD ${(m.dpd || '').toUpperCase()} — ${subName}` : subName;
+      } else if (activeLevel === 'DPC') {
+        groupLabel =
+          activeDpc === 'ALL'
+            ? `DPC KECAMATAN ${(m.dpc || '-').toUpperCase()} (${m.dpd || '-'})`
+            : subCat === 'PERTIMBANGAN'
+            ? 'DEWAN PERTIMBANGAN CABANG'
+            : subCat === 'PAKAR'
+            ? 'DEWAN PAKAR CABANG'
+            : 'DEWAN PIMPINAN CABANG';
+      } else {
+        groupLabel =
+          activeDprt === 'ALL'
+            ? `DPRt DESA/KEL. ${(m.dprt || '-').toUpperCase()} — KEC. ${(m.dpc || '-').toUpperCase()}`
+            : 'DEWAN PIMPINAN RANTING';
+      }
+
+      return {
+        id: m.id || `${m.nik}-${i}`,
+        no: i + 1,
+        subOrg: groupLabel,
+        jabatan: m.jabatan || 'Pengurus',
+        namaLengkap: m.namaLengkap || '',
+        nik: m.nik || '',
+        nomorEKTA: m.nomorEKTA || '',
+        nomorHP: m.nomorHP || '',
+        email: m.email || '',
+        sosmed: m.sosmed || '',
+        isExisting: true,
+        fotoProfilUrl: m.fotoProfilUrl,
+      };
+    });
+  }, [
+    isSameAsInitialContext,
+    gridRows,
+    activeLevel,
+    activeDpd,
+    activeDpc,
+    activeDprt,
+    expandedMembers,
+  ]);
+
   const defaultCity = useMemo(() => {
-    if (level === 'DPW') return 'Manado';
-    const normDpd = (dpd || '').toUpperCase().trim();
+    if (activeLevel === 'DPW' || activeDpd === 'ALL') return 'Manado';
+    const normDpd = (activeDpd || '').toUpperCase().trim();
     if (normDpd.includes('MINAHASA SELATAN')) return 'Amurang';
     if (normDpd.includes('MINAHASA UTARA')) return 'Airmadidi';
     if (normDpd.includes('MINAHASA TENGGARA')) return 'Ratahan';
-    if (normDpd.includes('MINAHASA') && !normDpd.includes('SELATAN') && !normDpd.includes('UTARA') && !normDpd.includes('TENGGARA')) return 'Tondano';
+    if (
+      normDpd.includes('MINAHASA') &&
+      !normDpd.includes('SELATAN') &&
+      !normDpd.includes('UTARA') &&
+      !normDpd.includes('TENGGARA')
+    )
+      return 'Tondano';
     if (normDpd.includes('BOLAANG MONGONDOW SELATAN')) return 'Molibagu';
     if (normDpd.includes('BOLAANG MONGONDOW TIMUR')) return 'Tutuyan';
     if (normDpd.includes('BOLAANG MONGONDOW UTARA')) return 'Boroko';
@@ -68,139 +340,165 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
     if (normDpd.includes('TALAUD')) return 'Melonguane';
     if (normDpd.includes('SIAU') || normDpd.includes('SITARO')) return 'Ondong';
     if (normDpd.includes('MANADO')) return 'Manado';
-    return dpd.replace(/KABUPATEN|KOTA|KEPULAUAN/gi, '').trim() || 'Sulawesi Utara';
-  }, [level, dpd]);
+    return activeDpd.replace(/KABUPATEN|KOTA|KEPULAUAN/gi, '').trim() || 'Sulawesi Utara';
+  }, [activeLevel, activeDpd]);
 
-  // Nomor SK Otomatis Standar Partai NasDem
   const defaultSkNumber = useMemo(() => {
     const year = new Date().getFullYear();
-    if (level === 'DPW') return `SK-001/DPW-NASDEM/SULUT/${year}`;
-    if (level === 'DPD') {
-      const code = dpd.replace(/KABUPATEN|KOTA|KEPULAUAN|\s+/gi, '').toUpperCase();
+    if (activeLevel === 'DPW') return `SK-001/DPW-NASDEM/SULUT/${year}`;
+    if (activeLevel === 'DPD') {
+      const code = (activeDpd === 'ALL' ? 'SULUT' : activeDpd)
+        .replace(/KABUPATEN|KOTA|KEPULAUAN|\s+/gi, '')
+        .toUpperCase();
       return `SK-DPD-${code}/${year}`;
     }
-    if (level === 'DPC') {
-      const code = (dpc || 'KEC').replace(/\s+/g, '').toUpperCase();
+    if (activeLevel === 'DPC') {
+      const code = (activeDpc === 'ALL' ? 'ALL' : activeDpc).replace(/\s+/g, '').toUpperCase();
       return `SK-DPC-${code}/${year}`;
     }
-    const code = (dprt || 'DESA').replace(/\s+/g, '').toUpperCase();
+    const code = (activeDprt === 'ALL' ? 'ALL' : activeDprt).replace(/\s+/g, '').toUpperCase();
     return `SK-DPRT-${code}/${year}`;
-  }, [level, dpd, dpc, dprt]);
+  }, [activeLevel, activeDpd, activeDpc, activeDprt]);
 
-  // Deteksi Nama Ketua Definitif dari baris data matriks
+  const territoryTitle =
+    activeLevel === 'DPW'
+      ? 'PROVINSI SULAWESI UTARA'
+      : activeLevel === 'DPD'
+      ? activeDpd === 'ALL'
+        ? 'SELURUH KABUPATEN / KOTA SE-SULAWESI UTARA'
+        : `${activeDpd.toUpperCase()}`
+      : activeLevel === 'DPC'
+      ? `${activeDpc === 'ALL' ? 'SELURUH KECAMATAN' : `KECAMATAN ${activeDpc.toUpperCase()}`} — ${
+          activeDpd === 'ALL' ? 'SULAWESI UTARA' : activeDpd.toUpperCase()
+        }`
+      : `${
+          activeDprt === 'ALL'
+            ? 'SELURUH DESA / KELURAHAN'
+            : `DESA/KELURAHAN ${activeDprt.toUpperCase()}`
+        } — ${activeDpc === 'ALL' ? '' : `KEC. ${activeDpc.toUpperCase()} `}(${
+          activeDpd === 'ALL' ? 'SULAWESI UTARA' : activeDpd.toUpperCase()
+        })`;
+
+  const levelText =
+    activeLevel === 'DPW'
+      ? 'DEWAN PIMPINAN WILAYAH (DPW)'
+      : activeLevel === 'DPD'
+      ? 'DEWAN PIMPINAN DAERAH (DPD)'
+      : activeLevel === 'DPC'
+      ? 'DEWAN PIMPINAN CABANG (DPC)'
+      : 'DEWAN PIMPINAN RANTING (DPRt)';
+
   const detectedKetua = useMemo(() => {
-    if (level === 'DPW') {
-      return {
-        nama: 'Dr. J. Victor Mailangkay, SH, MH',
-        kta: 'ND-7100-2024-0001',
-      };
-    }
-    const row = gridRows.find((r) => {
-      const j = r.jabatan.trim().toLowerCase();
+    const row = effectiveRows.find((r) => {
+      const j = (r.jabatan || '').trim().toLowerCase();
       const sub = (r.subOrg || '').toLowerCase();
-      const isKetuaJabatan = j === 'ketua' || j.startsWith('ketua dpd') || j.startsWith('ketua dpc') || j.startsWith('ketua dprt');
-      const isBukanWakil = !j.includes('wakil') && !j.includes('bidang');
-      return isKetuaJabatan && isBukanWakil && !sub.includes('pakar') && !sub.includes('pertimbangan') && r.namaLengkap.trim() !== '';
+      const isKetuaJabatan =
+        j === 'ketua' ||
+        j.startsWith('ketua dpw') ||
+        j.startsWith('ketua dpd') ||
+        j.startsWith('ketua dpc') ||
+        j.startsWith('ketua dprt');
+      const isBukanWakil = !j.includes('wakil') && !j.includes('bidang') && !j.includes('biro');
+      return (
+        isKetuaJabatan &&
+        isBukanWakil &&
+        !sub.includes('pakar') &&
+        !sub.includes('pertimbangan') &&
+        r.namaLengkap.trim() !== ''
+      );
     });
     if (row && row.namaLengkap.trim()) {
-      return {
-        nama: row.namaLengkap.trim(),
-        kta: row.nomorEKTA || (row.nik && !row.nik.startsWith('71002026') ? row.nik : 'TERDAFTAR PUSAT'),
-      };
+      const ktaStr = isRealEkta(row.nomorEKTA)
+        ? `No. e-KTA: ${row.nomorEKTA}`
+        : isRealNik(row.nik)
+        ? `NIK: ${row.nik}`
+        : '';
+      return { nama: row.namaLengkap.trim(), kta: ktaStr };
     }
-    return {
-      nama: `KETUA ${level} DEFINITIF`,
-      kta: 'TERDAFTAR PUSAT',
-    };
-  }, [gridRows, level]);
+    return { nama: '', kta: '' };
+  }, [effectiveRows]);
 
-  // Deteksi Nama Sekretaris Definitif dari baris data matriks
   const detectedSekretaris = useMemo(() => {
-    if (level === 'DPW') {
-      return {
-        nama: 'Dr. Ir. GS Vicky Lumentut, SH, M.Si',
-        kta: 'ND-7100-2024-0002',
-      };
-    }
-    const row = gridRows.find((r) => {
-      const j = r.jabatan.trim().toLowerCase();
-      const isSekretarisJabatan = j === 'sekretaris' || j.startsWith('sekretaris dpd') || j.startsWith('sekretaris dpc') || j.startsWith('sekretaris dprt');
+    const row = effectiveRows.find((r) => {
+      const j = (r.jabatan || '').trim().toLowerCase();
+      const sub = (r.subOrg || '').toLowerCase();
+      const isSekretarisJabatan =
+        j === 'sekretaris' ||
+        j === 'sekertaris' ||
+        j.startsWith('sekretaris dpw') ||
+        j.startsWith('sekretaris dpd') ||
+        j.startsWith('sekretaris dpc') ||
+        j.startsWith('sekretaris dprt');
       const isBukanWakil = !j.includes('wakil');
-      return isSekretarisJabatan && isBukanWakil && r.namaLengkap.trim() !== '';
+      return (
+        isSekretarisJabatan &&
+        isBukanWakil &&
+        !sub.includes('pakar') &&
+        !sub.includes('pertimbangan') &&
+        r.namaLengkap.trim() !== ''
+      );
     });
     if (row && row.namaLengkap.trim()) {
-      return {
-        nama: row.namaLengkap.trim(),
-        kta: row.nomorEKTA || (row.nik && !row.nik.startsWith('71002026') ? row.nik : 'TERDAFTAR PUSAT'),
-      };
+      const ktaStr = isRealEkta(row.nomorEKTA)
+        ? `No. e-KTA: ${row.nomorEKTA}`
+        : isRealNik(row.nik)
+        ? `NIK: ${row.nik}`
+        : '';
+      return { nama: row.namaLengkap.trim(), kta: ktaStr };
     }
-    return {
-      nama: `SEKRETARIS ${level} DEFINITIF`,
-      kta: 'TERDAFTAR PUSAT',
-    };
-  }, [gridRows, level]);
+    return { nama: '', kta: '' };
+  }, [effectiveRows]);
 
-  // State kustomisasi SK dan penandatangan yang bisa diedit langsung sebelum cetak
+  const defaultDateFormatted = useMemo(
+    () =>
+      new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    []
+  );
+
   const [skNumber, setSkNumber] = useState<string>(defaultSkNumber);
   const [signCity, setSignCity] = useState<string>(defaultCity);
-  const [ketuaName, setKetuaName] = useState<string>(detectedKetua.nama);
-  const [ketuaKta, setKetuaKta] = useState<string>(detectedKetua.kta);
+  const [signDate, setSignDate] = useState<string>(defaultDateFormatted);
+
+  const [leftPrefix, setLeftPrefix] = useState<string>('Mengetahui,');
+  const [leftJabatan, setLeftJabatan] = useState<string>(`SEKRETARIS ${levelText}`);
   const [sekretarisName, setSekretarisName] = useState<string>(detectedSekretaris.nama);
   const [sekretarisKta, setSekretarisKta] = useState<string>(detectedSekretaris.kta);
 
-  // Sync saat data atau level berubah
+  const [rightJabatan, setRightJabatan] = useState<string>(`KETUA ${levelText}`);
+  const [ketuaName, setKetuaName] = useState<string>(detectedKetua.nama);
+  const [ketuaKta, setKetuaKta] = useState<string>(detectedKetua.kta);
+
   useEffect(() => {
     setSkNumber(defaultSkNumber);
     setSignCity(defaultCity);
+    setLeftJabatan(`SEKRETARIS ${levelText}`);
+    setRightJabatan(`KETUA ${levelText}`);
     setKetuaName(detectedKetua.nama);
     setKetuaKta(detectedKetua.kta);
     setSekretarisName(detectedSekretaris.nama);
     setSekretarisKta(detectedSekretaris.kta);
-  }, [defaultSkNumber, defaultCity, detectedKetua, detectedSekretaris]);
+  }, [defaultSkNumber, defaultCity, levelText, detectedKetua, detectedSekretaris]);
 
-  const currentDateFormatted = new Date().toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  // Judul Wilayah Teritorial
-  const territoryTitle =
-    level === 'DPW'
-      ? 'PROVINSI SULAWESI UTARA'
-      : level === 'DPD'
-      ? `${dpd.toUpperCase()}`
-      : level === 'DPC'
-      ? `KECAMATAN ${dpc?.toUpperCase() || '-'} - ${dpd.toUpperCase()}`
-      : `DESA/KELURAHAN ${dprt?.toUpperCase() || '-'} - KEC. ${dpc?.toUpperCase() || '-'} (${dpd.toUpperCase()})`;
-
-  const levelText =
-    level === 'DPW'
-      ? 'DEWAN PIMPINAN WILAYAH (DPW)'
-      : level === 'DPD'
-      ? 'DEWAN PIMPINAN DAERAH (DPD)'
-      : level === 'DPC'
-      ? 'DEWAN PIMPINAN CABANG (DPC)'
-      : 'DEWAN PIMPINAN RANTING (DPRt)';
-
-  // Daftar Sub Organisasi Unik
   const availableSubOrgs = useMemo(() => {
     const set = new Set<string>();
-    gridRows.forEach((r) => {
+    effectiveRows.forEach((r) => {
       if (r.subOrg && r.subOrg.trim()) set.add(r.subOrg.trim());
     });
     return Array.from(set);
-  }, [gridRows]);
+  }, [effectiveRows]);
 
-  // Metrik Keterisian
-  const totalSlots = gridRows.length;
-  const filledRows = gridRows.filter((r) => r.namaLengkap.trim() !== '');
-  const emptyCount = totalSlots - filledRows.length;
-  const percentage = totalSlots > 0 ? Math.round((filledRows.length / totalSlots) * 100) : 0;
+  const totalSlots = effectiveRows.length;
+  const filledRows = useMemo(
+    () => effectiveRows.filter((r) => r.namaLengkap.trim() !== ''),
+    [effectiveRows]
+  );
 
-  // Filter baris yang akan dicetak
   const rowsToPrint = useMemo(() => {
-    let result = gridRows;
+    let result = effectiveRows;
     if (filterMode === 'filled') {
       result = result.filter((r) => r.namaLengkap.trim() !== '');
     }
@@ -208,28 +506,59 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
       result = result.filter((r) => (r.subOrg || '').trim() === selectedSubOrg.trim());
     }
     return result;
-  }, [gridRows, filterMode, selectedSubOrg]);
+  }, [effectiveRows, filterMode, selectedSubOrg]);
 
-  // Kelompokkan baris berdasarkan Sub Organisasi
+  const getRowKey = (r: GridRowItem, idx: number) => r.id || `${r.subOrg}-${r.jabatan}-${idx}`;
+  const [uncheckedRowKeys, setUncheckedRowKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setUncheckedRowKeys(new Set());
+  }, [filterMode, selectedSubOrg, activeDpd, activeDpc, activeDprt, activeLevel]);
+
+  const toggleRowCheck = (key: string) => {
+    setUncheckedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectedPrintCount = useMemo(
+    () => rowsToPrint.filter((r, i) => !uncheckedRowKeys.has(getRowKey(r, i))).length,
+    [rowsToPrint, uncheckedRowKeys]
+  );
+
   const groupedRows = useMemo(() => {
-    const map = new Map<string, GridRowItem[]>();
-    rowsToPrint.forEach((r) => {
-      const sub = r.subOrg || `DEWAN PIMPINAN ${level}`;
+    const map = new Map<string, { row: GridRowItem; key: string }[]>();
+    rowsToPrint.forEach((r, idx) => {
+      const sub = r.subOrg || `DEWAN PIMPINAN ${activeLevel}`;
       if (!map.has(sub)) map.set(sub, []);
-      map.get(sub)!.push(r);
+      map.get(sub)!.push({ row: r, key: getRowKey(r, idx) });
     });
 
     const sortPriority = (title: string) => {
       const t = title.toUpperCase();
       if (t.includes('PERTIMBANGAN')) return 1;
       if (t.includes('PAKAR')) return 2;
-      if (t.includes('PIMPINAN') || t.includes('DPD') || t.includes('DPW') || t.includes('CABANG') || t.includes('RANTING'))
+      if (
+        t.includes('PIMPINAN') ||
+        t.includes('DPD') ||
+        t.includes('DPW') ||
+        t.includes('CABANG') ||
+        t.includes('RANTING')
+      )
         return 3;
       return 4;
     };
 
-    return Array.from(map.entries()).sort(([a], [b]) => sortPriority(a) - sortPriority(b));
-  }, [rowsToPrint, level]);
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (!isSameAsInitialContext) return a.localeCompare(b);
+      return sortPriority(a) - sortPriority(b);
+    });
+  }, [rowsToPrint, activeLevel, isSameAsInitialContext]);
+
+  if (!isOpen) return null;
 
   const handlePrint = () => {
     window.print();
@@ -238,6 +567,10 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
   const handleResetSettings = () => {
     setSkNumber(defaultSkNumber);
     setSignCity(defaultCity);
+    setSignDate(defaultDateFormatted);
+    setLeftPrefix('Mengetahui,');
+    setLeftJabatan(`SEKRETARIS ${levelText}`);
+    setRightJabatan(`KETUA ${levelText}`);
     setKetuaName(detectedKetua.nama);
     setKetuaKta(detectedKetua.kta);
     setSekretarisName(detectedSekretaris.nama);
@@ -245,160 +578,165 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
   };
 
   const handleExportExcel = () => {
-    const exportData = rowsToPrint.map((r, i) => ({
+    const activeRows = rowsToPrint.filter((r, i) => !uncheckedRowKeys.has(getRowKey(r, i)));
+    const exportData = activeRows.map((r, i) => ({
       No: i + 1,
-      'Sub Organisasi': r.subOrg,
+      'Wilayah / Dewan': r.subOrg,
       'Jabatan Pengurus': r.jabatan,
       'Nama Lengkap & Gelar': r.namaLengkap || '(Belum Terisi)',
-      'Nomor NIK': r.nik || '-',
-      'Nomor E-KTA': r.nomorEKTA || '-',
+      'Nomor NIK': isRealNik(r.nik) ? r.nik : '-',
+      'Nomor E-KTA': isRealEkta(r.nomorEKTA) ? r.nomorEKTA : '-',
       'No. WhatsApp / HP': r.nomorHP || '-',
       Email: r.email || '-',
-      Status: r.namaLengkap.trim() !== '' ? 'Aktif Terverifikasi' : 'Lowong',
+      Status: r.namaLengkap.trim() !== '' ? 'Aktif' : 'Lowong',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Susunan Pengurus');
-    XLSX.writeFile(
-      wb,
-      `SUSUNAN_PENGURUS_${level}_${dpd.replace(/\s+/g, '_')}_${Date.now()}.xlsx`
-    );
+    XLSX.utils.book_append_sheet(wb, ws, `Struktur_${activeLevel}`);
+    const fileName = `SK_STRUKTUR_${activeLevel}_${territoryTitle.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
-  if (!isOpen) return null;
+  const modalContent = (
+    <div className="print-portal-root fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col print:static print:block print:bg-white print:h-auto print:overflow-visible">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: A4 ${orientation};
+              margin: 10mm 12mm;
+            }
+          }
+        `}
+      </style>
 
-  return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static print:inset-auto print:h-auto print:w-full`}
-    >
-      <div
-        className={`relative w-full ${
-          orientation === 'landscape' ? 'max-w-6xl' : 'max-w-5xl'
-        } bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:h-auto print:border-none print:shadow-none print:overflow-visible print:w-full print:static`}
-      >
-        {/* Controls Bar (Disembunyikan saat mencetak) */}
-        <div className="no-print bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 sticky top-0 z-20 shrink-0 space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
-                <Printer className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Cetak Dokumen Susunan Pengurus</span>
-                  <span className="px-2 py-0.5 text-[11px] font-semibold rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
-                    {level}
-                  </span>
-                  <span className="text-xs text-slate-500 font-mono">({dpd})</span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Format Surat Keputusan (SK) &amp; Lampiran Resmi &bull; Ekspor PDF A4 / Cetak Fisik
-                </p>
-              </div>
-            </div>
+      {/* ===================================================================
+          1. CLEAN COMPACT TOP BAR WITH JENJANG & WILAYAH SELECTOR
+          =================================================================== */}
+      <div className="no-print shrink-0 bg-white border-b border-slate-200 px-4 py-2.5 shadow-xs z-20">
+        <div className="max-w-6xl mx-auto flex flex-col gap-2">
+          {/* Row 1: Level Tabs + Main Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-bold text-slate-900 mr-1">Cetak Struktur:</span>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Filter Mode */}
-              <div className="flex items-center bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-lg text-xs">
-                <button
-                  onClick={() => setFilterMode('all')}
-                  className={`px-2.5 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
-                    filterMode === 'all'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  Semua ({totalSlots})
-                </button>
-                <button
-                  onClick={() => setFilterMode('filled')}
-                  className={`px-2.5 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
-                    filterMode === 'filled'
-                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  Terisi ({filledRows.length})
-                </button>
+              {/* Level Switcher (DPW, DPD, DPC, DPRt) */}
+              <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                {(['DPW', 'DPD', 'DPC', 'DPRt'] as const).map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => {
+                      setActiveLevel(lvl);
+                      setSelectedSubOrg('ALL');
+                    }}
+                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
+                      activeLevel === lvl
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                ))}
               </div>
 
-              {/* Sub-Organisasi Dropdown */}
-              {availableSubOrgs.length > 1 && (
-                <select
-                  value={selectedSubOrg}
-                  onChange={(e) => setSelectedSubOrg(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer font-medium"
-                >
-                  <option value="ALL">Semua Sub-Organisasi</option>
-                  {availableSubOrgs.map((sub) => (
-                    <option key={sub} value={sub}>
-                      {sub}
-                    </option>
-                  ))}
-                </select>
+              {isSameAsInitialContext && (
+                <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('filled')}
+                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
+                      filterMode === 'filled'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Terisi ({filledRows.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('all')}
+                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
+                      filterMode === 'all'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Semua Slot ({totalSlots})
+                  </button>
+                </div>
               )}
 
-              {/* Orientation Toggle */}
-              <div className="flex items-center bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-lg text-xs">
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
+                  showSettings
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Atur Tanda Tangan</span>
+                {showSettings ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+
+            {/* Right controls */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
                 <button
+                  type="button"
                   onClick={() => setOrientation('portrait')}
-                  className={`px-2.5 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
+                  className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
                     orientation === 'portrait'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Format Kertas Tegak (A4 Portrait)"
                 >
-                  Tegak (A4)
+                  Tegak
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrientation('landscape')}
-                  className={`px-2.5 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
+                  className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
                     orientation === 'landscape'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Format Kertas Mendatar (A4 Landscape)"
                 >
-                  Mendatar (A4)
+                  Mendatar
                 </button>
               </div>
 
-              {/* Toggle Settings Drawer */}
               <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer ${
-                  showSettings ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-950/40' : ''
-                }`}
-                title="Sesuaikan Nomor SK, Kota, dan Nama Penandatangan"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Pengaturan SK</span>
-                {showSettings ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-
-              <button
+                type="button"
                 onClick={handleExportExcel}
-                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
-                title="Unduh Format Excel"
+                className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Excel</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Excel</span>
               </button>
 
               <button
+                type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer transition-colors"
-                title="Cetak langsung atau simpan sebagai dokumen PDF"
+                className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Cetak / Simpan PDF</span>
+                <span>Cetak / Simpan PDF ({selectedPrintCount})</span>
               </button>
 
               <button
+                type="button"
                 onClick={onClose}
-                className="btn-white p-1.5 rounded-lg cursor-pointer ml-1"
+                className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer"
                 title="Tutup"
               >
                 <X className="w-4 h-4" />
@@ -406,382 +744,556 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
             </div>
           </div>
 
-          {/* Collapsible Settings Drawer */}
-          {showSettings && (
-            <div className="p-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3 text-xs animate-in fade-in">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  Kustomisasi Parameter Surat Keputusan &amp; Penandatangan
-                </span>
-                <button
-                  onClick={handleResetSettings}
-                  className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-[11px] flex items-center gap-1 cursor-pointer"
-                  title="Kembalikan nilai awal otomatis dari sistem"
+          {/* Row 2: PILIH PER WILAYAH (DPD / DPC / DPRt / Sub-Dewan) */}
+          {activeLevel !== 'DPW' && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end text-xs">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase text-slate-500 mb-0.5">
+                  Pilih Wilayah DPD (Kab/Kota)
+                </label>
+                <select
+                  value={activeDpd}
+                  onChange={(e) => {
+                    setActiveDpd(e.target.value);
+                    setActiveDpc('ALL');
+                    setActiveDprt('ALL');
+                    setSelectedSubOrg('ALL');
+                  }}
+                  className="w-full bg-white text-slate-900 font-medium text-xs rounded-lg px-2.5 py-1.5 border border-slate-300 focus:outline-none"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Reset Otomatis</span>
-                </button>
+                  <option value="ALL">Semua 15 DPD (Cetak Per Wilayah)</option>
+                  {dpdOptionsWithCount.map((r) => (
+                    <option key={r.name} value={r.name}>
+                      {r.name} ({r.count})
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {(activeLevel === 'DPC' || activeLevel === 'DPRt') && (
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Nomor Lampiran SK:
+                  <label className="block text-[10px] font-semibold uppercase text-slate-500 mb-0.5">
+                    Pilih Wilayah DPC (Kecamatan)
                   </label>
+                  <select
+                    value={activeDpc}
+                    onChange={(e) => {
+                      setActiveDpc(e.target.value);
+                      setActiveDprt('ALL');
+                      setSelectedSubOrg('ALL');
+                    }}
+                    className="w-full bg-white text-slate-900 font-medium text-xs rounded-lg px-2.5 py-1.5 border border-slate-300 focus:outline-none"
+                  >
+                    <option value="ALL">
+                      Semua Kecamatan ({dpcOptionsWithCount.length} DPC)
+                    </option>
+                    {dpcOptionsWithCount.map((d) => (
+                      <option key={d.name} value={d.name}>
+                        Kec. {d.name} ({d.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {activeLevel === 'DPRt' && (
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase text-slate-500 mb-0.5">
+                    Pilih Wilayah DPRt (Desa/Kel)
+                  </label>
+                  <select
+                    value={activeDprt}
+                    onChange={(e) => {
+                      setActiveDprt(e.target.value);
+                      setSelectedSubOrg('ALL');
+                    }}
+                    className="w-full bg-white text-slate-900 font-medium text-xs rounded-lg px-2.5 py-1.5 border border-slate-300 focus:outline-none"
+                  >
+                    <option value="ALL">
+                      Semua Desa/Kelurahan ({dprtOptionsWithCount.length} DPRt)
+                    </option>
+                    {dprtOptionsWithCount.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.name} ({v.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 pb-1">
+                {groupedRows.length > 1 && (
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={pageBreakPerGroup}
+                      onChange={(e) => setPageBreakPerGroup(e.target.checked)}
+                      className="rounded border-slate-300 accent-slate-900"
+                    />
+                    <span>Pisah Halaman per Wilayah</span>
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* CLEAN COLLAPSIBLE SIGNATURE & SK SETTINGS */}
+          {showSettings && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold text-slate-800">
+                  Pengaturan Manual Tanda Tangan &amp; Nomor SK
+                </span>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={showStamp}
+                      onChange={(e) => setShowStamp(e.target.checked)}
+                      className="rounded border-slate-300 accent-slate-900"
+                    />
+                    <span>Lingkaran Stempel</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleResetSettings}
+                    className="text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset Otomatis</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Nomor SK</label>
                   <input
                     type="text"
                     value={skNumber}
                     onChange={(e) => setSkNumber(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs"
-                    placeholder="Contoh: SK-001/DPW-NASDEM/SULUT/2026"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-xs"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Kota Penandatanganan:
-                  </label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Kota Penetapan</label>
                   <input
                     type="text"
                     value={signCity}
                     onChange={(e) => setSignCity(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold"
-                    placeholder="Contoh: Manado / Amurang / Kotamobagu"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 text-xs"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Status Deteksi:
+                  <label className="block text-[10px] text-slate-500 mb-0.5">
+                    Tanggal Penetapan
                   </label>
-                  <div className="px-2.5 py-1.5 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
-                    &bull; Ketua &amp; Sekretaris otomatis disinkron dari matriks
+                  <input
+                    type="text"
+                    value={signDate}
+                    onChange={(e) => setSignDate(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                {/* Left Signatory */}
+                <div className="bg-white border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-700">
+                      Pejabat Kiri (Sekretaris)
+                    </span>
+                    {filledRows.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const found = filledRows.find((r) => r.namaLengkap === e.target.value);
+                          if (found) {
+                            setSekretarisName(found.namaLengkap);
+                            setSekretarisKta(
+                              isRealEkta(found.nomorEKTA)
+                                ? `No. e-KTA: ${found.nomorEKTA}`
+                                : isRealNik(found.nik)
+                                ? `NIK: ${found.nik}`
+                                : ''
+                            );
+                          }
+                        }}
+                        className="max-w-[160px] bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-[10px] text-slate-700"
+                      >
+                        <option value="">Pilih dari Pengurus...</option>
+                        {filledRows.map((r, idx) => (
+                          <option key={`sek-${idx}`} value={r.namaLengkap}>
+                            {r.namaLengkap} ({r.jabatan})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                    <input
+                      type="text"
+                      value={leftJabatan}
+                      onChange={(e) => setLeftJabatan(e.target.value)}
+                      placeholder="Jabatan Kiri"
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      value={sekretarisName}
+                      onChange={(e) => setSekretarisName(e.target.value)}
+                      placeholder="Ketik Nama Pejabat Kiri..."
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      value={sekretarisKta}
+                      onChange={(e) => setSekretarisKta(e.target.value)}
+                      placeholder="No. e-KTA / NIK"
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono text-slate-900"
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Nama Ketua Penandatangan:
-                  </label>
-                  <input
-                    type="text"
-                    value={ketuaName}
-                    onChange={(e) => setKetuaName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    No. e-KTA / NIK Ketua:
-                  </label>
-                  <input
-                    type="text"
-                    value={ketuaKta}
-                    onChange={(e) => setKetuaKta(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Nama Sekretaris Penandatangan:
-                  </label>
-                  <input
-                    type="text"
-                    value={sekretarisName}
-                    onChange={(e) => setSekretarisName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-xs"
-                  />
+                {/* Right Signatory */}
+                <div className="bg-white border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-700">
+                      Pejabat Kanan (Ketua)
+                    </span>
+                    {filledRows.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const found = filledRows.find((r) => r.namaLengkap === e.target.value);
+                          if (found) {
+                            setKetuaName(found.namaLengkap);
+                            setKetuaKta(
+                              isRealEkta(found.nomorEKTA)
+                                ? `No. e-KTA: ${found.nomorEKTA}`
+                                : isRealNik(found.nik)
+                                ? `NIK: ${found.nik}`
+                                : ''
+                            );
+                          }
+                        }}
+                        className="max-w-[160px] bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-[10px] text-slate-700"
+                      >
+                        <option value="">Pilih dari Pengurus...</option>
+                        {filledRows.map((r, idx) => (
+                          <option key={`ket-${idx}`} value={r.namaLengkap}>
+                            {r.namaLengkap} ({r.jabatan})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                    <input
+                      type="text"
+                      value={rightJabatan}
+                      onChange={(e) => setRightJabatan(e.target.value)}
+                      placeholder="Jabatan Kanan"
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      value={ketuaName}
+                      onChange={(e) => setKetuaName(e.target.value)}
+                      placeholder="Ketik Nama Pejabat Kanan..."
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      value={ketuaKta}
+                      onChange={(e) => setKetuaKta(e.target.value)}
+                      placeholder="No. e-KTA / NIK"
+                      className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono text-slate-900"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Printable Official Document Body */}
-        <div
-          className={`p-3 sm:p-6 lg:p-10 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible ${
-            orientation === 'landscape' ? 'print:landscape' : 'print:portrait'
-          }`}
-        >
-          {/* Official Letterhead (KOP SURAT RESMI PARTAI NASDEM) */}
-          <div className="border-b-4 border-double border-slate-900 pb-3 sm:pb-4 mb-4 sm:mb-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 print:flex-row print:justify-between text-center sm:text-left">
-            {/* Logo Utama Partai NasDem */}
-            <div className="w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center shrink-0">
+      {/* ===================================================================
+          2. SCROLLABLE VIEWPORT FOR THE CLEAN A4 PAPER SHEET
+          =================================================================== */}
+      <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-3 sm:p-6 print:p-0 print:bg-white print:overflow-visible">
+        <div className="max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 shadow-sm rounded-xl p-5 sm:p-10 print:border-none print:shadow-none print:rounded-none print:p-0 print:max-w-none">
+          {/* CLEAN FORMAL LETTERHEAD */}
+          <div className="border-b-2 border-slate-900 pb-4 mb-5 flex flex-col sm:flex-row print:flex-row items-center justify-between gap-4 text-center sm:text-left print:text-left">
+            <div className="flex flex-col sm:flex-row print:flex-row items-center gap-3.5">
               <img
                 src={nasdemLogo}
                 alt="Logo Resmi Partai NasDem"
-                className="max-h-16 sm:max-h-24 max-w-full object-contain"
+                className="w-14 h-14 sm:w-16 sm:h-16 object-contain shrink-0"
               />
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.18em] text-slate-600 uppercase">
+                  PARTAI NASDEM (NASIONAL DEMOKRAT)
+                </p>
+                <h1 className="text-base sm:text-xl font-black tracking-tight text-slate-950 uppercase">
+                  {levelText}
+                </h1>
+                <p className="text-xs font-bold text-slate-700 uppercase mt-0.5">
+                  {territoryTitle}
+                </p>
+              </div>
             </div>
 
-            {/* Identitas Organisasi Kop Surat */}
-            <div className="text-center flex-1 px-2">
-              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight uppercase text-slate-950 leading-tight">
-                PARTAI NASDEM (NASIONAL DEMOKRAT)
-              </h1>
-              <h2 className="text-sm sm:text-base font-black tracking-wider uppercase text-blue-950 mt-0.5">
-                {levelText}
-              </h2>
-              <h3 className="text-xs sm:text-sm font-bold tracking-wide uppercase text-slate-800">
-                {territoryTitle}
-              </h3>
-              <p className="text-[11px] text-slate-600 mt-1">
-                Sekretariat: Jl. Lengkong Wuaya, Paal Dua / Jl. 17 Agustus, Manado, Sulawesi Utara &bull; Telp: (0431) 845201
-              </p>
-              <p className="text-[10px] text-slate-500 italic mt-0.5 font-medium">
-                Gerakan Perubahan &bull; Restorasi Indonesia &bull; Sistem Manajemen Keanggotaan &amp; Struktur Teritorial
-              </p>
-            </div>
-
-            {/* Logo Ulang Tahun / Badge Validasi Dokumen */}
-            <div className="w-24 h-24 flex flex-col items-center justify-center shrink-0 text-center">
-              <img
-                src={anniversaryLogo}
-                alt="Logo 15 Tahun NasDem"
-                className="max-h-16 max-w-full object-contain drop-shadow-xs"
-              />
-              <span className="text-[9px] font-mono font-bold text-slate-700 mt-1 block">
-                DOKUMEN RESMI
-              </span>
-              <span className="text-[8px] font-mono text-emerald-700 font-extrabold block">
-                TERVALIDASI DPW
-              </span>
+            <div className="text-center sm:text-right print:text-right font-mono text-[10px] text-slate-600 shrink-0">
+              <div className="font-bold text-slate-900 uppercase">LAMPIRAN SK RESMI</div>
+              <div>No: {skNumber}</div>
+              <div>Tanggal: {signDate}</div>
             </div>
           </div>
-
-          {/* Garis Aksen Emas & Biru */}
-          <div className="h-0.5 w-full bg-gradient-to-r from-blue-900 via-amber-500 to-blue-900 mb-5"></div>
 
           {/* Document Title Header */}
           <div className="text-center mb-5">
-            <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-950">
-              LAMPIRAN SURAT KEPUTUSAN KEPENGURUSAN
-            </h3>
-            <p className="text-xs font-mono font-bold text-blue-950 mt-0.5">
-              NOMOR: {skNumber}
-            </p>
-            <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-900 mt-1">
+            <h3 className="text-sm sm:text-base font-bold uppercase tracking-wide text-slate-950 underline underline-offset-4">
               SUSUNAN PENGURUS {levelText}
-            </h4>
-            <p className="text-xs font-semibold text-slate-700 mt-0.5">
-              {territoryTitle} &bull; PERIODE KEPENGURUSAN 2024 - 2029
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1 font-mono">
-              Status Data: Terverifikasi Sistem Tanggal <strong>{currentDateFormatted}</strong>
+            </h3>
+            <p className="text-xs text-slate-600 mt-1">
+              {territoryTitle} &bull; Periode 2024 - 2029
             </p>
           </div>
 
-          {/* Executive KPI Summary Boxes */}
-          <div className="mb-6 p-3.5 border border-slate-300 rounded-xl bg-slate-50/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-300 print:mb-4 print:p-2.5">
-            <div>
-              <span className="text-slate-500 text-[10px] block uppercase font-semibold">
-                Total Posisi Struktur
-              </span>
-              <span className="text-xl font-black text-slate-900 font-mono">
-                {totalSlots}
-              </span>
-              <span className="text-[10px] text-slate-500 block">Posisi Resmi</span>
-            </div>
-
-            <div className="pt-2 sm:pt-0">
-              <span className="text-slate-500 text-[10px] block uppercase font-semibold">
-                Posisi Terisi (Definitif)
-              </span>
-              <span className="text-xl font-black text-emerald-700 font-mono">
-                {filledRows.length}
-              </span>
-              <span className="text-[10px] text-emerald-700 font-semibold block">
-                {percentage}% Kelengkapan
-              </span>
-            </div>
-
-            <div className="pt-2 sm:pt-0">
-              <span className="text-slate-500 text-[10px] block uppercase font-semibold">
-                Posisi Lowong / Kosong
-              </span>
-              <span className="text-xl font-black text-amber-700 font-mono">
-                {emptyCount}
-              </span>
-              <span className="text-[10px] text-slate-500 block">Menunggu Penetapan</span>
-            </div>
-
-            <div className="pt-2 sm:pt-0">
-              <span className="text-slate-500 text-[10px] block uppercase font-semibold">
-                Status Kesiapan SK
-              </span>
-              <span className="text-base font-extrabold mt-0.5 block text-slate-900">
-                {percentage >= 90 ? (
-                  <span className="text-emerald-700">LENGKAP &amp; SOLID</span>
-                ) : percentage >= 50 ? (
-                  <span className="text-blue-700">STRUKTUR SEBAGIAN</span>
-                ) : (
-                  <span className="text-amber-700">PERLU KONSOLIDASI</span>
-                )}
-              </span>
-              <span className="text-[10px] text-slate-500 block">Verifikasi OKK</span>
-            </div>
+          <div className="no-print mb-2 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Centang baris yang akan dicetak (
+              <strong className="text-slate-900">{selectedPrintCount}</strong> baris dalam{' '}
+              <strong className="text-slate-900">{groupedRows.length}</strong> kelompok wilayah/dewan):
+            </span>
+            {uncheckedRowKeys.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setUncheckedRowKeys(new Set())}
+                className="text-slate-900 underline font-medium cursor-pointer"
+              >
+                Pilih Semua ({rowsToPrint.length})
+              </button>
+            )}
           </div>
 
-          {/* Tabel Susunan Pengurus */}
+          {/* Tabel Susunan Pengurus (Clean Monochrome) */}
           <div className="mb-6 space-y-5 print:space-y-4">
-            {groupedRows.map(([subOrgName, rows], groupIdx) => (
-              <div key={groupIdx} className="border border-slate-300 rounded-lg overflow-hidden overflow-x-auto print:overflow-visible print:break-inside-avoid shadow-2xs">
-                {/* Sub Organisasi Header Banner */}
-                <div className="bg-slate-800 text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between print:bg-slate-900 sticky left-0">
-                  <span>{subOrgName}</span>
-                  <span className="text-[10px] font-mono text-slate-300 font-normal">
-                    {rows.filter((r) => r.namaLengkap.trim() !== '').length} / {rows.length} Terisi
-                  </span>
-                </div>
+            {groupedRows.map(([subOrgName, groupItems], groupIdx) => {
+              const activeGroupCount = groupItems.filter(
+                (item) => !uncheckedRowKeys.has(item.key)
+              ).length;
+              let printRowCounter = 0;
 
-                <table className="w-full min-w-[650px] print:min-w-0 text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-900 font-bold text-[11px] border-b border-slate-300">
-                      <th className="p-2 border-r border-slate-300 text-center w-8">No</th>
-                      <th className="p-2 border-r border-slate-300 w-1/3">Jabatan Pengurus</th>
-                      <th className="p-2 border-r border-slate-300 w-1/3">Nama Lengkap &amp; Gelar</th>
-                      <th className="p-2 border-r border-slate-300">Nomor KTA / NIK</th>
-                      <th className="p-2 border-r border-slate-300">No. WhatsApp / HP</th>
-                      <th className="p-2 text-center w-24">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-800">
-                    {rows.map((row, rIdx) => {
-                      const isFilled = row.namaLengkap.trim() !== '';
-                      return (
-                        <tr
-                          key={row.id || rIdx}
-                          className={
-                            !isFilled
-                              ? 'bg-amber-50/50 print:bg-white'
-                              : rIdx % 2 === 0
-                              ? 'bg-white'
-                              : 'bg-slate-50/60 print:bg-white'
-                          }
-                        >
-                          <td className="p-2 border-r border-slate-200 text-center font-mono text-[11px] text-slate-500">
-                            {rIdx + 1}
-                          </td>
-                          <td className="p-2 border-r border-slate-200 font-semibold text-slate-900">
-                            {row.jabatan}
-                          </td>
-                          <td className="p-2 border-r border-slate-200">
-                            {isFilled ? (
-                              <span className="font-bold text-slate-950">{row.namaLengkap}</span>
-                            ) : (
-                              <span className="italic text-slate-400 font-normal">
-                                (Lowong / Belum Ditetapkan)
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2 border-r border-slate-200 font-mono text-[11px] text-slate-600">
-                            {row.nomorEKTA || (row.nik && !row.nik.startsWith('71002026') ? row.nik : '-')}
-                          </td>
-                          <td className="p-2 border-r border-slate-200 text-slate-700 text-[11px]">
-                            {row.nomorHP && row.nomorHP !== '-' ? row.nomorHP : '-'}
-                          </td>
-                          <td className="p-2 text-center">
-                            {isFilled ? (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 print:border-none">
-                                Aktif
-                              </span>
-                            ) : (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 print:border-none">
-                                Lowong
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+              return (
+                <div
+                  key={groupIdx}
+                  className={`border border-slate-300 overflow-x-auto print:overflow-visible ${
+                    activeGroupCount === 0 ? 'print:hidden' : ''
+                  } ${pageBreakPerGroup && groupIdx > 0 ? 'print:break-before-page' : ''}`}
+                >
+                  <div className="bg-slate-100 text-slate-900 border-b border-slate-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                    <span>{subOrgName}</span>
+                    <span className="text-[10px] font-mono text-slate-600 font-normal">
+                      {activeGroupCount} Posisi
+                    </span>
+                  </div>
+
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-800 font-bold text-[11px] border-b border-slate-300">
+                        <th className="no-print p-2 border-r border-slate-300 text-center w-8">
+                          ✓
+                        </th>
+                        <th className="p-2 border-r border-slate-300 text-center w-8">No</th>
+                        <th className="p-2 border-r border-slate-300 w-1/3">Jabatan Pengurus</th>
+                        <th className="p-2 border-r border-slate-300 w-1/3">
+                          Nama Lengkap &amp; Gelar
+                        </th>
+                        <th className="p-2 border-r border-slate-300">Nomor e-KTA / NIK</th>
+                        <th className="p-2 border-r border-slate-300">No. HP</th>
+                        <th className="p-2 text-center w-20">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 text-slate-800">
+                      {groupItems.map(({ row, key }) => {
+                        const isChecked = !uncheckedRowKeys.has(key);
+                        if (isChecked) printRowCounter += 1;
+                        const isFilled = row.namaLengkap.trim() !== '';
+                        const cleanId = isRealEkta(row.nomorEKTA)
+                          ? row.nomorEKTA
+                          : isRealNik(row.nik)
+                          ? row.nik
+                          : '-';
+
+                        return (
+                          <tr
+                            key={key}
+                            className={!isChecked ? 'no-print opacity-40 bg-slate-50' : 'bg-white'}
+                          >
+                            <td className="no-print p-2 border-r border-slate-200 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleRowCheck(key)}
+                                className="w-3.5 h-3.5 accent-slate-900 cursor-pointer"
+                              />
+                            </td>
+                            <td className="p-2 border-r border-slate-200 text-center font-mono text-[11px] text-slate-600">
+                              {isChecked ? printRowCounter : '-'}
+                            </td>
+                            <td className="p-2 border-r border-slate-200 font-medium text-slate-900">
+                              {row.jabatan}
+                            </td>
+                            <td className="p-2 border-r border-slate-200">
+                              {isFilled ? (
+                                <span className="font-semibold text-slate-950">
+                                  {row.namaLengkap}
+                                </span>
+                              ) : (
+                                <span className="italic text-slate-400 font-normal">
+                                  (Belum Ditetapkan)
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2 border-r border-slate-200 font-mono text-[11px] text-slate-700">
+                              {cleanId}
+                            </td>
+                            <td className="p-2 border-r border-slate-200 text-slate-700 text-[11px] font-mono">
+                              {row.nomorHP && row.nomorHP !== '-' ? row.nomorHP : '-'}
+                            </td>
+                            <td className="p-2 text-center text-[11px] text-slate-700">
+                              {isFilled ? 'Aktif' : 'Lowong'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Official Signatures & Stempel Block */}
-          <div className="print-break-inside-avoid mt-8 pt-4 border-t-2 border-slate-300">
-            <div className="flex justify-between items-start text-xs text-slate-800">
-              
+          {/* ===================================================================
+              CLEAN INTERACTIVE SIGNATURES BLOCK AT BOTTOM
+              =================================================================== */}
+          <div className="print-break-inside-avoid mt-8 pt-5 border-t border-slate-300">
+            <div className="no-print mb-3 text-[11px] text-slate-500">
+              Klik langsung pada jabatan atau nama di bawah ini untuk mengetik manual sebelum cetak:
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 print:grid-cols-3 items-start gap-6 text-xs text-slate-800">
               {/* Kolom Kiri: Sekretaris */}
-              <div className="text-left w-64 space-y-16">
-                <div>
-                  <p className="text-slate-600">Ditetapkan &amp; Diverifikasi Oleh:</p>
-                  <p className="font-bold text-slate-950 uppercase">
-                    SEKRETARIS {levelText}
-                  </p>
-                  <p className="text-[11px] text-slate-500 font-medium">PARTAI NASDEM {territoryTitle}</p>
-                </div>
-                <div>
-                  <p className="font-bold underline text-sm text-slate-950">
-                    {sekretarisName}
-                  </p>
-                  <p className="text-[10px] text-slate-600 font-mono">
-                    No. e-KTA: {sekretarisKta}
-                  </p>
-                </div>
+              <div className="text-center flex flex-col items-center w-full">
+                <input
+                  type="text"
+                  value={leftPrefix}
+                  onChange={(e) => setLeftPrefix(e.target.value)}
+                  className="w-full text-center text-slate-700 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none"
+                />
+                <input
+                  type="text"
+                  value={leftJabatan}
+                  onChange={(e) => setLeftJabatan(e.target.value)}
+                  className="w-full text-center font-bold text-slate-950 uppercase mt-0.5 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none"
+                />
+                <p className="text-[10px] text-slate-600 mt-0.5">
+                  PARTAI NASDEM {territoryTitle}
+                </p>
+
+                <div className="h-20 sm:h-24 print:h-22 w-full" />
+
+                <input
+                  type="text"
+                  value={sekretarisName}
+                  onChange={(e) => setSekretarisName(e.target.value)}
+                  placeholder="( Ketik Nama Pejabat Kiri )"
+                  className="w-full text-center font-bold underline text-sm text-slate-950 bg-transparent border-b border-dashed border-slate-300 hover:border-slate-600 focus:border-slate-900 focus:bg-slate-50 focus:outline-none print:border-none placeholder:text-slate-400 print:placeholder:text-transparent"
+                />
+                {!sekretarisName.trim() && (
+                  <div className="hidden print:block font-bold text-slate-700 tracking-widest">
+                    ( .................................................... )
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={sekretarisKta}
+                  onChange={(e) => setSekretarisKta(e.target.value)}
+                  placeholder="Ketik No. e-KTA / NIK (Opsional)"
+                  className="w-full text-center text-[10px] text-slate-600 font-mono mt-0.5 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none placeholder:text-slate-300 print:placeholder:text-transparent"
+                />
               </div>
 
-              {/* Kolom Tengah: Stempel Basah Resmi */}
-              <div className="text-center w-52 flex flex-col items-center justify-center">
-                <div
-                  className="w-28 h-28 border-2 border-blue-800 rounded-full flex flex-col items-center justify-center text-blue-900 font-serif p-1.5 shadow-2xs rotate-[-3deg] relative"
-                  style={{
-                    boxShadow: 'inset 0 0 0 2px #1e40af',
-                  }}
-                >
-                  <div className="text-[8px] font-bold tracking-widest uppercase">PARTAI NASDEM</div>
-                  <div className="my-0.5 text-xs text-amber-500">&#9733; &#9733; &#9733;</div>
-                  <div className="font-black text-[9px] text-center leading-tight uppercase px-1 text-blue-950">
-                    DEWAN PIMPINAN {level}
+              {/* Kolom Tengah */}
+              <div className="text-center flex flex-col items-center justify-center my-auto w-full">
+                {showStamp && (
+                  <div className="w-24 h-24 rounded-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-center p-2 text-[9px] text-slate-400 font-mono select-none">
+                    <span>STEMPEL</span>
+                    <span>ORGANISASI</span>
                   </div>
-                  <div className="text-[8px] font-bold text-slate-700 tracking-wider uppercase mt-0.5">
-                    {dpd || 'SULAWESI UTARA'}
-                  </div>
-                  <div className="text-[6.5px] text-slate-500 tracking-widest mt-0.5 font-mono">
-                    SEKRETARIAT RESMI
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono mt-1.5">
-                  CAP / STEMPEL RESMI
-                </span>
+                )}
               </div>
 
               {/* Kolom Kanan: Ketua */}
-              <div className="text-right w-64 space-y-16">
-                <div>
-                  <p className="text-slate-600">{signCity}, {currentDateFormatted}</p>
-                  <p className="font-bold text-slate-950 uppercase">
-                    KETUA {levelText}
-                  </p>
-                  <p className="text-[11px] text-slate-500 font-medium">PARTAI NASDEM {territoryTitle}</p>
+              <div className="text-center flex flex-col items-center w-full">
+                <div className="flex items-center justify-center gap-1 w-full">
+                  <input
+                    type="text"
+                    value={signCity}
+                    onChange={(e) => setSignCity(e.target.value)}
+                    className="w-24 text-right text-slate-700 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none"
+                  />
+                  <span>,</span>
+                  <input
+                    type="text"
+                    value={signDate}
+                    onChange={(e) => setSignDate(e.target.value)}
+                    className="w-36 text-left text-slate-700 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none"
+                  />
                 </div>
-                <div>
-                  <p className="font-bold underline text-sm text-slate-950">
-                    {ketuaName}
-                  </p>
-                  <p className="text-[10px] text-slate-600 font-mono">
-                    No. e-KTA: {ketuaKta}
-                  </p>
-                </div>
+                <input
+                  type="text"
+                  value={rightJabatan}
+                  onChange={(e) => setRightJabatan(e.target.value)}
+                  className="w-full text-center font-bold text-slate-950 uppercase mt-0.5 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none"
+                />
+                <p className="text-[10px] text-slate-600 mt-0.5">
+                  PARTAI NASDEM {territoryTitle}
+                </p>
+
+                <div className="h-20 sm:h-24 print:h-22 w-full" />
+
+                <input
+                  type="text"
+                  value={ketuaName}
+                  onChange={(e) => setKetuaName(e.target.value)}
+                  placeholder="( Ketik Nama Pejabat Kanan )"
+                  className="w-full text-center font-bold underline text-sm text-slate-950 bg-transparent border-b border-dashed border-slate-300 hover:border-slate-600 focus:border-slate-900 focus:bg-slate-50 focus:outline-none print:border-none placeholder:text-slate-400 print:placeholder:text-transparent"
+                />
+                {!ketuaName.trim() && (
+                  <div className="hidden print:block font-bold text-slate-700 tracking-widest">
+                    ( .................................................... )
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={ketuaKta}
+                  onChange={(e) => setKetuaKta(e.target.value)}
+                  placeholder="Ketik No. e-KTA / NIK (Opsional)"
+                  className="w-full text-center text-[10px] text-slate-600 font-mono mt-0.5 bg-transparent border-b border-dashed border-transparent hover:border-slate-300 focus:border-slate-600 focus:bg-slate-50 focus:outline-none print:border-none placeholder:text-slate-300 print:placeholder:text-transparent"
+                />
               </div>
             </div>
-
-            {/* Footer Dokumen Resmi */}
-            <div className="mt-8 pt-2.5 border-t border-slate-200 text-center text-[10px] text-slate-400 font-mono flex items-center justify-between">
-              <span>Sistem Manajemen Keanggotaan &amp; Teritorial DPW Partai NasDem Sulut</span>
-              <span>Dokumen Resmi Terverifikasi Digital &bull; {skNumber}</span>
-            </div>
           </div>
-
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default TerritorialStructurePrintModal;

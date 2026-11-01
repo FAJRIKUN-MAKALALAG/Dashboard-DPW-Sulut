@@ -66,8 +66,15 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
 
       <ExecutiveReportPrintModal
         isOpen={modals.isPrintReportOpen}
-        onClose={() => modals.setIsPrintReportOpen(false)}
+        onClose={() => {
+          modals.setIsPrintReportOpen(false);
+          modals.setPrintCustomMembers(null);
+        }}
         members={members}
+        session={session}
+        customSelectedMembers={modals.printCustomMembers}
+        initialReportType={modals.printInitialMode}
+        customTitleContext={modals.printCustomTitle}
       />
 
       <StatusChangeModal

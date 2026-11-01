@@ -4,6 +4,10 @@ import { Member } from '../types';
 export function useAppModals() {
   const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
+  const [printCustomMembers, setPrintCustomMembers] = useState<Member[] | null>(null);
+  const [printInitialMode, setPrintInitialMode] = useState<'STATISTICS' | 'NOMINATIVE'>('STATISTICS');
+  const [printCustomTitle, setPrintCustomTitle] = useState<string>('');
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -23,6 +27,20 @@ export function useAppModals() {
 
   // Referral Hub Modal (Kode Referral & Rekrutmen Pengurus)
   const [isReferralHubOpen, setIsReferralHubOpen] = useState(false);
+
+  const openPrintReport = () => {
+    setPrintCustomMembers(null);
+    setPrintInitialMode('STATISTICS');
+    setPrintCustomTitle('');
+    setIsPrintReportOpen(true);
+  };
+
+  const openPrintWithMembers = (membersList: Member[], titleContext?: string) => {
+    setPrintCustomMembers(membersList);
+    setPrintInitialMode('NOMINATIVE');
+    setPrintCustomTitle(titleContext || '');
+    setIsPrintReportOpen(true);
+  };
 
   const openDetailModal = (member: Member) => {
     setSelectedMember(member);
@@ -79,6 +97,14 @@ export function useAppModals() {
     setIsTemplateHubOpen,
     isPrintReportOpen,
     setIsPrintReportOpen,
+    printCustomMembers,
+    setPrintCustomMembers,
+    printInitialMode,
+    setPrintInitialMode,
+    printCustomTitle,
+    setPrintCustomTitle,
+    openPrintReport,
+    openPrintWithMembers,
     isAddModalOpen,
     setIsAddModalOpen,
     isEditModalOpen,

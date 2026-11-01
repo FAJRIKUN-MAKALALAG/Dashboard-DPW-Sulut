@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
+import { useDebounce } from './useDebounce';
 import { getStructureTemplate } from '../data/structureTemplates';
 import {
   isDpdMatch,
@@ -45,6 +46,7 @@ export function useTerritorialMatrix({
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 250);
   const [statusFilter, setStatusFilter] = useState<'all' | 'filled' | 'empty'>('all');
   const [gridRows, setGridRows] = useState<GridRowItem[]>([]);
   const [rawTerritoryMembers, setRawTerritoryMembers] = useState<Member[]>([]);
@@ -1127,8 +1129,8 @@ export function useTerritorialMatrix({
       if (statusFilter === 'filled' && !isFilled) return false;
       if (statusFilter === 'empty' && isFilled) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (debouncedSearchQuery.trim()) {
+        const q = debouncedSearchQuery.toLowerCase();
         const matches =
           r.jabatan.toLowerCase().includes(q) ||
           r.namaLengkap.toLowerCase().includes(q) ||
@@ -1139,7 +1141,7 @@ export function useTerritorialMatrix({
       }
       return true;
     });
-  }, [gridRows, statusFilter, searchQuery]);
+  }, [gridRows, statusFilter, debouncedSearchQuery]);
 
   const getOfficialTitle = () => {
     if (level === 'DPW') {

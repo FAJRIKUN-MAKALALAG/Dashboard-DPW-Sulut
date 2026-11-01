@@ -635,7 +635,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
 
         {/* 4A. DPRt Villages Grid (For DPC & DPRt Admin) */}
         {isDpcScoped || isDprtScoped ? (
-          <div key={`dprt-grid-${filterTab}`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 animate-tab-enter">
+          <div key={`dprt-grid-${filterTab}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5 animate-tab-enter">
             {filteredDprtVillages.map((village) => (
               <div
                 key={village.name}
@@ -644,14 +644,14 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                   setSelectedDrawerInitialDpc(session?.dpcAccess || currentSubdistrict?.name || 'Amurang');
                   setSelectedDrawerRegion(currentRegion?.name || activeDpdScope || 'Kabupaten Minahasa Selatan');
                 }}
-                className="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-blue-400 dark:hover:border-blue-600 transition-all shadow-xs hover:shadow-sm cursor-pointer space-y-3 group flex flex-col justify-between"
+                className="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-400 dark:hover:border-slate-600 transition-all shadow-2xs hover:shadow-xs cursor-pointer space-y-3 group flex flex-col justify-between"
               >
                 {/* Header Card */}
                 <div className="space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="truncate">DPRt {village.name}</span>
                       </h5>
                       <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono block">
@@ -659,22 +659,23 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                       </span>
                     </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                        village.status === 'LENGKAP'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                          : village.status === 'SEBAGIAN'
-                          ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          village.status === 'LENGKAP'
+                            ? 'bg-emerald-500'
+                            : village.status === 'SEBAGIAN'
+                            ? 'bg-blue-600'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                      />
                       {village.status === 'LENGKAP'
-                        ? '✓ Lengkap 9/9'
+                        ? '9/9 Lengkap'
                         : village.filledCount > 0
                         ? `${village.filledCount}/9 Terisi`
                         : village.totalCadres > 0
                         ? `${village.totalCadres} Kader`
-                        : 'Belum Ada Kader'}
+                        : 'Kosong'}
                     </span>
                   </div>
                 </div>
@@ -682,7 +683,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                 {/* Progress Bar Formasi DPRt (9 Inti) */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-[10px] sm:text-[11px]">
-                    <span className="text-slate-500">Keterisian Formasi DPRt:</span>
+                    <span className="text-slate-500">Formasi DPRt:</span>
                     <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                       {village.percentage}% ({village.filledCount}/9)
                     </span>
@@ -690,10 +691,8 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                   <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                     <div
                       className={`h-1.5 rounded-full transition-all duration-300 ${
-                        village.percentage >= 100
-                          ? 'bg-emerald-500'
-                          : village.percentage > 0
-                          ? 'bg-blue-600'
+                        village.percentage > 0
+                          ? 'bg-[#1A3282] dark:bg-[#21409A]'
                           : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       style={{ width: `${Math.max(village.percentage, village.totalCadres > 0 ? 6 : 2)}%` }}
@@ -703,43 +702,40 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
 
                 {/* 3 Metric Chips */}
                 <div className="grid grid-cols-3 gap-1.5 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
-                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold block">
+                  <div className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
+                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
                       Formasi
                     </span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
                       {village.filledCount} / 9
                     </span>
-                    <span className="text-[8.5px] text-slate-400 block truncate">Jabatan</span>
                   </div>
 
-                  <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
-                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold block">
+                  <div className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
+                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
                       Kader
                     </span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
                       {village.totalCadres} Org
                     </span>
-                    <span className="text-[8.5px] text-slate-400 block truncate">Aktif Riil</span>
                   </div>
 
-                  <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
-                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold block">
+                  <div className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 text-center">
+                    <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
                       KSB
                     </span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
                       {village.ketuaDprt ? 'K✓' : 'K—'} {village.sekretarisDprt ? 'S✓' : 'S—'}
                     </span>
-                    <span className="text-[8.5px] text-slate-400 block truncate">Inti</span>
                   </div>
                 </div>
 
                 {/* Core Leader or Cadre Info */}
                 <div className="text-[11px] text-slate-600 dark:text-slate-400 min-h-[22px] flex items-center">
                   {village.ketuaDprt ? (
-                    <div className="flex items-center gap-1.5 text-[10.5px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-amber-800 dark:text-amber-300 w-full truncate">
-                      <span className="font-black text-[9px] font-mono px-1 rounded bg-amber-500 text-slate-950">#1</span>
-                      <span className="font-bold truncate">Ketua: {village.ketuaDprt.namaLengkap}</span>
+                    <div className="flex items-center gap-1.5 text-[10.5px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300 w-full truncate">
+                      <span className="font-black text-[9px] font-mono px-1 rounded bg-[#FDB813] text-slate-950">K</span>
+                      <span className="font-medium truncate">{village.ketuaDprt.namaLengkap}</span>
                     </div>
                   ) : village.totalCadres > 0 ? (
                     <div className="text-[10.5px] text-slate-500 truncate">
@@ -752,7 +748,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
 
                 {/* Footer Action Bar */}
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60 text-slate-500 font-medium mt-auto">
-                  <div className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                     <span>Rincian DPRt</span>
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                   </div>
@@ -767,11 +763,11 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                           'DPRt'
                         );
                       }}
-                      className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
                       title="Buka matriks DPRt & import Excel"
                     >
                       <Table className="w-3 h-3" />
-                      <span>Matriks DPRt</span>
+                      <span>Matriks</span>
                     </button>
                   )}
                 </div>
@@ -786,8 +782,15 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
             )}
           </div>
         ) : (
-          /* 4B. 15 Kab/Kota Grid Cards (For DPW, Super Admin, and DPD Admin) */
-          <div key={filterTab} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 animate-tab-enter">
+          /* 4B. 15 Kab/Kota Grid Cards (Full-Width Desktop 5 Columns -> 4 -> 3 -> 2 -> 1) */
+          <div
+            key={filterTab}
+            className={`grid grid-cols-1 sm:grid-cols-2 ${
+              filteredRegionStats.length === 1
+                ? 'lg:grid-cols-1 max-w-2xl'
+                : 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+            } gap-3.5 animate-tab-enter`}
+          >
             {filteredRegionStats.map((item) => {
               const {
                 region,
@@ -808,40 +811,41 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                     setSelectedDrawerInitialDpc(null);
                     setSelectedDrawerRegion(region.name);
                   }}
-                  className="p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-400 dark:hover:border-slate-600 transition-all shadow-xs hover:shadow-sm cursor-pointer space-y-2.5 sm:space-y-3 group"
+                  className="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-400 dark:hover:border-slate-600 transition-all shadow-2xs hover:shadow-xs cursor-pointer space-y-3 group flex flex-col justify-between"
                 >
                   {/* Header Card */}
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                         {region.name}
                       </h5>
-                      <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono">
+                      <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono block truncate">
                         Zona: {region.zone || 'Sulut'}
                       </span>
                     </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                        status === 'LENGKAP'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                          : status === 'SEBAGIAN'
-                          ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          status === 'LENGKAP'
+                            ? 'bg-emerald-500'
+                            : status === 'SEBAGIAN'
+                            ? 'bg-[#FDB813]'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                      />
                       {status === 'LENGKAP'
-                        ? '✓ Lengkap 36/36'
+                        ? '36/36'
                         : status === 'SEBAGIAN'
-                        ? `${compliance.filledCount}/36 Terisi`
-                        : 'Belum Ada SK'}
+                        ? `${compliance.filledCount}/36`
+                        : 'Kosong'}
                     </span>
                   </div>
 
                   {/* Single Clean Progress Bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] sm:text-[11px]">
-                      <span className="text-slate-500">Keterisian Formasi DPD:</span>
+                      <span className="text-slate-500">Formasi DPD:</span>
                       <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                         {compliance.percentage}% ({compliance.filledCount}/36)
                       </span>
@@ -849,10 +853,8 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-1.5 rounded-full transition-all duration-300 ${
-                          compliance.percentage >= 100
-                            ? 'bg-emerald-500'
-                            : compliance.percentage > 0
-                            ? 'bg-blue-600'
+                          compliance.percentage > 0
+                            ? 'bg-[#1A3282] dark:bg-[#21409A]'
                             : 'bg-slate-300 dark:bg-slate-700'
                         }`}
                         style={{ width: `${Math.max(compliance.percentage, 2)}%` }}
@@ -861,7 +863,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                   </div>
 
                   {/* 3 Interactive Key Metrics: DPC, DPRt, Total Kader */}
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="grid grid-cols-3 gap-1.5 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
                     {/* Metric 1: DPC */}
                     <div
                       onClick={(e) => {
@@ -870,19 +872,18 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                         setSelectedDrawerInitialDpc(null);
                         setSelectedDrawerRegion(region.name);
                       }}
-                      className="p-1.5 sm:p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all cursor-pointer group/stat"
-                      title="Klik untuk membuka micro-page grid DPC Kecamatan"
+                      className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all cursor-pointer group/stat"
+                      title="Klik untuk membuka rincian DPC Kecamatan"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold group-hover/stat:text-blue-600 dark:group-hover/stat:text-blue-400">
+                        <span className="text-[9.5px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
                           DPC
                         </span>
-                        <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:text-blue-500 group-hover/stat:translate-x-0.5 transition-all" />
+                        <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:translate-x-0.5 transition-all" />
                       </div>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs block mt-0.5">
-                        {filledDpcs} / {totalDpcs}
+                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
+                        {filledDpcs}/{totalDpcs}
                       </span>
-                      <span className="text-[9px] sm:text-[9.5px] text-slate-400 block truncate">Kecamatan</span>
                     </div>
 
                     {/* Metric 2: DPRt */}
@@ -893,19 +894,18 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                         setSelectedDrawerInitialDpc(null);
                         setSelectedDrawerRegion(region.name);
                       }}
-                      className="p-1.5 sm:p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all cursor-pointer group/stat"
+                      className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all cursor-pointer group/stat"
                       title="Klik untuk melihat sebaran DPRt Desa/Kelurahan"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold group-hover/stat:text-blue-600 dark:group-hover/stat:text-blue-400">
+                        <span className="text-[9.5px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
                           DPRt
                         </span>
-                        <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:text-blue-500 group-hover/stat:translate-x-0.5 transition-all" />
+                        <ChevronRight className="w-3 h-3 text-slate-400 group-hover/stat:translate-x-0.5 transition-all" />
                       </div>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs block mt-0.5">
-                        {filledDprts} / {totalDprts}
+                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
+                        {filledDprts}/{totalDprts}
                       </span>
-                      <span className="text-[9px] sm:text-[9.5px] text-slate-400 block truncate">Desa/Kel</span>
                     </div>
 
                     {/* Metric 3: Total Kader */}
@@ -916,23 +916,22 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                         setSelectedDrawerInitialDpc(null);
                         setSelectedDrawerRegion(region.name);
                       }}
-                      className="p-1.5 sm:p-2 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all cursor-pointer"
                       title="Total kader riil ber-KTP di wilayah ini"
                     >
-                      <span className="text-[9.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block">
+                      <span className="text-[9.5px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
                         Kader
                       </span>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs block mt-0.5">
-                        {regMembersCount} Org
+                      <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
+                        {regMembersCount}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 block truncate">Total Riil</span>
                     </div>
                   </div>
 
                   {/* Footer Action Bar */}
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60 text-slate-500 font-medium">
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      <span>Buka Rincian DPD</span>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60 text-slate-500 font-medium mt-auto">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                      <span>Rincian</span>
                       <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                     {onOpenTerritorialMatrix && (
@@ -942,11 +941,11 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                           e.stopPropagation();
                           onOpenTerritorialMatrix(region.name, undefined, 'DPD');
                         }}
-                        className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors flex items-center gap-1 cursor-pointer"
+                        className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
                         title="Buka matriks DPD & import Excel"
                       >
                         <Table className="w-3 h-3" />
-                        <span>Matriks & Import</span>
+                        <span>Matriks</span>
                       </button>
                     )}
                   </div>
