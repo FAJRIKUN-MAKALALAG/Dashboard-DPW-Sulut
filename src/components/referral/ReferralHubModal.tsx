@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { UserSession, Member, MyReferralProfile, ReferralTrackingData } from '../../types';
 import { referralService } from '../../services/referralService';
+import { useDebounce } from '../../hooks/useDebounce';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
 interface ReferralHubModalProps {
@@ -45,6 +46,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [showQr, setShowQr] = useState<boolean>(false);
   const [searchRecruit, setSearchRecruit] = useState<string>('');
+  const debouncedSearchRecruit = useDebounce(searchRecruit, 250);
 
   const loadData = async () => {
     setLoading(true);
@@ -94,8 +96,8 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
 
   const filteredMyRecruits = useMemo(() => {
     if (!tracking?.myRecruits) return [];
-    if (!searchRecruit.trim()) return tracking.myRecruits;
-    const q = searchRecruit.toLowerCase();
+    if (!debouncedSearchRecruit.trim()) return tracking.myRecruits;
+    const q = debouncedSearchRecruit.toLowerCase();
     return tracking.myRecruits.filter(
       (m) =>
         m.namaLengkap.toLowerCase().includes(q) ||
@@ -103,12 +105,12 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
         m.dpd.toLowerCase().includes(q) ||
         m.dpc.toLowerCase().includes(q)
     );
-  }, [tracking?.myRecruits, searchRecruit]);
+  }, [tracking?.myRecruits, debouncedSearchRecruit]);
 
   const filteredTeamRecruits = useMemo(() => {
     if (!tracking?.teamRecruits) return [];
-    if (!searchRecruit.trim()) return tracking.teamRecruits;
-    const q = searchRecruit.toLowerCase();
+    if (!debouncedSearchRecruit.trim()) return tracking.teamRecruits;
+    const q = debouncedSearchRecruit.toLowerCase();
     return tracking.teamRecruits.filter(
       (m) =>
         m.namaLengkap.toLowerCase().includes(q) ||
@@ -116,7 +118,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
         (m.kaderPerekrutNama && m.kaderPerekrutNama.toLowerCase().includes(q)) ||
         m.dpd.toLowerCase().includes(q)
     );
-  }, [tracking?.teamRecruits, searchRecruit]);
+  }, [tracking?.teamRecruits, debouncedSearchRecruit]);
 
   if (!isOpen) return null;
 

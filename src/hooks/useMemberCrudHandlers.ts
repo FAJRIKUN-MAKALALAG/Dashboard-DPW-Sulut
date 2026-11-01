@@ -2,13 +2,9 @@ import { useCallback } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from '../types';
 import {
   saveMembers,
-  loadMembers,
   loadAuditLogs,
-  saveAuditLogs,
   appendAuditLog,
-  loadDeletionRequests,
   saveDeletionRequests,
-  resetToDefaultSeeds,
 } from '../utils/storage';
 import {
   isSupabaseConfigured,
@@ -509,18 +505,6 @@ export function useMemberCrudHandlers({
     showToast(`Permohonan penghapusan kader ${target.memberName} ditolak.`);
   };
 
-  // 11. RESET DEMO DATA
-  const handleResetDemoData = () => {
-    if (window.confirm('Reset database ke data awal DPW Partai NasDem Sulawesi Utara?')) {
-      resetToDefaultSeeds();
-      const fresh = loadMembers();
-      setMembers(fresh);
-      setAuditLogs(loadAuditLogs());
-      setDeletionRequests(loadDeletionRequests());
-      showToast('Database berhasil di-reset.');
-    }
-  };
-
   return {
     recordAuditLog,
     handleAddMember,
@@ -534,6 +518,5 @@ export function useMemberCrudHandlers({
     handleSubmitDeletionRequest,
     handleApproveDeletionRequest,
     handleRejectDeletionRequest,
-    handleResetDemoData,
   };
 }

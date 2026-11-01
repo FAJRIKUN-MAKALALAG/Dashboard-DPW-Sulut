@@ -529,7 +529,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors disabled:opacity-60 shrink-0"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors disabled:opacity-60 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             <span>{isSubmitting ? 'Mendaftarkan...' : 'Daftarkan Anggota Baru'}</span>

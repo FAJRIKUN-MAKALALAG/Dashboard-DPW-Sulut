@@ -7,6 +7,51 @@ const STORAGE_KEYS = {
   DELETION_REQUESTS: 'nasdem_sulut_ekta_deletion_requests_real_v1',
 };
 
+const STORAGE_DEBOUNCE_MS = 600;
+const pendingValues = new Map<string, unknown>();
+const pendingTimers = new Map<string, number>();
+
+function flushKeyNow(key: string): void {
+  const timer = pendingTimers.get(key);
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+    pendingTimers.delete(key);
+  }
+  if (!pendingValues.has(key)) return;
+  const val = pendingValues.get(key);
+  pendingValues.delete(key);
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) {
+    console.warn(`Peringatan penyimpanan lokal (${key}): kapasitas localStorage penuh atau dibatasi.`, e);
+  }
+}
+
+export function flushAllPendingStorage(): void {
+  Array.from(pendingValues.keys()).forEach(flushKeyNow);
+}
+
+function scheduleDebouncedSave(key: string, value: unknown): void {
+  pendingValues.set(key, value);
+  const existing = pendingTimers.get(key);
+  if (existing !== undefined) {
+    window.clearTimeout(existing);
+  }
+  if (typeof window === 'undefined') {
+    flushKeyNow(key);
+    return;
+  }
+  const timer = window.setTimeout(() => {
+    flushKeyNow(key);
+  }, STORAGE_DEBOUNCE_MS);
+  pendingTimers.set(key, timer);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushAllPendingStorage);
+  window.addEventListener('beforeunload', flushAllPendingStorage);
+}
+
 // Bersihkan cache dummy lama agar tidak mengotori data riil
 try {
   [
@@ -27,6 +72,10 @@ export const DEFAULT_SUPER_ADMIN: UserSession = {
 };
 
 export function loadMembers(): Member[] {
+  if (pendingValues.has(STORAGE_KEYS.MEMBERS)) {
+    const mem = pendingValues.get(STORAGE_KEYS.MEMBERS);
+    if (Array.isArray(mem)) return mem as Member[];
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
     if (!raw) return [];
@@ -41,14 +90,14 @@ export function loadMembers(): Member[] {
 }
 
 export function saveMembers(members: Member[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
-  } catch (e) {
-    console.error('Error saving members to localStorage', e);
-  }
+  scheduleDebouncedSave(STORAGE_KEYS.MEMBERS, members);
 }
 
 export function loadAuditLogs(): AuditLog[] {
+  if (pendingValues.has(STORAGE_KEYS.AUDIT_LOGS)) {
+    const logs = pendingValues.get(STORAGE_KEYS.AUDIT_LOGS);
+    if (Array.isArray(logs)) return logs as AuditLog[];
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
     if (!raw) return [];
@@ -61,11 +110,7 @@ export function loadAuditLogs(): AuditLog[] {
 }
 
 export function saveAuditLogs(logs: AuditLog[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs));
-  } catch (e) {
-    console.error('Error saving audit logs', e);
-  }
+  scheduleDebouncedSave(STORAGE_KEYS.AUDIT_LOGS, logs);
 }
 
 export function appendAuditLog(log: Omit<AuditLog, 'id' | 'timestamp'>): void {
@@ -101,12 +146,23 @@ export function saveSession(session: UserSession): void {
 }
 
 export function resetToDefaultSeeds(): void {
-  saveMembers([]);
-  localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
-  localStorage.removeItem(STORAGE_KEYS.DELETION_REQUESTS);
+  pendingValues.delete(STORAGE_KEYS.MEMBERS);
+  pendingValues.delete(STORAGE_KEYS.AUDIT_LOGS);
+  pendingValues.delete(STORAGE_KEYS.DELETION_REQUESTS);
+  pendingTimers.forEach((t) => window.clearTimeout(t));
+  pendingTimers.clear();
+  try {
+    localStorage.setItem(STORAGE_KEYS.MEMBERS, '[]');
+    localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+    localStorage.removeItem(STORAGE_KEYS.DELETION_REQUESTS);
+  } catch {}
 }
 
 export function loadDeletionRequests(): DeletionRequest[] {
+  if (pendingValues.has(STORAGE_KEYS.DELETION_REQUESTS)) {
+    const reqs = pendingValues.get(STORAGE_KEYS.DELETION_REQUESTS);
+    if (Array.isArray(reqs)) return reqs as DeletionRequest[];
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.DELETION_REQUESTS);
     if (!raw) return [];
@@ -119,11 +175,7 @@ export function loadDeletionRequests(): DeletionRequest[] {
 }
 
 export function saveDeletionRequests(requests: DeletionRequest[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.DELETION_REQUESTS, JSON.stringify(requests));
-  } catch (e) {
-    console.error('Error saving deletion requests', e);
-  }
+  scheduleDebouncedSave(STORAGE_KEYS.DELETION_REQUESTS, requests);
 }
 
 export function appendDeletionRequest(

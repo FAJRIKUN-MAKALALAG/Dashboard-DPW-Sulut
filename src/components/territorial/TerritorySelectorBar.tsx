@@ -6,7 +6,7 @@ import {
   MapPin,
   Home,
   CheckCircle2,
-  Sparkles,
+  Users,
   AlertCircle,
 } from 'lucide-react';
 import { SulutRegion } from '../../types';
@@ -47,39 +47,39 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
   onBackToDashboard,
 }) => {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-xs">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-5 shadow-2xs">
       {onBackToDashboard && (
         <button
           onClick={onBackToDashboard}
-          className="btn-white text-xs font-semibold px-2.5 py-1 rounded-xl flex items-center gap-1.5 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs mb-2.5 self-start"
+          className="text-xs font-semibold px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer mb-2.5 transition-colors"
           title="Kembali ke Dashboard Utama"
         >
-          <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
           <span>Dashboard</span>
         </button>
       )}
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
-              {level === 'DPW' && <Building2 className="w-3 h-3 text-blue-600" />}
-              {level === 'DPD' && <Building className="w-3 h-3 text-blue-600" />}
-              {level === 'DPC' && <MapPin className="w-3 h-3 text-blue-600" />}
-              {level === 'DPRt' && <Home className="w-3 h-3 text-blue-600" />}
+            <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold bg-[#1A3282]/10 dark:bg-slate-800 text-[#1A3282] dark:text-slate-200 border border-[#1A3282]/20 dark:border-slate-700 flex items-center gap-1 uppercase tracking-wider">
+              {level === 'DPW' && <Building2 className="w-3 h-3 text-[#1A3282] dark:text-[#FDB813]" />}
+              {level === 'DPD' && <Building className="w-3 h-3 text-[#1A3282] dark:text-[#FDB813]" />}
+              {level === 'DPC' && <MapPin className="w-3 h-3 text-[#1A3282] dark:text-[#FDB813]" />}
+              {level === 'DPRt' && <Home className="w-3 h-3 text-[#1A3282] dark:text-[#FDB813]" />}
               <span>STRUKTUR {level}</span>
             </span>
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-              DPW Sulut
+            <span className="text-[11px] sm:text-xs font-mono text-slate-500 dark:text-slate-400">
+              DPW Sulawesi Utara
             </span>
           </div>
-          <h1 className="text-base sm:text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-base sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
             {level === 'DPW' && 'Pengurus DPW Sulawesi Utara'}
             {level === 'DPD' && `Pengurus DPD ${selectedDpd}`}
             {level === 'DPC' && `Pengurus DPC Kec. ${selectedDpc}`}
             {level === 'DPRt' && `Pengurus DPRt ${selectedDprt}`}
           </h1>
-          <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {level === 'DPW' &&
               'Struktur resmi DPW terdiri dari 70 jabatan: Dewan Pertimbangan, Dewan Pakar, dan Dewan Pimpinan Wilayah.'}
             {level === 'DPD' &&
@@ -91,14 +91,14 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
           </p>
         </div>
 
-        {/* Territory Selectors */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Territory Selectors - Responsive Grid on Mobile/Tablet, Flex on Desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-stretch lg:items-center gap-2">
           {level !== 'DPW' && (
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <Building className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-              <div className="text-left">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Pilih DPD
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 min-w-0">
+              <Building className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="text-left min-w-0 flex-1">
+                <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                  Pilih DPD (Kab/Kota)
                 </span>
                 <select
                   value={selectedDpd}
@@ -112,7 +112,7 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
                       setSelectedDprt(reg.subdistricts[0].villages[0] || 'Pusat');
                     }
                   }}
-                  className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                  className={`w-full bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none truncate ${
                     availableRegions.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
                   }`}
                 >
@@ -127,10 +127,10 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
           )}
 
           {(level === 'DPC' || level === 'DPRt') && (
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div className="text-left">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 min-w-0">
+              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="text-left min-w-0 flex-1">
+                <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
                   Pilih DPC (Kecamatan)
                 </span>
                 <select
@@ -144,7 +144,7 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
                       setSelectedDprt(sub.villages[0]);
                     }
                   }}
-                  className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                  className={`w-full bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none truncate ${
                     availableSubdistricts.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
                   }`}
                 >
@@ -159,17 +159,17 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
           )}
 
           {level === 'DPRt' && (
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <Home className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-              <div className="text-left">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 min-w-0 sm:col-span-2 lg:col-span-1">
+              <Home className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="text-left min-w-0 flex-1">
+                <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
                   Pilih DPRt (Desa/Kel.)
                 </span>
                 <select
                   value={selectedDprt}
                   disabled={availableVillages.length <= 1}
                   onChange={(e) => setSelectedDprt(e.target.value)}
-                  className={`bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none pr-1 ${
+                  className={`w-full bg-transparent font-bold text-xs text-slate-900 dark:text-white focus:outline-none truncate ${
                     availableVillages.length <= 1 ? 'cursor-default opacity-90' : 'cursor-pointer'
                   }`}
                 >
@@ -185,81 +185,70 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
         </div>
       </div>
 
-      {/* Progress & Metrics KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+      {/* Progress & Metrics KPI Cards (Compact 3-Col Grid even on Mobile/Tablet) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800">
+        <div className="bg-slate-50/70 dark:bg-slate-950/50 rounded-lg p-2.5 sm:p-3 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-              Tingkat Keterisian
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
+              Keterisian
             </span>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-base sm:text-2xl font-bold text-slate-900 dark:text-white font-mono tabular-nums">
                 {completionPercentage}%
               </span>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  completionPercentage >= 100
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                }`}
-              >
-                {completionPercentage >= 100 ? 'Lengkap' : 'Belum Lengkap'}
+              <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    completionPercentage >= 100 ? 'bg-emerald-500' : 'bg-[#FDB813]'
+                  }`}
+                />
+                {completionPercentage >= 100 ? 'Lengkap' : 'Proses'}
               </span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/80 flex items-center justify-center text-blue-600 dark:text-blue-400">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
+          <CheckCircle2 className="hidden sm:block w-4 h-4 text-slate-400 shrink-0" />
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+        <div className="bg-slate-50/70 dark:bg-slate-950/50 rounded-lg p-2.5 sm:p-3 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-              Jabatan Terisi
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
+              Terisi
             </span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-base sm:text-2xl font-bold text-slate-900 dark:text-white font-mono tabular-nums">
                 {filledCount}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                dari {totalRows} posisi kuota
+              <span className="text-[10px] sm:text-xs text-slate-400 font-mono">
+                /{totalRows}
               </span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <Sparkles className="w-5 h-5" />
-          </div>
+          <Users className="hidden sm:block w-4 h-4 text-slate-400 shrink-0" />
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+        <div className="bg-slate-50/70 dark:bg-slate-950/50 rounded-lg p-2.5 sm:p-3 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-              Jabatan Kosong / Tersisa
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
+              Lowong
             </span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-base sm:text-2xl font-bold text-slate-900 dark:text-white font-mono tabular-nums">
                 {emptyCount}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {emptyCount === 0 ? 'Semua posisi terisi' : 'perlu diisi kader'}
-              </span>
+              <span className="hidden sm:inline text-xs text-slate-400">posisi</span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/80 flex items-center justify-center text-amber-600 dark:text-amber-400">
-            <AlertCircle className="w-5 h-5" />
-          </div>
+          <AlertCircle className="hidden sm:block w-4 h-4 text-slate-400 shrink-0" />
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mt-3 overflow-hidden">
+      {/* Slim Monochrome Progress Bar */}
+      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2.5 overflow-hidden">
         <div
-          className={`h-2 rounded-full transition-all duration-500 ${
+          className={`h-1.5 rounded-full transition-all duration-500 ${
             completionPercentage >= 100
               ? 'bg-emerald-500'
-              : completionPercentage >= 50
-              ? 'bg-blue-600'
-              : 'bg-amber-500'
+              : 'bg-[#1A3282] dark:bg-[#21409A]'
           }`}
           style={{ width: `${Math.max(2, Math.min(completionPercentage, 100))}%` }}
         />

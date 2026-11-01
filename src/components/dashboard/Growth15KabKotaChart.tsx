@@ -93,72 +93,72 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
     };
   }, [maxCount]);
 
-  // SVG coordinate constants matching Column15Chart
-  const svgHeight = 440;
-  const svgWidth = 1100;
-  const chartTop = 45;
-  const chartBottom = svgHeight - 110;
+  // SVG coordinate constants
+  const svgHeight = 420;
+  const svgWidth = 1000;
+  const chartTop = 40;
+  const chartBottom = svgHeight - 105;
   const chartHeight = chartBottom - chartTop;
-  const chartLeft = 65;
-  const chartRight = svgWidth - 30;
+  const chartLeft = 58;
+  const chartRight = svgWidth - 24;
   const chartWidth = chartRight - chartLeft;
   const barSlotWidth = chartWidth / bars.length;
-  const barWidth = Math.min(barSlotWidth * 0.65, 48);
+  const barWidth = Math.min(barSlotWidth * 0.62, 42);
 
   const hoveredBar = hoveredBarIndex !== null ? bars[hoveredBarIndex] : null;
 
   return (
-    <div className="relative bg-zinc-950 border border-zinc-800 rounded-xl p-4 sm:p-6 flex flex-col shadow-sm">
+    <div className="relative bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col justify-between h-full">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3.5 border-b border-slate-200 dark:border-slate-800 mb-2">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-              Distribusi Penambahan Anggota 15 Kabupaten / Kota
+            <span className="w-2 h-2 rounded-full bg-[#1A3282] dark:bg-[#FDB813] shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-wide uppercase">
+              Grafik Penambahan 15 Kabupaten / Kota
             </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-900 text-blue-400 border border-zinc-800">
-              PROVINSI SULAWESI UTARA
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+              {periodLabel}
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Perbandingan penambahan anggota baru di tiap DPD se-Sulut ({periodLabel})
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Distribusi penambahan kader baru per DPD Kabupaten/Kota se-Sulawesi Utara
           </p>
         </div>
 
         {/* Action Controls & Legends */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="hidden lg:flex items-center gap-3 text-[11px] px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800">
-            <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
-              <span className="w-2.5 h-2.5 rounded-xs bg-blue-600" />
-              Penambahan DPD
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="hidden sm:flex items-center gap-3 text-[10px] px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium">
+              <span className="w-2 h-2 rounded-xs bg-[#FDB813]" />
+              Tertinggi
             </span>
-            <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
-              <span className="w-2.5 h-2.5 rounded-xs bg-amber-500" />
-              Tertinggi (Rank 1)
+            <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium">
+              <span className="w-2 h-2 rounded-xs bg-[#1A3282] dark:bg-[#21409A]" />
+              Aktif
             </span>
-            <span className="flex items-center gap-1.5 text-zinc-500 font-normal">
-              <span className="w-2.5 h-2.5 rounded-xs bg-zinc-800" />
-              0 Penambahan
+            <span className="flex items-center gap-1.5 text-slate-400 font-normal">
+              <span className="w-2 h-2 rounded-xs bg-slate-200 dark:bg-slate-800" />
+              0
             </span>
           </div>
 
           <button
             onClick={onOpenAuditModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold border border-zinc-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
             title="Buka Audit Lengkap Modal"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-            <span>Audit Lengkap</span>
+            <Maximize2 className="w-3 h-3 text-slate-500" />
+            <span>Audit</span>
           </button>
         </div>
       </div>
 
-      {/* SVG Dark Canvas */}
-      <div className="w-full overflow-x-auto select-none py-2">
+      {/* SVG Canvas */}
+      <div className="w-full overflow-x-auto select-none py-1">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full h-auto min-w-[750px]"
+          className="w-full h-auto min-w-[600px]"
         >
           {/* Horizontal Gridlines & Y-Axis Labels */}
           {yTicks.map((val, idx) => {
@@ -170,14 +170,15 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
                   y1={y}
                   x2={chartRight}
                   y2={y}
-                  stroke="#27272A"
+                  stroke="currentColor"
+                  className="text-slate-200 dark:text-slate-800"
                   strokeDasharray={val === 0 ? 'none' : '3 3'}
                   strokeWidth={val === 0 ? '1.5' : '1'}
                 />
                 <text
-                  x={chartLeft - 12}
+                  x={chartLeft - 10}
                   y={y + 4}
-                  fill="#71717A"
+                  fill="#64748B"
                   fontSize="11"
                   fontFamily="monospace"
                   textAnchor="end"
@@ -190,16 +191,16 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
 
           {/* Y-Axis Title */}
           <text
-            transform={`rotate(-90, 20, ${chartTop + chartHeight / 2})`}
-            x={20}
+            transform={`rotate(-90, 16, ${chartTop + chartHeight / 2})`}
+            x={16}
             y={chartTop + chartHeight / 2}
-            fill="#71717A"
-            fontSize="10"
+            fill="#64748B"
+            fontSize="9.5"
             fontWeight="600"
             textAnchor="middle"
             letterSpacing="1"
           >
-            PENAMBAHAN ANGGOTA BARU
+            PENAMBAHAN KADER
           </text>
 
           {/* 15 Regional Bars */}
@@ -212,13 +213,13 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
             const isTopRank = topPerformer !== null && item.key === topPerformer.key && item.total > 0;
             const isEmpty = item.total === 0;
 
-            let barFill = '#2563EB';
+            let barFill = '#1A3282'; // Primary Blue NasDem
             if (isEmpty) {
-              barFill = '#27272A';
+              barFill = '#CBD5E1';
             } else if (isTopRank) {
-              barFill = '#D97706';
+              barFill = '#FDB813'; // Gold NasDem for #1 Rank
             } else if (isHovered) {
-              barFill = '#3B82F6';
+              barFill = '#21409A'; // Secondary Blue NasDem on hover
             }
 
             return (
@@ -236,8 +237,9 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
                     y={chartTop}
                     width={barSlotWidth - 4}
                     height={chartHeight + 6}
-                    fill="#18181B"
-                    rx="2"
+                    fill="#94A3B8"
+                    fillOpacity="0.12"
+                    rx="3"
                   />
                 )}
 
@@ -248,16 +250,17 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
                   width={barWidth}
                   height={isEmpty ? 2 : Math.max(barH, 3)}
                   fill={barFill}
-                  rx="1"
-                  ry="1"
+                  rx="2"
+                  ry="2"
                 />
 
                 {/* Addition Value on Top of Bar */}
                 <text
                   x={xCenter}
                   y={isEmpty ? chartBottom - 8 : barY - 8}
-                  fill={isEmpty ? '#52525B' : isTopRank ? '#F59E0B' : '#FFFFFF'}
-                  fontSize="11.5"
+                  fill={isEmpty ? '#94A3B8' : isTopRank ? '#9E6706' : '#1A3282'}
+                  className={isEmpty ? '' : isTopRank ? 'dark:fill-[#FDB813]' : 'dark:fill-slate-200'}
+                  fontSize="11"
                   fontWeight={isTopRank ? '800' : '700'}
                   fontFamily="monospace"
                   textAnchor="middle"
@@ -266,14 +269,14 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
                 </text>
 
                 {/* Angled 45° X-Axis Label */}
-                <g transform={`translate(${xCenter}, ${chartBottom + 16})`}>
+                <g transform={`translate(${xCenter}, ${chartBottom + 14})`}>
                   <text
-                    transform="rotate(-45)"
-                    fill={isHovered ? '#60A5FA' : isTopRank ? '#F59E0B' : '#A1A1AA'}
+                    transform="rotate(-40)"
+                    fill={isTopRank ? '#9E6706' : isHovered ? '#1A3282' : '#475569'}
+                    className={isTopRank ? 'dark:fill-[#FDB813]' : isHovered ? 'dark:fill-white' : 'dark:fill-slate-400'}
                     fontSize="10"
                     fontWeight={isHovered || isTopRank ? '700' : '600'}
                     textAnchor="end"
-                    letterSpacing="0.2"
                   >
                     {item.name}
                   </text>
@@ -285,47 +288,38 @@ export const Growth15KabKotaChart: React.FC<Growth15KabKotaChartProps> = ({
       </div>
 
       {/* Footer Status Bar */}
-      <div className="mt-3 pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-4 text-zinc-400">
+      <div className="mt-2 pt-2.5 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
           {hoveredBar ? (
-            <div className="flex items-center gap-2.5 animate-in fade-in duration-100 flex-wrap">
-              <span className="font-bold text-white">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-slate-900 dark:text-white">
                 {hoveredBar.label}:
               </span>
-              <span className="text-blue-400 font-mono font-bold">
-                +{hoveredBar.total} Anggota Baru ({hoveredBar.percentage.toFixed(1)}% Penambahan Sulut)
+              <span className="text-blue-600 dark:text-blue-400 font-mono font-bold">
+                +{hoveredBar.total} Kader ({hoveredBar.percentage.toFixed(1)}%)
               </span>
-              <span className="text-zinc-600">&bull;</span>
-              <span className="text-amber-400 font-mono font-semibold">
-                {hoveredBar.dpcsCount} DPC Kecamatan Terlibat
+              <span>·</span>
+              <span className="font-mono">
+                {hoveredBar.dpcsCount} DPC Kecamatan
               </span>
               {hoveredBar.recruiters.length > 0 && (
                 <>
-                  <span className="text-zinc-600">&bull;</span>
-                  <span className="text-emerald-400 font-medium">
-                    Direkrut oleh: {hoveredBar.recruiters.slice(0, 2).map((r) => `${r.nama.split(',')[0]} (+${r.count})`).join(', ')}
+                  <span>·</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">
+                    Perekrut: {hoveredBar.recruiters.slice(0, 2).map((r) => `${r.nama.split(',')[0]} (+${r.count})`).join(', ')}
                   </span>
                 </>
               )}
-              <span className="text-zinc-600">&bull;</span>
-              <span className="text-zinc-400 italic">
-                (Klik batang untuk melihat rincian anggota)
-              </span>
             </div>
           ) : (
-            <span className="text-zinc-400 flex items-center gap-2">
-              <span className="text-blue-500 font-bold">&bull;</span>
-              <span>Klik batang wilayah untuk audit rincian anggota dan kader perekrut</span>
-              <span className="text-zinc-600">&bull;</span>
-              <span className="text-zinc-500">
-                Total Penambahan Periode: <strong className="text-white">+{totalNew} Anggota Baru</strong> di 15 Kabupaten / Kota
-              </span>
+            <span>
+              Klik batang wilayah untuk rincian · Total Periode: <strong className="text-slate-900 dark:text-white font-mono">+{totalNew} Kader</strong>
             </span>
           )}
         </div>
 
-        <div className="text-[11px] text-zinc-400 font-mono">
-          PARTAI NASDEM DPW SULUT &bull; <strong className="text-white">15 DPD</strong> &bull; <strong className="text-amber-400">171 DPC</strong> &bull; <strong className="text-emerald-400">1.602 DPRt</strong>
+        <div className="text-[10px] text-slate-400 font-mono">
+          15 DPD · 171 DPC · 1.602 DPRt
         </div>
       </div>
     </div>

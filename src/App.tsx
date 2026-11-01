@@ -11,6 +11,9 @@ import {
 import {
   isSupabaseConfigured,
   getMembersFromSupabase,
+  MemberService,
+  AuditService,
+  DeletionRequestService,
   getToken,
   clearToken,
   AUTH_EXPIRED_EVENT,
@@ -35,7 +38,6 @@ import { useAppRealtimeSync } from './hooks/useAppRealtimeSync';
 import { useMemberCrudHandlers } from './hooks/useMemberCrudHandlers';
 import {
   Printer,
-  RotateCcw,
   CheckCircle2,
   Sun,
   Moon,
@@ -69,6 +71,7 @@ export default function App() {
     return getDefaultActiveTab(loadSession());
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
   const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
 
@@ -117,16 +120,17 @@ export default function App() {
 
   // Manual Cloud Sync Trigger
   const handleRefreshFromSupabase = async () => {
+    if (isRefreshingCloud) return;
     setIsRefreshingCloud(true);
-    showToast('Sedang menarik seluruh data terbaru dari database Supabase...');
+    showToast('Sedang menarik seluruh data terbaru dari database server...');
     try {
-      const cloudMembers = await getMembersFromSupabase();
+      const cloudMembers = await getMembersFromSupabase({ force: true });
       if (cloudMembers !== null) {
         setMembers(cloudMembers);
         saveMembers(cloudMembers);
-        showToast(`✅ Berhasil menarik ${cloudMembers.length} data kader langsung dari Supabase live!`);
+        showToast(`✅ Berhasil menarik ${cloudMembers.length} data kader langsung dari server live!`);
       } else {
-        showToast('⚠️ Gagal menarik data dari Supabase / Backend. Pastikan backend aktif.');
+        showToast('⚠️ Gagal menarik data dari Backend. Pastikan backend aktif.');
       }
     } catch (e: any) {
       console.error('Error saat refresh cloud:', e);
@@ -144,17 +148,27 @@ export default function App() {
   }, [session?.role, activeTab]);
 
   const handleLoginSuccess = (userSession: UserSession) => {
+    MemberService.invalidateCache();
+    AuditService.invalidateCache();
+    DeletionRequestService.invalidateCache();
+    const wasAlreadyAuthenticated = isAuthenticated;
     setSession(userSession);
     saveSession(userSession);
     setIsAuthenticated(true);
     localStorage.setItem('nasdem_sulut_authenticated', 'true');
     showToast(`Selamat datang, ${userSession.adminName}`);
-    loadInitialCloudData();
+    // Jika sebelumnya false -> useEffect di useAppRealtimeSync otomatis memanggil loadInitialCloudData sekali
+    if (wasAlreadyAuthenticated) {
+      loadInitialCloudData();
+    }
     setActiveTab(getDefaultActiveTab(userSession));
   };
 
   useEffect(() => {
     const handleAuthExpired = () => {
+      MemberService.invalidateCache();
+      AuditService.invalidateCache();
+      DeletionRequestService.invalidateCache();
       setIsAuthenticated(false);
       localStorage.removeItem('nasdem_sulut_authenticated');
       clearToken();
@@ -168,6 +182,9 @@ export default function App() {
   }, [showToast]);
 
   const handleLogout = () => {
+    MemberService.invalidateCache();
+    AuditService.invalidateCache();
+    DeletionRequestService.invalidateCache();
     setIsAuthenticated(false);
     localStorage.removeItem('nasdem_sulut_authenticated');
     clearToken();
@@ -395,7 +412,7 @@ export default function App() {
         isCloudConnected={isCloudConnected}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onOpenPrintReport={() => modals.setIsPrintReportOpen(true)}
+        onOpenPrintReport={modals.openPrintReport}
         onOpenRoleModal={() => modals.setIsRoleModalOpen(true)}
         onOpenAuditModal={() => modals.setIsAuditModalOpen(true)}
         onOpenDeletionApproval={() => modals.setIsDeletionApprovalOpen(true)}
@@ -404,12 +421,18 @@ export default function App() {
         onLogout={handleLogout}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      {/* 2. Main Viewport Container */}
-      <div className="flex-1 lg:pl-72 flex flex-col min-w-0 min-h-screen">
+      {/* 2. Main Viewport Container (Full-Fluid Desktop Workspace) */}
+      <div
+        className={`flex-1 ${
+          isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        } flex flex-col min-w-0 min-h-screen transition-all duration-200`}
+      >
         {/* Minimalist Top Bar: Mobile Hamburger + Breadcrumb + Quick Tools */}
-        <header className="no-print sticky top-0 z-30 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
+        <header className="no-print sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-5 lg:px-7 2xl:px-8 h-14 sm:h-15 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
@@ -422,20 +445,20 @@ export default function App() {
             {activeTab !== getDefaultActiveTab(session) && (
               <button
                 onClick={() => setActiveTab(getDefaultActiveTab(session))}
-                className="btn-white flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs shrink-0"
+                className="btn-white flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs shrink-0"
                 title="Kembali ke Halaman Utama"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <ArrowLeft className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
                 <span className="hidden sm:inline">Kembali</span>
               </button>
             )}
 
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline shrink-0">
-                Menu &raquo;
+              <span className="text-xs font-medium text-slate-400 hidden sm:inline shrink-0">
+                Navigasi /
               </span>
               <span
-                className="font-extrabold text-xs sm:text-base text-slate-900 dark:text-white truncate block"
+                className="font-bold text-xs sm:text-sm md:text-base text-slate-900 dark:text-white truncate block"
                 title={
                   activeTab === 'dashboard'
                     ? 'Dashboard Eksekutif'
@@ -479,48 +502,48 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={toggleTheme}
-              className="btn-white p-2 rounded-xl text-xs font-medium cursor-pointer"
+              className="btn-white p-2 rounded-xl text-xs font-medium cursor-pointer border border-slate-200 dark:border-slate-700"
               title={theme === 'light' ? 'Mode Malam' : 'Mode Terang'}
             >
               {theme === 'light' ? (
-                <Moon className="w-4 h-4 text-slate-700" />
+                <Moon className="w-4 h-4 text-slate-600" />
               ) : (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-4 h-4 text-slate-300" />
               )}
             </button>
 
             {session?.role !== 'ANGGOTA' && (
               <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
-                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                 title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
                 aria-label="Unduh Template Excel"
               >
-                <Download className="w-4 h-4 md:w-3.5 md:h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden md:inline whitespace-nowrap">Unduh Template Excel</span>
+                <Download className="w-4 h-4 md:w-3.5 md:h-3.5 text-slate-500 dark:text-slate-400" />
+                <span className="hidden md:inline whitespace-nowrap">Template Excel</span>
               </button>
             )}
 
             {session?.role !== 'ANGGOTA' && (
               <button
-                onClick={() => modals.setIsPrintReportOpen(true)}
-                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-medium rounded-xl cursor-pointer shadow-2xs text-blue-600 dark:text-blue-400"
+                onClick={modals.openPrintReport}
+                className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                 title="Cetak Laporan PDF Ringkasan Atasan"
                 aria-label="Laporan PDF"
               >
-                <Printer className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                <Printer className="w-4 h-4 md:w-3.5 md:h-3.5 text-slate-500 dark:text-slate-400" />
                 <span className="hidden md:inline whitespace-nowrap">Laporan PDF</span>
               </button>
             )}
           </div>
         </header>
 
-        {/* Main Content Area */}
+        {/* Main Content Area: Full-Width Desktop Workspace */}
         <main
-          className={`flex-1 w-full mx-auto ${
+          className={`flex-1 w-full max-w-none ${
             activeTab === 'analytics'
-              ? 'max-w-[1850px] px-2 sm:px-4 py-4'
-              : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'
+              ? 'px-2 sm:px-4 lg:px-6 py-4'
+              : 'px-3 sm:px-5 lg:px-6 2xl:px-8 py-4 sm:py-6'
           }`}
         >
           <div key={activeTab} className="animate-page-enter">
@@ -529,7 +552,7 @@ export default function App() {
             <ExecutiveDashboard
               members={accessibleMembers}
               session={session}
-              onOpenPrintReport={() => modals.setIsPrintReportOpen(true)}
+              onOpenPrintReport={modals.openPrintReport}
               onOpenUserManagement={() => modals.setIsUserManagementOpen(true)}
               onOpenDownloadTemplate={() => modals.setIsTemplateHubOpen(true)}
               onOpenReferralHub={() => modals.setIsReferralHubOpen(true)}
@@ -675,6 +698,7 @@ export default function App() {
               onOpenDeletionRequest={modals.openDeletionRequest}
               onDirectDelete={crud.handleDirectDeleteMember}
               onBackToDashboard={() => setActiveTab('dashboard')}
+              onOpenPrintWithMembers={modals.openPrintWithMembers}
             />
           )}
           </div>
@@ -692,13 +716,6 @@ export default function App() {
               <span className="hidden md:inline font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
                 {members.filter((m) => m.status === 'Aktif').length} Kader Aktif
               </span>
-              <button
-                onClick={crud.handleResetDemoData}
-                className="text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 transition-colors cursor-pointer"
-                title="Reset database demonstrasi"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
             </div>
           </div>
         </footer>

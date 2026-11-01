@@ -241,21 +241,41 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
   }
 
   // ================= TAMPILAN PENGURUS STRUKTURAL (REFERRAL & SUPERVISI) =================
+  const isSuperAdminSelf = session.role === 'SUPER_ADMIN' && !activePengurusMember;
+  const displayName =
+    activePengurusMember?.namaLengkap ||
+    (isSuperAdminSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || session.adminName || 'Super Admin DPW Sulut'));
+  const displayBadge = activePengurusMember?.tingkatKepengurusan
+    ? `Pengurus ${activePengurusMember.tingkatKepengurusan}`
+    : isSuperAdminSelf
+    ? 'Super Admin DPW Sulut'
+    : `Pengurus ${session.role.replace('ADMIN_', '')}`;
+  const displayJabatan =
+    activePengurusMember?.jabatan ||
+    (isSuperAdminSelf
+      ? session.jabatan || 'Super Administrator DPW Partai NasDem Sulut'
+      : (profile?.jabatan || session.jabatan));
+  const displayWilayah = activePengurusMember?.dpd
+    ? `${activePengurusMember.dpd}${activePengurusMember.dpc && activePengurusMember.dpc !== '-' ? ` • Kec. ${activePengurusMember.dpc}` : ''}${activePengurusMember.dprt && activePengurusMember.dprt !== '-' ? ` • Desa ${activePengurusMember.dprt}` : ''}`
+    : session.dpdAccess === 'ALL' || isSuperAdminSelf
+    ? 'Provinsi Sulawesi Utara (Seluruh Wilayah)'
+    : session.dpdAccess;
+
   return (
     <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
       {/* Kolom Kiri: Profil & Status SK */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
         <div>
           <div className="flex items-start gap-3.5">
-            <div className="w-14 h-14 rounded-xl bg-blue-700 text-white font-bold text-lg flex items-center justify-center shrink-0 overflow-hidden border border-blue-600/30">
+            <div className="w-14 h-14 rounded-xl bg-[#1A3282] text-white font-bold text-lg flex items-center justify-center shrink-0 overflow-hidden border-2 border-[#FDB813]">
               {memberPhoto ? (
                 <img
                   src={memberPhoto}
-                  alt={activePengurusMember?.namaLengkap || 'Foto Profil'}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                (activePengurusMember?.namaLengkap || session.adminName || 'ND')
+                displayName
                   .split(' ')
                   .map((n: string) => n[0])
                   .slice(0, 2)
@@ -265,13 +285,13 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 mb-1">
-                Pengurus {activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '')}
+                {displayBadge}
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                {activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName}
+                {displayName}
               </h3>
-              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
-                {activePengurusMember?.jabatan || profile?.jabatan || session.jabatan}
+              <p className="text-xs font-semibold text-[#1A3282] dark:text-[#FDB813]">
+                {displayJabatan}
               </p>
             </div>
           </div>
@@ -290,16 +310,14 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
               <span className="text-slate-500 font-medium">Nomor E-KTA NasDem</span>
               <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                {activePengurusMember?.nomorEKTA || activePengurusMember?.nik || '-'}
+                {activePengurusMember?.nomorEKTA || activePengurusMember?.nik || session.adminNik || '-'}
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
               <span className="text-slate-500 font-medium">Penugasan Wilayah</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[170px] truncate">
-                {activePengurusMember?.dpd || session.dpdAccess}
-                {activePengurusMember?.dpc && activePengurusMember.dpc !== '-' ? ` • Kec. ${activePengurusMember.dpc}` : ''}
-                {activePengurusMember?.dprt && activePengurusMember.dprt !== '-' ? ` • Desa ${activePengurusMember.dprt}` : ''}
+              <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[190px] truncate">
+                {displayWilayah}
               </span>
             </div>
 
@@ -326,7 +344,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             <button
               type="button"
               onClick={onOpenEditProfile}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1A3282] hover:bg-[#21409A] text-white shadow-xs transition-colors cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Edit Profil &amp; Foto</span>
@@ -342,8 +360,8 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-800">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#FDB813]/15 dark:bg-slate-800 text-[#9E6706] dark:text-[#FDB813] text-xs font-bold border border-[#FDB813]/40 dark:border-slate-700">
+                  <Sparkles className="w-3.5 h-3.5 text-[#9E6706] dark:text-[#FDB813]" />
                   <span>Kode Referral Resmi Saya</span>
                 </span>
                 <span className="text-[10px] font-bold text-slate-400">
@@ -356,7 +374,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                   KODE REKRUTMEN
                 </span>
-                <div className="text-2xl font-black font-mono tracking-widest text-blue-700 dark:text-blue-400">
+                <div className="text-2xl font-black font-mono tracking-widest text-[#1A3282] dark:text-[#FDB813]">
                   {myReferralCode}
                 </div>
                 <button
@@ -483,8 +501,8 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-800">
-                <Sparkles className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#FDB813]/15 dark:bg-slate-800 text-[#9E6706] dark:text-[#FDB813] text-xs font-bold border border-[#FDB813]/40 dark:border-slate-700">
+                <Sparkles className="w-3.5 h-3.5 text-[#9E6706] dark:text-[#FDB813]" />
                 <span>Kode Registrasi Administrator</span>
               </span>
               <span className="text-[10px] font-bold text-slate-400">
@@ -497,7 +515,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
               <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                 KODE REGISTRASI
               </span>
-              <div className="text-2xl font-black font-mono tracking-widest text-blue-700 dark:text-blue-400">
+              <div className="text-2xl font-black font-mono tracking-widest text-[#1A3282] dark:text-[#FDB813]">
                 {myReferralCode}
               </div>
               <button

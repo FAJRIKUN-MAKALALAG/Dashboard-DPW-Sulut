@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
+import { useDebounce } from './useDebounce';
 import {
   SULUT_REGIONS,
   PARTY_ROLES,
@@ -32,6 +33,7 @@ export function useMemberFilterLogic({
   pageSize = 15,
 }: UseMemberFilterLogicProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('ALL');
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
@@ -383,8 +385,8 @@ export function useMemberFilterLogic({
         return false;
       }
 
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase().trim();
+      if (debouncedSearchTerm.trim()) {
+        const query = debouncedSearchTerm.toLowerCase().trim();
         const matchNik = member.nik.includes(query);
         const matchName = member.namaLengkap.toLowerCase().includes(query);
         const matchDpc = member.dpc.toLowerCase().includes(query);
@@ -413,7 +415,7 @@ export function useMemberFilterLogic({
     membershipFilter,
     selectedCouncilFilter,
     selectedRole,
-    searchTerm,
+    debouncedSearchTerm,
     searchCategory,
     session,
   ]);

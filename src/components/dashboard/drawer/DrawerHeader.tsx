@@ -39,7 +39,6 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
   onOpenStructureModal,
 }) => {
   const isDpcScoped = session?.role === 'ADMIN_DPC';
-  const isDprtScoped = session?.role === 'ADMIN_DPRT';
 
   return (
     <>
@@ -51,15 +50,16 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
               Zona: {regionInfo.zone || 'Sulawesi Utara'}
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
-                compliance.isComplete
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                  : compliance.filledCount > 0
-                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-              }`}
-            >
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  compliance.isComplete
+                    ? 'bg-emerald-500'
+                    : compliance.filledCount > 0
+                    ? 'bg-amber-500'
+                    : 'bg-slate-300'
+                }`}
+              />
               {isDpcScoped
                 ? `Wilayah DPC Kec. ${session?.dpcAccess}`
                 : compliance.isComplete
@@ -95,7 +95,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         <div className={`grid gap-2.5 text-xs ${isDpcScoped ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
           <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Kader Aktif</span>
-            <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
+            <span className="text-base font-bold font-mono tabular-nums text-slate-900 dark:text-white mt-0.5 block">
               {activeMembersCount}
             </span>
             <span className="text-[10px] text-slate-500">{isDpcScoped ? `Kec. ${session?.dpcAccess}` : 'Basis KTP Wilayah'}</span>
@@ -104,7 +104,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
           {!isDpcScoped && (
             <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Formasi DPD</span>
-              <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5 block">
+              <span className="text-base font-bold font-mono tabular-nums text-slate-900 dark:text-white mt-0.5 block">
                 {compliance.filledCount} / {compliance.totalRequired}
               </span>
               <span className="text-[10px] text-slate-500">{compliance.percentage}% Terisi</span>
@@ -114,7 +114,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
           {!isDpcScoped && (
             <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">DPC Kecamatan</span>
-              <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
+              <span className="text-base font-bold font-mono tabular-nums text-slate-900 dark:text-white mt-0.5 block">
                 {activeKecamatanCount} / {regionInfo.subdistricts.length}
               </span>
               <span className="text-[10px] text-slate-500">Kecamatan Aktif</span>
@@ -123,7 +123,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
 
           <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">DPRt Ranting</span>
-            <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
+            <span className="text-base font-bold font-mono tabular-nums text-slate-900 dark:text-white mt-0.5 block">
               {filledDprtVillagesCount !== undefined ? `${filledDprtVillagesCount} / ${totalDprtTarget}` : countDprtMembers}
             </span>
             <span className="text-[10px] text-slate-500">
@@ -139,7 +139,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             {/* Ketua */}
             <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
-              <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 font-bold text-xs">
+              <div className="w-7 h-7 rounded-md bg-[#FDB813] text-slate-950 flex items-center justify-center shrink-0 font-black text-xs shadow-2xs">
                 K
               </div>
               <div className="min-w-0 flex-1">
@@ -202,7 +202,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
                 }
                 onClose();
               }}
-              className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-lg bg-[#1A3282] hover:bg-[#21409A] dark:bg-[#21409A] dark:hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
             >
               <Table className="w-3.5 h-3.5" />
               <span>

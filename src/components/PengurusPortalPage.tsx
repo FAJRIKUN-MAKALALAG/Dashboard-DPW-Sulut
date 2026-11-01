@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { referralService } from '../services/referralService';
 import { MemberService } from '../services/memberService';
+import { useDebounce } from '../hooks/useDebounce';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 import {
   UserCheck,
@@ -83,7 +84,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     if (selfUpdatedMember) {
       if (isAnggota) return selfUpdatedMember;
       if (selectedPengurusNik && selfUpdatedMember.nik === selectedPengurusNik) return selfUpdatedMember;
-      if (session.adminNik && selfUpdatedMember.nik === session.adminNik) return selfUpdatedMember;
+      if (!selectedPengurusNik && session.adminNik && selfUpdatedMember.nik === session.adminNik) return selfUpdatedMember;
     }
     if (isAnggota) {
       if (session.adminNik) {
@@ -95,13 +96,16 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     if (selectedPengurusNik) {
       return members.find((m) => m.nik === selectedPengurusNik) || null;
     }
+    // Jika Super Admin sedang dalam mode profil utamanya sendiri (belum memilih simulasi pengurus lain)
+    if (session.role === 'SUPER_ADMIN') {
+      return null;
+    }
     if (session.adminNik) {
       const match = members.find((m) => m.nik === session.adminNik);
       if (match) return match;
     }
-    // Jika Super Admin belum memilih pengurus simulasi
-    if (session.role === 'SUPER_ADMIN') {
-      return pengurusList[0] || members[0] || null;
+    if (session.role === 'ADMIN_DPW') {
+      return null;
     }
     return pengurusList[0] || members[0] || null;
   }, [isAnggota, selfUpdatedMember, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
@@ -142,15 +146,22 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     if (isAnggota) {
       return '';
     }
+    if (isSuperAdminActingAsSelf) {
+      return profile?.kodeReferral || 'NSD-DPW-ADMIN';
+    }
     if (activePengurusMember?.kodeReferral) {
       return activePengurusMember.kodeReferral;
     }
     if (profile?.kodeReferral) {
       return profile.kodeReferral;
     }
-    const tingkat = (activePengurusMember?.tingkatKepengurusan || session.role.replace('ADMIN_', '') || 'DPD').toUpperCase();
+    const tingkat = (
+      activePengurusMember?.tingkatKepengurusan ||
+      (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW' ? 'DPW' : session.role.replace('ADMIN_', '')) ||
+      'DPW'
+    ).toUpperCase();
     return `NSD-${tingkat.substring(0, 3)}-${activePengurusMember?.nik ? activePengurusMember.nik.slice(-4) : '0001'}`;
-  }, [isAnggota, activePengurusMember, profile, session]);
+  }, [isAnggota, isSuperAdminActingAsSelf, activePengurusMember, profile, session]);
 
   // Hierarki Ketua Langsung (Otomatis Tracking Sistem - dinonaktifkan untuk kader biasa)
   const ketuaLangsung: DirectLeaderInfo | null = useMemo(() => {
@@ -302,8 +313,14 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
 
   // WhatsApp share message
   const shareText = useMemo(() => {
-    const nama = activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName;
-    const jabatan = activePengurusMember?.jabatan || profile?.jabatan || session.jabatan;
+    const nama =
+      activePengurusMember?.namaLengkap ||
+      (isSuperAdminActingAsSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || session.adminName));
+    const jabatan =
+      activePengurusMember?.jabatan ||
+      (isSuperAdminActingAsSelf
+        ? session.jabatan || 'Super Administrator DPW Partai NasDem Sulut'
+        : (profile?.jabatan || session.jabatan));
     const supervisorLine = ketuaLangsung
       ? `🛡️ Supervisi Atasan: ${ketuaLangsung.nama} (${ketuaLangsung.jabatan})\n\n`
       : '\n';
@@ -315,10 +332,11 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       supervisorLine +
       `Bersatu, Berjuang, Menang! 🇮🇩`
     );
-  }, [myReferralCode, activePengurusMember, profile, session, ketuaLangsung]);
+  }, [myReferralCode, isSuperAdminActingAsSelf, activePengurusMember, profile, session, ketuaLangsung]);
 
   // Filter rekrutmen saya (Kader yang direkrut oleh pengurus aktif ini)
   const [searchRecruit, setSearchRecruit] = useState<string>('');
+  const debouncedSearchRecruit = useDebounce(searchRecruit, 250);
   const myRecruits = useMemo(() => {
     if (isAnggota) return [];
     const currentCode = myReferralCode.toUpperCase();
@@ -335,8 +353,8 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
 
   const filteredRecruits = useMemo(() => {
     if (isAnggota) return [];
-    if (!searchRecruit.trim()) return myRecruits;
-    const q = searchRecruit.toLowerCase();
+    if (!debouncedSearchRecruit.trim()) return myRecruits;
+    const q = debouncedSearchRecruit.toLowerCase();
     return myRecruits.filter(
       (m) =>
         m.namaLengkap.toLowerCase().includes(q) ||
@@ -344,10 +362,11 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         m.dpd.toLowerCase().includes(q) ||
         m.dpc.toLowerCase().includes(q)
     );
-  }, [isAnggota, myRecruits, searchRecruit]);
+  }, [isAnggota, myRecruits, debouncedSearchRecruit]);
 
   // ---------------- PENCARIAN ANGGOTA WILAYAH (BATASAN TINGKAT) ----------------
   const [searchMemberQuery, setSearchMemberQuery] = useState('');
+  const debouncedSearchMemberQuery = useDebounce(searchMemberQuery, 250);
   const [filterMembershipType, setFilterMembershipType] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
 
   // Anggota yang dapat dicari sesuai batasan wilayah pengurus (kosong untuk kader biasa)
@@ -390,8 +409,8 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       result = result.filter((m) => !m.isPengurus);
     }
 
-    if (!searchMemberQuery.trim()) return result;
-    const q = searchMemberQuery.toLowerCase();
+    if (!debouncedSearchMemberQuery.trim()) return result;
+    const q = debouncedSearchMemberQuery.toLowerCase();
     return result.filter(
       (m) =>
         m.namaLengkap.toLowerCase().includes(q) ||
@@ -402,7 +421,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         m.dpc.toLowerCase().includes(q) ||
         m.dprt.toLowerCase().includes(q)
     );
-  }, [territoryMembers, searchMemberQuery, filterMembershipType]);
+  }, [territoryMembers, debouncedSearchMemberQuery, filterMembershipType]);
 
   // Label Wilayah Pencarian
   const searchTerritoryTitle = useMemo(() => {
@@ -418,23 +437,29 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
     return 'Pencarian Anggota & Pengurus Seluruh Sulawesi Utara';
   }, [session, activePengurusMember]);
 
-  const perekrutNama = activePengurusMember?.namaLengkap || profile?.namaLengkap || session.adminName;
-  const perekrutJabatan = activePengurusMember?.jabatan || profile?.jabatan || session.jabatan;
+  const perekrutNama =
+    activePengurusMember?.namaLengkap ||
+    (isSuperAdminActingAsSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || session.adminName));
+  const perekrutJabatan =
+    activePengurusMember?.jabatan ||
+    (isSuperAdminActingAsSelf
+      ? session.jabatan || 'Super Administrator DPW Partai NasDem Sulut'
+      : (profile?.jabatan || session.jabatan));
   const perekrutNik = activePengurusMember?.nik || session.adminNik;
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12 font-sans">
-      {/* 1. Header Bar Minimalis */}
-      <div className="bg-[#002B49] dark:bg-slate-900 text-white p-3.5 sm:p-5 md:p-6 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+    <div className="space-y-5 animate-in fade-in pb-12 font-sans">
+      {/* 1. Header Bar Minimalis (Biru Tua NasDem + Gold Bottom Line) */}
+      <div className="bg-gradient-to-r from-[#1A3282] to-[#21409A] dark:from-[#1A3282] dark:to-slate-900 text-white p-4 sm:p-5 md:p-6 rounded-xl border border-slate-800 border-b-2 border-b-[#FDB813] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-md bg-blue-900/60 text-blue-200 border border-blue-700/60 text-[10px] sm:text-[11px] font-bold tracking-wide">
-            <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/10 text-blue-100 border border-white/15 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+            <UserCheck className="w-3.5 h-3.5 text-[#FFDD00]" />
             <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL MANDIRI PENGURUS'}</span>
           </div>
           <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
             {isAnggota ? 'Profil Saya' : 'Profil Pengurus & Perekrutan'}
           </h1>
-          <p className="hidden sm:block text-xs text-slate-300 max-w-2xl leading-relaxed">
+          <p className="hidden sm:block text-xs text-slate-300 max-w-3xl leading-relaxed">
             {isAnggota
               ? 'Halaman resmi identitas keanggotaan Anda di Partai NasDem Sulawesi Utara. Lengkapi biodata kontak, wilayah domisili, serta unggah pas foto profil dan berkas secara mandiri.'
               : 'Halaman resmi untuk melihat data kepengurusan Anda, menyalin kode referral, memantau Ketua Langsung pembina wilayah, serta mencari dan mendaftarkan kader baru.'}
@@ -442,141 +467,145 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         </div>
       </div>
 
-      {/* Tabs Menu Portal: HANYA TAMPIL UNTUK PENGURUS BER-SK & ADMIN (Anggota biasa tidak ada pencarian wilayah) */}
+      {/* Tabs Menu Portal: HANYA TAMPIL UNTUK PENGURUS BER-SK & ADMIN */}
       {!isAnggota && (
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-fit max-w-full overflow-x-auto">
           <button
             type="button"
             onClick={() => setActivePortalTab('profil')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
               activePortalTab === 'profil'
-                ? 'bg-blue-700 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <IdCard className="w-4 h-4" />
+            <IdCard className="w-3.5 h-3.5" />
             <span>Profil, Referral &amp; Rekrutmen</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActivePortalTab('pencarian')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
               activePortalTab === 'pencarian'
-                ? 'bg-blue-700 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-3.5 h-3.5" />
             <span>{searchTerritoryTitle} ({territoryMembers.length})</span>
           </button>
         </div>
       )}
 
-      <div key={activePortalTab} className="animate-tab-enter space-y-6">
+      <div key={activePortalTab} className="animate-tab-enter space-y-5">
         {/* ================= TAB 1: PROFIL, REFERRAL & FORM REKRUTMEN ================= */}
         {activePortalTab === 'profil' && (
-          <div className="space-y-6">
-          {session.role === 'SUPER_ADMIN' && (
-            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-bold text-slate-900 dark:text-white mb-0.5">
-                    Mode Administrator Sistem (Super Admin)
-                  </strong>
-                  <span>
-                    Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dengan akses penuh pada seluruh jenjang kepengurusan (DPW, DPD, DPC, dan DPRt).
-                  </span>
-                </div>
-              </div>
-              {pengurusList.length > 0 && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Pilih Pengurus:</label>
-                  <select
-                    value={selectedPengurusNik || activePengurusMember?.nik || ''}
-                    onChange={(e) => setSelectedPengurusNik(e.target.value)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
-                  >
-                    {pengurusList.map((p) => (
-                      <option key={p.nik} value={p.nik}>
-                        {p.namaLengkap} ({p.tingkatKepengurusan || 'Pengurus'} - {p.jabatan})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 2. Kartu Identitas Resmi Pengurus & Kode Referral (atau e-KTA untuk Anggota) */}
-          <PengurusHierarchyCard
-            activePengurusMember={activePengurusMember}
-            profile={profile}
-            session={session}
-            ketuaLangsung={ketuaLangsung}
-            myReferralCode={myReferralCode}
-            copiedCode={copiedCode}
-            handleCopy={handleCopy}
-            shareText={shareText}
-            showQr={showQr}
-            setShowQr={setShowQr}
-            onOpenEditProfile={() => setIsEditProfileModalOpen(true)}
-            onOpenCardModal={onOpenCardModal}
-          />
-
-          {/* 3. Formulir Pendaftaran Anggota Baru (HANYA UNTUK PENGURUS BER-SK RESMI) */}
-          {!isAnggota && (
-            canAddMembers(session) ? (
-              <PengurusRegisterMemberForm
-                members={members}
-                session={session}
-                activePengurusMember={activePengurusMember}
-                myReferralCode={myReferralCode}
-                ketuaLangsung={ketuaLangsung}
-                onAddMember={onAddMember}
-                perekrutNama={perekrutNama}
-                perekrutJabatan={perekrutJabatan}
-                perekrutNik={perekrutNik}
-              />
-            ) : (
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-900 border border-amber-200 dark:border-amber-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[11px] font-bold">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>HAK AKSES PENDAFTARAN ANGGOTA</span>
+          <div className="space-y-5">
+            {session.role === 'SUPER_ADMIN' && (
+              <div className="p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold text-slate-900 dark:text-white mb-0.5">
+                      Mode Administrator Sistem (Super Admin)
+                    </strong>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Akun Anda adalah pengelola teknis sistem se-Sulawesi Utara dengan akses penuh pada seluruh jenjang kepengurusan (DPW, DPD, DPC, dan DPRt).
+                    </span>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Pendaftaran Anggota Baru Dikelola Khusus Pengurus Ber-SK
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
-                    Sebagai Pengurus tanpa kewenangan pendaftaran mandiri, silakan koordinasikan data kader baru dengan pengurus ber-SK wilayah Anda.
-                  </p>
+                </div>
+                {pengurusList.length > 0 && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Pilih Pengurus:</label>
+                    <select
+                      value={selectedPengurusNik}
+                      onChange={(e) => setSelectedPengurusNik(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-900 max-w-xs"
+                    >
+                      <option value="">⭐ Super Admin DPW Sulut (Profil Utama)</option>
+                      {pengurusList.map((p) => (
+                        <option key={p.nik} value={p.nik}>
+                          {p.namaLengkap} ({p.tingkatKepengurusan || 'Pengurus'} - {p.jabatan})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. Kartu Identitas Resmi Pengurus & Kode Referral */}
+            <PengurusHierarchyCard
+              activePengurusMember={activePengurusMember}
+              profile={profile}
+              session={session}
+              ketuaLangsung={ketuaLangsung}
+              myReferralCode={myReferralCode}
+              copiedCode={copiedCode}
+              handleCopy={handleCopy}
+              shareText={shareText}
+              showQr={showQr}
+              setShowQr={setShowQr}
+              onOpenEditProfile={activePengurusMember ? () => setIsEditProfileModalOpen(true) : undefined}
+              onOpenCardModal={onOpenCardModal}
+            />
+
+            {/* 3 & 4. Desktop Side-by-Side Split: Form Pendaftaran (7 Cols) + Riwayat Rekrutmen (5 Cols) */}
+            {!isAnggota && (
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+                <div className="xl:col-span-7">
+                  {canAddMembers(session) ? (
+                    <PengurusRegisterMemberForm
+                      members={members}
+                      session={session}
+                      activePengurusMember={activePengurusMember}
+                      myReferralCode={myReferralCode}
+                      ketuaLangsung={ketuaLangsung}
+                      onAddMember={onAddMember}
+                      perekrutNama={perekrutNama}
+                      perekrutJabatan={perekrutJabatan}
+                      perekrutNik={perekrutNik}
+                    />
+                  ) : (
+                    <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+                          <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
+                          <span>HAK AKSES PENDAFTARAN ANGGOTA</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Pendaftaran Anggota Baru Dikelola Khusus Pengurus Ber-SK
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+                          Sebagai Pengurus tanpa kewenangan pendaftaran mandiri, silakan koordinasikan data kader baru dengan pengurus ber-SK wilayah Anda.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsEditProfileModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-[#1A3282] hover:bg-[#21409A] dark:bg-[#21409A] text-white shadow-2xs transition-colors shrink-0 cursor-pointer"
+                      >
+                        <span>Edit Profil &amp; Berkas Foto</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsEditProfileModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-xs transition-colors shrink-0 cursor-pointer"
-                >
-                  <span>Edit Profil &amp; Berkas Foto</span>
-                </button>
+                <div className="xl:col-span-5">
+                  <PengurusRecruitsList
+                    filteredRecruits={filteredRecruits}
+                    myRecruitsCount={myRecruits.length}
+                    myReferralCode={myReferralCode}
+                    searchRecruit={searchRecruit}
+                    setSearchRecruit={setSearchRecruit}
+                  />
+                </div>
               </div>
-            )
-          )}
-
-          {/* 4. Riwayat Anggota Hasil Rekrutmen Pengurus Ini (HANYA UNTUK PENGURUS/ADMIN) */}
-          {!isAnggota && (
-            <PengurusRecruitsList
-              filteredRecruits={filteredRecruits}
-              myRecruitsCount={myRecruits.length}
-              myReferralCode={myReferralCode}
-              searchRecruit={searchRecruit}
-              setSearchRecruit={setSearchRecruit}
-            />
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
       {/* ================= TAB 2: PENCARIAN ANGGOTA WILAYAH (HANYA PENGURUS & ADMIN) ================= */}
       {!isAnggota && activePortalTab === 'pencarian' && (

@@ -1,7 +1,7 @@
 import { Member } from '../types';
 import { mapMemberToDbPayload } from './mappers';
 import { mapApiMember } from './apiMappers';
-import { apiFetch, ApiError } from './http';
+import { apiFetch, ApiError, getToken } from './http';
 
 interface MemberListResponse {
   items: any[];
@@ -11,10 +11,31 @@ interface MemberListResponse {
   totalPages: number;
 }
 
+export interface GetMembersOptions {
+  /** Lewati cache cooldown standar (mis. saat tombol Tarik Data ditekan manual) */
+  force?: boolean;
+}
+
 const FETCH_PAGE_SIZE = 500; // batas MAX_PAGE_SIZE di backend
 const PARALLEL_PAGES = 4;
 const BULK_UPSERT_CHUNK = 500;
 const BULK_DELETE_CHUNK = 1000;
+
+// In-flight deduplication & cooldown cache untuk mencegah request ganda beruntun
+const AUTO_COOLDOWN_MS = 8000;
+const FORCE_COOLDOWN_MS = 2000;
+
+let inFlightGetAll: Promise<Member[] | null> | null = null;
+let inFlightToken: string | null = null;
+let cachedMembers: Member[] | null = null;
+let cachedAt = 0;
+let cachedToken: string | null = null;
+
+export function invalidateMemberCache(): void {
+  cachedMembers = null;
+  cachedAt = 0;
+  cachedToken = null;
+}
 
 /**
  * Payload ke backend. Kolom yang dikelola server (waktu ubah, pengubah) dibuang, dan foto yang
@@ -33,37 +54,71 @@ function toApiPayload(member: Member): Record<string, any> {
  * Service operasi data anggota (Members) melalui backend API.
  */
 export const MemberService = {
+  invalidateCache: invalidateMemberCache,
+
   /**
    * Mengambil seluruh data anggota (sesuai cakupan wilayah akun) dengan paginasi dari server.
+   * Dilengkapi In-Flight Request Deduplication & Cooldown Throttling agar aman saat banyak komponen/user aktif.
    */
-  async getAll(): Promise<Member[] | null> {
-    try {
-      const first = await apiFetch<MemberListResponse>('/members', {
-        query: { page: 1, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
-      });
-      const rows: any[] = [...first.items];
+  async getAll(options?: GetMembersOptions): Promise<Member[] | null> {
+    const currentToken = getToken() || '__anon__';
+    const now = Date.now();
+    const cooldown = options?.force ? FORCE_COOLDOWN_MS : AUTO_COOLDOWN_MS;
 
-      const remaining: number[] = [];
-      for (let p = 2; p <= first.totalPages; p++) remaining.push(p);
-
-      for (let i = 0; i < remaining.length; i += PARALLEL_PAGES) {
-        const batch = remaining.slice(i, i + PARALLEL_PAGES);
-        const pages = await Promise.all(
-          batch.map((page) =>
-            apiFetch<MemberListResponse>('/members', {
-              query: { page, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
-            })
-          )
-        );
-        pages.forEach((pg) => rows.push(...pg.items));
-      }
-
-      console.log(`[API] Berhasil menarik ${rows.length} data anggota dari backend.`);
-      return rows.map(mapApiMember);
-    } catch (err) {
-      console.error('[API] Gagal menarik data anggota:', err);
-      return null;
+    // Jika akun berganti, bersihkan cache akun sebelumnya
+    if (cachedToken && cachedToken !== currentToken) {
+      invalidateMemberCache();
     }
+
+    // Gunakan cache segar jika baru saja ditarik dalam jendela cooldown
+    if (cachedMembers && cachedToken === currentToken && now - cachedAt < cooldown) {
+      return cachedMembers;
+    }
+
+    // Gabungkan request paralel yang sedang berjalan untuk akun yang sama (In-Flight Deduplication)
+    if (inFlightGetAll && inFlightToken === currentToken) {
+      return inFlightGetAll;
+    }
+
+    inFlightToken = currentToken;
+    inFlightGetAll = (async () => {
+      try {
+        const first = await apiFetch<MemberListResponse>('/members', {
+          query: { page: 1, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
+        });
+        const rows: any[] = [...first.items];
+
+        const remaining: number[] = [];
+        for (let p = 2; p <= first.totalPages; p++) remaining.push(p);
+
+        for (let i = 0; i < remaining.length; i += PARALLEL_PAGES) {
+          const batch = remaining.slice(i, i + PARALLEL_PAGES);
+          const pages = await Promise.all(
+            batch.map((page) =>
+              apiFetch<MemberListResponse>('/members', {
+                query: { page, per_page: FETCH_PAGE_SIZE, include_photos: 'true' },
+              })
+            )
+          );
+          pages.forEach((pg) => rows.push(...pg.items));
+        }
+
+        const mapped = rows.map(mapApiMember);
+        cachedMembers = mapped;
+        cachedAt = Date.now();
+        cachedToken = currentToken;
+        console.log(`[API] Berhasil menarik ${rows.length} data anggota dari backend.`);
+        return mapped;
+      } catch (err) {
+        console.error('[API] Gagal menarik data anggota:', err);
+        return null;
+      } finally {
+        inFlightGetAll = null;
+        inFlightToken = null;
+      }
+    })();
+
+    return inFlightGetAll;
   },
 
   /**
@@ -102,6 +157,7 @@ export const MemberService = {
         if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
         if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
       }
+      invalidateMemberCache();
       return true;
     } catch (err) {
       console.error('[API] Gagal mendaftarkan anggota baru:', err);
@@ -125,6 +181,7 @@ export const MemberService = {
         if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
         if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
       }
+      invalidateMemberCache();
       return true;
     } catch (err) {
       console.error('[API] Gagal memperbarui data anggota:', err);
@@ -139,7 +196,7 @@ export const MemberService = {
     try {
       const targetNik = originalNik || member.nik;
       if (originalNik) {
-        return await this.updateOne(member, originalNik);
+        return await MemberService.updateOne(member, originalNik);
       }
 
       const payload = toApiPayload(member);
@@ -152,6 +209,7 @@ export const MemberService = {
           throw err;
         }
       }
+      invalidateMemberCache();
       return true;
     } catch (err) {
       console.error('[API] Gagal menyimpan anggota:', err);
@@ -168,6 +226,7 @@ export const MemberService = {
         method: 'POST',
         body: { status, reason: reason || 'Perubahan status keanggotaan' },
       });
+      invalidateMemberCache();
       return true;
     } catch (err) {
       console.error('[API] Gagal mengubah status anggota:', err);
@@ -194,6 +253,7 @@ export const MemberService = {
           console.warn(`[API] ${res.rejected} baris ditolak server:`, res.errors);
         }
       }
+      invalidateMemberCache();
       return allOk;
     } catch (err) {
       console.error('[API] Gagal upsert massal:', err);
@@ -207,9 +267,13 @@ export const MemberService = {
   async deleteOne(nik: string): Promise<boolean> {
     try {
       await apiFetch(`/members/${encodeURIComponent(nik)}`, { method: 'DELETE' });
+      invalidateMemberCache();
       return true;
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return true; // sudah tidak ada
+      if (err instanceof ApiError && err.status === 404) {
+        invalidateMemberCache();
+        return true; // sudah tidak ada
+      }
       console.error('[API] Gagal menghapus anggota:', err);
       return false;
     }
@@ -227,6 +291,7 @@ export const MemberService = {
           body: { niks: niks.slice(i, i + BULK_DELETE_CHUNK) },
         });
       }
+      invalidateMemberCache();
       return true;
     } catch (err) {
       console.error('[API] Gagal hapus massal:', err);
@@ -259,6 +324,7 @@ export const MemberService = {
         method: 'PUT',
         body: payload,
       });
+      invalidateMemberCache();
       return { success: true, member: res.member ? mapApiMember(res.member) : undefined };
     } catch (err: any) {
       console.error('[API] Gagal memperbarui profil mandiri:', err);
