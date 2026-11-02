@@ -93,6 +93,7 @@ export const UserService = {
   async checkPengurus(nik: string): Promise<{
     found: boolean;
     nik: string;
+    nikAutoCorrectedFrom?: string | null;
     nomorEkta: string;
     namaLengkap: string;
     jabatan: string;

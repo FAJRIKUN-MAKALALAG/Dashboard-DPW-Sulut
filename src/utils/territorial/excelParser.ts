@@ -5,17 +5,24 @@ import { SULUT_REGIONS } from '../../data/sulutRegions';
 import {
   isDpdMatch,
   isDpcMatch,
+  isDprtMatch,
+  getExpandedStructuralMembers,
   getMemberSubOrgCategory,
   getSlotSubOrgCategory,
 } from '../structureReadinessUtils';
 import {
+  cleanPersonName,
   isJobTitleMatch,
   normalizeSubOrgName,
   isDefinitiveLeader,
   assignItemsToTemplateSlots,
   calculateJobMatchScore,
 } from '../jobMatchingUtils';
-import { makeGeneratedEkta, isGeneratedNik } from '../generatedIds';
+import {
+  makeGeneratedEkta,
+  isGeneratedNik,
+  isAcceptableImportNik,
+} from '../generatedIds';
 
 /**
  * Parsing aman untuk nilai sel ID/NIK/e-KTA Excel.
@@ -45,6 +52,67 @@ import {
 } from './excelTypes';
 import { generateUniqueTerritoryNik } from './excelTemplateGenerators';
 
+function buildTerritorialPositionId(
+  nik: string,
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
+  dpc: string,
+  dprt: string,
+  subOrg: string
+): string {
+  const cleanT = (level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const cleanD = (dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const cleanR =
+    level === 'DPRt' ? `_${(dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}` : '';
+  const cleanS = (subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  return `${nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+}
+
+function getTerritoryScopeKey(
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
+  dpd: string,
+  dpc: string,
+  dprt: string
+): string | undefined {
+  if (level === 'DPRt') return `${dpd}|${dpc}|${dprt}`;
+  if (level === 'DPC') return `${dpd}|${dpc}`;
+  return undefined;
+}
+
+function findSameTerritorySlotMember(
+  expandedMembers: Member[],
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
+  dpd: string,
+  dpc: string,
+  dprt: string,
+  subOrg: string,
+  jabatan: string,
+  personName?: string
+): Member | undefined {
+  const targetName = cleanPersonName(personName).toLowerCase();
+  return expandedMembers.find((m) => {
+    if (m.tingkatKepengurusan !== level) return false;
+    if (level !== 'DPW' && !isDpdMatch(m.dpd, dpd)) return false;
+    if ((level === 'DPC' || level === 'DPRt') && !isDpcMatch(m.dpc, dpc)) return false;
+    if (level === 'DPRt' && !isDprtMatch(m.dprt, dprt)) return false;
+    if ((m.wilayahPenugasan || '').trim().toLowerCase() !== subOrg.trim().toLowerCase()) {
+      return false;
+    }
+    if (!isJobTitleMatch(m.jabatan, jabatan, subOrg)) return false;
+    // Hanya gunakan ulang NIK lama jika memang orang yang sama (cegah menimpa NIK KTP pengurus lama yang berbeda)
+    if (targetName) {
+      const memberName = cleanPersonName(m.namaLengkap).toLowerCase();
+      if (memberName && memberName !== targetName) return false;
+    }
+    return true;
+  });
+}
+
+function stripMemberPositions(member?: Member): Partial<Member> {
+  if (!member) return {};
+  const { positions: _stalePositions, id: _staleId, ...rest } = member;
+  return rest;
+}
+
 export async function parseTerritorialExcelFile(
   file: File,
   ctx: TerritoryContext,
@@ -61,6 +129,7 @@ export async function parseTerritorialExcelFile(
   const slots = getStructureTemplate(ctx.level);
   const parsedRows: ParsedTerritoryRow[] = [];
   const membersToSave: Member[] = [];
+  const expandedCurrentMembers = getExpandedStructuralMembers(currentMembers);
   const allExistingNiks = new Set<string>(currentMembers.map((m) => m.nik));
   const batchAssignedNiks = new Set<string>();
 
@@ -73,13 +142,7 @@ export async function parseTerritorialExcelFile(
       : ctx.dpc || 'Umum (DPD)';
   const territoryDprt = ctx.level === 'DPRt' ? ctx.dprt || 'Pusat' : 'Pusat/Umum';
 
-  const isValidNik = (nik?: string): boolean => {
-    if (!nik) return false;
-    const clean = String(nik).replace(/[^0-9]/g, '');
-    if (clean.length !== 16) return false;
-    if (/^0{6,}/.test(clean)) return false;
-    return true;
-  };
+  const isValidNik = (nik?: string): boolean => isAcceptableImportNik(nik);
 
   let filledCount = 0;
   let matchedPositions = 0;
@@ -452,15 +515,21 @@ export async function parseTerritorialExcelFile(
         customPositions++;
       }
 
+      const rawExcelNik = nikVal;
+      let nikWarningNote: string | undefined = undefined;
+
       if (isFilled) {
         filledCount++;
 
-        const existingSlotMember = currentMembers.find(
-          (m) =>
-            isDpdMatch(m.dpd, rowDpd) &&
-            (rowLevel !== 'DPC' || isDpcMatch(m.dpc, rowDpc)) &&
-            (m.wilayahPenugasan || '').trim().toLowerCase() === finalSubOrg.trim().toLowerCase() &&
-            isJobTitleMatch(m.jabatan, jabatanVal)
+        const existingSlotMember = findSameTerritorySlotMember(
+          expandedCurrentMembers,
+          rowLevel,
+          rowDpd,
+          rowDpc,
+          rowDprt,
+          finalSubOrg,
+          jabatanVal,
+          namaVal
         );
 
         const hasValidExcelNik = isValidNik(nikVal) && !batchAssignedNiks.has(nikVal);
@@ -468,7 +537,13 @@ export async function parseTerritorialExcelFile(
         if (hasValidExcelNik) {
           batchAssignedNiks.add(nikVal);
           allExistingNiks.add(nikVal);
+          if (nikVal.length !== 16) {
+            nikWarningNote = `⚠️ NIK ${nikVal.length} digit tetap disimpan (disarankan lengkapi jadi 16 digit KTP)`;
+          }
         } else {
+          if (rawExcelNik && !isValidNik(rawExcelNik)) {
+            nikWarningNote = `⚠️ NIK Excel (${rawExcelNik.length} digit) terlalu pendek — memakai ID sementara`;
+          }
           if (
             existingSlotMember &&
             isValidNik(existingSlotMember.nik) &&
@@ -482,25 +557,25 @@ export async function parseTerritorialExcelFile(
               rowDpd,
               finalSubOrg,
               parsedRows.length + 1,
-              allExistingNiks
+              allExistingNiks,
+              getTerritoryScopeKey(rowLevel, rowDpd, rowDpc, rowDprt)
             );
             batchAssignedNiks.add(nikVal);
           }
         }
 
-        const cleanT = (rowLevel || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-        const cleanD = (rowDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-        const cleanS = (finalSubOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-        const memberId = `${nikVal}_${cleanT}_${cleanD}_${cleanS}`;
+        const memberId = buildTerritorialPositionId(
+          nikVal,
+          rowLevel,
+          rowDpc,
+          rowDprt,
+          finalSubOrg
+        );
 
-        const existingMember =
-          existingSlotMember ||
-          currentMembers.find(
-            (m) => m.id === memberId || (m.nik === nikVal && m.tingkatKepengurusan === rowLevel)
-          );
+        const existingMember = currentMembers.find((m) => m.nik === nikVal);
 
         const memberObj: Member = {
-          ...(existingMember || {}),
+          ...stripMemberPositions(existingMember),
           id: memberId,
           nik: nikVal,
           nomorEKTA: ektaVal || existingMember?.nomorEKTA || makeGeneratedEkta(nikVal),
@@ -522,8 +597,10 @@ export async function parseTerritorialExcelFile(
           wilayahPenugasan: finalSubOrg,
           urutan: rowLevel === 'DPRt' ? noVal : nextUrutan(rowDpd, finalSubOrg),
           nomorSK:
-            existingMember?.nomorSK ||
-            `SK-${rowLevel}-${rowDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
+            existingSlotMember?.nomorSK ||
+            (rowLevel === 'DPRt'
+              ? `SK-DPRT-${(rowDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`
+              : `SK-${rowLevel}-${rowDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`),
           jabatan: standardizedJabatan,
           status: 'Aktif',
           statusKtpVerified: true,
@@ -553,6 +630,7 @@ export async function parseTerritorialExcelFile(
         status: isFilled ? 'Lengkap' : 'Lowong',
         isFilled,
         isVacantSlot: false,
+        aiNote: nikWarningNote,
       });
     }
   }
@@ -646,113 +724,14 @@ export function alignAndCheckWithTemplate(
   const pertimbanganSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
   const pakarSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
   const pimpinanSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
-
-  // KHUSUS DPRt: DIRECT PASSTHROUGH (Salin langsung 1-to-1 data riil dari berkas Excel)
-  if (ctx.level === 'DPRt') {
-    const alignedRows: ParsedTerritoryRow[] = [];
-    const membersToSave: Member[] = [];
-    const allExistingNiks = new Set<string>(currentMembers.map((m) => m.nik));
-
-    // Urutkan pengurus DPRt: Ketua definitif nomor 1, selanjutnya nomor urut sesuai berkas
-    const sortedDprtRows = [...currentResult.rows].sort((a, b) => {
-      const isLeaderA = isDefinitiveLeader(a.jabatanExcel);
-      const isLeaderB = isDefinitiveLeader(b.jabatanExcel);
-      if (isLeaderA && !isLeaderB) return -1;
-      if (!isLeaderA && isLeaderB) return 1;
-      return (a.no || 0) - (b.no || 0);
-    });
-
-    sortedDprtRows.forEach((r, idx) => {
-      const rowNo = idx + 1;
-      const finalSubOrg = 'DEWAN PIMPINAN RANTING';
-      let nik = r.nik;
-      if (!nik || nik.length < 10) {
-        nik = generateUniqueTerritoryNik(territoryDpd, finalSubOrg, rowNo, allExistingNiks);
-      }
-      allExistingNiks.add(nik);
-
-      alignedRows.push({
-        ...r,
-        no: rowNo,
-        subOrg: finalSubOrg,
-        jabatanExcel: r.jabatanExcel || 'Pengurus',
-        jabatanMatched: r.jabatanExcel || 'Pengurus',
-        isMatched: true,
-        aiNote: isDefinitiveLeader(r.jabatanExcel)
-          ? `⭐ Ketua DPRt (Definitif #1)`
-          : `✓ Jabatan DPRt #${rowNo} (${r.jabatanExcel})`,
-      });
-
-      if (r.isFilled) {
-        const cleanT = 'DPRT';
-        const cleanD = (territoryDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-        const cleanS = 'DEWAN_PIMPINAN_RANTING';
-        const memberId = `${nik}_${cleanT}_${cleanD}_${cleanS}`;
-
-        const existingMember = currentMembers.find(
-          (m) => m.id === memberId || (m.nik === nik && m.tingkatKepengurusan === 'DPRt')
-        );
-
-        membersToSave.push({
-          ...(existingMember || {}),
-          id: memberId,
-          nik,
-          nomorEKTA: r.nomorEKTA || existingMember?.nomorEKTA || makeGeneratedEkta(nik),
-          namaLengkap: r.namaLengkap,
-          email: r.email || existingMember?.email || undefined,
-          nomorHP: r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : existingMember?.nomorHP || '-',
-          alamatLengkap: r.alamat || existingMember?.alamatLengkap || undefined,
-          jenisKelamin:
-            r.jenisKelamin?.toUpperCase().startsWith('P') ||
-            r.jenisKelamin?.toLowerCase().includes('perem')
-              ? 'Perempuan'
-              : 'Laki-laki',
-          dpd: territoryDpd,
-          dpc: territoryDpc,
-          dprt: territoryDprt,
-          isPengurus: true,
-          tingkatKepengurusan: 'DPRt',
-          wilayahPenugasan: finalSubOrg,
-          urutan: rowNo,
-          nomorSK:
-            existingMember?.nomorSK ||
-            `SK-DPRT-${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
-          jabatan: r.jabatanExcel || 'Pengurus',
-          status: 'Aktif',
-          statusKtpVerified: true,
-          tanggalBergabung:
-            existingMember?.tanggalBergabung || new Date().toISOString().substring(0, 10),
-          terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
-          diubahOleh: `${adminName} (Direct Passthrough DPRt)`,
-        });
-      }
-    });
-
-    const filledDprtCount = alignedRows.filter((r) => r.isFilled).length;
-    return {
-      success: true,
-      rows: alignedRows,
-      membersToSave,
-      stats: {
-        totalRows: Math.max(alignedRows.length, allSlots.length),
-        filledRows: filledDprtCount,
-        vacantSlotsCount: Math.max(0, allSlots.length - filledDprtCount),
-        standardSlotsTarget: allSlots.length,
-        extraRowsCount: Math.max(0, filledDprtCount - allSlots.length),
-        pertimbanganCount: 0,
-        pakarCount: 0,
-        pimpinanCount: filledDprtCount,
-        matchedCount: alignedRows.length,
-      },
-      message: `Pemeriksaan selesai. Ditemukan ${filledDprtCount} dari ${allSlots.length} susunan pengurus DPRt.`,
-    };
-  }
+  const expandedCurrentMembers = getExpandedStructuralMembers(currentMembers);
 
   const pertimbanganRows: ParsedTerritoryRow[] = [];
   const pakarRows: ParsedTerritoryRow[] = [];
   const pimpinanRows: ParsedTerritoryRow[] = [];
 
   for (const row of currentResult.rows) {
+    if (!row.isFilled) continue;
     const cat = getMemberSubOrgCategory({
       jabatan: row.jabatanExcel,
       wilayahPenugasan: row.subOrg,
@@ -931,6 +910,7 @@ export function alignAndCheckWithTemplate(
     if (slotAssignments.has(slot.no)) {
       const { item: r } = slotAssignments.get(slot.no)!;
       filledStandardCount++;
+      const slotNote = `✓ Sesuai Slot Template #${slot.no} (${slot.jabatan})`;
       alignedPimpinanRows.push({
         ...r,
         no: slot.no,
@@ -938,7 +918,7 @@ export function alignAndCheckWithTemplate(
         jabatanExcel: r.jabatanExcel || slot.jabatan,
         jabatanMatched: slot.jabatan,
         isMatched: true,
-        aiNote: `✓ Sesuai Slot Template #${slot.no} (${slot.jabatan})`,
+        aiNote: r.aiNote?.startsWith('⚠️') ? `${slotNote} · ${r.aiNote}` : slotNote,
       });
     } else {
       vacantSlotsCount++;
@@ -989,13 +969,7 @@ export function alignAndCheckWithTemplate(
   const batchAssignedNiksHelper = new Set<string>();
   const newMembersToSave: Member[] = [];
 
-  const isValidNikHelper = (nik?: string): boolean => {
-    if (!nik) return false;
-    const clean = String(nik).replace(/[^0-9]/g, '');
-    if (clean.length !== 16) return false;
-    if (/^0{6,}/.test(clean)) return false;
-    return true;
-  };
+  const isValidNikHelper = (nik?: string): boolean => isAcceptableImportNik(nik);
 
   for (const r of finalRows) {
     if (!r.isFilled || !r.namaLengkap || r.namaLengkap === '-' || r.isVacantSlot) {
@@ -1003,12 +977,16 @@ export function alignAndCheckWithTemplate(
     }
 
     let nikVal = r.nik;
-    const existingSlotMember = currentMembers.find(
-      (m) =>
-        isDpdMatch(m.dpd, r.dpd || territoryDpd) &&
-        (ctx.level !== 'DPC' || isDpcMatch(m.dpc, territoryDpc)) &&
-        (m.wilayahPenugasan || '').trim().toLowerCase() === r.subOrg.trim().toLowerCase() &&
-        isJobTitleMatch(m.jabatan, r.jabatanExcel)
+    const rowDpdTarget = r.dpd || territoryDpd;
+    const existingSlotMember = findSameTerritorySlotMember(
+      expandedCurrentMembers,
+      ctx.level,
+      rowDpdTarget,
+      territoryDpc,
+      territoryDprt,
+      r.subOrg,
+      r.jabatanExcel,
+      r.namaLengkap
     );
 
     const hasValidExcelNik = isValidNikHelper(nikVal) && !batchAssignedNiksHelper.has(nikVal);
@@ -1027,28 +1005,28 @@ export function alignAndCheckWithTemplate(
         batchAssignedNiksHelper.add(nikVal);
       } else {
         nikVal = generateUniqueTerritoryNik(
-          r.dpd || territoryDpd,
+          rowDpdTarget,
           r.subOrg,
           r.no,
-          allExistingNiksHelper
+          allExistingNiksHelper,
+          getTerritoryScopeKey(ctx.level, rowDpdTarget, territoryDpc, territoryDprt)
         );
         batchAssignedNiksHelper.add(nikVal);
       }
     }
 
-    const cleanT = (ctx.level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    const cleanD = (territoryDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    const cleanS = (r.subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    const memberId = `${nikVal}_${cleanT}_${cleanD}_${cleanS}`;
+    const memberId = buildTerritorialPositionId(
+      nikVal,
+      ctx.level,
+      territoryDpc,
+      territoryDprt,
+      r.subOrg
+    );
 
-    const existingMember =
-      existingSlotMember ||
-      currentMembers.find(
-        (m) => m.id === memberId || (m.nik === nikVal && m.tingkatKepengurusan === ctx.level)
-      );
+    const existingMember = currentMembers.find((m) => m.nik === nikVal);
 
     const memberObj: Member = {
-      ...(existingMember || {}),
+      ...stripMemberPositions(existingMember),
       id: memberId,
       nik: nikVal,
       nomorEKTA: r.nomorEKTA || existingMember?.nomorEKTA || makeGeneratedEkta(nikVal),
@@ -1072,8 +1050,10 @@ export function alignAndCheckWithTemplate(
       wilayahPenugasan: r.subOrg,
       urutan: r.no,
       nomorSK:
-        existingMember?.nomorSK ||
-        `SK-${ctx.level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,
+        existingSlotMember?.nomorSK ||
+        (ctx.level === 'DPRt'
+          ? `SK-DPRT-${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`
+          : `SK-${ctx.level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`),
       jabatan: r.jabatanExcel || r.jabatanMatched || 'Pengurus',
       status: 'Aktif',
       statusKtpVerified: true,

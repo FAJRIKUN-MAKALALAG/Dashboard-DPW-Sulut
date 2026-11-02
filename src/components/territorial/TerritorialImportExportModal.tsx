@@ -22,7 +22,14 @@ import {
   AiTemplateCheckStats,
 } from '../../utils/territorial';
 import { parseSqlInsertQuery } from '../../utils/sqlQueryParser';
-import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
+import {
+  isDpdMatch,
+  isDpcMatch,
+  isDprtMatch,
+  getExpandedStructuralMembers,
+} from '../../utils/structureReadinessUtils';
+import { cleanPersonName, isJobTitleMatch } from '../../utils/jobMatchingUtils';
+import { isGeneratedNik, isIncompleteNik } from '../../utils/generatedIds';
 import {
   DownloadTemplateCard,
   ExcelUploadZone,
@@ -68,7 +75,7 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
   const [isAiCleaning, setIsAiCleaning] = useState(false);
   const [aiCheckStats, setAiCheckStats] = useState<AiTemplateCheckStats | null>(null);
 
-  const existingTerritoryMembers = currentMembers.filter((m) => {
+  const existingTerritoryMembers = getExpandedStructuralMembers(currentMembers).filter((m) => {
     if (territoryContext.level === 'DPW') {
       return (
         m.tingkatKepengurusan === 'DPW' ||
@@ -210,6 +217,27 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
 
     setIsSubmitting(true);
     try {
+      // Bersihkan otomatis NIK sementara (generated) atau NIK <16 digit lama di wilayah ini apabila kini digantikan NIK baru saat impor ulang
+      if (onDeleteMembersBatch && existingTerritoryMembers.length > 0) {
+        const incomingNiks = new Set(parseResult.membersToSave.map((m) => m.nik));
+        const obsoleteGeneratedNiks = existingTerritoryMembers
+          .filter((old) => {
+            const isReplaceableOldNik = isGeneratedNik(old.nik) || isIncompleteNik(old.nik);
+            if (!isReplaceableOldNik || incomingNiks.has(old.nik)) return false;
+            const oldName = cleanPersonName(old.namaLengkap).toLowerCase();
+            return parseResult.membersToSave.some(
+              (inc) =>
+                (oldName && cleanPersonName(inc.namaLengkap).toLowerCase() === oldName) ||
+                isJobTitleMatch(inc.jabatan, old.jabatan, old.wilayahPenugasan)
+            );
+          })
+          .map((m) => m.nik);
+
+        if (obsoleteGeneratedNiks.length > 0) {
+          onDeleteMembersBatch(Array.from(new Set(obsoleteGeneratedNiks)), territoryDisplayName);
+        }
+      }
+
       onSaveMembersBatch(parseResult.membersToSave);
       setSubmitSuccess(
         `Berhasil menyimpan ${parseResult.membersToSave.length} data pengurus untuk ${territoryDisplayName} ke database!`

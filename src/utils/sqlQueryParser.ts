@@ -263,8 +263,8 @@ export function parseSqlInsertQuery(
     if (isFilled) {
       filledCount++;
 
-      // Pastikan NIK adalah 16 digit angka valid (jika kosong atau berupa kode string placeholder)
-      if (!nikVal || !/^\d{16}$/.test(nikVal)) {
+      // Simpan NIK apa adanya bila berupa 8-20 digit angka; gunakan ID sementara hanya jika kosong/placeholder
+      if (!nikVal || !/^\d{8,20}$/.test(nikVal) || /^0{6,}/.test(nikVal)) {
         nikVal = generateUniqueTerritoryNik(rawDpd, normalizedSubOrg, idx + 1, occupiedNiks);
       }
 

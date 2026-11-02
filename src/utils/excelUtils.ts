@@ -203,14 +203,14 @@ export async function parseUploadedFile(
     const rawSosmed = (sosmedCol !== -1 ? String(row[sosmedCol] || '') : '').trim();
     const rawStatus = (statusCol !== -1 ? String(row[statusCol] || '') : '').trim();
 
-    // 1. NIK validation
+    // 1. NIK validation (izinkan 8-20 digit tetap tersimpan apa adanya tanpa tambah angka 0 palsu)
     let cleanNik = rawNik;
-    if (!cleanNik) {
-      errors.push('NIK tidak boleh kosong');
-    } else if (cleanNik.length > 16) {
-      cleanNik = cleanNik.substring(0, 16);
-    } else if (cleanNik.length < 16) {
-      cleanNik = cleanNik.padEnd(16, '0');
+    if (!cleanNik || cleanNik.length < 8) {
+      errors.push('NIK wajib berisi minimal 8 digit angka');
+    } else if (cleanNik.length > 20) {
+      cleanNik = cleanNik.substring(0, 20);
+    } else if (cleanNik.length !== 16) {
+      warning = `NIK "${cleanNik}" baru ${cleanNik.length} digit (tetap disimpan, disarankan koreksi ke 16 digit KTP).`;
     }
 
     if (cleanNik && existingNiks.has(cleanNik)) {

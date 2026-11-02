@@ -8,6 +8,7 @@ import {
   canAccessStructureTab,
   canAccessAnalytics,
 } from '../../utils/permissionUtils';
+import { REQUIRED_POSITIONS } from '../../utils/structureReadinessUtils';
 import {
   LayoutDashboard,
   Building2,
@@ -471,7 +472,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                       }`}
                     >
-                      9 / Ranting
+                      {REQUIRED_POSITIONS.DPRt} / Ranting
                     </span>
                   </button>
                 )}
@@ -579,36 +580,34 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   )}
 
                   {/* Persetujuan Hapus */}
-                  {session?.role !== 'ANGGOTA' && (
-                    <button
-                      onClick={() => {
-                        onOpenDeletionApproval();
-                        onCloseMobile();
-                      }}
-                      title={
-                        session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
-                          ? 'Persetujuan Hapus'
-                          : 'Status Pengajuan Hapus'
-                      }
-                      className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                          <ShieldCheck className="w-4 h-4" />
-                        </div>
-                        <span className={textHiddenIfCollapsed}>
-                          {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
-                            ? 'Persetujuan Hapus'
-                            : 'Status Pengajuan Hapus'}
-                        </span>
+                  <button
+                    onClick={() => {
+                      onOpenDeletionApproval();
+                      onCloseMobile();
+                    }}
+                    title={
+                      session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                        ? 'Persetujuan Hapus'
+                        : 'Status Pengajuan Hapus'
+                    }
+                    className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4" />
                       </div>
-                      {pendingDeletionCount > 0 && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 dark:bg-blue-600 text-white ${textHiddenIfCollapsed}`}>
-                          {pendingDeletionCount}
-                        </span>
-                      )}
-                    </button>
-                  )}
+                      <span className={textHiddenIfCollapsed}>
+                        {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                          ? 'Persetujuan Hapus'
+                          : 'Status Pengajuan Hapus'}
+                      </span>
+                    </div>
+                    {pendingDeletionCount > 0 && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 dark:bg-blue-600 text-white ${textHiddenIfCollapsed}`}>
+                        {pendingDeletionCount}
+                      </span>
+                    )}
+                  </button>
 
                   {/* Manajemen Akun Admin: HANYA SUPER ADMIN */}
                   {showUserMgmt && onOpenUserManagement && (
