@@ -286,7 +286,7 @@ export const DpdReadinessView: React.FC<DpdReadinessViewProps> = ({
             </div>
             <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-400">
               <span>Standar Formasi DPD:</span>
-              <span className="font-mono">36 DPD · 17 DPC · 9 DPRt</span>
+              <span className="font-mono">36 DPD · 17 DPC · 11 DPRt</span>
             </div>
           </div>
         </div>

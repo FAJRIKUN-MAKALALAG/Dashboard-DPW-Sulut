@@ -170,17 +170,19 @@ export const DPC_STRUCTURE_TEMPLATE: PositionSlot[] = [
   { no: 17, subOrg: 'III. DEWAN PIMPINAN CABANG', jabatan: 'Wakil Bendahara' }
 ];
 
-// 4. TEMPLATE STRUKTUR DPRt (Kelurahan/Desa)
+// 4. TEMPLATE STRUKTUR DPRt (Kelurahan/Desa) - 11 Jabatan Resmi
 export const DPRT_STRUCTURE_TEMPLATE: PositionSlot[] = [
   { no: 1, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Ketua' },
-  { no: 2, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua' },
-  { no: 3, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Sekretaris' },
-  { no: 4, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Sekretaris' },
-  { no: 5, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Bendahara' },
-  { no: 6, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Bendahara' },
-  { no: 7, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Seksi Organisasi, Keanggotaan & Kaderisasi' },
-  { no: 8, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Seksi Pemenangan Pemilu' },
-  { no: 9, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Seksi Penggalangan Komunitas & Saksi TPS' }
+  { no: 2, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Pemenangan Pemilihan Umum' },
+  { no: 3, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Ideologi Organisasi dan Kaderisasi' },
+  { no: 4, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Usaha Mikro, Kecil, dan Menengah' },
+  { no: 5, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Agama dan Masyarakat Adat' },
+  { no: 6, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Kesehatan' },
+  { no: 7, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Ketua Bidang Pertanian, Pertenakan, dan Kemandirian Desa' },
+  { no: 8, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Sekretaris' },
+  { no: 9, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Sekretaris' },
+  { no: 10, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Bendahara' },
+  { no: 11, subOrg: 'DEWAN PIMPINAN RANTING', jabatan: 'Wakil Bendahara' }
 ];
 
 export function getStructureTemplate(tingkat: 'DPW' | 'DPD' | 'DPC' | 'DPRt'): PositionSlot[] {

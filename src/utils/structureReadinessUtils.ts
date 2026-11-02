@@ -51,13 +51,13 @@ export interface SulutStructureSummary {
  * - DPW: 36 jabatan inti dewan pimpinan wilayah
  * - DPD: 36 jabatan susunan pengurus kabupaten/kota
  * - DPC: 17 jabatan pengurus kecamatan
- * - DPRt: 9 jabatan pengurus ranting desa/kelurahan
+ * - DPRt: 11 jabatan pengurus ranting desa/kelurahan
  */
 export const REQUIRED_POSITIONS = {
   DPW: DPW_STRUCTURE_TEMPLATE.filter((s) => s.subOrg === 'DEWAN PIMPINAN WILAYAH').length || 36, // 36 inti DPW
   DPD: DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH')).length || 36, // 36 inti DPD
   DPC: DPC_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN CABANG')).length || 17, // 17 inti DPC
-  DPRt: DPRT_STRUCTURE_TEMPLATE.length, // 9
+  DPRt: DPRT_STRUCTURE_TEMPLATE.length, // 11
 };
 
 /**

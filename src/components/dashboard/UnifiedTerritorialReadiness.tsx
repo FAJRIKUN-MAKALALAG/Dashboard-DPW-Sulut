@@ -258,12 +258,13 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
       const villageMembers = activeScopedMembers.filter((m) => isDprtMatch(m.dprt, villageName));
       const villagePengurus = villageMembers.filter((m) => m.isPengurus || m.tingkatKepengurusan === 'DPRt');
 
-      // Check filled slots out of 9 from DPRT_STRUCTURE_TEMPLATE
+      // Check filled slots out of 11 from DPRT_STRUCTURE_TEMPLATE
+      const dprtTarget = DPRT_STRUCTURE_TEMPLATE.length;
       const filledSlots = DPRT_STRUCTURE_TEMPLATE.filter((slot) =>
         villagePengurus.some((m) => isJobTitleMatch(m.jabatan, slot.jabatan))
       );
       const filledCount = filledSlots.length;
-      const percentage = Math.round((filledCount / 9) * 100);
+      const percentage = Math.round((filledCount / dprtTarget) * 100);
 
       // Key personnel
       const sortedCadres = sortMembersByHierarchy(villageMembers);
@@ -272,7 +273,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
       const bendaharaDprt = sortedCadres.find((c) => (c.jabatan || '').toLowerCase().includes('bendahara'));
 
       let status: 'LENGKAP' | 'SEBAGIAN' | 'KOSONG' = 'KOSONG';
-      if (filledCount >= 9) {
+      if (filledCount >= dprtTarget) {
         status = 'LENGKAP';
       } else if (filledCount > 0 || villageMembers.length > 0) {
         status = 'SEBAGIAN';
@@ -670,9 +671,9 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                         }`}
                       />
                       {village.status === 'LENGKAP'
-                        ? '9/9 Lengkap'
+                        ? `${DPRT_STRUCTURE_TEMPLATE.length}/${DPRT_STRUCTURE_TEMPLATE.length} Lengkap`
                         : village.filledCount > 0
-                        ? `${village.filledCount}/9 Terisi`
+                        ? `${village.filledCount}/${DPRT_STRUCTURE_TEMPLATE.length} Terisi`
                         : village.totalCadres > 0
                         ? `${village.totalCadres} Kader`
                         : 'Kosong'}
@@ -680,12 +681,12 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                   </div>
                 </div>
 
-                {/* Progress Bar Formasi DPRt (9 Inti) */}
+                {/* Progress Bar Formasi DPRt (11 Inti) */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-[10px] sm:text-[11px]">
                     <span className="text-slate-500">Formasi DPRt:</span>
                     <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {village.percentage}% ({village.filledCount}/9)
+                      {village.percentage}% ({village.filledCount}/{DPRT_STRUCTURE_TEMPLATE.length})
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -707,7 +708,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
                       Formasi
                     </span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] block mt-0.5">
-                      {village.filledCount} / 9
+                      {village.filledCount} / {DPRT_STRUCTURE_TEMPLATE.length}
                     </span>
                   </div>
 

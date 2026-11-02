@@ -134,12 +134,14 @@ export function useTerritorialMatrix({
 
   // Local storage key for custom deleted template slots per territory
   const territoryKey = useMemo(() => {
-    return `nasdem_deleted_slots_${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
+    const versionPrefix = level === 'DPRt' ? 'v2_' : '';
+    return `nasdem_deleted_slots_${versionPrefix}${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
   }, [level, cleanDpd, cleanDpc, cleanDprt]);
 
   // Local storage key for cached custom matrix rows (persists deletes, inserts, and cell edits across refresh)
   const matrixStorageKey = useMemo(() => {
-    return `nasdem_custom_matrix_rows_${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
+    const versionPrefix = level === 'DPRt' ? 'v2_' : '';
+    return `nasdem_custom_matrix_rows_${versionPrefix}${level}_${cleanDpd}_${cleanDpc}_${cleanDprt}`;
   }, [level, cleanDpd, cleanDpc, cleanDprt]);
 
   // Load deleted slot keys for current territory
@@ -362,33 +364,6 @@ export function useTerritorialMatrix({
     // Urutan hierarkis: Ketua selalu nomor 1, disusul urutan berkas Excel / hirarki resmi
     matchedMembers = sortMembersByHierarchy(matchedMembers);
     setRawTerritoryMembers(matchedMembers);
-
-    // KHUSUS DPRt: DIRECT PASSTHROUGH (Salin langsung 1-to-1 seluruh pengurus riil ke matriks)
-    // Setiap desa/kelurahan memiliki struktur unik & dinamis (bisa 7, 9, 11, atau 15 pengurus).
-    // Pertahankan persis nama jabatan asli dan urutan dari berkas Excel/database tanpa memaksakan slot template!
-    if (level === 'DPRt' && matchedMembers.length > 0) {
-      const dprtSubOrgName = 'DEWAN PIMPINAN RANTING';
-      const dprtRows: GridRowItem[] = [];
-      matchedMembers.forEach((m, idx) => {
-        dprtRows.push({
-          id: m.nik || `dprt_${idx + 1}`,
-          no: idx + 1,
-          subOrg: dprtSubOrgName,
-          jabatan: m.jabatan || 'Pengurus',
-          namaLengkap: m.namaLengkap,
-          nik: m.nik,
-          nomorEKTA: m.nomorEKTA || '',
-          email: m.email || '',
-          nomorHP: m.nomorHP || '',
-          sosmed: m.sosmed || '',
-          fotoProfilUrl: m.fotoProfilUrl || '',
-          isExisting: true,
-          originalNik: m.nik,
-        });
-      });
-      setGridRows(dprtRows);
-      return;
-    }
 
     const assignedMemberNiks = new Set<string>();
 

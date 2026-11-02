@@ -211,31 +211,35 @@ export function downloadTerritorialExcelTemplate(
     }
   };
 
-  addRowsForCouncil(
-    ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN',
-    currentPertimbangan,
-    pertimbanganSlots.length > 0
-      ? pertimbanganSlots
-      : [
-          { no: 1, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Ketua' },
-          { no: 2, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Wakil Ketua' },
-          { no: 3, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Sekretaris' },
-          { no: 4, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Anggota' },
-        ]
-  );
+  if (ctx.level !== 'DPRt' || currentPertimbangan.length > 0) {
+    addRowsForCouncil(
+      ctx.level === 'DPW' ? 'DEWAN PERTIMBANGAN WILAYAH' : 'I. DEWAN PERTIMBANGAN',
+      currentPertimbangan,
+      pertimbanganSlots.length > 0
+        ? pertimbanganSlots
+        : [
+            { no: 1, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Ketua' },
+            { no: 2, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Wakil Ketua' },
+            { no: 3, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Sekretaris' },
+            { no: 4, subOrg: 'I. DEWAN PERTIMBANGAN', jabatan: 'Anggota' },
+          ]
+    );
+  }
 
-  addRowsForCouncil(
-    ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR',
-    currentPakar,
-    pakarSlots.length > 0
-      ? pakarSlots
-      : [
-          { no: 1, subOrg: 'II. DEWAN PAKAR', jabatan: 'Ketua' },
-          { no: 2, subOrg: 'II. DEWAN PAKAR', jabatan: 'Wakil Ketua' },
-          { no: 3, subOrg: 'II. DEWAN PAKAR', jabatan: 'Sekretaris' },
-          { no: 4, subOrg: 'II. DEWAN PAKAR', jabatan: 'Anggota' },
-        ]
-  );
+  if (ctx.level !== 'DPRt' || currentPakar.length > 0) {
+    addRowsForCouncil(
+      ctx.level === 'DPW' ? 'DEWAN PAKAR WILAYAH' : 'II. DEWAN PAKAR',
+      currentPakar,
+      pakarSlots.length > 0
+        ? pakarSlots
+        : [
+            { no: 1, subOrg: 'II. DEWAN PAKAR', jabatan: 'Ketua' },
+            { no: 2, subOrg: 'II. DEWAN PAKAR', jabatan: 'Wakil Ketua' },
+            { no: 3, subOrg: 'II. DEWAN PAKAR', jabatan: 'Sekretaris' },
+            { no: 4, subOrg: 'II. DEWAN PAKAR', jabatan: 'Anggota' },
+          ]
+    );
+  }
 
   addRowsForCouncil(
     ctx.level === 'DPW'

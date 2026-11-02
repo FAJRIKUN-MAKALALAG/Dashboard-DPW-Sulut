@@ -68,6 +68,7 @@ export function normalizeJobTitle(title?: string): string {
     .replace(/\b(bidang|bid|bdg|bag|bagian|divisi|div|seksi|seks)\b/g, ' ')
     .replace(/&/g, ' dan ')
     .replace(/\bmasyakarat\b/g, 'masyarakat')
+    .replace(/\bpertenakan\b/g, 'peternakan')
     .replace(/\b(dan|masyarakat|pada|untuk|di|ke)\b/g, ' ');
 
   // Normalisasi Istilah Khusus Partai NasDem & Sektoral

@@ -728,22 +728,23 @@ export function alignAndCheckWithTemplate(
       }
     });
 
+    const filledDprtCount = alignedRows.filter((r) => r.isFilled).length;
     return {
       success: true,
       rows: alignedRows,
       membersToSave,
       stats: {
-        totalRows: alignedRows.length,
-        filledRows: alignedRows.filter((r) => r.isFilled).length,
-        vacantSlotsCount: 0,
-        standardSlotsTarget: alignedRows.length,
-        extraRowsCount: 0,
+        totalRows: Math.max(alignedRows.length, allSlots.length),
+        filledRows: filledDprtCount,
+        vacantSlotsCount: Math.max(0, allSlots.length - filledDprtCount),
+        standardSlotsTarget: allSlots.length,
+        extraRowsCount: Math.max(0, filledDprtCount - allSlots.length),
         pertimbanganCount: 0,
         pakarCount: 0,
-        pimpinanCount: alignedRows.length,
+        pimpinanCount: filledDprtCount,
         matchedCount: alignedRows.length,
       },
-      message: `Pemeriksaan selesai. Ditemukan ${alignedRows.length} susunan pengurus DPRt.`,
+      message: `Pemeriksaan selesai. Ditemukan ${filledDprtCount} dari ${allSlots.length} susunan pengurus DPRt.`,
     };
   }
 

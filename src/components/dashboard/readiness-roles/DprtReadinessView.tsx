@@ -68,7 +68,7 @@ export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({
             Status Kepengurusan DPRt Desa/Kelurahan {dprtName}
           </h3>
           <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
-            Pemantauan keterisian 9 jabatan formasi DPRt Ranting di Desa/Kelurahan {dprtName}, Kecamatan {dpcName}, {dpdName}.
+            Pemantauan keterisian 11 jabatan formasi DPRt Ranting di Desa/Kelurahan {dprtName}, Kecamatan {dpcName}, {dpdName}.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({
             <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-500 pl-5">
               <span>Standar Formasi Ranting:</span>
               <span className="font-mono font-semibold tabular-nums text-slate-700 dark:text-slate-300">
-                9 Jabatan DPRt
+                11 Jabatan DPRt
               </span>
             </div>
 
@@ -165,19 +165,19 @@ export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({
           <div className="flex items-baseline gap-2">
             <span className="text-xl sm:text-2xl md:text-3xl font-bold font-mono tabular-nums text-slate-900 dark:text-white">
               {dprtScopedStats.dprtPengurusCount}
-              <span className="text-sm sm:text-base text-slate-400 font-normal"> / 9</span>
+              <span className="text-sm sm:text-base text-slate-400 font-normal"> / 11</span>
             </span>
             <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  dprtScopedStats.dprtPengurusCount >= 9
+                  dprtScopedStats.dprtPengurusCount >= 11
                     ? 'bg-emerald-500'
                     : dprtScopedStats.dprtPengurusCount > 0
                     ? 'bg-amber-500'
                     : 'bg-slate-300'
                 }`}
               />
-              {dprtScopedStats.dprtPengurusCount >= 9
+              {dprtScopedStats.dprtPengurusCount >= 11
                 ? 'Lengkap 100%'
                 : dprtScopedStats.dprtPengurusCount > 0
                 ? 'Sebagian Terisi'
@@ -189,10 +189,10 @@ export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
-                Pengurus Inti DPRt (9 Posisi):
+                Pengurus Inti DPRt (11 Posisi):
               </span>
               <span className="font-mono font-bold tabular-nums text-slate-900 dark:text-slate-200">
-                {dprtScopedStats.dprtPengurusCount} / 9 Terisi
+                {dprtScopedStats.dprtPengurusCount} / 11 Terisi
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -201,7 +201,7 @@ export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({
                 Kekosongan Jabatan DPRt:
               </span>
               <span className="font-mono font-bold tabular-nums text-slate-900 dark:text-slate-200">
-                {Math.max(0, 9 - dprtScopedStats.dprtPengurusCount)} Jabatan
+                {Math.max(0, 11 - dprtScopedStats.dprtPengurusCount)} Jabatan
               </span>
             </div>
             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60 dark:border-slate-800/80">

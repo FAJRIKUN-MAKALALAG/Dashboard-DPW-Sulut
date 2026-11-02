@@ -356,8 +356,8 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
             </span>
             <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200/80 dark:border-slate-700 truncate max-w-[180px] sm:max-w-none">
               {isDprtScoped
-                ? structureKpi.dprtFilled >= 9
-                  ? 'Lengkap 9/9'
+                ? structureKpi.dprtFilled >= 11
+                  ? 'Lengkap 11/11'
                   : 'Pengurus Ranting'
                 : isDpcScoped
                 ? structureKpi.dpcFilled >= 17
@@ -379,7 +379,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               {isDprtScoped
                 ? `Desa ${session?.dprtAccess || ''} · Kec. ${session?.dpcAccess || ''}`
                 : isDpcScoped
-                ? `Kec. ${session?.dpcAccess || ''} · ${structureKpi.dprtRequired / 9 || 0} DPRt`
+                ? `Kec. ${session?.dpcAccess || ''} · ${structureKpi.dprtRequired / 11 || 0} DPRt`
                 : isDpdScoped
                 ? `${totalDpcsInDpd} DPC Kecamatan · ${totalDprtsInDpd} DPRt Desa`
                 : '15 DPD Kab/Kota · 171 DPC · 1.602 DPRt'}
@@ -396,7 +396,7 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
               </span>
               <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
                 {isDprtScoped
-                  ? `${structureKpi.dprtFilled} / 9`
+                  ? `${structureKpi.dprtFilled} / 11`
                   : `${totalPengurusBerSk.toLocaleString('id-ID')} Org`}
               </span>
             </div>
