@@ -210,8 +210,12 @@ export function useMemberCrudHandlers({
     if (m.id) return m.id;
     const cleanT = (m.tingkatKepengurusan || 'ANGGOTA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const cleanD = (m.dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    const cleanR =
+      m.tingkatKepengurusan === 'DPRt'
+        ? `_${(m.dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
+        : '';
     const cleanS = (m.wilayahPenugasan || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    return `${m.nik}_${cleanT}_${cleanD}_${cleanS}`;
+    return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
   }, []);
 
   const handleBatchSaveTerritorialMembers = async (incomingMembers: Member[]) => {
@@ -223,11 +227,12 @@ export function useMemberCrudHandlers({
     incomingMembers.forEach((inc) => {
       const key = getMemberPositionKey(inc);
       const existing = membersMap.get(key);
-      // positions lama dibuang: jabatan baru diambil dari server setelah sinkron
+      // positions lama dibuang dari existing maupun inc agar jabatan baru langsung terbaca sebelum sinkron server selesai
       const { positions: _stalePositions, ...existingRest } = (existing || {}) as Member;
+      const { positions: _staleIncPositions, ...incRest } = inc;
       membersMap.set(key, {
         ...existingRest,
-        ...inc,
+        ...incRest,
         id: inc.id || key,
       });
     });

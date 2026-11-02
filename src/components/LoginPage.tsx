@@ -37,6 +37,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [actCheckedMember, setActCheckedMember] = useState<{
     found: boolean;
     nik: string;
+    nikAutoCorrectedFrom?: string | null;
     nomorEkta: string;
     namaLengkap: string;
     jabatan: string;
@@ -94,8 +95,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setActSuccessMsg(null);
 
     const clean = actNik.replace(/[^0-9]/g, '').trim();
-    if (!clean || clean.length < 12) {
-      setActError('Masukkan 16 digit Nomor Induk Kependudukan (NIK) KTP Anda.');
+    if (!clean || clean.length < 8) {
+      setActError('Masukkan Nomor Induk Kependudukan (NIK) KTP Anda dengan benar.');
       return;
     }
 
@@ -503,7 +504,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           {actCheckedMember.dpc && actCheckedMember.dpc !== '-'
                             ? ` / ${actCheckedMember.dpc}`
                             : ''}
+                          {actCheckedMember.dprt &&
+                          actCheckedMember.dprt !== '-' &&
+                          actCheckedMember.dprt !== 'Pusat/Umum'
+                            ? ` / ${actCheckedMember.dprt}`
+                            : ''}
                         </p>
+                        {actCheckedMember.nikAutoCorrectedFrom && (
+                          <p className="text-[11px] text-emerald-700 font-medium pt-1">
+                            NIK pada data SK ({actCheckedMember.nikAutoCorrectedFrom}) otomatis diselaraskan ke 16 digit NIK KTP Anda ({actCheckedMember.nik}) saat aktivasi.
+                          </p>
+                        )}
                       </div>
                     </div>
 

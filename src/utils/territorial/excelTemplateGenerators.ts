@@ -2,6 +2,7 @@ import XLSX from 'xlsx-js-style';
 import { PositionSlot, getStructureTemplate } from '../../data/structureTemplates';
 import { GridRowItem } from '../../components/matrix';
 import { isGeneratedNik, isGeneratedEkta } from '../generatedIds';
+import { isDpdMatch } from '../structureReadinessUtils';
 import { TerritoryContext } from './excelTypes';
 import { applyExcelTemplateStyling, applyInfoSheetStyling } from './excelStyles';
 
@@ -62,7 +63,16 @@ const SULUT_DPD_CODES: Record<string, string> = {
 
 function getDpdPrefix(dpdName: string): string {
   const norm = (dpdName || '').trim().toUpperCase();
+  if (!norm) return '7100';
+
+  // Prioritaskan kecocokan eksak / terstandarisasi agar "Minahasa Selatan" tidak salah kena "Minahasa"
   for (const [key, code] of Object.entries(SULUT_DPD_CODES)) {
+    if (norm === key || isDpdMatch(dpdName, key)) return code;
+  }
+
+  // Fallback dari nama terpanjang ke terpendek
+  const sortedEntries = Object.entries(SULUT_DPD_CODES).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, code] of sortedEntries) {
     if (norm.includes(key) || key.includes(norm)) return code;
   }
   return '7100';
@@ -78,20 +88,38 @@ function getSubOrgPrefix(subOrg: string): string {
   return '99';
 }
 
+function hashTerritoryScope(scopeKey?: string): string {
+  const clean = (scopeKey || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!clean) return '0000';
+  let h = 2166136261;
+  for (let i = 0; i < clean.length; i++) {
+    h ^= clean.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const bucket = (Math.abs(h) % 9000) + 1000; // 4 digit 1000..9999
+  return String(bucket);
+}
+
 export function generateUniqueTerritoryNik(
   dpdName: string,
   subOrg: string,
   seq: number,
-  occupiedNiks: Set<string>
+  occupiedNiks: Set<string>,
+  scopeKey?: string
 ): string {
   const regCode = getDpdPrefix(dpdName);
   const orgCode = getSubOrgPrefix(subOrg);
   const prefix = `${regCode}${orgCode}26`;
+  const scopePart = hashTerritoryScope(scopeKey);
 
   let counter = Math.max(1, seq);
   let candidate = '';
   do {
-    candidate = `${prefix}${String(counter).padStart(8, '0')}`;
+    if (scopePart !== '0000' && counter <= 9999) {
+      candidate = `${prefix}${scopePart}${String(counter).padStart(4, '0')}`;
+    } else {
+      candidate = `${prefix}${String(counter).padStart(8, '0')}`;
+    }
     counter++;
   } while (occupiedNiks.has(candidate));
 

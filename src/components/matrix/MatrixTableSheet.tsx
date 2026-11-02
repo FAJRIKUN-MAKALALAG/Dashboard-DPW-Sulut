@@ -11,7 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
+import { isGeneratedNik, isGeneratedEkta, isIncompleteNik } from '../../utils/generatedIds';
 import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
 
@@ -493,9 +493,19 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                 </div>
                               ) : (
                                 <div className="space-y-0.5">
-                                  <div className="text-slate-700 dark:text-slate-300 truncate">
-                                    <span className="text-slate-400 font-sans text-[10px] mr-1">NIK:</span>
-                                    {nikVal || '-'}
+                                  <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
+                                    <div>
+                                      <span className="text-slate-400 font-sans text-[10px] mr-1">NIK:</span>
+                                      <span>{nikVal || '-'}</span>
+                                    </div>
+                                    {isIncompleteNik(nikVal) && (
+                                      <span
+                                        className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-sans font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/70"
+                                        title="NIK belum tepat 16 digit standar KTP"
+                                      >
+                                        {nikVal.replace(/[^0-9]/g, '').length} digit
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-slate-600 dark:text-slate-400 truncate">
                                     <span className="text-slate-400 font-sans text-[10px] mr-1">KTA:</span>
@@ -764,7 +774,17 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               ) : isGeneratedNik(row.nik) || !row.nik ? (
                                 <span className="text-slate-400 dark:text-slate-500 font-sans">-</span>
                               ) : (
-                                <span className="text-slate-700 dark:text-slate-300">{row.nik}</span>
+                                <div className="inline-flex flex-col items-center gap-0.5">
+                                  <span className="text-slate-700 dark:text-slate-300">{row.nik}</span>
+                                  {isIncompleteNik(row.nik) && (
+                                    <span
+                                      className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-sans font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/70"
+                                      title="NIK belum tepat 16 digit standar KTP"
+                                    >
+                                      {row.nik.replace(/[^0-9]/g, '').length} digit
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </td>
 
@@ -1087,9 +1107,16 @@ const MobileRowCard: React.FC<MobileRowCardProps> = ({
         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
           <div>
             <span className="text-[9.5px] uppercase font-semibold text-slate-400 block">NIK KTP</span>
-            <span className="font-mono font-semibold text-slate-700 dark:text-slate-300 truncate block">
-              {nik || '-'}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono font-semibold text-slate-700 dark:text-slate-300 truncate">
+                {nik || '-'}
+              </span>
+              {isIncompleteNik(nik) && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-sans font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/70">
+                  {nik.replace(/[^0-9]/g, '').length} digit
+                </span>
+              )}
+            </div>
           </div>
           <div>
             <span className="text-[9.5px] uppercase font-semibold text-slate-400 block">No. E-KTA</span>

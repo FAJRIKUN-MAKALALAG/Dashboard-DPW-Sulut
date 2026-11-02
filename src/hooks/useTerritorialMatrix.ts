@@ -20,6 +20,7 @@ import {
   assignItemsToTemplateSlots,
 } from '../utils/jobMatchingUtils';
 import { generateUniqueTerritoryNik } from '../utils/territorialExcelTemplateUtils';
+import { isAcceptableImportNik } from '../utils/generatedIds';
 import { GridRowItem } from '../components/matrix';
 import * as XLSX from 'xlsx';
 
@@ -191,10 +192,17 @@ export function useTerritorialMatrix({
         if (savedJson) {
           const cachedRows: GridRowItem[] = JSON.parse(savedJson);
 
-          // Cache basi: seluruh baris kosong, padahal wilayah ini sudah punya pengurus riil (mis. baru diimpor)
+          // Cache basi jika:
+          // 1) seluruh baris di cache kosong padahal wilayah ini punya pengurus riil, ATAU
+          // 2) ada pengurus baru di database/impor yang NIK-nya belum tercatat di cache matriks lokal
           const cacheHasFilledRow =
             Array.isArray(cachedRows) &&
             cachedRows.some((r) => !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-');
+          const cachedNiks = new Set(
+            (Array.isArray(cachedRows) ? cachedRows : [])
+              .map((r) => (r.nik || '').trim())
+              .filter(Boolean)
+          );
           const liveTerritoryMembers = getExpandedStructuralMembers(members).filter((m) => {
             if (m.tingkatKepengurusan !== level) return false;
             if (level === 'DPW') return true;
@@ -204,12 +212,16 @@ export function useTerritorialMatrix({
             if (level === 'DPC') return true;
             return isDprtMatch(m.dprt, selectedDprt);
           });
-          const isStaleEmptyCache = !cacheHasFilledRow && liveTerritoryMembers.length > 0;
-          if (isStaleEmptyCache) {
+          const hasUnmappedLiveMember = liveTerritoryMembers.some(
+            (m) => m.nik && !cachedNiks.has(m.nik.trim()) && !deletedKeys.has(m.nik.trim())
+          );
+          const isStaleCache =
+            (!cacheHasFilledRow && liveTerritoryMembers.length > 0) || hasUnmappedLiveMember;
+          if (isStaleCache) {
             localStorage.removeItem(matrixStorageKey);
           }
 
-          if (!isStaleEmptyCache && Array.isArray(cachedRows) && cachedRows.length > 0) {
+          if (!isStaleCache && Array.isArray(cachedRows) && cachedRows.length > 0) {
             // Sinkronkan data profil personil terbaru dari database
             const sourceMembers = getExpandedStructuralMembers(members);
             const memberMapByNik = new Map<string, Member>();
@@ -1017,11 +1029,23 @@ export function useTerritorialMatrix({
       );
 
       let nikClean = row.nik.replace(/[^0-9]/g, '').trim();
-      if (!nikClean || nikClean.length < 10) {
-        if (existingMember && existingMember.nik) {
+      const scopeKey =
+        level === 'DPRt'
+          ? `${territoryDpd}|${territoryDpc}|${territoryDprt}`
+          : level === 'DPC'
+          ? `${territoryDpd}|${territoryDpc}`
+          : undefined;
+      if (!isAcceptableImportNik(nikClean)) {
+        if (existingMember && isAcceptableImportNik(existingMember.nik)) {
           nikClean = existingMember.nik;
         } else {
-          nikClean = generateUniqueTerritoryNik(territoryDpd, row.subOrg, idx + 1, occupiedNiks);
+          nikClean = generateUniqueTerritoryNik(
+            territoryDpd,
+            row.subOrg,
+            idx + 1,
+            occupiedNiks,
+            scopeKey
+          );
         }
       } else {
         occupiedNiks.add(nikClean);
@@ -1033,14 +1057,21 @@ export function useTerritorialMatrix({
 
       const cleanT = (level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
       const cleanD = (territoryDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const cleanR =
+        level === 'DPRt'
+          ? `_${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
+          : '';
       const cleanS = (row.subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
       const memberId =
         row.id && !row.id.startsWith('empty_')
           ? row.id
-          : `${nikClean}_${cleanT}_${cleanD}_${cleanS}`;
+          : `${nikClean}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+
+      const { positions: _staleExistingPositions, ...existingMemberRest } = (existingMember ||
+        {}) as Member;
 
       const updatedMember: Member = {
-        ...(existingMember || {}),
+        ...existingMemberRest,
         id: memberId,
         nik: nikClean,
         nomorEKTA: row.nomorEKTA.trim() || existingMember?.nomorEKTA || nikClean,
