@@ -87,7 +87,7 @@ export const TerritorySelectorBar: React.FC<TerritorySelectorBarProps> = ({
             {level === 'DPC' &&
               `Struktur resmi DPC terdiri dari 25 jabatan kuota standar di wilayah ${selectedDpd}.`}
             {level === 'DPRt' &&
-              `Struktur resmi DPRt terdiri dari 9 jabatan inti ranting desa/kelurahan di Kec. ${selectedDpc}.`}
+              `Struktur resmi DPRt terdiri dari 11 jabatan inti ranting desa/kelurahan di Kec. ${selectedDpc}.`}
           </p>
         </div>
 

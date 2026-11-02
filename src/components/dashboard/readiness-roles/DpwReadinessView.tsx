@@ -1,9 +1,10 @@
 import React from 'react';
 import { Member } from '../../../types';
-import { StructureReadinessSummary, computeStructureKpiStats } from '../../../utils/structureReadinessUtils';
+import { computeStructureReadiness, computeStructureKpiStats } from '../../../utils/structureReadinessUtils';
 import {
   CheckCircle2,
   AlertTriangle,
+  XCircle,
   Users,
   ShieldCheck,
   Building2,
@@ -17,7 +18,7 @@ import {
 
 interface DpwReadinessViewProps {
   members: Member[];
-  readinessSummary: StructureReadinessSummary;
+  readinessSummary: ReturnType<typeof computeStructureReadiness>;
   showGuidelines: boolean;
   setShowGuidelines: (v: boolean) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
@@ -219,11 +220,20 @@ export const DpwReadinessView: React.FC<DpwReadinessViewProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-                <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
-                DPD Sebagian / Kosong:
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                DPD Sebagian:
               </span>
               <span className="font-mono font-bold tabular-nums text-slate-900 dark:text-slate-200">
-                {readinessSummary.partiallyFilledDpds.length} Sebagian · {readinessSummary.emptyDpds.length} Kosong
+                {readinessSummary.partiallyFilledDpds.length} DPD
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                DPD Kosong:
+              </span>
+              <span className="font-mono font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                {readinessSummary.emptyDpds.length} DPD
               </span>
             </div>
           </div>
@@ -264,7 +274,7 @@ export const DpwReadinessView: React.FC<DpwReadinessViewProps> = ({
             </div>
             <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-400">
               <span>Standar Formasi:</span>
-              <span className="font-mono">36 DPD · 17 DPC · 9 DPRt</span>
+              <span className="font-mono">36 DPD · 17 DPC · 11 DPRt</span>
             </div>
           </div>
         </div>

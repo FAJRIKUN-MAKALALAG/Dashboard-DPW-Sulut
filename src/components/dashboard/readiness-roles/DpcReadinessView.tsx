@@ -255,7 +255,7 @@ export const DpcReadinessView: React.FC<DpcReadinessViewProps> = ({
             </div>
             <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-400">
               <span>Standar Formasi DPRt:</span>
-              <span className="font-mono">9 Jabatan Inti / DPRt</span>
+              <span className="font-mono">11 Jabatan Inti / DPRt</span>
             </div>
           </div>
         </div>
