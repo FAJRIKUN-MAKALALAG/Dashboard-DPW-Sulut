@@ -93,19 +93,19 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
           filteredSlots.map((slot: any) => (
             <div
               key={slot.no}
-              className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+              className="p-3 flex items-start justify-between gap-2.5 sm:gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
             >
-              <div className="flex items-start gap-2.5 min-w-0">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
                 <span className="text-[10px] font-mono font-bold text-slate-400 w-5 pt-0.5 shrink-0">
                   #{slot.no}
                 </span>
-                <div className="min-w-0">
-                  <span className="font-semibold text-xs text-slate-900 dark:text-white block truncate">
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-xs text-slate-900 dark:text-white block leading-snug break-words">
                     {slot.jabatan}
                   </span>
                   {slot.isFilled && slot.member ? (
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
+                    <div className="flex items-start sm:items-center gap-2 mt-1.5">
+                      <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
                         {slot.member.fotoProfilUrl ? (
                           <img
                             src={resolveImageUrl(slot.member.fotoProfilUrl)}
@@ -120,19 +120,19 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="min-w-0 flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300">
-                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      <div className="min-w-0 flex-1 text-[11px] text-slate-600 dark:text-slate-300">
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-100 leading-snug break-words block sm:inline">
                           {slot.member.namaLengkap}
                         </span>
                         {slot.member.nomorEKTA && (
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                            · e-KTA: {slot.member.nomorEKTA}
+                          <span className="text-[10px] text-slate-400 font-mono block sm:inline sm:ml-1.5 mt-0.5 sm:mt-0 break-all">
+                            <span className="hidden sm:inline">· </span>e-KTA: {slot.member.nomorEKTA}
                           </span>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <span className="text-[11px] text-slate-400 italic">
+                    <span className="text-[11px] text-slate-400 italic block mt-0.5">
                       Belum ada pengurus yang diplot pada posisi ini
                     </span>
                   )}
@@ -182,11 +182,12 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
               <span className="font-semibold text-slate-700 dark:text-slate-300 block">
                 Dewan Pertimbangan ({pertimbanganMembers.length} Org)
               </span>
-              <div className="mt-1 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400 max-h-24 overflow-y-auto">
+              <div className="mt-1.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 max-h-36 overflow-y-auto">
                 {pertimbanganMembers.length > 0 ? (
                   pertimbanganMembers.map((m) => (
-                    <div key={m.nik} className="truncate">
-                      &bull; {m.namaLengkap} <span className="text-slate-400">({m.jabatan})</span>
+                    <div key={m.nik} className="leading-snug break-words">
+                      &bull; <span className="font-medium text-slate-800 dark:text-slate-200">{m.namaLengkap}</span>{' '}
+                      <span className="text-slate-400">({m.jabatan})</span>
                     </div>
                   ))
                 ) : (
@@ -199,11 +200,12 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
               <span className="font-semibold text-slate-700 dark:text-slate-300 block">
                 Dewan Pakar ({pakarMembers.length} Org)
               </span>
-              <div className="mt-1 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400 max-h-24 overflow-y-auto">
+              <div className="mt-1.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 max-h-36 overflow-y-auto">
                 {pakarMembers.length > 0 ? (
                   pakarMembers.map((m) => (
-                    <div key={m.nik} className="truncate">
-                      &bull; {m.namaLengkap} <span className="text-slate-400">({m.jabatan})</span>
+                    <div key={m.nik} className="leading-snug break-words">
+                      &bull; <span className="font-medium text-slate-800 dark:text-slate-200">{m.namaLengkap}</span>{' '}
+                      <span className="text-slate-400">({m.jabatan})</span>
                     </div>
                   ))
                 ) : (

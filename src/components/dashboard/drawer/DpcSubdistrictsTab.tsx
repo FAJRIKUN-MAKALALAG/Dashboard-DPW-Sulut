@@ -167,12 +167,12 @@ export const DpcSubdistrictsTab: React.FC<DpcSubdistrictsTabProps> = ({
                     {(() => {
                       const ketuaDpc = pengurusDpc.find((m) => isDefinitiveLeader(m.jabatan));
                       return (
-                        <div className="flex items-center gap-1.5 text-[11px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded-lg">
-                          <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-500 text-slate-950 font-mono shrink-0 shadow-2xs">
+                        <div className="flex items-start gap-1.5 text-[11px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 px-2 py-1.5 rounded-lg">
+                          <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-500 text-slate-950 font-mono shrink-0 shadow-2xs mt-0.5">
                             #1
                           </span>
-                          <span className="text-[10px] font-semibold text-slate-500 shrink-0">Ketua DPC:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate text-[11px]">
+                          <span className="text-[10px] font-semibold text-slate-500 shrink-0 mt-0.5">Ketua DPC:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 leading-snug break-words text-[11px]">
                             {ketuaDpc ? (
                               ketuaDpc.namaLengkap
                             ) : (
@@ -258,7 +258,7 @@ export const DpcSubdistrictsTab: React.FC<DpcSubdistrictsTabProps> = ({
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>&larr; Kembali ke Daftar 17 DPC Kecamatan</span>
+                  <span>Kembali ke Daftar {subdistrictDetails.length} DPC Kecamatan</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -325,19 +325,19 @@ export const DpcSubdistrictsTab: React.FC<DpcSubdistrictsTabProps> = ({
                     key={m.id || `${m.nik}-${idx}`}
                     className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start justify-between gap-2.5 shadow-2xs"
                   >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-start gap-1.5">
+                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0 mt-0.5">
                           DPC
                         </span>
-                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 truncate">
+                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 leading-snug break-words">
                           {m.jabatan || 'Pengurus DPC'}
                         </span>
                       </div>
-                      <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                      <p className="font-bold text-xs text-slate-900 dark:text-white leading-snug break-words">
                         {m.namaLengkap}
                       </p>
-                      <p className="text-[10.5px] font-mono text-slate-500 truncate">
+                      <p className="text-[10.5px] font-mono text-slate-500 break-words">
                         NIK: {m.nik} {m.nomorHP && m.nomorHP !== '-' ? `· ${m.nomorHP}` : ''}
                       </p>
                     </div>

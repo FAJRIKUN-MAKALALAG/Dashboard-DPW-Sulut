@@ -270,11 +270,11 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
         onClick={onClose}
       />
 
-      {/* Slide-over Right Drawer Container - Mentok ke pojok kanan layar */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-4 sm:pl-10 pointer-events-none z-10">
-        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
+      {/* Slide-over Right Drawer Container - Full width di mobile, slide-over di desktop */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-0 sm:pl-10 pointer-events-none z-10">
+        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 sm:border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           
-          {/* 1. Header Drawer & KPI Summaries */}
+          {/* 1. Header Drawer & Collapsible KPI Summaries */}
           <DrawerHeader
             regionInfo={regionInfo}
             compliance={compliance}
@@ -292,7 +292,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
           />
 
           {/* 2. Navigation Tabs */}
-          <div className="px-4 sm:px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 sm:gap-4 text-xs font-medium overflow-x-auto whitespace-nowrap">
+          <div className="px-4 sm:px-5 pt-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 sm:gap-4 text-xs font-medium overflow-x-auto whitespace-nowrap shrink-0">
             {!isDpcScoped && !isDprtScoped && (
               <button
                 type="button"
@@ -355,7 +355,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
           </div>
 
           {/* 3. Tab Contents with Micro-animation */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5">
             <div key={activeTab} className="animate-tab-enter space-y-4">
               {activeTab === 'dpd' && (
                 <DpdSlotsTab
@@ -411,14 +411,14 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
           </div>
 
           {/* 4. Drawer Footer */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-between text-xs">
-            <span className="text-slate-400">
+          <div className="px-4 py-2.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-between text-xs shrink-0">
+            <span className="hidden sm:inline text-slate-400">
               Menekan <kbd className="font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 text-[10px]">ESC</kbd> untuk menutup
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="ml-auto px-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               Tutup
             </button>

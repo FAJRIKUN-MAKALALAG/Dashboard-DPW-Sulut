@@ -218,11 +218,11 @@ export const DprtOverviewTab: React.FC<DprtOverviewTabProps> = ({
                     return (
                       <>
                         {ketuaDprt && (
-                          <div className="flex items-center gap-1.5 text-[10.5px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-amber-800 dark:text-amber-300">
-                            <span className="font-black text-[9px] font-mono px-1 rounded bg-amber-500 text-slate-950">
+                          <div className="flex items-start gap-1.5 text-[10.5px] bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded text-amber-800 dark:text-amber-300">
+                            <span className="font-black text-[9px] font-mono px-1 rounded bg-amber-500 text-slate-950 shrink-0 mt-0.5">
                               #1
                             </span>
-                            <span className="font-bold truncate">
+                            <span className="font-bold leading-snug break-words">
                               Ketua DPRt: {ketuaDprt.namaLengkap}
                             </span>
                           </div>
@@ -231,8 +231,9 @@ export const DprtOverviewTab: React.FC<DprtOverviewTabProps> = ({
                           .filter((c) => c.nik !== ketuaDprt?.nik)
                           .slice(0, 2)
                           .map((c, idx) => (
-                            <div key={`${c.nik}-${idx}`} className="truncate text-[10px] text-slate-500">
-                              &bull; {c.namaLengkap} ({c.jabatan || 'Pengurus DPRt'})
+                            <div key={`${c.nik}-${idx}`} className="leading-snug break-words text-[10.5px] text-slate-600 dark:text-slate-400">
+                              &bull; <span className="font-medium text-slate-800 dark:text-slate-200">{c.namaLengkap}</span>{' '}
+                              <span className="text-slate-500">({c.jabatan || 'Pengurus DPRt'})</span>
                             </div>
                           ))}
                       </>
