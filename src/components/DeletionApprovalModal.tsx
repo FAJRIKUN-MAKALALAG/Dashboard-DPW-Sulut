@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { DeletionRequest, UserSession } from '../types';
 import { canApproveDeletionRequest } from '../utils/permissionUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import { useDialog } from './ui/AppDialogProvider';
 import {
   X,
   ShieldCheck,
@@ -30,6 +31,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
   onApprove,
   onReject,
 }) => {
+  const { showAlert } = useDialog();
   const [activeTab, setActiveTab] = useState<'PENDING' | 'HISTORY'>('PENDING');
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'APPROVE' | 'REJECT' | null>(null);
@@ -79,13 +81,17 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
     setReviewNote('');
   };
 
-  const handleConfirmAction = (reqId: string) => {
+  const handleConfirmAction = async (reqId: string) => {
     if (!canApprove) return;
     if (actionType === 'APPROVE') {
       onApprove(reqId, reviewNote);
     } else if (actionType === 'REJECT') {
       if (!reviewNote.trim()) {
-        alert('Harap isi alasan penolakan permohonan.');
+        await showAlert({
+          variant: 'warning',
+          title: 'Alasan Penolakan Wajib Diisi',
+          message: 'Harap cantumkan alasan penolakan permohonan agar tercatat pada log audit.',
+        });
         return;
       }
       onReject(reqId, reviewNote.trim());

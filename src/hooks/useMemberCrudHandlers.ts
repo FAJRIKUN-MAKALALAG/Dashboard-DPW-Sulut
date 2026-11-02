@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from '../types';
+import { useDialog } from '../components/ui/AppDialogProvider';
 import {
   saveMembers,
   loadAuditLogs,
@@ -40,6 +41,7 @@ export function useMemberCrudHandlers({
   session,
   showToast,
 }: UseMemberCrudHandlersProps) {
+  const { showAlert, showConfirm } = useDialog();
   // Helper untuk menambah catatan audit ke database Supabase & local storage
   const recordAuditLog = useCallback(
     async (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
@@ -330,14 +332,26 @@ export function useMemberCrudHandlers({
   // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN & ADMIN DPW)
   const handleDirectDeleteMember = async (member: Member) => {
     if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
-      alert('Hanya Super Admin dan Admin DPW yang memiliki hak menghapus data kader secara langsung.');
+      await showAlert({
+        variant: 'warning',
+        title: 'Akses Terbatas',
+        message:
+          'Hanya Super Admin dan Admin DPW yang memiliki hak menghapus data kader secara langsung.',
+      });
       return;
     }
-    if (
-      window.confirm(
-        `HAPUS PERMANEN:\nApakah Anda yakin ingin menghapus data kader ${member.namaLengkap} (NIK: ${member.nik}) dari database Partai NasDem?`
-      )
-    ) {
+
+    const confirmed = await showConfirm({
+      variant: 'danger',
+      title: 'Hapus Permanen Data Kader',
+      message:
+        'Apakah Anda yakin ingin menghapus data kader ini secara permanen dari database Partai NasDem? Tindakan ini tidak dapat dibatalkan.',
+      detail: `${member.namaLengkap} · NIK ${member.nik}`,
+      confirmText: 'Ya, Hapus Permanen',
+      cancelText: 'Batal',
+    });
+
+    if (confirmed) {
       const updated = members.filter((m) => m.nik !== member.nik);
       setMembers(updated);
       saveMembers(updated);

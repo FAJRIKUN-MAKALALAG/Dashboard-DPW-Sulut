@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Member, UserSession } from '../types';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
 import { compressImageFile, generateSimulatedKtp } from '../utils/imageUtils';
+import { useDialog } from './ui/AppDialogProvider';
 import {
   X,
   CheckCircle2,
@@ -39,6 +40,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   onOpenStatusChange,
   onOpenCardModal,
 }) => {
+  const { showAlert, showConfirm } = useDialog();
   const [activeTab, setActiveTab] = useState<'profile' | 'ktp' | 'ekta' | 'history'>('profile');
   const [isKtpZoomed, setIsKtpZoomed] = useState<boolean>(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
@@ -74,7 +76,11 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
       setTimeout(() => setFeedbackMsg(null), 3000);
     } catch (err) {
       console.error(err);
-      alert('Gagal mengunggah foto profil.');
+      await showAlert({
+        variant: 'danger',
+        title: 'Gagal Mengunggah Foto',
+        message: 'Berkas foto profil tidak dapat diproses. Pastikan format gambar valid (JPG/PNG).',
+      });
     } finally {
       setIsUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
@@ -82,8 +88,17 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   };
 
   // Remove Photo Profile
-  const handleRemovePhoto = () => {
-    if (window.confirm('Hapus foto profil kader ini?')) {
+  const handleRemovePhoto = async () => {
+    const confirmed = await showConfirm({
+      variant: 'danger',
+      title: 'Hapus Foto Profil',
+      message: 'Apakah Anda yakin ingin menghapus foto profil kader ini?',
+      detail: member.namaLengkap,
+      confirmText: 'Hapus Foto',
+      cancelText: 'Batal',
+    });
+
+    if (confirmed) {
       const updated: Member = {
         ...member,
         fotoProfilUrl: undefined,
@@ -116,7 +131,11 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
       setTimeout(() => setFeedbackMsg(null), 3000);
     } catch (err) {
       console.error(err);
-      alert('Gagal mengunggah foto KTP.');
+      await showAlert({
+        variant: 'danger',
+        title: 'Gagal Mengunggah KTP',
+        message: 'Berkas foto KTP tidak dapat diproses. Pastikan format gambar valid (JPG/PNG).',
+      });
     } finally {
       setIsUploadingKtp(false);
       if (ktpInputRef.current) ktpInputRef.current.value = '';
@@ -145,8 +164,17 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   };
 
   // Remove KTP
-  const handleRemoveKtp = () => {
-    if (window.confirm('Hapus arsip foto KTP ini?')) {
+  const handleRemoveKtp = async () => {
+    const confirmed = await showConfirm({
+      variant: 'danger',
+      title: 'Hapus Arsip Foto KTP',
+      message: 'Apakah Anda yakin ingin menghapus arsip foto KTP kader ini?',
+      detail: `${member.namaLengkap} · NIK ${member.nik}`,
+      confirmText: 'Hapus Arsip KTP',
+      cancelText: 'Batal',
+    });
+
+    if (confirmed) {
       const updated: Member = {
         ...member,
         fotoKtpUrl: undefined,
@@ -161,9 +189,14 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   };
 
   // Generate WhatsApp message
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     if (!member.nomorHP || member.nomorHP === '-') {
-      alert('Nomor HP/WhatsApp kader tidak tersedia.');
+      await showAlert({
+        variant: 'info',
+        title: 'Nomor Kontak Belum Tersedia',
+        message: 'Nomor HP / WhatsApp untuk kader ini belum tercatat pada database.',
+        detail: member.namaLengkap,
+      });
       return;
     }
     const cleanPhone = member.nomorHP.replace(/[^0-9]/g, '');

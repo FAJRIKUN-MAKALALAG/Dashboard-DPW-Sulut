@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Member, UserSession } from '../types';
 import { useDebounce } from './useDebounce';
+import { useDialog } from '../components/ui/AppDialogProvider';
 import { getStructureTemplate } from '../data/structureTemplates';
 import {
   isDpdMatch,
@@ -43,6 +44,7 @@ export function useTerritorialMatrix({
   onSaveMembersBatch,
   onDeleteMembersBatch,
 }: UseTerritorialMatrixProps) {
+  const { showConfirm } = useDialog();
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -938,12 +940,27 @@ export function useTerritorialMatrix({
     setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
-  const handleResetTemplate = () => {
-    if (
-      window.confirm(
-        `Pulihkan seluruh susunan jabatan template standar untuk wilayah ${level} ${selectedDpd}?`
-      )
-    ) {
+  const handleResetTemplate = async () => {
+    const territoryLabel =
+      level === 'DPW'
+        ? 'DPW Provinsi Sulawesi Utara'
+        : level === 'DPD'
+        ? `DPD ${selectedDpd}`
+        : level === 'DPC'
+        ? `DPC Kec. ${selectedDpc} · ${selectedDpd}`
+        : `DPRt ${selectedDprt} · Kec. ${selectedDpc}`;
+
+    const confirmed = await showConfirm({
+      variant: 'warning',
+      title: 'Pulihkan Template Standar',
+      message:
+        'Pulihkan seluruh susunan baris jabatan matriks pada wilayah ini kembali ke template standar resmi?',
+      detail: territoryLabel,
+      confirmText: 'Pulihkan Template',
+      cancelText: 'Batal',
+    });
+
+    if (confirmed) {
       try {
         localStorage.removeItem(territoryKey);
         localStorage.removeItem(matrixStorageKey);

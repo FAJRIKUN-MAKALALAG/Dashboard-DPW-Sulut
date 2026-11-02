@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppUser, Member, UserRole, UserSession } from '../types';
 import { UserService, MASTER_SUPER_ADMIN } from '../services/userService';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import { useDialog } from './ui/AppDialogProvider';
 import {
   ShieldCheck,
   UserPlus,
@@ -47,6 +48,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   session,
   onRecordAudit,
 }) => {
+  const { showAlert, showConfirm } = useDialog();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -283,7 +285,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const handleToggleStatus = async (user: AppUser) => {
     if (user.username === MASTER_SUPER_ADMIN.username) {
-      alert('Akun Super Administrator Utama tidak boleh dinonaktifkan.');
+      await showAlert({
+        variant: 'warning',
+        title: 'Akses Dilindungi Sistem',
+        message:
+          'Akun Super Administrator Utama merupakan pemegang otoritas tertinggi sistem dan tidak dapat dinonaktifkan.',
+        detail: `${user.fullName} (${user.username})`,
+      });
       return;
     }
     const newStatus = !user.isActive;
@@ -305,15 +313,27 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const handleDeleteUser = async (user: AppUser) => {
     if (user.username === MASTER_SUPER_ADMIN.username || user.username === '7106033003050001') {
-      alert('Akun Super Administrator Utama tidak boleh dihapus.');
+      await showAlert({
+        variant: 'warning',
+        title: 'Akses Dilindungi Sistem',
+        message:
+          'Akun Super Administrator Utama merupakan akun inti sistem dan tidak dapat dihapus.',
+        detail: `${user.fullName} (${user.username})`,
+      });
       return;
     }
 
-    if (
-      !window.confirm(
-        `Apakah Anda yakin ingin menghapus akses akun admin "${user.fullName}" (${user.username})? Tindakan ini tidak dapat dibatalkan.`
-      )
-    ) {
+    const confirmed = await showConfirm({
+      variant: 'danger',
+      title: 'Hapus Akses Akun Admin',
+      message:
+        'Apakah Anda yakin ingin menghapus akses akun admin ini? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.',
+      detail: `${user.fullName} (${user.username})`,
+      confirmText: 'Ya, Hapus Akun',
+      cancelText: 'Batal',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -329,7 +349,11 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         dpd: user.dpdAccess,
       });
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus akun admin.');
+      await showAlert({
+        variant: 'danger',
+        title: 'Gagal Menghapus Akun',
+        message: err.message || 'Gagal menghapus akun admin.',
+      });
     }
   };
 
