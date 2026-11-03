@@ -28,6 +28,7 @@ interface TerritorialStructurePageProps {
   initialDpd?: string;
   initialDpc?: string;
   initialDprt?: string;
+  onTerritoryChange?: (dpd: string, dpc?: string, dprt?: string) => void;
   onOpenCardModal?: (member: Member) => void;
   onOpenDetailModal?: (member: Member) => void;
   onBackToDashboard?: () => void;
@@ -44,6 +45,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   initialDpd,
   initialDpc,
   initialDprt,
+  onTerritoryChange,
   onBackToDashboard,
   onRefreshCloud,
   isRefreshingCloud = false,
@@ -166,16 +168,30 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
       }
     } else {
       if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
-        setSelectedDpd(initialDpd);
+        const matched = availableRegions.find((r) => isDpdMatch(r.name, initialDpd));
+        setSelectedDpd(matched ? matched.name : initialDpd);
       }
       if (initialDpc && initialDpc !== 'ALL' && initialDpc !== 'Umum (DPD)') {
-        setSelectedDpc(initialDpc);
+        const matchedDpc = availableSubdistricts.find((s) => isDpcMatch(s.name, initialDpc));
+        setSelectedDpc(matchedDpc ? matchedDpc.name : initialDpc);
       }
       if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') {
-        setSelectedDprt(initialDprt);
+        const matchedDprt = availableVillages.find((v) => isDprtMatch(v, initialDprt));
+        setSelectedDprt(matchedDprt || initialDprt);
       }
     }
-  }, [initialDpd, initialDpc, initialDprt, session, availableRegions]);
+  }, [initialDpd, initialDpc, initialDprt, session, availableRegions, availableSubdistricts, availableVillages]);
+
+  // Sinkronisasi territory ke Parent untuk URL Routing dua arah
+  useEffect(() => {
+    if (onTerritoryChange && selectedDpd) {
+      onTerritoryChange(
+        selectedDpd,
+        level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined,
+        level === 'DPRt' ? selectedDprt : undefined
+      );
+    }
+  }, [selectedDpd, selectedDpc, selectedDprt, level, onTerritoryChange]);
 
   // Modal Import Excel Teritorial & Modal Cetak Dokumen
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
