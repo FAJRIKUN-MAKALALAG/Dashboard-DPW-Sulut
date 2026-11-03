@@ -67,7 +67,7 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Lowong ({compliance.vacantCount})
+            Belum Terisi ({compliance.vacantCount})
           </button>
         </div>
 

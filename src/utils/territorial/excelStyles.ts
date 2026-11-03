@@ -25,7 +25,6 @@ export function applyExcelTemplateStyling(options: {
     { wch: 44 }, // * NAMA LENGKAP (WAJIB DIISI) *
     { wch: 28 }, // * NOMOR NIK (KTP 16 DIGIT) *
     { wch: 24 }, // Nomor E-KTA NasDem
-    { wch: 18 }, // Jenis Kelamin (L/P)
     { wch: 22 }, // No. WhatsApp / HP
     { wch: 28 }, // Email
     { wch: 36 }, // Alamat Lengkap Domisili
@@ -34,18 +33,18 @@ export function applyExcelTemplateStyling(options: {
 
   // 2. Merges untuk Banner Judul & Legend Bawah
   const merges: Range[] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, // Row 1 Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }, // Row 2 Subtitle
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } }, // Row 3 Guide
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, // Row 1 Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, // Row 2 Subtitle
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }, // Row 3 Guide
   ];
 
   const legendStartRow = 5 + totalDataRows + 1;
   merges.push(
-    { s: { r: legendStartRow, c: 0 }, e: { r: legendStartRow, c: 10 } },
-    { s: { r: legendStartRow + 1, c: 0 }, e: { r: legendStartRow + 1, c: 10 } },
-    { s: { r: legendStartRow + 2, c: 0 }, e: { r: legendStartRow + 2, c: 10 } },
-    { s: { r: legendStartRow + 3, c: 0 }, e: { r: legendStartRow + 3, c: 10 } },
-    { s: { r: legendStartRow + 4, c: 0 }, e: { r: legendStartRow + 4, c: 10 } }
+    { s: { r: legendStartRow, c: 0 }, e: { r: legendStartRow, c: 9 } },
+    { s: { r: legendStartRow + 1, c: 0 }, e: { r: legendStartRow + 1, c: 9 } },
+    { s: { r: legendStartRow + 2, c: 0 }, e: { r: legendStartRow + 2, c: 9 } },
+    { s: { r: legendStartRow + 3, c: 0 }, e: { r: legendStartRow + 3, c: 9 } },
+    { s: { r: legendStartRow + 4, c: 0 }, e: { r: legendStartRow + 4, c: 9 } }
   );
 
   ws['!merges'] = merges;
@@ -85,7 +84,7 @@ export function applyExcelTemplateStyling(options: {
   };
 
   // 4. Style Banner Atas (Rows 0..2)
-  for (let c = 0; c <= 10; c++) {
+  for (let c = 0; c <= 9; c++) {
     const r0Ref = XLSX.utils.encode_cell({ r: 0, c });
     if (!ws[r0Ref]) ws[r0Ref] = { t: 's', v: '' };
     ws[r0Ref].s = {
@@ -118,13 +117,13 @@ export function applyExcelTemplateStyling(options: {
   }
 
   // 5. Style Header Tabel (Row 4 / Baris ke-5 di Excel)
-  for (let c = 0; c <= 10; c++) {
+  for (let c = 0; c <= 9; c++) {
     const ref = XLSX.utils.encode_cell({ r: 4, c });
     if (!ws[ref]) continue;
 
     const isNama = c === 3;
     const isNik = c === 4;
-    const isStatus = c === 10;
+    const isStatus = c === 9;
 
     let bgColor = '0F172A';
     if (isNama) bgColor = '047857';
@@ -181,7 +180,7 @@ export function applyExcelTemplateStyling(options: {
       jabatanVal.includes('sekretaris') ||
       jabatanVal.includes('bendahara');
 
-    for (let c = 0; c <= 10; c++) {
+    for (let c = 0; c <= 9; c++) {
       const ref = XLSX.utils.encode_cell({ r, c });
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
 
@@ -253,7 +252,7 @@ export function applyExcelTemplateStyling(options: {
             border: borderAmber,
           };
         }
-      } else if (c === 10) {
+      } else if (c === 9) {
         // STATUS FORMASI
         if (isFilled) {
           ws[ref].s = {
@@ -284,7 +283,7 @@ export function applyExcelTemplateStyling(options: {
         ws[ref].s = {
           fill: { fgColor: { rgb: 'FFFFFF' } },
           font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '334155' } },
-          alignment: { horizontal: c === 6 ? 'center' : 'left', vertical: 'center' },
+          alignment: { horizontal: 'left', vertical: 'center' },
           border: borderThin,
         };
       }
@@ -301,7 +300,7 @@ export function applyExcelTemplateStyling(options: {
   ];
 
   legendRows.forEach(({ rowIdx, bg, fg, bold, sz }) => {
-    for (let c = 0; c <= 10; c++) {
+    for (let c = 0; c <= 9; c++) {
       const ref = XLSX.utils.encode_cell({ r: rowIdx, c });
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
       ws[ref].s = {

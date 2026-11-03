@@ -159,9 +159,9 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 block text-[11px] mb-1">Jenis Kelamin &amp; Agama</span>
+                <span className="text-slate-500 block text-[11px] mb-1">Agama &amp; Pekerjaan</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {activePengurusMember?.jenisKelamin || '-'} • {activePengurusMember?.agama || '-'}
+                  {activePengurusMember?.agama || '-'} • {activePengurusMember?.pekerjaan || '-'}
                 </span>
               </div>
             </div>

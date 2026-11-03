@@ -136,7 +136,6 @@ export function generateSimulatedKtp(
   const fields = [
     { label: 'Nama', value: (nama || 'KADER PARTAI NASDEM').toUpperCase() },
     { label: 'Tempat/Tgl Lahir', value: `${kabKota.replace('Kota ', '').replace('Kabupaten ', '')}, 15-08-1985` },
-    { label: 'Jenis Kelamin', value: 'LAKI-LAKI' },
     { label: 'Alamat', value: `JL. RAYA UTAMA NO. 45` },
     { label: '    RT/RW', value: '003 / 002' },
     { label: '    Kel/Desa', value: (kelurahan || 'PAAL DUA').toUpperCase() },

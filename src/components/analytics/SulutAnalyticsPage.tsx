@@ -319,7 +319,7 @@ export const SulutAnalyticsPage: React.FC<SulutAnalyticsPageProps> = ({
                 &larr; Kembali ke Grid Panel
               </button>
               <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider">
-                LAYAR 6: DEMOGRAFI &amp; STATUS VERIFIKASI DOKUMEN
+                LAYAR 6: STATUS KEANGGOTAAN &amp; VALIDASI DOKUMEN
               </span>
             </div>
             <DemographicsChart

@@ -131,7 +131,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#FDB813]/15 dark:bg-slate-800 text-[#9E6706] dark:text-[#FDB813] border border-[#FDB813]/30 dark:border-slate-700">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FDB813]" />
-              <span>Lowong: <strong className="font-mono">{totalEmpty}</strong></span>
+              <span>Belum Terisi: <strong className="font-mono">{totalEmpty}</strong></span>
             </span>
             <button
               type="button"
@@ -259,7 +259,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                         {sec.emptyCount > 0 ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-white/10 text-slate-200 border border-white/15">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#FFDD00]" />
-                            <span>{sec.emptyCount} Lowong</span>
+                            <span>{sec.emptyCount} Belum Terisi</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-white/10 text-slate-200 border border-white/15">
@@ -689,7 +689,7 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#FDB813]/15 dark:bg-slate-800 text-[#9E6706] dark:text-[#FDB813] border border-[#FDB813]/30 dark:border-slate-700">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#FDB813]" />
-                                  <span>Lowong</span>
+                                  <span>Belum Terisi </span>
                                 </span>
                               )}
                             </td>
@@ -952,7 +952,7 @@ const MobileRowCard: React.FC<MobileRowCardProps> = ({
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FDB813]/15 dark:bg-slate-900 text-[#9E6706] dark:text-[#FDB813] border border-[#FDB813]/30 dark:border-slate-800">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FDB813]" />
-            <span>Lowong</span>
+            <span>Belum Terisi</span>
           </span>
           <button
             type="button"
@@ -1008,7 +1008,7 @@ const MobileRowCard: React.FC<MobileRowCardProps> = ({
           )}
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             <span className={`w-1.5 h-1.5 rounded-full ${isFilled ? 'bg-emerald-500' : 'bg-[#FDB813]'}`} />
-            <span>{isFilled ? 'Terisi' : 'Lowong'}</span>
+            <span>{isFilled ? 'Terisi' : 'Belum Terisi'}</span>
           </span>
         </div>
 

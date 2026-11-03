@@ -43,7 +43,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [pekerjaan, setPekerjaan] = useState(member.pekerjaan || '');
   const [tempatLahir, setTempatLahir] = useState(member.tempatLahir || '');
   const [tanggalLahir, setTanggalLahir] = useState(member.tanggalLahir || '');
-  const [jenisKelamin, setJenisKelamin] = useState(member.jenisKelamin || 'Laki-laki');
 
   const [fotoProfilUrl, setFotoProfilUrl] = useState<string>(member.fotoProfilUrl || '');
   const [fotoKtpUrl, setFotoKtpUrl] = useState<string>(member.fotoKtpUrl || '');
@@ -58,7 +57,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setPekerjaan(member.pekerjaan || '');
     setTempatLahir(member.tempatLahir || '');
     setTanggalLahir(member.tanggalLahir || '');
-    setJenisKelamin(member.jenisKelamin || 'Laki-laki');
     setFotoProfilUrl(member.fotoProfilUrl || '');
     setFotoKtpUrl(member.fotoKtpUrl || '');
   }, [member, isOpen]);
@@ -125,7 +123,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       pekerjaan,
       tempatLahir,
       tanggalLahir,
-      jenisKelamin,
       fotoProfilUrl,
       fotoKtpUrl,
     };
@@ -444,22 +441,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Jenis Kelamin, Agama & Pekerjaan */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Jenis Kelamin
-                </label>
-                <select
-                  value={jenisKelamin}
-                  onChange={(e) => setJenisKelamin(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-600"
-                >
-                  <option value="Laki-laki">Laki-laki</option>
-                  <option value="Perempuan">Perempuan</option>
-                </select>
-              </div>
-
+            {/* Agama & Pekerjaan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
                   Agama

@@ -113,7 +113,7 @@ export const AnalyticsCommandCenterHeader: React.FC<AnalyticsCommandCenterHeader
               : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
           }`}
         >
-          📈 6. Demografi
+          📈 6. Validasi Data
         </button>
       </div>
 

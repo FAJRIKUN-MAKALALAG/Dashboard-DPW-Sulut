@@ -588,7 +588,7 @@ export async function parseTerritorialExcelFile(
               ? 'Laki-laki'
               : genderVal.toUpperCase().startsWith('P') || genderVal.toLowerCase().includes('perem')
               ? 'Perempuan'
-              : existingMember?.jenisKelamin || 'Laki-laki',
+              : existingMember?.jenisKelamin || undefined,
           dpd: rowDpd,
           dpc: rowDpc,
           dprt: rowDprt,
@@ -1041,7 +1041,7 @@ export function alignAndCheckWithTemplate(
           : r.jenisKelamin?.toUpperCase().startsWith('P') ||
             r.jenisKelamin?.toLowerCase().includes('perem')
           ? 'Perempuan'
-          : existingMember?.jenisKelamin || 'Laki-laki',
+          : existingMember?.jenisKelamin || undefined,
       dpd: territoryDpd,
       dpc: territoryDpc,
       dprt: territoryDprt,
