@@ -121,7 +121,8 @@ export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
   if (!memberDpc || !targetDpc) return false;
   const norm1 = normalizeDpcName(memberDpc);
   const norm2 = normalizeDpcName(targetDpc);
-  return norm1 === norm2;
+  if (norm1 === norm2) return true;
+  return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
 }
 
 /**
@@ -156,7 +157,8 @@ export function isDprtMatch(memberDprt?: string, targetDprt?: string): boolean {
   if (!memberDprt || !targetDprt) return false;
   const norm1 = normalizeDprtName(memberDprt);
   const norm2 = normalizeDprtName(targetDprt);
-  return norm1 === norm2;
+  if (norm1 === norm2) return true;
+  return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
 }
 
 /**
@@ -280,6 +282,9 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
   let totalDprtCount = 0;
   let completedDprtCount = 0;
 
+  const coveredDpcKeys = new Set<string>();
+  const coveredDprtKeys = new Set<string>();
+
   SULUT_REGIONS.forEach((region) => {
     totalDpcCount += region.subdistricts.length;
     region.subdistricts.forEach((sub) => {
@@ -296,11 +301,79 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
           (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
         );
       });
-      if (subMembers.length >= REQUIRED_POSITIONS.DPC) {
-        completedDpcCount++;
+      if (subMembers.length > 0) {
+        const dpcKey = `${normalizeDpdName(region.name)}__${normalizeDpcName(sub.name).replace(/\s+/g, '')}`;
+        coveredDpcKeys.add(dpcKey);
       }
+
+      // Hitung desa/kelurahan DPRt yang telah memiliki pengurus atau kader terdata
+      sub.villages.forEach((village) => {
+        const hasVillageMembers = structuralActiveMembers.some((m) => {
+          if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+          if (!isDprtMatch(m.dprt, village)) return false;
+          return (
+            m.tingkatKepengurusan === 'DPRt' ||
+            m.isPengurus ||
+            Boolean(m.dprt && m.dprt.trim() !== '' && m.dprt !== '-' && m.dprt.toLowerCase() !== 'umum' && m.dprt.toLowerCase() !== 'pusat/umum')
+          );
+        });
+
+        if (hasVillageMembers) {
+          const key = `${normalizeDpdName(region.name)}__${normalizeDpcName(sub.name).replace(/\s+/g, '')}__${normalizeDprtName(village).replace(/\s+/g, '')}`;
+          coveredDprtKeys.add(key);
+        }
+      });
     });
   });
+
+  // Tambahkan juga DPC kecamatan terdata dari pengurus DPC yang nama kecamatannya diinput langsung
+  structuralActiveMembers.forEach((m) => {
+    const isDpcLevel =
+      m.tingkatKepengurusan === 'DPC' ||
+      (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dpc')) ||
+      (m.isPengurus && (m.jabatan || '').toLowerCase().includes('cabang'));
+
+    const rawDpc = (m.dpc || '').trim();
+    const isLegitDpc =
+      rawDpc !== '' &&
+      rawDpc !== '-' &&
+      rawDpc.toLowerCase() !== 'umum' &&
+      rawDpc.toLowerCase() !== 'umum (dpd)' &&
+      rawDpc.toLowerCase() !== 'pusat/umum' &&
+      rawDpc.toLowerCase() !== 'wilayah dpd' &&
+      rawDpc.toLowerCase() !== 'belum terpetakan';
+
+    if (isLegitDpc && m.dpd && (isDpcLevel || m.isPengurus)) {
+      const key = `${normalizeDpdName(m.dpd)}__${normalizeDpcName(rawDpc).replace(/\s+/g, '')}`;
+      coveredDpcKeys.add(key);
+    }
+  });
+
+  completedDpcCount = coveredDpcKeys.size;
+
+  // Tambahkan juga desa terdata dari pengurus DPRt yang nama desanya diinput kustom / langsung
+  structuralActiveMembers.forEach((m) => {
+    const isDprtLevel =
+      m.tingkatKepengurusan === 'DPRt' ||
+      (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dprt')) ||
+      (m.isPengurus && (m.jabatan || '').toLowerCase().includes('ranting'));
+
+    const rawDprt = (m.dprt || '').trim();
+    const isLegitDprt =
+      rawDprt !== '' &&
+      rawDprt !== '-' &&
+      rawDprt.toLowerCase() !== 'umum' &&
+      rawDprt.toLowerCase() !== 'pusat/umum' &&
+      rawDprt.toLowerCase() !== 'wilayah dpd' &&
+      rawDprt.toLowerCase() !== 'belum terpetakan';
+
+    if (isDprtLevel && isLegitDprt && m.dpd && m.dpc) {
+      const key = `${normalizeDpdName(m.dpd)}__${normalizeDpcName(m.dpc).replace(/\s+/g, '')}__${normalizeDprtName(rawDprt).replace(/\s+/g, '')}`;
+      coveredDprtKeys.add(key);
+    }
+  });
+
+  completedDprtCount = coveredDprtKeys.size;
 
   return {
     totalMembersActive: activeMembers.length,
