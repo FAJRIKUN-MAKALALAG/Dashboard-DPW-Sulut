@@ -152,7 +152,14 @@ export function useTerritorialMatrix({
     try {
       const saved = localStorage.getItem(territoryKey);
       if (saved) {
-        return new Set<string>(JSON.parse(saved));
+        const rawArray = JSON.parse(saved);
+        if (Array.isArray(rawArray)) {
+          // Buang key peninggalan bug lama yang terlalu agresif (job_*, slot_*)
+          const cleanArray = rawArray.filter(
+            (k: string) => !k.startsWith('job_') && !k.startsWith('slot_')
+          );
+          return new Set<string>(cleanArray);
+        }
       }
     } catch (e) {
       console.warn('Failed to read deleted slots from localStorage:', e);
@@ -192,17 +199,6 @@ export function useTerritorialMatrix({
         if (savedJson) {
           const cachedRows: GridRowItem[] = JSON.parse(savedJson);
 
-          // Cache basi jika:
-          // 1) seluruh baris di cache kosong padahal wilayah ini punya pengurus riil, ATAU
-          // 2) ada pengurus baru di database/impor yang NIK-nya belum tercatat di cache matriks lokal
-          const cacheHasFilledRow =
-            Array.isArray(cachedRows) &&
-            cachedRows.some((r) => !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-');
-          const cachedNiks = new Set(
-            (Array.isArray(cachedRows) ? cachedRows : [])
-              .map((r) => (r.nik || '').trim())
-              .filter(Boolean)
-          );
           const liveTerritoryMembers = getExpandedStructuralMembers(members).filter((m) => {
             if (m.tingkatKepengurusan !== level) return false;
             if (level === 'DPW') return true;
@@ -212,13 +208,61 @@ export function useTerritorialMatrix({
             if (level === 'DPC') return true;
             return isDprtMatch(m.dprt, selectedDprt);
           });
+
+          // Deteksi apakah cache matriks rusak/cacat akibat bug sebelumnya (misal baris pimpinan hilang drastis)
+          const pimpinanInCache = Array.isArray(cachedRows)
+            ? cachedRows.filter((r) => {
+                const s = (r.subOrg || '').toLowerCase();
+                return (
+                  s.includes('pimpinan') ||
+                  s.includes('daerah') ||
+                  s.includes('cabang') ||
+                  s.includes('ranting') ||
+                  s.includes('wilayah')
+                );
+              })
+            : [];
+          const expectedMinPimpinan =
+            level === 'DPW' ? 36 : level === 'DPD' ? 36 : level === 'DPC' ? 17 : 11;
+          const isDeformedCache =
+            Array.isArray(cachedRows) &&
+            cachedRows.length > 0 &&
+            liveTerritoryMembers.length >= 20 &&
+            pimpinanInCache.length < expectedMinPimpinan;
+
+          // Cache basi jika:
+          // 1) seluruh baris di cache kosong padahal wilayah ini punya pengurus riil, ATAU
+          // 2) cache rusak/cacat (misal formasi pimpinan terpotong akibat bug lama), ATAU
+          // 3) ada pengurus baru di database/impor yang NIK-nya belum tercatat dan bukan sengaja dihapus
+          const cacheHasFilledRow =
+            Array.isArray(cachedRows) &&
+            cachedRows.some((r) => !!r.namaLengkap && r.namaLengkap.trim() !== '' && r.namaLengkap !== '-');
+          const cachedNiks = new Set(
+            (Array.isArray(cachedRows) ? cachedRows : [])
+              .map((r) => (r.nik || '').trim())
+              .filter(Boolean)
+          );
+          const cachedOriginalNiks = new Set(
+            (Array.isArray(cachedRows) ? cachedRows : [])
+              .map((r) => (r.originalNik || '').trim())
+              .filter(Boolean)
+          );
           const hasUnmappedLiveMember = liveTerritoryMembers.some(
-            (m) => m.nik && !cachedNiks.has(m.nik.trim()) && !deletedKeys.has(m.nik.trim())
+            (m) =>
+              m.nik &&
+              !cachedNiks.has(m.nik.trim()) &&
+              !cachedOriginalNiks.has(m.nik.trim()) &&
+              !deletedKeys.has(m.nik.trim()) &&
+              !deletedMemberNiks.includes(m.nik.trim())
           );
           const isStaleCache =
-            (!cacheHasFilledRow && liveTerritoryMembers.length > 0) || hasUnmappedLiveMember;
+            (!cacheHasFilledRow && liveTerritoryMembers.length > 0) ||
+            hasUnmappedLiveMember ||
+            isDeformedCache;
+
           if (isStaleCache) {
             localStorage.removeItem(matrixStorageKey);
+            localStorage.removeItem(territoryKey);
           }
 
           if (!isStaleCache && Array.isArray(cachedRows) && cachedRows.length > 0) {
@@ -384,18 +428,10 @@ export function useTerritorialMatrix({
     // Saring template yang tidak dihapus secara eksplisit oleh pengguna
     const activeTemplate = template.filter((slot) => {
       const slotEmptyId = `empty_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}`;
-      const cleanSlotJob = cleanJobTitle(slot.jabatan);
-      const cat = getSlotSubOrgCategory(slot);
-
-      if (deletedKeys.has(slotEmptyId)) return false;
-      if (deletedKeys.has(`job_${cat}_${cleanSlotJob}`)) return false;
-      if (deletedKeys.has(`job_${cleanSlotJob}`)) return false;
-      if (deletedKeys.has(`slot_${cat}_${slot.no}`)) return false;
-
       const key1 = getSlotKey(slot.subOrg, slot.no, slot.jabatan);
       const key2 = `${slot.subOrg.trim().toLowerCase()}__slot_${slot.no}`;
       const key3 = `${slot.subOrg.trim().toLowerCase()}__jabatan_${slot.jabatan.trim().toLowerCase()}`;
-      return !deletedKeys.has(key1) && !deletedKeys.has(key2) && !deletedKeys.has(key3);
+      return !deletedKeys.has(slotEmptyId) && !deletedKeys.has(key1) && !deletedKeys.has(key2) && !deletedKeys.has(key3);
     });
 
     const pertimbanganMembers = matchedMembers.filter(
@@ -869,29 +905,51 @@ export function useTerritorialMatrix({
     const targetRow = gridRows.find((r) => r.id === id);
     if (!targetRow) return;
 
-    const cat =
-      getMemberSubOrgCategory({ jabatan: targetRow.jabatan } as Member) ||
-      (targetRow.subOrg.includes('PERTIMBANGAN')
-        ? 'PERTIMBANGAN'
-        : targetRow.subOrg.includes('PAKAR')
-        ? 'PAKAR'
-        : 'PIMPINAN');
-    const cleanJob = cleanJobTitle(targetRow.jabatan);
-    const deletedKeys = getStoredDeletedSlotKeys();
+    const isCustomRow = targetRow.id.startsWith('custom_row_') || targetRow.id.startsWith('new_row_');
+    const isFilled = Boolean(targetRow.namaLengkap && targetRow.namaLengkap.trim() !== '' && targetRow.namaLengkap !== '-');
 
-    deletedKeys.add(targetRow.id);
-    deletedKeys.add(`empty_${targetRow.subOrg.replace(/[^a-z0-9]/gi, '_')}_${targetRow.no}`);
-    deletedKeys.add(`job_${cat}_${cleanJob}`);
-    deletedKeys.add(`job_${cleanJob}`);
-    deletedKeys.add(`slot_${cat}_${targetRow.no}`);
-    deletedKeys.add(getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan));
-    deletedKeys.add(`${targetRow.subOrg.trim().toLowerCase()}__slot_${targetRow.no}`);
-    deletedKeys.add(`${targetRow.subOrg.trim().toLowerCase()}__jabatan_${targetRow.jabatan.trim().toLowerCase()}`);
-    saveDeletedSlotKeys(deletedKeys);
+    // 1. Jika baris ini adalah jabatan baku template yang terisi nama anggota
+    // -> Hapus keanggotaan dari matriks (kosongkan data kader di slot ini sehingga menjadi 'Lowong / Belum Terisi')
+    // Jangan hapus baris jabatan dari AD/ART! Nomor urut dan jabatan resmi tetap utuh tanpa mengacak susunan.
+    if (!isCustomRow && isFilled) {
+      if (targetRow.nik && !targetRow.id.startsWith('empty_')) {
+        setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
+      }
 
-    if (targetRow.nik && !targetRow.id.startsWith('empty_') && !targetRow.id.startsWith('custom_row_')) {
+      setGridRows((prev) => {
+        const updated = prev.map((r) => {
+          if (r.id === id) {
+            return {
+              ...r,
+              namaLengkap: '',
+              nik: '',
+              nomorEKTA: '',
+              email: '',
+              nomorHP: '',
+              sosmed: '',
+              fotoProfilUrl: '',
+              isExisting: false,
+              originalNik: r.originalNik || r.nik || undefined,
+            };
+          }
+          return r;
+        });
+        saveCustomMatrixRows(updated);
+        return updated;
+      });
+      setIsEditMode(true);
+      return;
+    }
+
+    // 2. Jika baris ini adalah baris kustom (hasil tambah/sisip) ATAU slot kosong yang ingin dihilangkan
+    if (targetRow.nik && !targetRow.id.startsWith('empty_')) {
       setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
     }
+
+    const deletedKeys = getStoredDeletedSlotKeys();
+    deletedKeys.add(targetRow.id);
+    deletedKeys.add(getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan));
+    saveDeletedSlotKeys(deletedKeys);
 
     setGridRows((prev) => {
       const remaining = prev.filter((r) => r.id !== id);
@@ -907,6 +965,7 @@ export function useTerritorialMatrix({
       saveCustomMatrixRows(normalized);
       return normalized;
     });
+    setIsEditMode(true);
   };
 
   const handleDeleteSelectedRows = (selectedIds: string[]) => {
