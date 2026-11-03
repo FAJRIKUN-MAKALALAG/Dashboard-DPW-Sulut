@@ -19,6 +19,7 @@ import {
   sortMembersByHierarchy,
   assignItemsToTemplateSlots,
   isDefinitiveLeader,
+  cleanPersonName,
 } from '../utils/jobMatchingUtils';
 import { generateUniqueTerritoryNik } from '../utils/territorialExcelTemplateUtils';
 import { isAcceptableImportNik, isGeneratedNik } from '../utils/generatedIds';
@@ -32,7 +33,7 @@ interface UseTerritorialMatrixProps {
   selectedDpc: string;
   selectedDprt: string;
   session?: UserSession;
-  onSaveMembersBatch: (updatedMembers: Member[]) => void;
+  onSaveMembersBatch: (updatedMembers: Member[], obsoleteNiks?: string[]) => void;
   onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
 }
 
@@ -304,18 +305,35 @@ export function useTerritorialMatrix({
           }
 
           if (!isStaleCache && Array.isArray(cachedRows) && cachedRows.length > 0) {
-            // Sinkronkan data profil personil terbaru dari database
+            // Sinkronkan data profil personil terbaru dari database secara cerdas (via NIK, ID, maupun Nama)
             const sourceMembers = getExpandedStructuralMembers(members);
             const memberMapByNik = new Map<string, Member>();
+            const memberMapById = new Map<string, Member>();
+            const memberMapByName = new Map<string, Member>();
+
             sourceMembers.forEach((m) => {
-              if (m.nik) memberMapByNik.set(m.nik, m);
+              if (m.nik) memberMapByNik.set(m.nik.trim(), m);
+              if (m.id) memberMapById.set(m.id.trim(), m);
+              if (m.namaLengkap) {
+                const norm = cleanPersonName(m.namaLengkap).toLowerCase();
+                if (norm) memberMapByName.set(norm, m);
+              }
             });
 
             const refreshedRows = cachedRows.map((r) => {
-              if (r.nik && memberMapByNik.has(r.nik)) {
-                const liveMember = memberMapByNik.get(r.nik)!;
+              const rNameNorm = r.namaLengkap ? cleanPersonName(r.namaLengkap).toLowerCase() : '';
+              const liveMember =
+                (r.nik && memberMapByNik.get(r.nik.trim())) ||
+                (r.originalNik && memberMapByNik.get(r.originalNik.trim())) ||
+                (r.id && memberMapById.get(r.id.trim())) ||
+                (rNameNorm && memberMapByName.get(rNameNorm));
+
+              if (liveMember) {
                 return {
                   ...r,
+                  id: liveMember.nik || r.id,
+                  nik: liveMember.nik || r.nik,
+                  originalNik: liveMember.nik || r.originalNik || r.nik,
                   namaLengkap: liveMember.namaLengkap || r.namaLengkap,
                   nomorEKTA: liveMember.nomorEKTA || r.nomorEKTA,
                   email: liveMember.email || r.email,
@@ -349,6 +367,7 @@ export function useTerritorialMatrix({
             }
 
             setGridRows(cleanOrderedRows);
+            saveCustomMatrixRows(cleanOrderedRows);
             return;
           }
         }
@@ -1212,9 +1231,14 @@ export function useTerritorialMatrix({
     });
 
     // 2. Simpan setiap baris yang terisi nama
+    const updatedGridRows: GridRowItem[] = [];
+
     gridRows.forEach((row, idx) => {
       const nama = row.namaLengkap.trim();
-      if (!nama) return;
+      if (!nama) {
+        updatedGridRows.push(row);
+        return;
+      }
 
       const existingMember = members.find(
         (m) =>
@@ -1264,11 +1288,13 @@ export function useTerritorialMatrix({
       const { positions: _staleExistingPositions, ...existingMemberRest } = (existingMember ||
         {}) as Member;
 
+      const finalEkta = row.nomorEKTA.trim() || existingMember?.nomorEKTA || nikClean;
+
       const updatedMember: Member = {
         ...existingMemberRest,
         id: memberId,
         nik: nikClean,
-        nomorEKTA: row.nomorEKTA.trim() || existingMember?.nomorEKTA || nikClean,
+        nomorEKTA: finalEkta,
         namaLengkap: nama,
         email: row.email?.trim() || existingMember?.email || undefined,
         nomorHP: row.nomorHP.trim() || existingMember?.nomorHP || '-',
@@ -1292,14 +1318,24 @@ export function useTerritorialMatrix({
       };
 
       updatedMembersList.push(updatedMember);
+
+      updatedGridRows.push({
+        ...row,
+        id: memberId,
+        nik: nikClean,
+        originalNik: nikClean,
+        nomorEKTA: finalEkta,
+        isExisting: true,
+      });
     });
 
     if (niksToDelete.length > 0 && onDeleteMembersBatch) {
       onDeleteMembersBatch(niksToDelete, `${level} ${territoryDpd}`);
     }
 
-    onSaveMembersBatch(updatedMembersList);
-    saveCustomMatrixRows(gridRows);
+    onSaveMembersBatch(updatedMembersList, niksToDelete);
+    setGridRows(updatedGridRows);
+    saveCustomMatrixRows(updatedGridRows);
     setSaveSuccessMsg(
       `Berhasil menyimpan perubahan ${updatedMembersList.length} data pengurus ke database!`
     );
