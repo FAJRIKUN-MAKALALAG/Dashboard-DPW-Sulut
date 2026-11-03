@@ -218,11 +218,18 @@ export function useMemberCrudHandlers({
     return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
   }, []);
 
-  const handleBatchSaveTerritorialMembers = async (incomingMembers: Member[]) => {
+  const handleBatchSaveTerritorialMembers = async (
+    incomingMembers: Member[],
+    obsoleteNiks?: string[]
+  ) => {
     if (incomingMembers.length === 0) return;
 
+    const toDeleteSet = new Set(obsoleteNiks || []);
     const membersMap = new Map<string, Member>();
-    members.forEach((m) => membersMap.set(getMemberPositionKey(m), m));
+    members.forEach((m) => {
+      if (toDeleteSet.has(m.nik) || (m.id && toDeleteSet.has(m.id))) return;
+      membersMap.set(getMemberPositionKey(m), m);
+    });
 
     incomingMembers.forEach((inc) => {
       const key = getMemberPositionKey(inc);

@@ -23,7 +23,7 @@ interface TerritorialStructurePageProps {
   level: 'DPW' | 'DPD' | 'DPC' | 'DPRt';
   members: Member[];
   session?: UserSession;
-  onSaveMembersBatch: (updatedMembers: Member[]) => void;
+  onSaveMembersBatch: (updatedMembers: Member[], obsoleteNiks?: string[]) => void;
   onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
   initialDpd?: string;
   initialDpc?: string;
