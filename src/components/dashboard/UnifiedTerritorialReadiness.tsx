@@ -7,6 +7,8 @@ import {
   isDpdMatch,
   isDpcMatch,
   isDprtMatch,
+  normalizeDpcName,
+  normalizeDprtName,
   getDpdPimpinanCompliance,
   getMemberSubOrgCategory,
 } from '../../utils/structureReadinessUtils';
@@ -179,18 +181,63 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
     const totalDpcs = currentRegion.subdistricts.length;
     const totalDprts = currentRegion.subdistricts.reduce((sum, s) => sum + s.villages.length, 0);
 
-    const filledDpcs = currentRegion.subdistricts.filter((sub) =>
-      activeScopedMembers.some((m) => isDpcMatch(m.dpc, sub.name))
-    ).length;
+    const coveredRegionalDpcs = new Set<string>();
+    currentRegion.subdistricts.forEach((sub) => {
+      if (activeScopedMembers.some((m) => isDpcMatch(m.dpc, sub.name))) {
+        coveredRegionalDpcs.add(normalizeDpcName(sub.name).replace(/\s+/g, ''));
+      }
+    });
 
-    let filledDprts = 0;
+    activeScopedMembers.forEach((m) => {
+      const isDpc =
+        m.tingkatKepengurusan === 'DPC' ||
+        (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dpc')) ||
+        (m.isPengurus && (m.jabatan || '').toLowerCase().includes('cabang'));
+      const raw = (m.dpc || '').trim();
+      if (
+        isDpc &&
+        raw &&
+        raw !== '-' &&
+        raw.toLowerCase() !== 'umum' &&
+        raw.toLowerCase() !== 'umum (dpd)' &&
+        raw.toLowerCase() !== 'pusat/umum' &&
+        raw.toLowerCase() !== 'wilayah dpd' &&
+        raw.toLowerCase() !== 'belum terpetakan'
+      ) {
+        coveredRegionalDpcs.add(normalizeDpcName(raw).replace(/\s+/g, ''));
+      }
+    });
+
+    const filledDpcs = coveredRegionalDpcs.size;
+
+    const coveredRegionalDprts = new Set<string>();
     currentRegion.subdistricts.forEach((sub) => {
       sub.villages.forEach((v) => {
         if (activeScopedMembers.some((m) => isDpcMatch(m.dpc, sub.name) && isDprtMatch(m.dprt, v))) {
-          filledDprts++;
+          coveredRegionalDprts.add(`${normalizeDpcName(sub.name).replace(/\s+/g, '')}__${normalizeDprtName(v).replace(/\s+/g, '')}`);
         }
       });
     });
+
+    activeScopedMembers.forEach((m) => {
+      const isDprt =
+        m.tingkatKepengurusan === 'DPRt' ||
+        (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dprt')) ||
+        (m.isPengurus && (m.jabatan || '').toLowerCase().includes('ranting'));
+      const raw = (m.dprt || '').trim();
+      if (
+        isDprt &&
+        raw &&
+        raw !== '-' &&
+        raw.toLowerCase() !== 'umum' &&
+        raw.toLowerCase() !== 'pusat/umum' &&
+        raw.toLowerCase() !== 'belum terpetakan'
+      ) {
+        coveredRegionalDprts.add(`${normalizeDpcName(m.dpc).replace(/\s+/g, '')}__${normalizeDprtName(raw).replace(/\s+/g, '')}`);
+      }
+    });
+
+    const filledDprts = coveredRegionalDprts.size;
 
     return {
       totalDpcs,
