@@ -36,6 +36,7 @@ import { LoginPage } from './components/LoginPage';
 import { useAppModals } from './hooks/useAppModals';
 import { useAppRealtimeSync } from './hooks/useAppRealtimeSync';
 import { useMemberCrudHandlers } from './hooks/useMemberCrudHandlers';
+import { useAppRouting, parseCurrentRoute, isTabPermitted } from './hooks/useAppRouting';
 import {
   Printer,
   CheckCircle2,
@@ -56,20 +57,29 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true' && Boolean(getToken());
   });
-  const [cleanScreenParam] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('screen');
-  });
-  const [isCleanMode] = useState<boolean>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('clean') === 'true';
-  });
-  const [activeTab, setActiveTab] = useState<MainNavTab>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab');
-    if (tabParam === 'analytics') return 'analytics';
-    return getDefaultActiveTab(loadSession());
-  });
+  // Hook: Application URL Routing & Deep Linking (Two-Way Browser History Sync)
+  const {
+    activeTab,
+    setActiveTab,
+    matrixInitialDpd,
+    setMatrixInitialDpd,
+    matrixInitialDpc,
+    setMatrixInitialDpc,
+    matrixInitialDprt,
+    setMatrixInitialDprt,
+    navDpdFilter,
+    setNavDpdFilter,
+    navStatusFilter,
+    setNavStatusFilter,
+    navMembershipFilter,
+    setNavMembershipFilter,
+    cleanScreenParam,
+    isCleanMode,
+    handleNavigateToTerritory,
+    handleNavigateFromDashboard,
+    handleTerritoryChange,
+  } = useAppRouting({ session, isAuthenticated });
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
@@ -77,15 +87,6 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
-
-  // Filter overrides when navigating from dashboard
-  const [navDpdFilter, setNavDpdFilter] = useState<string | undefined>(undefined);
-  const [navStatusFilter, setNavStatusFilter] = useState<MemberStatus | undefined>(undefined);
-  const [navMembershipFilter, setNavMembershipFilter] = useState<'ALL' | 'PENGURUS' | 'ANGGOTA'>('ALL');
-
-  // Initial territory selector for territorial pages
-  const [matrixInitialDpd, setMatrixInitialDpd] = useState<string | undefined>(undefined);
-  const [matrixInitialDpc, setMatrixInitialDpc] = useState<string | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -161,7 +162,12 @@ export default function App() {
     if (wasAlreadyAuthenticated) {
       loadInitialCloudData();
     }
-    setActiveTab(getDefaultActiveTab(userSession));
+    const parsed = parseCurrentRoute();
+    if (parsed.tab && isTabPermitted(parsed.tab, userSession)) {
+      setActiveTab(parsed.tab);
+    } else {
+      setActiveTab(getDefaultActiveTab(userSession));
+    }
   };
 
   useEffect(() => {
@@ -336,40 +342,6 @@ export default function App() {
     setSession(newSession);
     saveSession(newSession);
     showToast(`Beralih ke peran: ${newSession.jabatan}`);
-  };
-
-  const handleNavigateFromDashboard = (
-    filterDpd?: string,
-    filterStatus?: MemberStatus,
-    filterMembership: 'ALL' | 'PENGURUS' | 'ANGGOTA' = 'ALL'
-  ) => {
-    setNavDpdFilter(filterDpd);
-    setNavStatusFilter(filterStatus);
-    setNavMembershipFilter(filterMembership);
-    setActiveTab('members');
-  };
-
-  const handleNavigateToTerritory = (
-    dpd?: string,
-    dpc?: string,
-    level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt'
-  ) => {
-    if (level === 'DPW') {
-      setActiveTab('dpw');
-    } else if (level === 'DPRt') {
-      if (dpd) setMatrixInitialDpd(dpd);
-      if (dpc) setMatrixInitialDpc(dpc);
-      setActiveTab('dprt');
-    } else if (level === 'DPC' || dpc) {
-      if (dpd) setMatrixInitialDpd(dpd);
-      if (dpc) setMatrixInitialDpc(dpc);
-      setActiveTab('dpc');
-    } else if (level === 'DPD' || dpd) {
-      if (dpd) setMatrixInitialDpd(dpd);
-      setActiveTab('dpd');
-    } else {
-      setActiveTab('dpd');
-    }
   };
 
   // If not logged in, display full LoginPage
@@ -614,6 +586,7 @@ export default function App() {
               members={accessibleMembers}
               session={session}
               initialDpd={session?.dpdAccess && session?.dpdAccess !== 'ALL' ? session.dpdAccess : matrixInitialDpd}
+              onTerritoryChange={handleTerritoryChange}
               onSaveMembersBatch={crud.handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={crud.handleBatchDeleteTerritorialMembers}
               onRefreshCloud={handleRefreshFromSupabase}
@@ -639,6 +612,7 @@ export default function App() {
                   ? session.dpcAccess
                   : matrixInitialDpc
               }
+              onTerritoryChange={handleTerritoryChange}
               onSaveMembersBatch={crud.handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={crud.handleBatchDeleteTerritorialMembers}
               onRefreshCloud={handleRefreshFromSupabase}
@@ -670,8 +644,9 @@ export default function App() {
                 session?.dprtAccess !== 'ALL' &&
                 session?.dprtAccess !== 'Pusat/Umum'
                   ? session.dprtAccess
-                  : undefined
+                  : matrixInitialDprt
               }
+              onTerritoryChange={handleTerritoryChange}
               onSaveMembersBatch={crud.handleBatchSaveTerritorialMembers}
               onDeleteMembersBatch={crud.handleBatchDeleteTerritorialMembers}
               onRefreshCloud={handleRefreshFromSupabase}
