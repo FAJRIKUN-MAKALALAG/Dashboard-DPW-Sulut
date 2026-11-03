@@ -88,16 +88,25 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
 
     return Array.from(map.entries())
       .sort(([a], [b]) => sortPriority(a) - sortPriority(b))
-      .map(([subOrgName, rows]) => {
-        const filledCount = rows.filter((r) => r.namaLengkap.trim() !== '').length;
+      .map(([subOrgName, rawRows]) => {
+        // JAMINAN STRUKTUR: Ketua SELALU di posisi nomor 1, disusul nomor urut formasi resmi
+        const leaders = rawRows.filter((r) => isDefinitiveLeader(r.jabatan));
+        const others = rawRows.filter((r) => !isDefinitiveLeader(r.jabatan));
+        others.sort((a, b) => a.no - b.no);
+        const sortedRows = [...leaders, ...others].map((r, idx) => ({
+          ...r,
+          no: idx + 1,
+        }));
+
+        const filledCount = sortedRows.filter((r) => r.namaLengkap.trim() !== '').length;
         const isPertimbangan = subOrgName.toUpperCase().includes('PERTIMBANGAN');
         const isPakar = subOrgName.toUpperCase().includes('PAKAR');
 
         return {
           subOrg: subOrgName,
-          rows,
+          rows: sortedRows,
           filledCount,
-          emptyCount: rows.length - filledCount,
+          emptyCount: sortedRows.length - filledCount,
           isPertimbangan,
           isPakar,
         };

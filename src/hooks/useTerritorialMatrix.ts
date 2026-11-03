@@ -18,9 +18,10 @@ import {
   getCouncilRank,
   sortMembersByHierarchy,
   assignItemsToTemplateSlots,
+  isDefinitiveLeader,
 } from '../utils/jobMatchingUtils';
 import { generateUniqueTerritoryNik } from '../utils/territorialExcelTemplateUtils';
-import { isAcceptableImportNik } from '../utils/generatedIds';
+import { isAcceptableImportNik, isGeneratedNik } from '../utils/generatedIds';
 import { GridRowItem } from '../components/matrix';
 import * as XLSX from 'xlsx';
 
@@ -209,7 +210,10 @@ export function useTerritorialMatrix({
             return isDprtMatch(m.dprt, selectedDprt);
           });
 
-          // Deteksi apakah cache matriks rusak/cacat akibat bug sebelumnya (misal baris pimpinan hilang drastis)
+          // Deteksi integritas cache matriks lokal:
+          // 1. Cek apakah ada Ketua definitif yang tergeser dari posisi nomor 1
+          // 2. Cek apakah ada anggota/nama/NIK yang terduplikasi di dalam cache
+          // 3. Cek apakah baris formasi pimpinan terpotong cacat akibat bug sebelumnya
           const pimpinanInCache = Array.isArray(cachedRows)
             ? cachedRows.filter((r) => {
                 const s = (r.subOrg || '').toLowerCase();
@@ -224,15 +228,49 @@ export function useTerritorialMatrix({
             : [];
           const expectedMinPimpinan =
             level === 'DPW' ? 36 : level === 'DPD' ? 36 : level === 'DPC' ? 17 : 11;
+
+          let hasMisplacedLeader = false;
+          let hasDuplicatePerson = false;
+          const seenNamesInCache = new Set<string>();
+          const seenNiksInCache = new Set<string>();
+
+          const subOrgMapForCheck = new Map<string, GridRowItem[]>();
+          (Array.isArray(cachedRows) ? cachedRows : []).forEach((r) => {
+            const s = r.subOrg || '';
+            if (!subOrgMapForCheck.has(s)) subOrgMapForCheck.set(s, []);
+            subOrgMapForCheck.get(s)!.push(r);
+          });
+
+          for (const [, sRows] of subOrgMapForCheck.entries()) {
+            const leaderIdx = sRows.findIndex((r) => isDefinitiveLeader(r.jabatan));
+            if (leaderIdx > 0) {
+              // Jika ada Ketua tapi tidak di urutan pertama seksi ini, cache cacat
+              hasMisplacedLeader = true;
+            }
+            for (const r of sRows) {
+              const nameClean = (r.namaLengkap || '').toLowerCase().trim();
+              const nikClean = (r.nik || '').replace(/[^0-9]/g, '');
+              if (nameClean && nameClean !== '-' && nameClean !== 'belum terisi') {
+                if (seenNamesInCache.has(nameClean)) hasDuplicatePerson = true;
+                seenNamesInCache.add(nameClean);
+              }
+              if (nikClean && !isGeneratedNik(nikClean)) {
+                if (seenNiksInCache.has(nikClean)) hasDuplicatePerson = true;
+                seenNiksInCache.add(nikClean);
+              }
+            }
+          }
+
           const isDeformedCache =
             Array.isArray(cachedRows) &&
             cachedRows.length > 0 &&
-            liveTerritoryMembers.length >= 20 &&
-            pimpinanInCache.length < expectedMinPimpinan;
+            ((liveTerritoryMembers.length >= 20 && pimpinanInCache.length < expectedMinPimpinan) ||
+              hasMisplacedLeader ||
+              hasDuplicatePerson);
 
           // Cache basi jika:
           // 1) seluruh baris di cache kosong padahal wilayah ini punya pengurus riil, ATAU
-          // 2) cache rusak/cacat (misal formasi pimpinan terpotong akibat bug lama), ATAU
+          // 2) cache rusak/cacat (misal formasi pimpinan terpotong atau ketua tergeser/duplikat), ATAU
           // 3) ada pengurus baru di database/impor yang NIK-nya belum tercatat dan bukan sengaja dihapus
           const cacheHasFilledRow =
             Array.isArray(cachedRows) &&
@@ -290,14 +328,27 @@ export function useTerritorialMatrix({
               return r;
             });
 
-            const counters = new Map<string, number>();
-            const normalized = refreshedRows.map((r) => {
-              const currentCount = (counters.get(r.subOrg) || 0) + 1;
-              counters.set(r.subOrg, currentCount);
-              return { ...r, no: currentCount };
+            // Urutkan per sub-organisasi: Ketua selalu nomor 1, disusul nomor urut formasi
+            const subOrgMap = new Map<string, GridRowItem[]>();
+            refreshedRows.forEach((r) => {
+              const currentSubOrg = r.subOrg || '';
+              if (!subOrgMap.has(currentSubOrg)) subOrgMap.set(currentSubOrg, []);
+              subOrgMap.get(currentSubOrg)!.push(r);
             });
 
-            setGridRows(normalized);
+            const cleanOrderedRows: GridRowItem[] = [];
+            for (const [, sRows] of subOrgMap.entries()) {
+              const leaders = sRows.filter((r) => isDefinitiveLeader(r.jabatan));
+              const others = sRows.filter((r) => !isDefinitiveLeader(r.jabatan));
+              others.sort((a, b) => a.no - b.no);
+
+              const sorted = [...leaders, ...others];
+              sorted.forEach((r, idx) => {
+                cleanOrderedRows.push({ ...r, no: idx + 1 });
+              });
+            }
+
+            setGridRows(cleanOrderedRows);
             return;
           }
         }
@@ -421,9 +472,29 @@ export function useTerritorialMatrix({
 
     // Urutan hierarkis: Ketua selalu nomor 1, disusul urutan berkas Excel / hirarki resmi
     matchedMembers = sortMembersByHierarchy(matchedMembers);
+
+    // Filter anti-duplikasi kader pada sumber data territory
+    const dedupedMatched: Member[] = [];
+    const seenTerritoryNiks = new Set<string>();
+    const seenTerritoryNames = new Set<string>();
+
+    for (const m of matchedMembers) {
+      const cleanNik = (m.nik || '').replace(/[^0-9]/g, '');
+      const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+      const isRealNik = cleanNik && !isGeneratedNik(cleanNik);
+
+      if (isRealNik && seenTerritoryNiks.has(cleanNik)) continue;
+      if (cleanName && cleanName !== '-' && seenTerritoryNames.has(cleanName)) continue;
+
+      if (isRealNik) seenTerritoryNiks.add(cleanNik);
+      if (cleanName && cleanName !== '-') seenTerritoryNames.add(cleanName);
+      dedupedMatched.push(m);
+    }
+    matchedMembers = dedupedMatched;
     setRawTerritoryMembers(matchedMembers);
 
     const assignedMemberNiks = new Set<string>();
+    const assignedMemberNames = new Set<string>();
 
     // Saring template yang tidak dihapus secara eksplisit oleh pengguna
     const activeTemplate = template.filter((slot) => {
@@ -487,6 +558,7 @@ export function useTerritorialMatrix({
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
           assignedMemberNiks.add(matched.nik);
+          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
           rows.push({
             id: matched.nik,
             no: slot.no,
@@ -521,7 +593,13 @@ export function useTerritorialMatrix({
 
       let extraPertimbanganNo = pertimbanganTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: extraPertimbanganNo++,
@@ -544,7 +622,13 @@ export function useTerritorialMatrix({
       );
 
       sortedPertimbangan.forEach((m, idx) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: idx + 1,
@@ -576,6 +660,7 @@ export function useTerritorialMatrix({
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
           assignedMemberNiks.add(matched.nik);
+          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
           rows.push({
             id: matched.nik,
             no: slot.no,
@@ -610,7 +695,13 @@ export function useTerritorialMatrix({
 
       let extraPakarNo = pakarTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: extraPakarNo++,
@@ -633,7 +724,13 @@ export function useTerritorialMatrix({
       );
 
       sortedPakar.forEach((m, idx) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: idx + 1,
@@ -666,6 +763,7 @@ export function useTerritorialMatrix({
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
           assignedMemberNiks.add(matched.nik);
+          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
           rows.push({
             id: matched.nik,
             no: slot.no,
@@ -700,7 +798,13 @@ export function useTerritorialMatrix({
 
       let extraPimpinanNo = pimpinanTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: extraPimpinanNo++,
@@ -719,7 +823,13 @@ export function useTerritorialMatrix({
       });
     } else if (pimpinanMembers.length > 0) {
       pimpinanMembers.forEach((m, idx) => {
-        assignedMemberNiks.add(m.nik);
+        const cleanNik = (m.nik || '').trim();
+        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
+          return;
+        }
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         rows.push({
           id: m.nik,
           no: idx + 1,
@@ -740,8 +850,15 @@ export function useTerritorialMatrix({
 
     // 4. ANGGOTA EKSTRA/TAMBAHAN (ANTI DATA-LOSS)
     matchedMembers.forEach((m) => {
-      if (!assignedMemberNiks.has(m.nik)) {
-        assignedMemberNiks.add(m.nik);
+      const cleanNik = (m.nik || '').trim();
+      const cleanName = (m.namaLengkap || '').toLowerCase().trim();
+      const alreadyAssigned =
+        (cleanNik && assignedMemberNiks.has(cleanNik)) ||
+        (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName));
+
+      if (!alreadyAssigned) {
+        if (cleanNik) assignedMemberNiks.add(cleanNik);
+        if (cleanName) assignedMemberNames.add(cleanName);
         const cat = getMemberSubOrgCategory(m);
         const targetSubOrg =
           cat === 'PERTIMBANGAN'
@@ -830,7 +947,20 @@ export function useTerritorialMatrix({
       isExisting: false,
     };
     setGridRows((prev) => {
-      const updated = [...prev, newRow];
+      let lastIdxOfSubOrg = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].subOrg === defaultSubOrg) {
+          lastIdxOfSubOrg = i;
+          break;
+        }
+      }
+      const updated = [...prev];
+      if (lastIdxOfSubOrg !== -1) {
+        updated.splice(lastIdxOfSubOrg + 1, 0, newRow);
+      } else {
+        updated.push(newRow);
+      }
+
       const counters = new Map<string, number>();
       const normalized = updated.map((r) => {
         const currentCount = (counters.get(r.subOrg) || 0) + 1;
@@ -848,7 +978,12 @@ export function useTerritorialMatrix({
     if (targetIndex === -1) return;
 
     const targetRow = gridRows[targetIndex];
-    const insertIndex = position === 'below' ? targetIndex + 1 : targetIndex;
+    let insertIndex = position === 'below' ? targetIndex + 1 : targetIndex;
+
+    // JANGAN PERNAH menyisipkan baris di atas Ketua definitif (#1)
+    if (position === 'above' && isDefinitiveLeader(targetRow.jabatan)) {
+      insertIndex = targetIndex + 1;
+    }
 
     const newId = `custom_row_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     
