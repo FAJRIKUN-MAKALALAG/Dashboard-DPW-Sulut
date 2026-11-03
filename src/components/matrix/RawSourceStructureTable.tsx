@@ -276,11 +276,6 @@ export const RawSourceStructureTable: React.FC<RawSourceStructureTableProps> = (
                             <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                               {m.namaLengkap}
                             </div>
-                            {m.jenisKelamin && m.jenisKelamin !== '-' && (
-                              <span className="text-[9.5px] text-slate-400">
-                                {m.jenisKelamin}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </td>

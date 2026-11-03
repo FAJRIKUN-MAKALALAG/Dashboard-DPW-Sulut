@@ -162,7 +162,7 @@ export const DprtOverviewTab: React.FC<DprtOverviewTabProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              Kosong ({allDprtItems.length - filledCount})
+              Belum Terisi ({allDprtItems.length - filledCount})
             </button>
           </div>
         </div>

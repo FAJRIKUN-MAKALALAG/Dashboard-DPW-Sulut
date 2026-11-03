@@ -113,7 +113,7 @@ export const TerritoryToolbar: React.FC<TerritoryToolbarProps> = ({
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#FDB813]" />
-              <span>Lowong ({emptyCount})</span>
+              <span>Belum Terisi ({emptyCount})</span>
             </button>
           </div>
         </div>

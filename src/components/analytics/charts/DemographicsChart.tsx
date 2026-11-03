@@ -17,9 +17,9 @@ export const DemographicsChart: React.FC<DemographicsChartProps> = ({
   onOpenFullscreen,
   onOpenStandalone,
 }) => {
-  const { totalMembers, maleCount, femaleCount, activeCount, withKtaCount, verifiedKtpCount } = analyticsData;
-  const malePct = totalMembers > 0 ? (maleCount / totalMembers) * 100 : 0;
-  const femalePct = totalMembers > 0 ? (femaleCount / totalMembers) * 100 : 0;
+  const { totalMembers, pengurusCount, anggotaBiasaCount, activeCount, withKtaCount, verifiedKtpCount } = analyticsData;
+  const pengurusPct = totalMembers > 0 ? (pengurusCount / totalMembers) * 100 : 0;
+  const anggotaPct = totalMembers > 0 ? (anggotaBiasaCount / totalMembers) * 100 : 0;
 
   return (
     <div className={`bg-zinc-950 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${isSolo ? 'min-h-[calc(100vh-140px)]' : ''}`}>
@@ -28,11 +28,11 @@ export const DemographicsChart: React.FC<DemographicsChartProps> = ({
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-blue-400" />
             <h2 className="text-sm sm:text-base font-bold text-white tracking-wide uppercase">
-              Demografi &amp; Status Verifikasi
+              Status Keanggotaan &amp; Validasi Identitas
             </h2>
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Rasio Gender, e-KTA Resmi, dan Keaktifan Status Anggota
+            Komposisi Pengurus vs Kader, e-KTA Resmi, dan Keaktifan Status Anggota
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -40,7 +40,7 @@ export const DemographicsChart: React.FC<DemographicsChartProps> = ({
             <button
               onClick={onOpenFullscreen}
               className="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors cursor-pointer"
-              title="Layar Penuh Demografi"
+              title="Layar Penuh Validasi Identitas"
             >
               <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
             </button>
@@ -56,28 +56,28 @@ export const DemographicsChart: React.FC<DemographicsChartProps> = ({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
-        {/* Gender Ratio Card */}
+        {/* Role Composition Card */}
         <div className="p-4 rounded-md bg-zinc-900 border border-zinc-800">
           <span className="text-xs font-bold text-zinc-300 block mb-3 uppercase tracking-wider font-mono">
-            Rasio Gender Kader
+            Komposisi Pengurus &amp; Kader
           </span>
           <div className="space-y-3">
             <div>
               <div className="flex justify-between text-xs mb-1 font-semibold">
-                <span className="text-blue-400">Laki-laki</span>
-                <span className="font-mono text-white">{fmt(maleCount)} ({malePct.toFixed(1)}%)</span>
+                <span className="text-blue-400">Pengurus Struktural (Ber-SK)</span>
+                <span className="font-mono text-white">{fmt(pengurusCount)} ({pengurusPct.toFixed(1)}%)</span>
               </div>
               <div className="h-2.5 bg-zinc-950 rounded overflow-hidden p-0.5 border border-zinc-800">
-                <div className="h-full bg-blue-600 rounded-xs transition-all duration-300" style={{ width: `${malePct}%` }} />
+                <div className="h-full bg-blue-600 rounded-xs transition-all duration-300" style={{ width: `${pengurusPct}%` }} />
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1 font-semibold">
-                <span className="text-amber-400">Perempuan</span>
-                <span className="font-mono text-white">{fmt(femaleCount)} ({femalePct.toFixed(1)}%)</span>
+                <span className="text-amber-400">Anggota / Kader</span>
+                <span className="font-mono text-white">{fmt(anggotaBiasaCount)} ({anggotaPct.toFixed(1)}%)</span>
               </div>
               <div className="h-2.5 bg-zinc-950 rounded overflow-hidden p-0.5 border border-zinc-800">
-                <div className="h-full bg-amber-500 rounded-xs transition-all duration-300" style={{ width: `${femalePct}%` }} />
+                <div className="h-full bg-amber-500 rounded-xs transition-all duration-300" style={{ width: `${anggotaPct}%` }} />
               </div>
             </div>
           </div>

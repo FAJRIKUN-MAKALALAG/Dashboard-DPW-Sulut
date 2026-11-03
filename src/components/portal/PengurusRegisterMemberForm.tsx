@@ -106,7 +106,6 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
   const [inputAlamat, setInputAlamat] = useState<string>('');
   const [inputEmail, setInputEmail] = useState<string>('');
   const [inputSosmed, setInputSosmed] = useState<string>('');
-  const [inputGender, setInputGender] = useState<'Laki-laki' | 'Perempuan'>('Laki-laki');
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -209,7 +208,6 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       dpc: finalDpc,
       dprt: finalDprt,
       alamatLengkap: inputAlamat.trim() || undefined,
-      jenisKelamin: inputGender,
       isPengurus: false,
       tingkatKepengurusan: 'Bukan Pengurus',
       jabatan: 'Anggota Biasa',
@@ -360,7 +358,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1">
               <span>DPD (Kabupaten / Kota)</span>
@@ -466,20 +464,6 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
                 ))}
               </datalist>
             )}
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Jenis Kelamin
-            </label>
-            <select
-              value={inputGender}
-              onChange={(e) => setInputGender(e.target.value as any)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-            >
-              <option value="Laki-laki">Laki-laki</option>
-              <option value="Perempuan">Perempuan</option>
-            </select>
           </div>
         </div>
 

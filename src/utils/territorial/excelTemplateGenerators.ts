@@ -149,7 +149,6 @@ export function downloadTerritorialExcelTemplate(
     '* NAMA LENGKAP (WAJIB DIISI) *',
     '* NOMOR NIK (KTP 16 DIGIT) *',
     'Nomor E-KTA NasDem',
-    'Jenis Kelamin (L/P)',
     'No. WhatsApp / HP',
     'Email',
     'Alamat Lengkap Domisili',
@@ -212,7 +211,6 @@ export function downloadTerritorialExcelTemplate(
           r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026')
             ? r.nomorEKTA
             : '',
-          '',
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
           '',
@@ -226,7 +224,6 @@ export function downloadTerritorialExcelTemplate(
           idx + 1,
           s.subOrg,
           s.jabatan,
-          '',
           '',
           '',
           '',
@@ -285,7 +282,7 @@ export function downloadTerritorialExcelTemplate(
     [],
     ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
     ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
-    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
     ['[ POSISI TAMBAHAN ]: Ingin menambah pengurus baru di luar daftar baku ini? Cukup buat baris baru di bawah tabel.'],
     ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
   );
@@ -343,7 +340,6 @@ export function downloadAdvisoryOnlyExcelTemplate(
     '* NAMA LENGKAP (WAJIB DIISI) *',
     '* NOMOR NIK (KTP 16 DIGIT) *',
     'Nomor E-KTA NasDem',
-    'Jenis Kelamin (L/P)',
     'No. WhatsApp / HP',
     'Email',
     'Alamat Lengkap Domisili',
@@ -378,7 +374,6 @@ export function downloadAdvisoryOnlyExcelTemplate(
           r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026')
             ? r.nomorEKTA
             : '',
-          '',
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
           '',
@@ -388,13 +383,13 @@ export function downloadAdvisoryOnlyExcelTemplate(
     } else {
       dataCount = slots.length;
       slots.forEach((s, idx) => {
-        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
       });
     }
   } else {
     dataCount = slots.length;
     slots.forEach((s, idx) => {
-      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
@@ -402,7 +397,7 @@ export function downloadAdvisoryOnlyExcelTemplate(
     [],
     ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
     ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
-    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
     ['[ POSISI TAMBAHAN ]: Jika anggota Dewan Pertimbangan lebih banyak dari slot, cukup buat baris baru di bawah.'],
     ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
   );
@@ -440,7 +435,6 @@ export function downloadExpertOnlyExcelTemplate(
     '* NAMA LENGKAP (WAJIB DIISI) *',
     '* NOMOR NIK (KTP 16 DIGIT) *',
     'Nomor E-KTA NasDem',
-    'Jenis Kelamin (L/P)',
     'No. WhatsApp / HP',
     'Email',
     'Alamat Lengkap Domisili',
@@ -475,7 +469,6 @@ export function downloadExpertOnlyExcelTemplate(
           r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026')
             ? r.nomorEKTA
             : '',
-          '',
           r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
           r.email || '',
           '',
@@ -485,13 +478,13 @@ export function downloadExpertOnlyExcelTemplate(
     } else {
       dataCount = slots.length;
       slots.forEach((s, idx) => {
-        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+        sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
       });
     }
   } else {
     dataCount = slots.length;
     slots.forEach((s, idx) => {
-      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+      sheetData.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
@@ -499,7 +492,7 @@ export function downloadExpertOnlyExcelTemplate(
     [],
     ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
     ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
-    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
     ['[ POSISI TAMBAHAN ]: Jika anggota Dewan Pakar lebih banyak dari slot, cukup buat baris baru di bawah.'],
     ['[ CARA IMPORT ]: Simpan berkas ini (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
   );
@@ -540,7 +533,6 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     '* NAMA LENGKAP (WAJIB DIISI) *',
     '* NOMOR NIK (KTP 16 DIGIT) *',
     'Nomor E-KTA NasDem',
-    'Jenis Kelamin (L/P)',
     'No. WhatsApp / HP',
     'Email',
     'Alamat Lengkap Domisili',
@@ -573,7 +565,6 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026')
           ? r.nomorEKTA
           : '',
-        '',
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
         '',
@@ -583,7 +574,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
   } else {
     dataCount1 = pertimbanganSlots.length;
     pertimbanganSlots.forEach((s, idx) => {
-      sheet1Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+      sheet1Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
@@ -591,7 +582,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     [],
     ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
     ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
-    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
     ['[ LIHAT SHEET SEBELAH ]: Buka Sheet "Dewan Pakar" di tab bawah untuk posisi Dewan Pakar.'],
     ['[ CARA IMPORT ]: Simpan (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
   );
@@ -630,7 +621,6 @@ export function downloadAdvisoryAndExpertExcelTemplate(
         r.nomorEKTA && !isGeneratedEkta(r.nomorEKTA) && !r.nomorEKTA.startsWith('71002026')
           ? r.nomorEKTA
           : '',
-        '',
         r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : '',
         r.email || '',
         '',
@@ -640,7 +630,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
   } else {
     dataCount2 = pakarSlots.length;
     pakarSlots.forEach((s, idx) => {
-      sheet2Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
+      sheet2Data.push([idx + 1, s.subOrg, s.jabatan, '', '', '', '', '', '', '⚡ LOWONG (Silakan Diisi)']);
     });
   }
 
@@ -648,7 +638,7 @@ export function downloadAdvisoryAndExpertExcelTemplate(
     [],
     ['★ PANDUAN WARNA & PENGISIAN FORMULIR EXCEL:'],
     ['[ WARNA KUNING TERANG ]: Kolom Nama Lengkap & NIK yang WAJIB Anda isi untuk posisi yang masih LOWONG.'],
-    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, Gender, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
+    ['[ WARNA PUTIH ]: Kolom opsional (E-KTA, WhatsApp, Email, Alamat) atau posisi yang sudah terisi.'],
     ['[ LIHAT SHEET SEBELAH ]: Buka Sheet "Dewan Pertimbangan" di tab bawah untuk posisi Dewan Pertimbangan.'],
     ['[ CARA IMPORT ]: Simpan (Ctrl+S), lalu unggah melalui tombol "Import Excel" di sistem dashboard matriks.']
   );
