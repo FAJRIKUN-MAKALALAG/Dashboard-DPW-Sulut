@@ -388,40 +388,40 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   if (!isOpen || session.role !== 'SUPER_ADMIN') return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-5xl max-h-[96vh] sm:max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-[#002B49] text-white">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white font-bold">
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-[#002B49] text-white">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white font-bold shrink-0">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold tracking-tight">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-bold tracking-tight truncate">
                   Manajemen Akun Admin &amp; Hak Akses
                 </h2>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white">
-                  Khusus Super Admin
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white shrink-0">
+                  Super Admin
                 </span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-[11px] sm:text-xs text-slate-300 hidden sm:block truncate">
                 Otoritas eksklusif Super Admin untuk menerbitkan akun admin, menetapkan peran, dan cakupan teritorial.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button
               onClick={fetchUsers}
               title="Refresh Data"
-              className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -429,45 +429,45 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         </div>
 
         {/* Statistics Pill Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 p-3 sm:p-4 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 text-xs">
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-slate-400 block font-semibold uppercase">Total Akun</span>
-            <span className="text-base font-extrabold text-slate-900 dark:text-white font-mono">{stats.total}</span>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 text-xs">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-slate-400 block font-semibold uppercase truncate">Total Akun</span>
+            <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white font-mono">{stats.total}</span>
           </div>
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold uppercase">Akun Aktif</span>
-            <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{stats.active}</span>
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold uppercase truncate">Aktif</span>
+            <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{stats.active}</span>
           </div>
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase">Admin DPW</span>
-            <span className="text-base font-extrabold text-blue-600 dark:text-blue-400 font-mono">{stats.dpw}</span>
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase truncate">Admin DPW</span>
+            <span className="text-sm sm:text-base font-extrabold text-blue-600 dark:text-blue-400 font-mono">{stats.dpw}</span>
           </div>
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block font-semibold uppercase">Admin DPD (Kab)</span>
-            <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{stats.dpd}</span>
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-indigo-600 dark:text-indigo-400 block font-semibold uppercase truncate">DPD (Kab)</span>
+            <span className="text-sm sm:text-base font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{stats.dpd}</span>
           </div>
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-semibold uppercase">Admin DPC (Kec)</span>
-            <span className="text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">{stats.dpc}</span>
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 block font-semibold uppercase truncate">DPC (Kec)</span>
+            <span className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">{stats.dpc}</span>
           </div>
-          <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold uppercase">Admin DPRt (Desa)</span>
-            <span className="text-base font-extrabold text-purple-600 dark:text-purple-400 font-mono">{stats.dprt}</span>
+          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span className="text-[9px] sm:text-[10px] text-purple-600 dark:text-purple-400 block font-semibold uppercase truncate">DPRt (Desa)</span>
+            <span className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 font-mono">{stats.dprt}</span>
           </div>
         </div>
 
         {/* Content Body: Split View or Filter Bar */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
           {/* Action & Filter Toolbar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari nama, NIK, username, atau wilayah..."
+                  placeholder="Cari nama, NIK, username, wilayah..."
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all"
                 />
               </div>
@@ -476,7 +476,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-blue-500 outline-none transition-all font-semibold text-slate-700 dark:text-slate-300"
+                className="w-full sm:w-auto px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-blue-500 outline-none transition-all font-semibold text-slate-700 dark:text-slate-300"
               >
                 <option value="ALL">Semua Peran</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
@@ -489,7 +489,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
             <button
               onClick={handleOpenCreateForm}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
               <span>Buat Akun Admin Baru</span>
@@ -799,18 +799,18 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </div>
 
                 {/* Form Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setIsFormOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer text-center"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                    className="w-full sm:w-auto px-5 py-2.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     <span>{editingUserId ? 'Simpan Perubahan' : 'Terbitkan Akun Admin'}</span>
@@ -822,7 +822,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
           {/* Table / List of Admin Accounts */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
-            <div className="overflow-x-auto">
+            {/* 1. Tampilan Desktop & Tablet (Layar Lebar) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
@@ -983,21 +984,169 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* 2. Tampilan HP / Smartphone (Mobile Card View) */}
+            <div className="block md:hidden">
+              {isLoading ? (
+                <div className="py-12 text-center text-slate-400">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                  <span className="text-xs">Memuat daftar akun admin dari Supabase...</span>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs px-4">
+                  Tidak ada akun admin yang sesuai dengan pencarian atau filter.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredUsers.map((user) => {
+                    const isMaster = user.username === MASTER_SUPER_ADMIN.username || user.username === '7106033003050001';
+                    const roleBadgeColor: Record<string, string> = {
+                      SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+                      ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
+                      ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
+                      ADMIN_DPC: 'bg-teal-100 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+                      ADMIN_DPRT: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+                      ANGGOTA: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+                    };
+                    const userBadge = roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700';
+
+                    return (
+                      <div
+                        key={user.id}
+                        className="p-3.5 space-y-2.5 bg-white dark:bg-slate-900 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        {/* Header: Avatar, Nama & Role */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                                user.role === 'SUPER_ADMIN'
+                                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                  : 'bg-blue-600 text-white'
+                              }`}
+                            >
+                              {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                                <span>{user.fullName}</span>
+                                {isMaster && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-500 text-slate-950 uppercase">
+                                    Utama
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate">
+                                {user.jabatan || 'Pengurus Partai NasDem'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`shrink-0 inline-block px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${userBadge}`}
+                          >
+                            {user.role}
+                          </span>
+                        </div>
+
+                        {/* Detail Box: Username, NIK, Territory */}
+                        <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">Username</span>
+                            <span className="font-mono font-bold text-blue-700 dark:text-blue-400 truncate block">
+                              {user.username}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">NIK Pengurus</span>
+                            <span className="font-mono text-slate-600 dark:text-slate-300 truncate block">
+                              {user.memberNik || user.nomorEkta || '-'}
+                            </span>
+                          </div>
+                          <div className="col-span-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-start gap-1.5 text-slate-600 dark:text-slate-300">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              {user.dpdAccess === 'ALL' ? (
+                                <span className="font-bold text-blue-600 dark:text-blue-400">
+                                  Seluruh Sulawesi Utara (15 DPD)
+                                </span>
+                              ) : (
+                                <div>
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                    {user.dpdAccess}
+                                  </span>
+                                  {user.dpcAccess && user.dpcAccess !== 'ALL' && (
+                                    <span className="text-slate-500 text-[11px] block">
+                                      &rsaquo; Kec. {user.dpcAccess}
+                                      {user.dprtAccess && user.dprtAccess !== 'ALL' && ` &rsaquo; ${user.dprtAccess}`}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Toolbar */}
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            onClick={() => handleToggleStatus(user)}
+                            disabled={isMaster}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              user.isActive
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 active:bg-emerald-200'
+                                : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 active:bg-slate-300'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                user.isActive ? 'bg-emerald-600 dark:bg-emerald-400 animate-pulse' : 'bg-slate-400'
+                              }`}
+                            />
+                            <span>{user.isActive ? 'Akun Aktif' : 'Non-Aktif'}</span>
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditForm(user)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+
+                            {!isMaster && (
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Hapus</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-3.5 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-amber-500" />
-            <span>
+            <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="text-[11px] leading-tight">
               Hanya Super Admin yang berwenang menerbitkan akun. Akun admin daerah hanya dapat melihat data wilayah yang ditugaskan.
             </span>
           </div>
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors cursor-pointer text-center"
           >
             Tutup
           </button>

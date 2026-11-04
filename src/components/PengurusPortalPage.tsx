@@ -104,11 +104,10 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
       const match = members.find((m) => m.nik === session.adminNik);
       if (match) return match;
     }
-    if (session.role === 'ADMIN_DPW') {
-      return null;
-    }
-    return pengurusList[0] || members[0] || null;
-  }, [isAnggota, selfUpdatedMember, selectedPengurusNik, session.adminNik, session.role, members, pengurusList]);
+    // Jika akun admin tidak memiliki NIK kader atau tidak ditemukan di tabel members,
+    // kembalikan null agar halaman tidak keliru menampilkan pengurus lain di urutan pertama (pengurusList[0])
+    return null;
+  }, [isAnggota, selfUpdatedMember, selectedPengurusNik, session.adminNik, session.role, members]);
 
   // Load profil referral dari backend (khusus pengurus/admin)
   const loadReferralProfile = async () => {
@@ -314,13 +313,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   // WhatsApp share message
   const shareText = useMemo(() => {
     const nama =
+      session.adminName ||
       activePengurusMember?.namaLengkap ||
-      (isSuperAdminActingAsSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || session.adminName));
+      (isSuperAdminActingAsSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || 'Pengurus'));
     const jabatan =
+      session.jabatan ||
       activePengurusMember?.jabatan ||
       (isSuperAdminActingAsSelf
         ? session.jabatan || 'Super Administrator DPW Partai NasDem Sulut'
-        : (profile?.jabatan || session.jabatan));
+        : (profile?.jabatan || 'Pengurus'));
     const supervisorLine = ketuaLangsung
       ? `🛡️ Supervisi Atasan: ${ketuaLangsung.nama} (${ketuaLangsung.jabatan})\n\n`
       : '\n';
