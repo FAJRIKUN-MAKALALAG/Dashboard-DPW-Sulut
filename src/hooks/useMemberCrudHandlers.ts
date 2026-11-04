@@ -127,8 +127,10 @@ export function useMemberCrudHandlers({
               m.nik === (originalNik || updatedMember.nik) || m.nik === updatedMember.nik
                 ? {
                     ...m,
-                    fotoProfilUrl: updatedMember.fotoProfilUrl || m.fotoProfilUrl,
-                    fotoKtpUrl: updatedMember.fotoKtpUrl || m.fotoKtpUrl,
+                    ...updatedMember,
+                    fotoProfilUrl: updatedMember.fotoProfilUrl,
+                    fotoKtpUrl: updatedMember.fotoKtpUrl,
+                    statusKtpVerified: Boolean(updatedMember.fotoKtpUrl),
                   }
                 : m
             )

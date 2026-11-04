@@ -137,6 +137,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         member={modals.selectedMember}
         session={session}
         onUpdateMember={(updated) => {
+          modals.setSelectedMember(updated);
           onEditMember(updated, updated.nik);
         }}
         onOpenEdit={(m) => {
