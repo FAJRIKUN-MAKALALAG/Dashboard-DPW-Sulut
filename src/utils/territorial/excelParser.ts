@@ -57,14 +57,16 @@ function buildTerritorialPositionId(
   level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
   dpc: string,
   dprt: string,
-  subOrg: string
+  subOrg: string,
+  jabatan?: string
 ): string {
   const cleanT = (level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const cleanD = (dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const cleanR =
     level === 'DPRt' ? `_${(dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}` : '';
   const cleanS = (subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-  return `${nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+  const cleanJ = (jabatan || 'PENGURUS').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  return `${nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}_${cleanJ}`;
 }
 
 function getTerritoryScopeKey(
@@ -132,6 +134,7 @@ export async function parseTerritorialExcelFile(
   const expandedCurrentMembers = getExpandedStructuralMembers(currentMembers);
   const allExistingNiks = new Set<string>(currentMembers.map((m) => m.nik));
   const batchAssignedNiks = new Set<string>();
+  const personNameToNik = new Map<string, string>();
 
   const territoryDpd = ctx.level === 'DPW' ? 'Sulawesi Utara' : ctx.dpd;
   const territoryDpc =
@@ -521,6 +524,14 @@ export async function parseTerritorialExcelFile(
       if (isFilled) {
         filledCount++;
 
+        const cleanNameKey = cleanPersonName(namaVal).toLowerCase().trim();
+
+        // Cek apakah di baris sebelumnya dalam berkas ini orang yang sama sudah mendapatkan NIK (rangkap jabatan)
+        let resolvedNik = nikVal;
+        if (!resolvedNik && personNameToNik.has(cleanNameKey)) {
+          resolvedNik = personNameToNik.get(cleanNameKey)!;
+        }
+
         const existingSlotMember = findSameTerritorySlotMember(
           expandedCurrentMembers,
           rowLevel,
@@ -532,11 +543,23 @@ export async function parseTerritorialExcelFile(
           namaVal
         );
 
-        const hasValidExcelNik = isValidNik(nikVal) && !batchAssignedNiks.has(nikVal);
+        // Cari juga apakah orang ini sudah ada di currentMembers wilayah ini
+        const existingPersonInTerritory = expandedCurrentMembers.find(
+          (m) =>
+            m.tingkatKepengurusan === rowLevel &&
+            isDpdMatch(m.dpd, rowDpd) &&
+            ((rowLevel !== 'DPC' && rowLevel !== 'DPRt') || isDpcMatch(m.dpc, rowDpc)) &&
+            cleanPersonName(m.namaLengkap).toLowerCase().trim() === cleanNameKey
+        );
 
-        if (hasValidExcelNik) {
+        const hasValidExcelNik = isValidNik(resolvedNik);
+        const isSamePersonNik = resolvedNik && personNameToNik.get(cleanNameKey) === resolvedNik;
+
+        if (hasValidExcelNik && (!batchAssignedNiks.has(resolvedNik) || isSamePersonNik)) {
+          nikVal = resolvedNik;
           batchAssignedNiks.add(nikVal);
           allExistingNiks.add(nikVal);
+          personNameToNik.set(cleanNameKey, nikVal);
           if (nikVal.length !== 16) {
             nikWarningNote = `⚠️ NIK ${nikVal.length} digit tetap disimpan (disarankan lengkapi jadi 16 digit KTP)`;
           }
@@ -547,11 +570,17 @@ export async function parseTerritorialExcelFile(
           if (
             existingSlotMember &&
             isValidNik(existingSlotMember.nik) &&
-            !isGeneratedNik(existingSlotMember.nik) &&
-            !batchAssignedNiks.has(existingSlotMember.nik)
+            !isGeneratedNik(existingSlotMember.nik)
           ) {
             nikVal = existingSlotMember.nik;
-            batchAssignedNiks.add(nikVal);
+          } else if (
+            existingPersonInTerritory &&
+            isValidNik(existingPersonInTerritory.nik) &&
+            !isGeneratedNik(existingPersonInTerritory.nik)
+          ) {
+            nikVal = existingPersonInTerritory.nik;
+          } else if (personNameToNik.has(cleanNameKey)) {
+            nikVal = personNameToNik.get(cleanNameKey)!;
           } else {
             nikVal = generateUniqueTerritoryNik(
               rowDpd,
@@ -560,8 +589,9 @@ export async function parseTerritorialExcelFile(
               allExistingNiks,
               getTerritoryScopeKey(rowLevel, rowDpd, rowDpc, rowDprt)
             );
-            batchAssignedNiks.add(nikVal);
           }
+          batchAssignedNiks.add(nikVal);
+          personNameToNik.set(cleanNameKey, nikVal);
         }
 
         const memberId = buildTerritorialPositionId(
@@ -569,7 +599,8 @@ export async function parseTerritorialExcelFile(
           rowLevel,
           rowDpc,
           rowDprt,
-          finalSubOrg
+          finalSubOrg,
+          standardizedJabatan
         );
 
         const existingMember = currentMembers.find((m) => m.nik === nikVal);
@@ -967,6 +998,7 @@ export function alignAndCheckWithTemplate(
 
   const allExistingNiksHelper = new Set<string>(currentMembers.map((m) => m.nik));
   const batchAssignedNiksHelper = new Set<string>();
+  const nameToAssignedNik = new Map<string, string>();
   const newMembersToSave: Member[] = [];
 
   const isValidNikHelper = (nik?: string): boolean => isAcceptableImportNik(nik);
@@ -977,6 +1009,11 @@ export function alignAndCheckWithTemplate(
     }
 
     let nikVal = r.nik;
+    const cleanNameKey = cleanPersonName(r.namaLengkap).toLowerCase().trim();
+    if (!nikVal && nameToAssignedNik.has(cleanNameKey)) {
+      nikVal = nameToAssignedNik.get(cleanNameKey)!;
+    }
+
     const rowDpdTarget = r.dpd || territoryDpd;
     const existingSlotMember = findSameTerritorySlotMember(
       expandedCurrentMembers,
@@ -989,20 +1026,36 @@ export function alignAndCheckWithTemplate(
       r.namaLengkap
     );
 
-    const hasValidExcelNik = isValidNikHelper(nikVal) && !batchAssignedNiksHelper.has(nikVal);
+    const existingPersonInTerritory = expandedCurrentMembers.find(
+      (m) =>
+        m.tingkatKepengurusan === ctx.level &&
+        isDpdMatch(m.dpd, rowDpdTarget) &&
+        ((ctx.level !== 'DPC' && ctx.level !== 'DPRt') || isDpcMatch(m.dpc, territoryDpc)) &&
+        cleanPersonName(m.namaLengkap).toLowerCase().trim() === cleanNameKey
+    );
+
+    const isSamePersonNik = nikVal && nameToAssignedNik.get(cleanNameKey) === nikVal;
+    const hasValidExcelNik = isValidNikHelper(nikVal) && (!batchAssignedNiksHelper.has(nikVal) || isSamePersonNik);
 
     if (hasValidExcelNik) {
       batchAssignedNiksHelper.add(nikVal);
       allExistingNiksHelper.add(nikVal);
+      nameToAssignedNik.set(cleanNameKey, nikVal);
     } else {
       if (
         existingSlotMember &&
         isValidNikHelper(existingSlotMember.nik) &&
-        !isGeneratedNik(existingSlotMember.nik) &&
-        !batchAssignedNiksHelper.has(existingSlotMember.nik)
+        !isGeneratedNik(existingSlotMember.nik)
       ) {
         nikVal = existingSlotMember.nik;
-        batchAssignedNiksHelper.add(nikVal);
+      } else if (
+        existingPersonInTerritory &&
+        isValidNikHelper(existingPersonInTerritory.nik) &&
+        !isGeneratedNik(existingPersonInTerritory.nik)
+      ) {
+        nikVal = existingPersonInTerritory.nik;
+      } else if (nameToAssignedNik.has(cleanNameKey)) {
+        nikVal = nameToAssignedNik.get(cleanNameKey)!;
       } else {
         nikVal = generateUniqueTerritoryNik(
           rowDpdTarget,
@@ -1011,8 +1064,9 @@ export function alignAndCheckWithTemplate(
           allExistingNiksHelper,
           getTerritoryScopeKey(ctx.level, rowDpdTarget, territoryDpc, territoryDprt)
         );
-        batchAssignedNiksHelper.add(nikVal);
       }
+      batchAssignedNiksHelper.add(nikVal);
+      nameToAssignedNik.set(cleanNameKey, nikVal);
     }
 
     const memberId = buildTerritorialPositionId(
@@ -1020,7 +1074,8 @@ export function alignAndCheckWithTemplate(
       ctx.level,
       territoryDpc,
       territoryDprt,
-      r.subOrg
+      r.subOrg,
+      r.jabatanExcel || r.jabatanMatched
     );
 
     const existingMember = currentMembers.find((m) => m.nik === nikVal);

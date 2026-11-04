@@ -187,7 +187,7 @@ export function getExpandedStructuralMembers(members: Member[]): Member[] {
       for (const pos of m.positions) {
         result.push({
           ...m,
-          id: pos.id || `${m.nik}_${pos.tingkatKepengurusan}_${pos.dpc || 'UMUM'}_${pos.wilayahPenugasan || 'PIMPINAN'}`,
+          id: pos.id || `${m.nik}_${pos.tingkatKepengurusan}_${pos.dpc || 'UMUM'}_${pos.wilayahPenugasan || 'PIMPINAN'}_${(pos.jabatan || 'PENGURUS').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`,
           tingkatKepengurusan: pos.tingkatKepengurusan as any,
           dpd: pos.dpd || m.dpd,
           dpc: pos.dpc || m.dpc,

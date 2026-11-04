@@ -251,13 +251,15 @@ export function useTerritorialMatrix({
             for (const r of sRows) {
               const nameClean = (r.namaLengkap || '').toLowerCase().trim();
               const nikClean = (r.nik || '').replace(/[^0-9]/g, '');
+              const jabClean = (r.jabatan || '').toLowerCase().trim();
+              const personPositionKey = `${nikClean || nameClean}|${jabClean}`;
               if (nameClean && nameClean !== '-' && nameClean !== 'belum terisi') {
-                if (seenNamesInCache.has(nameClean)) hasDuplicatePerson = true;
-                seenNamesInCache.add(nameClean);
+                if (seenNamesInCache.has(personPositionKey)) hasDuplicatePerson = true;
+                seenNamesInCache.add(personPositionKey);
               }
               if (nikClean && !isGeneratedNik(nikClean)) {
-                if (seenNiksInCache.has(nikClean)) hasDuplicatePerson = true;
-                seenNiksInCache.add(nikClean);
+                if (seenNiksInCache.has(personPositionKey)) hasDuplicatePerson = true;
+                seenNiksInCache.add(personPositionKey);
               }
             }
           }
@@ -323,15 +325,22 @@ export function useTerritorialMatrix({
             const refreshedRows = cachedRows.map((r) => {
               const rNameNorm = r.namaLengkap ? cleanPersonName(r.namaLengkap).toLowerCase() : '';
               const liveMember =
+                (r.id && memberMapById.get(r.id.trim())) ||
+                sourceMembers.find(
+                  (m) =>
+                    ((r.nik && m.nik === r.nik.trim()) ||
+                      (r.originalNik && m.nik === r.originalNik.trim()) ||
+                      (rNameNorm && cleanPersonName(m.namaLengkap).toLowerCase() === rNameNorm)) &&
+                    isJobTitleMatch(m.jabatan, r.jabatan, r.subOrg)
+                ) ||
                 (r.nik && memberMapByNik.get(r.nik.trim())) ||
                 (r.originalNik && memberMapByNik.get(r.originalNik.trim())) ||
-                (r.id && memberMapById.get(r.id.trim())) ||
                 (rNameNorm && memberMapByName.get(rNameNorm));
 
               if (liveMember) {
                 return {
                   ...r,
-                  id: liveMember.nik || r.id,
+                  id: r.id && !r.id.startsWith('empty_') ? r.id : (liveMember.id || liveMember.nik),
                   nik: liveMember.nik || r.nik,
                   originalNik: liveMember.nik || r.originalNik || r.nik,
                   namaLengkap: liveMember.namaLengkap || r.namaLengkap,
@@ -492,28 +501,40 @@ export function useTerritorialMatrix({
     // Urutan hierarkis: Ketua selalu nomor 1, disusul urutan berkas Excel / hirarki resmi
     matchedMembers = sortMembersByHierarchy(matchedMembers);
 
-    // Filter anti-duplikasi kader pada sumber data territory
+    // Filter anti-duplikasi kader pada sumber data territory (hanya buang duplikat jika orang yang sama memegang jabatan yang sama di badan/wilayah yang sama)
     const dedupedMatched: Member[] = [];
-    const seenTerritoryNiks = new Set<string>();
-    const seenTerritoryNames = new Set<string>();
+    const seenTerritoryPositions = new Set<string>();
 
     for (const m of matchedMembers) {
       const cleanNik = (m.nik || '').replace(/[^0-9]/g, '');
       const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-      const isRealNik = cleanNik && !isGeneratedNik(cleanNik);
+      const cleanJab = (m.jabatan || '').toLowerCase().trim();
+      const cleanSub = (m.wilayahPenugasan || '').toLowerCase().trim();
+      const identity = cleanNik && !isGeneratedNik(cleanNik) ? cleanNik : cleanName;
 
-      if (isRealNik && seenTerritoryNiks.has(cleanNik)) continue;
-      if (cleanName && cleanName !== '-' && seenTerritoryNames.has(cleanName)) continue;
+      const posKey = `${m.id || identity}|${cleanSub}|${cleanJab}`;
+      if (identity && seenTerritoryPositions.has(posKey)) continue;
 
-      if (isRealNik) seenTerritoryNiks.add(cleanNik);
-      if (cleanName && cleanName !== '-') seenTerritoryNames.add(cleanName);
+      if (identity) seenTerritoryPositions.add(posKey);
       dedupedMatched.push(m);
     }
     matchedMembers = dedupedMatched;
     setRawTerritoryMembers(matchedMembers);
 
-    const assignedMemberNiks = new Set<string>();
-    const assignedMemberNames = new Set<string>();
+    const assignedPositions = new Set<Member>();
+    const assignedPositionKeys = new Set<string>();
+
+    const getPosKey = (m: Member, slotNo?: number): string =>
+      m.id ||
+      `${(m.nik || m.namaLengkap || '').trim()}|${(m.wilayahPenugasan || '').toLowerCase().trim()}|${(m.jabatan || '').toLowerCase().trim()}|${m.urutan ?? slotNo ?? ''}`;
+
+    const isAssigned = (m: Member): boolean =>
+      assignedPositions.has(m) || assignedPositionKeys.has(getPosKey(m));
+
+    const markAssigned = (m: Member, slotNo?: number) => {
+      assignedPositions.add(m);
+      assignedPositionKeys.add(getPosKey(m, slotNo));
+    };
 
     // Saring template yang tidak dihapus secara eksplisit oleh pengguna
     const activeTemplate = template.filter((slot) => {
@@ -576,10 +597,13 @@ export function useTerritorialMatrix({
       pertimbanganTemplateSlots.forEach((slot) => {
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
-          assignedMemberNiks.add(matched.nik);
-          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
+          markAssigned(matched, slot.no);
+          const rowId =
+            matched.id && !matched.id.startsWith('empty_') && matched.id !== matched.nik
+              ? matched.id
+              : `${matched.nik}_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${(matched.jabatan || slot.jabatan).replace(/[^a-z0-9]/gi, '_')}`;
           rows.push({
-            id: matched.nik,
+            id: rowId,
             no: slot.no,
             subOrg: pertimbanganSubOrgName,
             jabatan: matched.jabatan || slot.jabatan,
@@ -612,15 +636,14 @@ export function useTerritorialMatrix({
 
       let extraPertimbanganNo = pertimbanganTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, extraPertimbanganNo);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pertimbanganSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${extraPertimbanganNo}_${(m.jabatan || 'Anggota').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: extraPertimbanganNo++,
           subOrg: pertimbanganSubOrgName,
           jabatan: m.jabatan || 'Anggota',
@@ -641,15 +664,14 @@ export function useTerritorialMatrix({
       );
 
       sortedPertimbangan.forEach((m, idx) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, idx + 1);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pertimbanganSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${idx + 1}_${(m.jabatan || 'Anggota').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: idx + 1,
           subOrg: pertimbanganSubOrgName,
           jabatan: m.jabatan || 'Anggota',
@@ -678,10 +700,13 @@ export function useTerritorialMatrix({
       pakarTemplateSlots.forEach((slot) => {
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
-          assignedMemberNiks.add(matched.nik);
-          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
+          markAssigned(matched, slot.no);
+          const rowId =
+            matched.id && !matched.id.startsWith('empty_') && matched.id !== matched.nik
+              ? matched.id
+              : `${matched.nik}_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${(matched.jabatan || slot.jabatan).replace(/[^a-z0-9]/gi, '_')}`;
           rows.push({
-            id: matched.nik,
+            id: rowId,
             no: slot.no,
             subOrg: pakarSubOrgName,
             jabatan: matched.jabatan || slot.jabatan,
@@ -714,15 +739,14 @@ export function useTerritorialMatrix({
 
       let extraPakarNo = pakarTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, extraPakarNo);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pakarSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${extraPakarNo}_${(m.jabatan || 'Anggota').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: extraPakarNo++,
           subOrg: pakarSubOrgName,
           jabatan: m.jabatan || 'Anggota',
@@ -743,15 +767,14 @@ export function useTerritorialMatrix({
       );
 
       sortedPakar.forEach((m, idx) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, idx + 1);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pakarSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${idx + 1}_${(m.jabatan || 'Anggota').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: idx + 1,
           subOrg: pakarSubOrgName,
           jabatan: m.jabatan || 'Anggota',
@@ -781,10 +804,13 @@ export function useTerritorialMatrix({
       pimpinanTemplateSlots.forEach((slot) => {
         if (slotAssignments.has(slot.no)) {
           const { item: matched } = slotAssignments.get(slot.no)!;
-          assignedMemberNiks.add(matched.nik);
-          if (matched.namaLengkap) assignedMemberNames.add(matched.namaLengkap.toLowerCase().trim());
+          markAssigned(matched, slot.no);
+          const rowId =
+            matched.id && !matched.id.startsWith('empty_') && matched.id !== matched.nik
+              ? matched.id
+              : `${matched.nik}_${slot.subOrg.replace(/[^a-z0-9]/gi, '_')}_${slot.no}_${(matched.jabatan || slot.jabatan).replace(/[^a-z0-9]/gi, '_')}`;
           rows.push({
-            id: matched.nik,
+            id: rowId,
             no: slot.no,
             subOrg: pimpinanSubOrgName,
             jabatan: matched.jabatan || slot.jabatan, // Nama jabatan sesuai berkas SK Excel
@@ -817,15 +843,14 @@ export function useTerritorialMatrix({
 
       let extraPimpinanNo = pimpinanTemplateSlots.length + 1;
       unassignedItems.forEach(({ item: m }) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, extraPimpinanNo);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pimpinanSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${extraPimpinanNo}_${(m.jabatan || 'Pengurus').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: extraPimpinanNo++,
           subOrg: pimpinanSubOrgName,
           jabatan: m.jabatan || 'Pengurus',
@@ -842,15 +867,14 @@ export function useTerritorialMatrix({
       });
     } else if (pimpinanMembers.length > 0) {
       pimpinanMembers.forEach((m, idx) => {
-        const cleanNik = (m.nik || '').trim();
-        const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-        if ((cleanNik && assignedMemberNiks.has(cleanNik)) || (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName))) {
-          return;
-        }
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+        if (isAssigned(m)) return;
+        markAssigned(m, idx + 1);
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${pimpinanSubOrgName.replace(/[^a-z0-9]/gi, '_')}_${idx + 1}_${(m.jabatan || 'Pengurus').replace(/[^a-z0-9]/gi, '_')}`;
         rows.push({
-          id: m.nik,
+          id: rowId,
           no: idx + 1,
           subOrg: pimpinanSubOrgName,
           jabatan: m.jabatan || 'Pengurus',
@@ -869,15 +893,8 @@ export function useTerritorialMatrix({
 
     // 4. ANGGOTA EKSTRA/TAMBAHAN (ANTI DATA-LOSS)
     matchedMembers.forEach((m) => {
-      const cleanNik = (m.nik || '').trim();
-      const cleanName = (m.namaLengkap || '').toLowerCase().trim();
-      const alreadyAssigned =
-        (cleanNik && assignedMemberNiks.has(cleanNik)) ||
-        (cleanName && cleanName !== '-' && assignedMemberNames.has(cleanName));
-
-      if (!alreadyAssigned) {
-        if (cleanNik) assignedMemberNiks.add(cleanNik);
-        if (cleanName) assignedMemberNames.add(cleanName);
+      if (!isAssigned(m)) {
+        markAssigned(m);
         const cat = getMemberSubOrgCategory(m);
         const targetSubOrg =
           cat === 'PERTIMBANGAN'
@@ -885,10 +902,15 @@ export function useTerritorialMatrix({
             : cat === 'PAKAR'
             ? pakarSubOrgName
             : pimpinanSubOrgName;
+        const rowNo = rows.filter((r) => r.subOrg === targetSubOrg).length + 1;
+        const rowId =
+          m.id && !m.id.startsWith('empty_') && m.id !== m.nik
+            ? m.id
+            : `${m.nik}_${targetSubOrg.replace(/[^a-z0-9]/gi, '_')}_${rowNo}_${(m.jabatan || 'Pengurus').replace(/[^a-z0-9]/gi, '_')}`;
 
         rows.push({
-          id: m.nik,
-          no: rows.filter((r) => r.subOrg === targetSubOrg).length + 1,
+          id: rowId,
+          no: rowNo,
           subOrg: targetSubOrg,
           jabatan: m.jabatan,
           namaLengkap: m.namaLengkap,
@@ -1066,7 +1088,13 @@ export function useTerritorialMatrix({
     // -> Hapus keanggotaan dari matriks (kosongkan data kader di slot ini sehingga menjadi 'Lowong / Belum Terisi')
     // Jangan hapus baris jabatan dari AD/ART! Nomor urut dan jabatan resmi tetap utuh tanpa mengacak susunan.
     if (!isCustomRow && isFilled) {
-      if (targetRow.nik && !targetRow.id.startsWith('empty_')) {
+      const hasOtherPositionInGrid = gridRows.some(
+        (other) =>
+          other.id !== targetRow.id &&
+          (other.nik === targetRow.nik || other.originalNik === targetRow.nik) &&
+          other.namaLengkap.trim() !== ''
+      );
+      if (!hasOtherPositionInGrid && targetRow.nik && !targetRow.id.startsWith('empty_')) {
         setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
       }
 
@@ -1096,7 +1124,13 @@ export function useTerritorialMatrix({
     }
 
     // 2. Jika baris ini adalah baris kustom (hasil tambah/sisip) ATAU slot kosong yang ingin dihilangkan
-    if (targetRow.nik && !targetRow.id.startsWith('empty_')) {
+    const hasOtherPosition = gridRows.some(
+      (other) =>
+        other.id !== targetRow.id &&
+        (other.nik === targetRow.nik || other.originalNik === targetRow.nik) &&
+        other.namaLengkap.trim() !== ''
+    );
+    if (!hasOtherPosition && targetRow.nik && !targetRow.id.startsWith('empty_')) {
       setDeletedMemberNiks((prev) => [...prev, targetRow.nik]);
     }
 
@@ -1132,7 +1166,15 @@ export function useTerritorialMatrix({
       if (idSet.has(r.id)) {
         const nikTarget = r.originalNik || (r.nik && !r.id.startsWith('empty_') ? r.nik : '');
         if (nikTarget) {
-          niksToDelete.push(nikTarget);
+          const hasRemainingPosition = gridRows.some(
+            (other) =>
+              !idSet.has(other.id) &&
+              (other.nik === nikTarget || other.originalNik === nikTarget) &&
+              other.namaLengkap.trim() !== ''
+          );
+          if (!hasRemainingPosition) {
+            niksToDelete.push(nikTarget);
+          }
         }
       }
     });
@@ -1212,9 +1254,18 @@ export function useTerritorialMatrix({
     const occupiedNiks = new Set<string>(members.map((m) => m.nik));
     const niksToDelete: string[] = [];
 
-    // 1. Anggota yang dikosongkan namanya di slot dialihkan jadi kader biasa
+    // 1. Anggota yang dikosongkan namanya di slot dialihkan jadi kader biasa (hanya jika tidak memegang jabatan lain di matriks ini)
     gridRows.forEach((row) => {
       if (row.originalNik && !row.namaLengkap.trim()) {
+        const hasOtherPositionInGrid = gridRows.some(
+          (other) =>
+            other.id !== row.id &&
+            (other.nik === row.originalNik || other.originalNik === row.originalNik) &&
+            other.namaLengkap.trim() !== ''
+        );
+        if (hasOtherPositionInGrid) {
+          return;
+        }
         const prevMember = members.find((m) => m.nik === row.originalNik);
         if (prevMember) {
           updatedMembersList.push({
@@ -1280,10 +1331,11 @@ export function useTerritorialMatrix({
           ? `_${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
           : '';
       const cleanS = (row.subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const cleanJ = (row.jabatan || 'PENGURUS').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
       const memberId =
-        row.id && !row.id.startsWith('empty_')
+        row.id && !row.id.startsWith('empty_') && row.id !== nikClean
           ? row.id
-          : `${nikClean}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+          : `${nikClean}_${cleanT}_${cleanD}${cleanR}_${cleanS}_${cleanJ}`;
 
       const { positions: _staleExistingPositions, ...existingMemberRest } = (existingMember ||
         {}) as Member;
