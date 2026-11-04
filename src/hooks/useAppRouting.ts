@@ -152,6 +152,22 @@ export function buildQueryString(params: {
 }
 
 /**
+ * Membandingkan dua query string secara semantik (mengabaikan urutan & encoding + vs %20)
+ */
+export function areQueryStringsEquivalent(q1: string, q2: string): boolean {
+  if (q1 === q2) return true;
+  const p1 = new URLSearchParams(q1);
+  const p2 = new URLSearchParams(q2);
+  const keys1 = Array.from(p1.keys());
+  const keys2 = Array.from(p2.keys());
+  if (keys1.length !== keys2.length) return false;
+  for (const k of keys1) {
+    if (p1.get(k) !== p2.get(k)) return false;
+  }
+  return true;
+}
+
+/**
  * Format judul halaman browser (document.title)
  */
 export function formatDocumentTitle(
@@ -244,6 +260,7 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
   // Refs to control history behavior
   const isPopStateRef = useRef<boolean>(false);
   const isInitialMountRef = useRef<boolean>(true);
+  const prevTabRef = useRef<MainNavTab>(initialRoute.tab || getDefaultActiveTab(session));
   const sessionRef = useRef<UserSession | undefined>(session);
   sessionRef.current = session;
 
@@ -338,8 +355,8 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
       return;
     }
 
-    // Hindari duplikasi jika URL sudah persis sama
-    if (window.location.search === targetSearch) {
+    // Hindari duplikasi jika URL sudah setara secara semantik
+    if (areQueryStringsEquivalent(window.location.search, targetSearch)) {
       return;
     }
 
@@ -348,9 +365,17 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
       window.history.replaceState({ tab: activeTab, dpd: matrixInitialDpd }, newTitle, newUrl);
       isInitialMountRef.current = false;
     } else {
-      // Saat user berpindah menu / memilih wilayah, push ke history agar Back/Forward browser bekerja
-      window.history.pushState({ tab: activeTab, dpd: matrixInitialDpd }, newTitle, newUrl);
+      // Gunakan replaceState jika hanya melengkapi query wilayah di tab yang sama saat inisialisasi
+      const prevSearch = new URLSearchParams(window.location.search);
+      const isJustAddingTerritoryToBareTab = !prevSearch.get('dpd') && Boolean(matrixInitialDpd);
+
+      if (isJustAddingTerritoryToBareTab && prevTabRef.current === activeTab) {
+        window.history.replaceState({ tab: activeTab, dpd: matrixInitialDpd }, newTitle, newUrl);
+      } else {
+        window.history.pushState({ tab: activeTab, dpd: matrixInitialDpd }, newTitle, newUrl);
+      }
     }
+    prevTabRef.current = activeTab;
   }, [
     isAuthenticated,
     activeTab,
@@ -374,24 +399,15 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
       const nextTab =
         parsed.tab && isTabPermitted(parsed.tab, currentSession) ? parsed.tab : fallbackTab;
 
+      prevTabRef.current = nextTab;
       setActiveTabState(nextTab);
 
-      if (parsed.dpd) {
-        setMatrixInitialDpd(parsed.dpd);
-        setNavDpdFilter(parsed.dpd);
-      }
-      if (parsed.dpc) {
-        setMatrixInitialDpc(parsed.dpc);
-      }
-      if (parsed.dprt) {
-        setMatrixInitialDprt(parsed.dprt);
-      }
-      if (parsed.statusFilter) {
-        setNavStatusFilter(parsed.statusFilter);
-      }
-      if (parsed.membershipFilter) {
-        setNavMembershipFilter(parsed.membershipFilter);
-      }
+      setMatrixInitialDpd(parsed.dpd);
+      setNavDpdFilter(parsed.dpd);
+      setMatrixInitialDpc(parsed.dpc);
+      setMatrixInitialDprt(parsed.dprt);
+      setNavStatusFilter(parsed.statusFilter);
+      setNavMembershipFilter(parsed.membershipFilter || 'ALL');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -422,3 +438,4 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
     handleTerritoryChange,
   };
 }
+

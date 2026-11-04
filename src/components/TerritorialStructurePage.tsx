@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
@@ -154,43 +154,57 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
       if (session.dpdAccess && session.dpdAccess !== 'ALL') {
         const matched = availableRegions.find((r) => isDpdMatch(r.name, session.dpdAccess));
-        if (matched) setSelectedDpd(matched.name);
+        if (matched && selectedDpd !== matched.name) setSelectedDpd(matched.name);
       }
       if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
         if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
-          setSelectedDpc(session.dpcAccess);
+          if (selectedDpc !== session.dpcAccess) setSelectedDpc(session.dpcAccess);
         }
       }
       if (session.role === 'ADMIN_DPRT') {
         if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
-          setSelectedDprt(session.dprtAccess);
+          if (selectedDprt !== session.dprtAccess) setSelectedDprt(session.dprtAccess);
         }
       }
     } else {
       if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') {
         const matched = availableRegions.find((r) => isDpdMatch(r.name, initialDpd));
-        setSelectedDpd(matched ? matched.name : initialDpd);
+        const targetDpd = matched ? matched.name : initialDpd;
+        if (selectedDpd !== targetDpd) setSelectedDpd(targetDpd);
       }
       if (initialDpc && initialDpc !== 'ALL' && initialDpc !== 'Umum (DPD)') {
-        const matchedDpc = availableSubdistricts.find((s) => isDpcMatch(s.name, initialDpc));
-        setSelectedDpc(matchedDpc ? matchedDpc.name : initialDpc);
+        const matchedDpc = currentRegion?.subdistricts?.find((s) => isDpcMatch(s.name, initialDpc));
+        const targetDpc = matchedDpc ? matchedDpc.name : initialDpc;
+        if (selectedDpc !== targetDpc) setSelectedDpc(targetDpc);
       }
       if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') {
-        const matchedDprt = availableVillages.find((v) => isDprtMatch(v, initialDprt));
-        setSelectedDprt(matchedDprt || initialDprt);
+        const matchedDprt = currentSubdistrict?.villages?.find((v) => isDprtMatch(v, initialDprt));
+        const targetDprt = matchedDprt || initialDprt;
+        if (selectedDprt !== targetDprt) setSelectedDprt(targetDprt);
       }
     }
-  }, [initialDpd, initialDpc, initialDprt, session, availableRegions, availableSubdistricts, availableVillages]);
+  }, [initialDpd, initialDpc, initialDprt, session?.role, session?.dpdAccess, session?.dpcAccess, session?.dprtAccess]);
 
-  // Sinkronisasi territory ke Parent untuk URL Routing dua arah
+  const lastReportedTerritoryRef = useRef<{ dpd?: string; dpc?: string; dprt?: string }>({
+    dpd: initialDpd || selectedDpd,
+    dpc: level === 'DPC' || level === 'DPRt' ? (initialDpc || selectedDpc) : undefined,
+    dprt: level === 'DPRt' ? (initialDprt || selectedDprt) : undefined,
+  });
+
+  // Sinkronisasi territory ke Parent untuk URL Routing dua arah (HANYA saat ada perubahan nyata)
   useEffect(() => {
-    if (onTerritoryChange && selectedDpd) {
-      onTerritoryChange(
-        selectedDpd,
-        level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined,
-        level === 'DPRt' ? selectedDprt : undefined
-      );
+    if (!onTerritoryChange || !selectedDpd) return;
+
+    const targetDpc = level === 'DPC' || level === 'DPRt' ? selectedDpc : undefined;
+    const targetDprt = level === 'DPRt' ? selectedDprt : undefined;
+
+    const last = lastReportedTerritoryRef.current;
+    if (last.dpd === selectedDpd && last.dpc === targetDpc && last.dprt === targetDprt) {
+      return;
     }
+
+    lastReportedTerritoryRef.current = { dpd: selectedDpd, dpc: targetDpc, dprt: targetDprt };
+    onTerritoryChange(selectedDpd, targetDpc, targetDprt);
   }, [selectedDpd, selectedDpc, selectedDprt, level, onTerritoryChange]);
 
   // Modal Import Excel Teritorial & Modal Cetak Dokumen

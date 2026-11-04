@@ -31,6 +31,38 @@ export interface GridRowItem {
   fotoProfilUrl?: string;
 }
 
+const MatrixMemberAvatar: React.FC<{
+  fotoProfilUrl?: string;
+  namaLengkap: string;
+  sizeCls?: string;
+  initialsCls?: string;
+}> = ({ fotoProfilUrl, namaLengkap, sizeCls = 'w-6 h-7', initialsCls = 'text-[8px]' }) => {
+  const [hasError, setHasError] = useState(false);
+  const resolvedSrc = useMemo(() => resolveImageUrl(fotoProfilUrl), [fotoProfilUrl]);
+
+  if (!resolvedSrc || hasError) {
+    return (
+      <div
+        className={`${sizeCls} rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-bold font-mono ${getAvatarColor(namaLengkap).bgClass} ${getAvatarColor(namaLengkap).textClass} ${initialsCls}`}
+      >
+        {getInitials(namaLengkap)}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${sizeCls} rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0`}>
+      <img
+        src={resolvedSrc}
+        alt={namaLengkap}
+        className="w-full h-full object-cover"
+        loading="lazy"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
+};
+
 interface MatrixTableSheetProps {
   gridRows: GridRowItem[];
   isEditMode: boolean;
@@ -453,21 +485,12 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
 
                                   {isFilled ? (
                                     <div className="flex items-center gap-2 mt-1">
-                                      <div className="w-6 h-7 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                        {row.fotoProfilUrl ? (
-                                          <img
-                                            src={resolveImageUrl(row.fotoProfilUrl)}
-                                            alt={row.namaLengkap}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        ) : (
-                                          <div
-                                            className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
-                                          >
-                                            {getInitials(row.namaLengkap)}
-                                          </div>
-                                        )}
-                                      </div>
+                                      <MatrixMemberAvatar
+                                        fotoProfilUrl={row.fotoProfilUrl}
+                                        namaLengkap={row.namaLengkap}
+                                        sizeCls="w-6 h-7"
+                                        initialsCls="text-[8px]"
+                                      />
                                       <span className="text-xs font-bold text-slate-900 dark:text-white">
                                         {row.namaLengkap}
                                       </span>
@@ -744,21 +767,12 @@ export const MatrixTableSheet: React.FC<MatrixTableSheetProps> = ({
                                 />
                               ) : isFilled ? (
                                 <div className="flex items-center gap-2">
-                                  <div className="w-6 h-7.5 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                    {row.fotoProfilUrl ? (
-                                      <img
-                                        src={resolveImageUrl(row.fotoProfilUrl)}
-                                        alt={row.namaLengkap}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div
-                                        className={`w-full h-full flex items-center justify-center text-[8px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
-                                      >
-                                        {getInitials(row.namaLengkap)}
-                                      </div>
-                                    )}
-                                  </div>
+                                  <MatrixMemberAvatar
+                                    fotoProfilUrl={row.fotoProfilUrl}
+                                    namaLengkap={row.namaLengkap}
+                                    sizeCls="w-6 h-7.5"
+                                    initialsCls="text-[8px]"
+                                  />
                                   <span className="font-bold text-slate-900 dark:text-white truncate">
                                     {row.namaLengkap}
                                   </span>
@@ -1068,21 +1082,12 @@ const MobileRowCard: React.FC<MobileRowCardProps> = ({
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-10 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              {row.fotoProfilUrl ? (
-                <img
-                  src={resolveImageUrl(row.fotoProfilUrl)}
-                  alt={row.namaLengkap}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div
-                  className={`w-full h-full flex items-center justify-center text-[10px] font-bold font-mono ${getAvatarColor(row.namaLengkap).bgClass} ${getAvatarColor(row.namaLengkap).textClass}`}
-                >
-                  {getInitials(row.namaLengkap)}
-                </div>
-              )}
-            </div>
+            <MatrixMemberAvatar
+              fotoProfilUrl={row.fotoProfilUrl}
+              namaLengkap={row.namaLengkap}
+              sizeCls="w-8 h-10"
+              initialsCls="text-[10px]"
+            />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
                 {row.jabatan}
