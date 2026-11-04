@@ -243,14 +243,16 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
   // ================= TAMPILAN PENGURUS STRUKTURAL (REFERRAL & SUPERVISI) =================
   const isSuperAdminSelf = session.role === 'SUPER_ADMIN' && !activePengurusMember;
   const displayName =
+    session.adminName ||
     activePengurusMember?.namaLengkap ||
-    (isSuperAdminSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || session.adminName || 'Super Admin DPW Sulut'));
+    (isSuperAdminSelf ? 'Super Admin DPW Sulut' : (profile?.namaLengkap || 'Super Admin DPW Sulut'));
   const displayBadge = activePengurusMember?.tingkatKepengurusan
     ? `Pengurus ${activePengurusMember.tingkatKepengurusan}`
     : isSuperAdminSelf
     ? 'Super Admin DPW Sulut'
     : `Pengurus ${session.role.replace('ADMIN_', '')}`;
   const displayJabatan =
+    session.jabatan ||
     activePengurusMember?.jabatan ||
     (isSuperAdminSelf
       ? session.jabatan || 'Super Administrator DPW Partai NasDem Sulut'
@@ -287,9 +289,14 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 mb-1">
                 {displayBadge}
               </span>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate" title={displayName}>
                 {displayName}
               </h3>
+              {activePengurusMember?.namaLengkap && activePengurusMember.namaLengkap !== displayName && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  Kader: {activePengurusMember.namaLengkap}
+                </p>
+              )}
               <p className="text-xs font-semibold text-[#1A3282] dark:text-[#FDB813]">
                 {displayJabatan}
               </p>
