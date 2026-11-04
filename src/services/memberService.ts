@@ -172,14 +172,20 @@ export const MemberService = {
     try {
       const targetNik = originalNik || member.nik;
       const payload = toApiPayload(member);
+      // Saat edit individual, kirim null jika foto dikosongkan agar terhapus di database
+      payload.foto_profil_url = member.fotoProfilUrl ? member.fotoProfilUrl : null;
+      payload.foto_ktp_url = member.fotoKtpUrl ? member.fotoKtpUrl : null;
+      payload.status_ktp_verified = Boolean(member.fotoKtpUrl);
+
       const res = await apiFetch<any>(`/members/${encodeURIComponent(targetNik)}`, {
         method: 'PUT',
         body: payload,
       });
       if (res && typeof res === 'object') {
         const item = res.member || res;
-        if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
-        if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
+        member.fotoProfilUrl = item.fotoProfilUrl || undefined;
+        member.fotoKtpUrl = item.fotoKtpUrl || undefined;
+        member.statusKtpVerified = Boolean(item.fotoKtpUrl);
       }
       invalidateMemberCache();
       return true;
@@ -320,6 +326,9 @@ export const MemberService = {
       const payload = mapMemberToDbPayload(data as Member);
       delete payload.terakhir_diubah;
       delete payload.diubah_oleh;
+      payload.foto_profil_url = data.fotoProfilUrl ? data.fotoProfilUrl : null;
+      payload.foto_ktp_url = data.fotoKtpUrl ? data.fotoKtpUrl : null;
+      payload.status_ktp_verified = Boolean(data.fotoKtpUrl);
       const res = await apiFetch<{ member: any; message?: string }>('/members/me/profile', {
         method: 'PUT',
         body: payload,
