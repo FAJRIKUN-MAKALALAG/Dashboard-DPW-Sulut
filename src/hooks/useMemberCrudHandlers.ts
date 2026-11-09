@@ -209,7 +209,7 @@ export function useMemberCrudHandlers({
 
   // 4. FITUR SIMPAN PERUBAHAN MATRIKS STRUKTUR TERITORIAL (DPW, DPD, DPC, DPRT)
   const getMemberPositionKey = useCallback((m: Member): string => {
-    if (m.id && m.id !== m.nik) return m.id;
+    if (m.id) return m.id;
     const cleanT = (m.tingkatKepengurusan || 'ANGGOTA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const cleanD = (m.dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const cleanR =
@@ -217,8 +217,7 @@ export function useMemberCrudHandlers({
         ? `_${(m.dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
         : '';
     const cleanS = (m.wilayahPenugasan || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    const cleanJ = (m.jabatan || 'PENGURUS').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}_${cleanJ}`;
+    return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
   }, []);
 
   const handleBatchSaveTerritorialMembers = async (

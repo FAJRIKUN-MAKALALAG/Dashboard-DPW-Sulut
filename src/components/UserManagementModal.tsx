@@ -3,28 +3,12 @@ import { AppUser, Member, UserRole, UserSession } from '../types';
 import { UserService, MASTER_SUPER_ADMIN } from '../services/userService';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { useDialog } from './ui/AppDialogProvider';
-import {
-  ShieldCheck,
-  UserPlus,
-  KeyRound,
-  Trash2,
-  Edit3,
-  Search,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  X,
-  Users,
-  MapPin,
-  Lock,
-  Eye,
-  EyeOff,
-  UserCheck,
-  RefreshCw,
-  Building,
-  Home,
-  Check,
-} from 'lucide-react';
+import { ShieldCheck, X, RefreshCw, Lock } from 'lucide-react';
+import { UserStatsRibbon } from './userManagement/UserStatsRibbon';
+import { UserFilterToolbar } from './userManagement/UserFilterToolbar';
+import { UserFormModal } from './userManagement/UserFormModal';
+import { UserDesktopTable } from './userManagement/UserDesktopTable';
+import { UserMobileCards } from './userManagement/UserMobileCards';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -245,7 +229,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         setFormSuccess('Akun admin berhasil diperbarui.');
       } else {
         // Create New User
-        const created = await UserService.create({
+        await UserService.create({
           memberNik: formNik.trim() || undefined,
           nomorEkta: formNomorEkta.trim() || undefined,
           username: formUsername.trim(),
@@ -429,709 +413,79 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         </div>
 
         {/* Statistics Pill Ribbon */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 text-xs">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-slate-400 block font-semibold uppercase truncate">Total Akun</span>
-            <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white font-mono">{stats.total}</span>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold uppercase truncate">Aktif</span>
-            <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{stats.active}</span>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase truncate">Admin DPW</span>
-            <span className="text-sm sm:text-base font-extrabold text-blue-600 dark:text-blue-400 font-mono">{stats.dpw}</span>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-indigo-600 dark:text-indigo-400 block font-semibold uppercase truncate">DPD (Kab)</span>
-            <span className="text-sm sm:text-base font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{stats.dpd}</span>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 block font-semibold uppercase truncate">DPC (Kec)</span>
-            <span className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono">{stats.dpc}</span>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <span className="text-[9px] sm:text-[10px] text-purple-600 dark:text-purple-400 block font-semibold uppercase truncate">DPRt (Desa)</span>
-            <span className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 font-mono">{stats.dprt}</span>
-          </div>
-        </div>
+        <UserStatsRibbon stats={stats} />
 
-        {/* Content Body: Split View or Filter Bar */}
+        {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
           {/* Action & Filter Toolbar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari nama, NIK, username, wilayah..."
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all"
-                />
-              </div>
-
-              {/* Role Filter */}
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-blue-500 outline-none transition-all font-semibold text-slate-700 dark:text-slate-300"
-              >
-                <option value="ALL">Semua Peran</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="ADMIN_DPW">Admin DPW</option>
-                <option value="ADMIN_DPD">Admin DPD</option>
-                <option value="ADMIN_DPC">Admin DPC</option>
-                <option value="ADMIN_DPRT">Admin DPRt</option>
-              </select>
-            </div>
-
-            <button
-              onClick={handleOpenCreateForm}
-              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Buat Akun Admin Baru</span>
-            </button>
-          </div>
+          <UserFilterToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            roleFilter={roleFilter}
+            onRoleFilterChange={setRoleFilter}
+            onOpenCreateForm={handleOpenCreateForm}
+          />
 
           {/* User Form Modal / Accordion */}
-          {isFormOpen && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/20 border-2 border-blue-400 dark:border-blue-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between pb-3 border-b border-blue-200/60 dark:border-blue-900/60 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                    {editingUserId ? <Edit3 className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                  </div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                    {editingUserId ? 'Perbarui Hak Akses Akun Admin' : 'Penerbitan Akun Admin & Hak Akses Baru'}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {formError && (
-                <div className="p-3 mb-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              {formSuccess && (
-                <div className="p-3 mb-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>{formSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSaveForm} className="space-y-4">
-                {/* Step 1: Auto-search Kader from DB */}
-                <div className="relative">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-                    Cari Kader dari Database (Nama Lengkap / NIK / E-KTA)
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={memberSearchTerm}
-                      onChange={(e) => {
-                        setMemberSearchTerm(e.target.value);
-                        setShowMemberDropdown(true);
-                      }}
-                      onFocus={() => setShowMemberDropdown(true)}
-                      placeholder="Ketik nama atau NIK pengurus untuk mengisi otomatis data..."
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none shadow-inner"
-                    />
-                  </div>
-
-                  {/* Dropdown Suggestions */}
-                  {showMemberDropdown && memberSuggestions.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                      {memberSuggestions.map((m) => (
-                        <div
-                          key={m.nik}
-                          onClick={() => handleSelectMember(m)}
-                          className="p-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors flex items-center justify-between"
-                        >
-                          <div>
-                            <div className="font-bold text-xs text-slate-900 dark:text-white">
-                              {m.namaLengkap}
-                            </div>
-                            <div className="text-[11px] text-slate-500 font-mono">
-                              NIK: {m.nik} &bull; E-KTA: {m.nomorEKTA || '-'}
-                            </div>
-                            <div className="text-[10px] text-blue-600 dark:text-blue-400">
-                              {m.jabatan || 'Anggota'} &bull; {m.dpd} {m.dpc ? `> ${m.dpc}` : ''}
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                            Pilih
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Grid Inputs: Personal & Credential Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      Nama Lengkap Admin *
-                    </label>
-                    <input
-                      type="text"
-                      value={formFullName}
-                      onChange={(e) => setFormFullName(e.target.value)}
-                      placeholder="Contoh: Jemmy Tambun"
-                      required
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      NIK KTP Pengurus
-                    </label>
-                    <input
-                      type="text"
-                      value={formNik}
-                      onChange={(e) => {
-                        setFormNik(e.target.value);
-                        if (!editingUserId) setFormUsername(e.target.value);
-                      }}
-                      placeholder="16 digit NIK..."
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      Nomor E-KTA
-                    </label>
-                    <input
-                      type="text"
-                      value={formNomorEkta}
-                      onChange={(e) => setFormNomorEkta(e.target.value)}
-                      placeholder="KT-71XX-XXXX"
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      Jabatan Struktural
-                    </label>
-                    <input
-                      type="text"
-                      value={formJabatan}
-                      onChange={(e) => setFormJabatan(e.target.value)}
-                      placeholder="Contoh: Ketua DPD Minsel / Sekretariat"
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      Username Login (NIK / E-KTA / Custom) *
-                    </label>
-                    <input
-                      type="text"
-                      value={formUsername}
-                      onChange={(e) => setFormUsername(e.target.value)}
-                      placeholder="Username untuk login..."
-                      required
-                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-mono font-bold text-blue-700 dark:text-blue-300"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                      Kata Sandi (Password) *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showFormPassword ? 'text' : 'password'}
-                        value={formPassword}
-                        onChange={(e) => setFormPassword(e.target.value)}
-                        placeholder="Masukkan password akun..."
-                        required
-                        className="w-full pl-3 pr-8 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowFormPassword(!showFormPassword)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showFormPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 2: Role & Territorial Scope Section */}
-                <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                      Tingkat Peran & Pembatasan Wilayah Akses
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Sistem akan mengisolasi data daerah sesuai pilihan ini
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {/* Role Choice */}
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                        Tingkat Peran (Role)
-                      </label>
-                      <select
-                        value={formRole}
-                        onChange={(e) => setFormRole(e.target.value as UserRole)}
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-bold text-amber-600 dark:text-amber-400"
-                      >
-                        <option value="SUPER_ADMIN">★ SUPER ADMINISTRATOR (Akses Tertinggi)</option>
-                        <option value="ADMIN_DPW">ADMIN DPW (Tingkat Provinsi)</option>
-                        <option value="ADMIN_DPD">ADMIN DPD (Tingkat Kab/Kota)</option>
-                        <option value="ADMIN_DPC">ADMIN DPC (Tingkat Kecamatan)</option>
-                        <option value="ADMIN_DPRT">ADMIN DPRT (Tingkat Kelurahan/Desa)</option>
-                      </select>
-                    </div>
-
-                    {/* DPD Access */}
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                        Cakupan DPD (Kabupaten/Kota)
-                      </label>
-                      {formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' ? (
-                        <input
-                          type="text"
-                          disabled
-                          value="SEMUA KAB/KOTA SE-SULUT (ALL)"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-slate-400 font-bold"
-                        />
-                      ) : (
-                        <select
-                          value={formDpdAccess}
-                          onChange={(e) => {
-                            setFormDpdAccess(e.target.value);
-                            setFormDpcAccess('ALL');
-                            setFormDprtAccess('ALL');
-                          }}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                        >
-                          {SULUT_REGIONS.map((r) => (
-                            <option key={r.id} value={r.name}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-
-                    {/* DPC Access */}
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                        Cakupan DPC (Kecamatan)
-                      </label>
-                      {formRole === 'ADMIN_DPC' || formRole === 'ADMIN_DPRT' ? (
-                        <select
-                          value={formDpcAccess}
-                          onChange={(e) => {
-                            setFormDpcAccess(e.target.value);
-                            setFormDprtAccess('ALL');
-                          }}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                        >
-                          <option value="ALL">-- Pilih Kecamatan --</option>
-                          {availableSubdistricts.map((sub) => (
-                            <option key={sub.name} value={sub.name}>
-                              Kec. {sub.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          disabled
-                          value="SEMUA KECAMATAN (ALL)"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-slate-400"
-                        />
-                      )}
-                    </div>
-
-                    {/* DPRt Access */}
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                        Cakupan DPRt (Desa/Kelurahan)
-                      </label>
-                      {formRole === 'ADMIN_DPRT' ? (
-                        <select
-                          value={formDprtAccess}
-                          onChange={(e) => setFormDprtAccess(e.target.value)}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none"
-                        >
-                          <option value="ALL">-- Pilih Desa/Kelurahan --</option>
-                          {availableVillages.map((vil) => (
-                            <option key={vil} value={vil}>
-                              {vil}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          disabled
-                          value="SEMUA RANTING / DESA (ALL)"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-slate-400"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsFormOpen(false)}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer text-center"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="w-full sm:w-auto px-5 py-2.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                    <span>{editingUserId ? 'Simpan Perubahan' : 'Terbitkan Akun Admin'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+          <UserFormModal
+            isFormOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            editingUserId={editingUserId}
+            formError={formError}
+            formSuccess={formSuccess}
+            isSaving={isSaving}
+            onSave={handleSaveForm}
+            memberSearchTerm={memberSearchTerm}
+            setMemberSearchTerm={setMemberSearchTerm}
+            showMemberDropdown={showMemberDropdown}
+            setShowMemberDropdown={setShowMemberDropdown}
+            memberSuggestions={memberSuggestions}
+            onSelectMember={handleSelectMember}
+            formFullName={formFullName}
+            setFormFullName={setFormFullName}
+            formNik={formNik}
+            setFormNik={setFormNik}
+            formNomorEkta={formNomorEkta}
+            setFormNomorEkta={setFormNomorEkta}
+            formJabatan={formJabatan}
+            setFormJabatan={setFormJabatan}
+            formUsername={formUsername}
+            setFormUsername={setFormUsername}
+            formPassword={formPassword}
+            setFormPassword={setFormPassword}
+            showFormPassword={showFormPassword}
+            setShowFormPassword={setShowFormPassword}
+            formRole={formRole}
+            setFormRole={setFormRole}
+            formDpdAccess={formDpdAccess}
+            setFormDpdAccess={setFormDpdAccess}
+            formDpcAccess={formDpcAccess}
+            setFormDpcAccess={setFormDpcAccess}
+            formDprtAccess={formDprtAccess}
+            setFormDprtAccess={setFormDprtAccess}
+            availableSubdistricts={availableSubdistricts}
+            availableVillages={availableVillages}
+          />
 
           {/* Table / List of Admin Accounts */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
-            {/* 1. Tampilan Desktop & Tablet (Layar Lebar) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-4">Nama & Jabatan</th>
-                    <th className="py-3 px-4">Username & NIK</th>
-                    <th className="py-3 px-4">Tingkat Peran</th>
-                    <th className="py-3 px-4">Cakupan Wilayah Akses</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                        <span>Memuat daftar akun admin dari Supabase...</span>
-                      </td>
-                    </tr>
-                  ) : filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400">
-                        Tidak ada akun admin yang sesuai dengan pencarian atau filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user) => {
-                      const isMaster = user.username === MASTER_SUPER_ADMIN.username || user.username === '7106033003050001';
+            {/* 1. Tampilan Desktop & Tablet */}
+            <UserDesktopTable
+              isLoading={isLoading}
+              users={filteredUsers}
+              onToggleStatus={handleToggleStatus}
+              onEditUser={handleOpenEditForm}
+              onDeleteUser={handleDeleteUser}
+            />
 
-                      const roleBadgeColor: Record<string, string> = {
-                        SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
-                        ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
-                        ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
-                        ADMIN_DPC: 'bg-teal-100 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700',
-                        ADMIN_DPRT: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
-                        ANGGOTA: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
-                      };
-                      const userBadge = roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700';
-
-                      return (
-                        <tr
-                          key={user.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                        >
-                          {/* Nama & Jabatan */}
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
-                                  user.role === 'SUPER_ADMIN'
-                                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                    : 'bg-blue-600 text-white'
-                                }`}
-                              >
-                                {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                  <span>{user.fullName}</span>
-                                  {isMaster && (
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-500 text-slate-950 uppercase">
-                                      Utama
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-slate-500 truncate">
-                                  {user.jabatan || 'Pengurus Partai NasDem'}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Username & NIK */}
-                          <td className="py-3 px-4">
-                            <div className="font-mono font-bold text-blue-700 dark:text-blue-400">
-                              {user.username}
-                            </div>
-                            <div className="text-[11px] font-mono text-slate-400">
-                              {user.memberNik ? `NIK: ${user.memberNik}` : user.nomorEkta || '-'}
-                            </div>
-                          </td>
-
-                          {/* Role */}
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${userBadge}`}
-                            >
-                              {user.role}
-                            </span>
-                          </td>
-
-                          {/* Scope Territory */}
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <div className="min-w-0">
-                                {user.dpdAccess === 'ALL' ? (
-                                  <span className="font-bold text-blue-600 dark:text-blue-400">
-                                    Seluruh Sulawesi Utara (15 DPD)
-                                  </span>
-                                ) : (
-                                  <div>
-                                    <span className="font-semibold">{user.dpdAccess}</span>
-                                    {user.dpcAccess && user.dpcAccess !== 'ALL' && (
-                                      <span className="text-slate-500 text-[11px] block">
-                                        &rsaquo; Kec. {user.dpcAccess}
-                                        {user.dprtAccess && user.dprtAccess !== 'ALL' && ` &rsaquo; ${user.dprtAccess}`}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Status Active / Inactive */}
-                          <td className="py-3 px-4 text-center">
-                            <button
-                              onClick={() => handleToggleStatus(user)}
-                              disabled={isMaster}
-                              title={isMaster ? 'Super Admin Utama selalu aktif' : 'Klik untuk ganti status aktif/nonaktif'}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
-                                user.isActive
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200'
-                                  : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-300'
-                              }`}
-                            >
-                              {user.isActive ? '● Aktif' : '○ Non-Aktif'}
-                            </button>
-                          </td>
-
-                          {/* Action Buttons */}
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleOpenEditForm(user)}
-                                title="Edit Akun & Hak Akses"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-
-                              {!isMaster && (
-                                <button
-                                  onClick={() => handleDeleteUser(user)}
-                                  title="Hapus Akun Admin"
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 2. Tampilan HP / Smartphone (Mobile Card View) */}
-            <div className="block md:hidden">
-              {isLoading ? (
-                <div className="py-12 text-center text-slate-400">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                  <span className="text-xs">Memuat daftar akun admin dari Supabase...</span>
-                </div>
-              ) : filteredUsers.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs px-4">
-                  Tidak ada akun admin yang sesuai dengan pencarian atau filter.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredUsers.map((user) => {
-                    const isMaster = user.username === MASTER_SUPER_ADMIN.username || user.username === '7106033003050001';
-                    const roleBadgeColor: Record<string, string> = {
-                      SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
-                      ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
-                      ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
-                      ADMIN_DPC: 'bg-teal-100 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700',
-                      ADMIN_DPRT: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
-                      ANGGOTA: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
-                    };
-                    const userBadge = roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700';
-
-                    return (
-                      <div
-                        key={user.id}
-                        className="p-3.5 space-y-2.5 bg-white dark:bg-slate-900 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
-                      >
-                        {/* Header: Avatar, Nama & Role */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
-                                user.role === 'SUPER_ADMIN'
-                                  ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                  : 'bg-blue-600 text-white'
-                              }`}
-                            >
-                              {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
-                                <span>{user.fullName}</span>
-                                {isMaster && (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-500 text-slate-950 uppercase">
-                                    Utama
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] text-slate-500 truncate">
-                                {user.jabatan || 'Pengurus Partai NasDem'}
-                              </div>
-                            </div>
-                          </div>
-
-                          <span
-                            className={`shrink-0 inline-block px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${userBadge}`}
-                          >
-                            {user.role}
-                          </span>
-                        </div>
-
-                        {/* Detail Box: Username, NIK, Territory */}
-                        <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
-                          <div>
-                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">Username</span>
-                            <span className="font-mono font-bold text-blue-700 dark:text-blue-400 truncate block">
-                              {user.username}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">NIK Pengurus</span>
-                            <span className="font-mono text-slate-600 dark:text-slate-300 truncate block">
-                              {user.memberNik || user.nomorEkta || '-'}
-                            </span>
-                          </div>
-                          <div className="col-span-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-start gap-1.5 text-slate-600 dark:text-slate-300">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                              {user.dpdAccess === 'ALL' ? (
-                                <span className="font-bold text-blue-600 dark:text-blue-400">
-                                  Seluruh Sulawesi Utara (15 DPD)
-                                </span>
-                              ) : (
-                                <div>
-                                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                    {user.dpdAccess}
-                                  </span>
-                                  {user.dpcAccess && user.dpcAccess !== 'ALL' && (
-                                    <span className="text-slate-500 text-[11px] block">
-                                      &rsaquo; Kec. {user.dpcAccess}
-                                      {user.dprtAccess && user.dprtAccess !== 'ALL' && ` &rsaquo; ${user.dprtAccess}`}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Toolbar */}
-                        <div className="flex items-center justify-between pt-1">
-                          <button
-                            onClick={() => handleToggleStatus(user)}
-                            disabled={isMaster}
-                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                              user.isActive
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 active:bg-emerald-200'
-                                : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 active:bg-slate-300'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                user.isActive ? 'bg-emerald-600 dark:bg-emerald-400 animate-pulse' : 'bg-slate-400'
-                              }`}
-                            />
-                            <span>{user.isActive ? 'Akun Aktif' : 'Non-Aktif'}</span>
-                          </button>
-
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleOpenEditForm(user)}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                            </button>
-
-                            {!isMaster && (
-                              <button
-                                onClick={() => handleDeleteUser(user)}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Hapus</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            {/* 2. Tampilan HP / Smartphone */}
+            <UserMobileCards
+              isLoading={isLoading}
+              users={filteredUsers}
+              onToggleStatus={handleToggleStatus}
+              onEditUser={handleOpenEditForm}
+              onDeleteUser={handleDeleteUser}
+            />
           </div>
         </div>
 
@@ -1155,4 +509,5 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     </div>
   );
 };
+
 export default UserManagementModal;
