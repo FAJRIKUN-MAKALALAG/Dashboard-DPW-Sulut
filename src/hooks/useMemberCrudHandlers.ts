@@ -2,6 +2,13 @@ import { useCallback } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from '../types';
 import { useDialog } from '../components/ui/AppDialogProvider';
 import {
+  getExpandedStructuralMembers,
+  getMemberSubOrgCategory,
+  isDpdMatch,
+  isDpcMatch,
+  isDprtMatch,
+} from '../utils/structureReadinessUtils';
+import {
   saveMembers,
   loadAuditLogs,
   appendAuditLog,
@@ -209,7 +216,6 @@ export function useMemberCrudHandlers({
 
   // 4. FITUR SIMPAN PERUBAHAN MATRIKS STRUKTUR TERITORIAL (DPW, DPD, DPC, DPRT)
   const getMemberPositionKey = useCallback((m: Member): string => {
-    if (m.id) return m.id;
     const cleanT = (m.tingkatKepengurusan || 'ANGGOTA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const cleanD = (m.dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const cleanR =
@@ -217,7 +223,10 @@ export function useMemberCrudHandlers({
         ? `_${(m.dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
         : '';
     const cleanS = (m.wilayahPenugasan || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+    const cleanJ = m.jabatan
+      ? `_${m.jabatan.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
+      : '';
+    return `${m.nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}${cleanJ}`;
   }, []);
 
   const handleBatchSaveTerritorialMembers = async (
@@ -228,20 +237,71 @@ export function useMemberCrudHandlers({
 
     const toDeleteSet = new Set(obsoleteNiks || []);
     const membersMap = new Map<string, Member>();
+    const existingByNik = new Map<string, Member>();
     members.forEach((m) => {
+      if (m.nik) existingByNik.set(m.nik, m);
+    });
+
+    // Kumpulkan cakupan wilayah & dewan (PERTIMBANGAN / PAKAR / PIMPINAN) yang sedang diperbarui/diimpor
+    // agar posisi lama pada wilayah & dewan yang sama otomatis digantikan oleh formasi baru tanpa menumpuk.
+    const incomingScopes: Array<{
+      level: string;
+      dpd: string;
+      dpc: string;
+      dprt: string;
+      subCat: string;
+    }> = [];
+    const seenScopeSigs = new Set<string>();
+    incomingMembers.forEach((inc) => {
+      if (!inc.isPengurus || !inc.tingkatKepengurusan) return;
+      const lvl = inc.tingkatKepengurusan;
+      const dpd = inc.dpd || 'Sulawesi Utara';
+      const dpc = inc.dpc || '';
+      const dprt = inc.dprt || '';
+      const subCat = getMemberSubOrgCategory(inc);
+      const sig = `${lvl}|${dpd.toLowerCase()}|${dpc.toLowerCase()}|${dprt.toLowerCase()}|${subCat}`;
+      if (!seenScopeSigs.has(sig)) {
+        seenScopeSigs.add(sig);
+        incomingScopes.push({ level: lvl, dpd, dpc, dprt, subCat });
+      }
+    });
+
+    const isInReplacedTerritoryScope = (m: Member): boolean => {
+      if (!m.isPengurus || !m.tingkatKepengurusan) return false;
+      const mCat = getMemberSubOrgCategory(m);
+      return incomingScopes.some((sc) => {
+        if (m.tingkatKepengurusan !== sc.level) return false;
+        if (mCat !== sc.subCat) return false;
+        if (sc.level === 'DPW') return true;
+        if (!isDpdMatch(m.dpd, sc.dpd)) return false;
+        if (sc.level === 'DPD') return true;
+        if (!isDpcMatch(m.dpc, sc.dpc)) return false;
+        if (sc.level === 'DPC') return true;
+        return isDprtMatch(m.dprt, sc.dprt);
+      });
+    };
+
+    const expandedExisting = getExpandedStructuralMembers(members);
+    expandedExisting.forEach((m) => {
       if (toDeleteSet.has(m.nik) || (m.id && toDeleteSet.has(m.id))) return;
-      membersMap.set(getMemberPositionKey(m), m);
+      if (isInReplacedTerritoryScope(m)) return;
+      const key = getMemberPositionKey(m);
+      if (toDeleteSet.has(key)) return;
+      const { positions: _stalePositions, ...rest } = m;
+      membersMap.set(key, { ...rest, id: m.id || key });
     });
 
     incomingMembers.forEach((inc) => {
       const key = getMemberPositionKey(inc);
-      const existing = membersMap.get(key);
+      const existing = membersMap.get(key) || existingByNik.get(inc.nik);
       // positions lama dibuang dari existing maupun inc agar jabatan baru langsung terbaca sebelum sinkron server selesai
       const { positions: _stalePositions, ...existingRest } = (existing || {}) as Member;
       const { positions: _staleIncPositions, ...incRest } = inc;
       membersMap.set(key, {
         ...existingRest,
         ...incRest,
+        fotoProfilUrl: incRest.fotoProfilUrl || existingRest.fotoProfilUrl,
+        fotoKtpUrl: incRest.fotoKtpUrl || existingRest.fotoKtpUrl,
         id: inc.id || key,
       });
     });
@@ -254,8 +314,8 @@ export function useMemberCrudHandlers({
 
     if (isSupabaseConfigured()) {
       try {
-        await upsertMembersToSupabase(incomingMembers);
-        const fresh = await getMembersFromSupabase();
+        await upsertMembersToSupabase(incomingMembers, { replaceTerritorySubOrgs: true });
+        const fresh = await getMembersFromSupabase({ force: true });
         if (Array.isArray(fresh)) {
           setMembers(fresh);
           saveMembers(fresh);
@@ -281,36 +341,45 @@ export function useMemberCrudHandlers({
     if (niksToDelete.length === 0) return;
 
     const toDeleteSet = new Set(niksToDelete);
-    const remainingMembers = members.filter((m) => {
-      const key = getMemberPositionKey(m);
-      if (toDeleteSet.has(key) || (m.id && toDeleteSet.has(m.id))) {
-        return false;
-      }
-      if (toDeleteSet.has(m.nik)) {
-        const tLower = territoryLabel.toLowerCase();
-        if (tLower.includes('dpd') && m.tingkatKepengurusan === 'DPD') return false;
-        if (tLower.includes('dpc') && m.tingkatKepengurusan === 'DPC') return false;
-        if (tLower.includes('dprt') && m.tingkatKepengurusan === 'DPRt') return false;
-        if (tLower.includes('dpw') && m.tingkatKepengurusan === 'DPW') return false;
-      }
-      return true;
-    });
+    const expandedExisting = getExpandedStructuralMembers(members);
+    const remainingMembers = expandedExisting
+      .filter((m) => {
+        const key = getMemberPositionKey(m);
+        if (toDeleteSet.has(key) || (m.id && toDeleteSet.has(m.id))) {
+          return false;
+        }
+        if (toDeleteSet.has(m.nik)) {
+          const tLower = territoryLabel.toLowerCase();
+          if (tLower.includes('dpd') && m.tingkatKepengurusan === 'DPD') return false;
+          if (tLower.includes('dpc') && m.tingkatKepengurusan === 'DPC') return false;
+          if (tLower.includes('dprt') && m.tingkatKepengurusan === 'DPRt') return false;
+          if (tLower.includes('dpw') && m.tingkatKepengurusan === 'DPW') return false;
+        }
+        return true;
+      })
+      .map((m) => {
+        const { positions: _stalePositions, ...rest } = m;
+        return rest;
+      });
     setMembers(remainingMembers);
     saveMembers(remainingMembers);
 
-    showToast(`Berhasil menghapus ${niksToDelete.length} data pengurus untuk ${territoryLabel}.`);
+    showToast(`Berhasil menghapus data pengurus terpilih pada ${territoryLabel}.`);
 
-    if (isSupabaseConfigured()) {
-      deleteMembersFromSupabase(niksToDelete).catch((e) =>
+    const validNiksForApi = Array.from(
+      new Set(niksToDelete.filter((x) => /^\d{8,20}$/.test(String(x).trim())))
+    );
+    if (isSupabaseConfigured() && validNiksForApi.length > 0) {
+      deleteMembersFromSupabase(validNiksForApi).catch((e) =>
         console.error('Gagal hapus pengurus teritorial dari Supabase:', e)
       );
     }
 
     recordAuditLog({
       memberNik: 'DELETE-TERITORIAL',
-      memberName: `${niksToDelete.length} Pengurus ${territoryLabel}`,
+      memberName: `Pengurus ${territoryLabel}`,
       action: 'DELETE',
-      reason: `Penghapusan/pembersihan seluruh data pengurus teritorial ${territoryLabel} (${niksToDelete.length} data) sebelum import ulang.`,
+      reason: `Penghapusan/pembersihan data pengurus teritorial ${territoryLabel}.`,
       actor: session.adminName,
       dpd: territoryLabel,
     });

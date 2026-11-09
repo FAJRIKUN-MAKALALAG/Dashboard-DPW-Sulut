@@ -1,6 +1,6 @@
 import { GridRowItem } from '../../components/matrix';
 import { isDefinitiveLeader } from '../../utils/jobMatchingUtils';
-import { getSlotKey, getStoredDeletedSlotKeys, saveDeletedSlotKeys, saveCustomMatrixRows } from './matrixStorage';
+import { saveCustomMatrixRows } from './matrixStorage';
 
 export function applyCellChange(
   gridRows: GridRowItem[],
@@ -42,6 +42,7 @@ export function addNewMatrixRow(
       : level === 'DPRt'
       ? 'Pengurus Ranting'
       : 'Wakil Ketua Bidang ...',
+    isBaku: false,
     namaLengkap: '',
     nik: '',
     nomorEKTA: '',
@@ -115,6 +116,7 @@ export function insertMatrixRow(
     no: targetRow.no + (position === 'below' ? 1 : 0),
     subOrg: targetRow.subOrg,
     jabatan: defaultJabatan,
+    isBaku: false,
     namaLengkap: '',
     nik: '',
     nomorEKTA: '',
@@ -140,6 +142,22 @@ export function insertMatrixRow(
   return normalized;
 }
 
+function markSlotAsDeletedInStorage(territoryKey: string, row: GridRowItem): void {
+  if (!territoryKey) return;
+  try {
+    const saved = localStorage.getItem(territoryKey);
+    const list: string[] = saved ? JSON.parse(saved) : [];
+    const set = new Set<string>(list);
+    set.add(`${row.subOrg}_${row.jabatan}`);
+    if (row.templateJabatan) {
+      set.add(`${row.subOrg}_${row.templateJabatan}`);
+    }
+    localStorage.setItem(territoryKey, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn('Gagal menyimpan daftar slot terhapus:', e);
+  }
+}
+
 export function deleteMatrixRow(
   gridRows: GridRowItem[],
   id: string,
@@ -149,61 +167,69 @@ export function deleteMatrixRow(
   const targetRow = gridRows.find((r) => r.id === id);
   if (!targetRow) return { updatedRows: gridRows };
 
-  const isCustomRow = targetRow.id.startsWith('custom_row_') || targetRow.id.startsWith('new_row_');
-  const isFilled = Boolean(targetRow.namaLengkap && targetRow.namaLengkap.trim() !== '' && targetRow.namaLengkap !== '-');
+  const isCustomRow =
+    targetRow.isBaku === false ||
+    targetRow.id.startsWith('custom_row_') ||
+    targetRow.id.startsWith('new_row_');
+  const isFilled = Boolean(
+    targetRow.namaLengkap &&
+      targetRow.namaLengkap.trim() !== '' &&
+      targetRow.namaLengkap !== '-'
+  );
+  const deletedNik =
+    targetRow.originalNik ||
+    (targetRow.nik && !targetRow.id.startsWith('empty_') ? targetRow.nik : undefined);
 
-  // 1. Jika baris ini adalah jabatan baku template yang terisi nama anggota
-  // -> Kosongkan data kader di slot ini sehingga menjadi 'Lowong / Belum Terisi'
-  if (!isCustomRow && isFilled) {
-    const deletedNik = targetRow.nik && !targetRow.id.startsWith('empty_') ? targetRow.nik : undefined;
-
-    const updated = gridRows.map((r) => {
-      if (r.id === id) {
-        return {
-          ...r,
-          namaLengkap: '',
-          nik: '',
-          nomorEKTA: '',
-          email: '',
-          nomorHP: '',
-          sosmed: '',
-          fotoProfilUrl: '',
-          isExisting: false,
-          originalNik: r.originalNik || r.nik || undefined,
-        };
-      }
-      return r;
+  // 1. Jika baris ini SUDAH LOWONG (`!isFilled`) atau baris tambahan (`isCustomRow`):
+  //    Hapus baris tersebut sepenuhnya dari matriks (dan catat ke `territoryKey` agar tidak muncul kembali).
+  if (!isFilled || isCustomRow) {
+    const remaining = gridRows.filter((r) => r.id !== id);
+    const counters = new Map<string, number>();
+    const normalized = remaining.map((r) => {
+      const currentCount = (counters.get(r.subOrg) || 0) + 1;
+      counters.set(r.subOrg, currentCount);
+      return {
+        ...r,
+        no: currentCount,
+      };
     });
-    saveCustomMatrixRows(matrixStorageKey, updated);
-    return { updatedRows: updated, deletedNik };
+    markSlotAsDeletedInStorage(territoryKey, targetRow);
+    saveCustomMatrixRows(matrixStorageKey, normalized);
+    return { updatedRows: normalized, deletedNik };
   }
 
-  // 2. Jika baris ini adalah baris kustom (hasil tambah/sisip) ATAU slot kosong yang ingin dihilangkan
-  const deletedNik = targetRow.nik && !targetRow.id.startsWith('empty_') ? targetRow.nik : undefined;
-
-  const deletedKeys = getStoredDeletedSlotKeys(territoryKey);
-  deletedKeys.add(targetRow.id);
-  deletedKeys.add(getSlotKey(targetRow.subOrg, targetRow.no, targetRow.jabatan));
-  saveDeletedSlotKeys(territoryKey, deletedKeys);
-
-  const remaining = gridRows.filter((r) => r.id !== id);
-  const counters = new Map<string, number>();
-  const normalized = remaining.map((r) => {
-    const currentCount = (counters.get(r.subOrg) || 0) + 1;
-    counters.set(r.subOrg, currentCount);
-    return {
-      ...r,
-      no: currentCount,
-    };
+  // 2. Jika baris ini adalah kursi baku (`!isCustomRow`) yang SEDANG TERISI (`isFilled`):
+  //    Kosongkan orangnya menjadi 'Belum Terisi (Lowong)' dan kembalikan nama jabatan ke template baku aslinya.
+  const updated = gridRows.map((r) => {
+    if (r.id === id) {
+      return {
+        ...r,
+        id: `empty_${r.subOrg.replace(/[^a-z0-9]/gi, '_')}_${r.no}`,
+        jabatan: r.templateJabatan || r.jabatan,
+        templateJabatan: r.templateJabatan || r.jabatan,
+        isBaku: true,
+        namaLengkap: '',
+        nik: '',
+        nomorEKTA: '',
+        email: '',
+        nomorHP: '',
+        sosmed: '',
+        fotoProfilUrl: '',
+        isExisting: false,
+        originalNik: r.originalNik || r.nik || undefined,
+      };
+    }
+    return r;
   });
-  saveCustomMatrixRows(matrixStorageKey, normalized);
-  return { updatedRows: normalized, deletedNik };
+  saveCustomMatrixRows(matrixStorageKey, updated);
+  return { updatedRows: updated, deletedNik };
 }
 
 export function deleteSelectedMatrixRows(
   gridRows: GridRowItem[],
   selectedIds: string[],
-  matrixStorageKey: string
+  matrixStorageKey: string,
+  territoryKey?: string
 ): { updatedRows: GridRowItem[]; niksToDelete: string[] } {
   if (selectedIds.length === 0) return { updatedRows: gridRows, niksToDelete: [] };
 
@@ -216,24 +242,60 @@ export function deleteSelectedMatrixRows(
       if (nikTarget) {
         niksToDelete.push(nikTarget);
       }
+      if (r.id && !r.id.startsWith('empty_')) {
+        niksToDelete.push(r.id);
+      }
     }
   });
 
-  const updated = gridRows.map((row) => {
-    if (!idSet.has(row.id)) return row;
+  // Baris yang sudah Lowong (`!isFilled`) maupun baris tambahan/kustom (`isCustomRow`) yang dipilih
+  // langsung dihapus dari matriks. Sedangkan kursi baku yang sedang Terisi dikosongkan menjadi Lowong.
+  const remaining = gridRows.filter((row) => {
+    if (!idSet.has(row.id)) return true;
+    const isFilled = Boolean(
+      row.namaLengkap && row.namaLengkap.trim() !== '' && row.namaLengkap !== '-'
+    );
+    const isCustomRow =
+      row.isBaku === false ||
+      row.id.startsWith('custom_row_') ||
+      row.id.startsWith('new_row_');
+
+    if (!isFilled || isCustomRow) {
+      if (territoryKey) {
+        markSlotAsDeletedInStorage(territoryKey, row);
+      }
+      return false;
+    }
+    return true;
+  });
+
+  const counters = new Map<string, number>();
+  const updated = remaining.map((row) => {
+    const currentCount = (counters.get(row.subOrg) || 0) + 1;
+    counters.set(row.subOrg, currentCount);
+
+    if (!idSet.has(row.id)) {
+      return { ...row, no: currentCount };
+    }
     return {
       ...row,
+      id: `empty_${row.subOrg.replace(/[^a-z0-9]/gi, '_')}_${currentCount}`,
+      no: currentCount,
+      jabatan: row.templateJabatan || row.jabatan,
+      templateJabatan: row.templateJabatan || row.jabatan,
+      isBaku: true,
       namaLengkap: '',
       nik: '',
       nomorEKTA: '',
       email: '',
       nomorHP: '',
       sosmed: '',
+      fotoProfilUrl: '',
       isExisting: false,
       originalNik: undefined,
     };
   });
   saveCustomMatrixRows(matrixStorageKey, updated);
-  return { updatedRows: updated, niksToDelete };
+  return { updatedRows: updated, niksToDelete: Array.from(new Set(niksToDelete)) };
 }
 

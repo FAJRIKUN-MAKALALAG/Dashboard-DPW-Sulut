@@ -20,7 +20,7 @@ import * as XLSX from 'xlsx';
 import { Member } from '../../types';
 import { getMemberSubOrgCategory } from '../../utils/structureReadinessUtils';
 import { isGeneratedNik, isGeneratedEkta } from '../../utils/generatedIds';
-import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl, markImageUrlFailed } from '../../utils/imageUtils';
 
 interface RawSourceStructureTableProps {
   members: Member[];
@@ -258,11 +258,17 @@ export const RawSourceStructureTable: React.FC<RawSourceStructureTableProps> = (
                       <td className="py-1.5 px-2.5">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-9 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                            {m.fotoProfilUrl ? (
+                            {resolveImageUrl(m.fotoProfilUrl) ? (
                               <img
                                 src={resolveImageUrl(m.fotoProfilUrl)}
                                 alt={m.namaLengkap}
                                 className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  markImageUrlFailed(m.fotoProfilUrl);
+                                  markImageUrlFailed(e.currentTarget.src);
+                                  e.currentTarget.style.display = 'none';
+                                }}
                               />
                             ) : (
                               <div

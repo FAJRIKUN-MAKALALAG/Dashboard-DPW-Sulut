@@ -30,6 +30,9 @@ import {
 } from '../../utils/structureReadinessUtils';
 import { cleanPersonName, isJobTitleMatch } from '../../utils/jobMatchingUtils';
 import { isGeneratedNik, isIncompleteNik } from '../../utils/generatedIds';
+import { getTerritoryStorageKeys } from '../../hooks/territorial/matrixStorage';
+import { isBackendConfigured } from '../../config/api';
+import { getToken, StructureSlotService } from '../../services';
 import {
   DownloadTemplateCard,
   ExcelUploadZone,
@@ -45,7 +48,7 @@ interface TerritorialImportExportModalProps {
   currentRows?: GridRowItem[];
   currentMembers: Member[];
   session?: UserSession;
-  onSaveMembersBatch: (newMembers: Member[]) => void;
+  onSaveMembersBatch: (newMembers: Member[], obsoleteNiks?: string[]) => void;
   onDeleteMembersBatch?: (niksToDelete: string[], territoryLabel: string) => void;
   onSuccessRefresh?: () => void;
 }
@@ -101,13 +104,37 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     return false;
   });
 
+  const clearTerritoryMatrixCache = () => {
+    try {
+      const { territoryKey, matrixStorageKey } = getTerritoryStorageKeys(
+        territoryContext.level,
+        territoryContext.dpd,
+        territoryContext.dpc || '',
+        territoryContext.dprt || ''
+      );
+      localStorage.removeItem(territoryKey);
+      localStorage.removeItem(matrixStorageKey);
+    } catch {
+      /* abaikan */
+    }
+  };
+
   const handleClearAllTerritoryData = async () => {
     if (!onDeleteMembersBatch || existingTerritoryMembers.length === 0) return;
     setIsClearing(true);
     setParseError(null);
     try {
-      const niksToDelete = existingTerritoryMembers.map((m) => m.nik);
+      clearTerritoryMatrixCache();
+      const niksToDelete = Array.from(new Set(existingTerritoryMembers.map((m) => m.nik)));
       onDeleteMembersBatch(niksToDelete, territoryDisplayName);
+      if (isBackendConfigured() && getToken()) {
+        StructureSlotService.resetTerritorySlots(
+          territoryContext.level,
+          territoryContext.dpd,
+          territoryContext.dpc || '',
+          territoryContext.dprt || ''
+        ).catch(() => {});
+      }
       setSubmitSuccess(
         `Berhasil menghapus ${niksToDelete.length} data pengurus lama di ${territoryDisplayName}. Wilayah kini bersih dan siap diimpor ulang!`
       );
@@ -218,34 +245,34 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
     setIsSubmitting(true);
     try {
       // Bersihkan otomatis NIK sementara (generated) atau NIK <16 digit lama di wilayah ini apabila kini digantikan NIK baru saat impor ulang
-      if (onDeleteMembersBatch && existingTerritoryMembers.length > 0) {
-        const incomingNiks = new Set(parseResult.membersToSave.map((m) => m.nik));
-        const obsoleteGeneratedNiks = existingTerritoryMembers
-          .filter((old) => {
-            const isReplaceableOldNik = isGeneratedNik(old.nik) || isIncompleteNik(old.nik);
-            if (!isReplaceableOldNik || incomingNiks.has(old.nik)) return false;
-            const oldName = cleanPersonName(old.namaLengkap).toLowerCase();
-            return parseResult.membersToSave.some(
-              (inc) =>
-                (oldName && cleanPersonName(inc.namaLengkap).toLowerCase() === oldName) ||
-                isJobTitleMatch(inc.jabatan, old.jabatan, old.wilayahPenugasan)
-            );
-          })
-          .map((m) => m.nik);
+      const incomingNiks = new Set(parseResult.membersToSave.map((m) => m.nik));
+      const obsoleteGeneratedNiks = existingTerritoryMembers
+        .filter((old) => {
+          const isReplaceableOldNik = isGeneratedNik(old.nik) || isIncompleteNik(old.nik);
+          if (!isReplaceableOldNik || incomingNiks.has(old.nik)) return false;
+          const oldName = cleanPersonName(old.namaLengkap).toLowerCase();
+          return parseResult.membersToSave.some(
+            (inc) =>
+              (oldName && cleanPersonName(inc.namaLengkap).toLowerCase() === oldName) ||
+              isJobTitleMatch(inc.jabatan, old.jabatan, old.wilayahPenugasan)
+          );
+        })
+        .map((m) => m.nik);
 
-        if (obsoleteGeneratedNiks.length > 0) {
-          onDeleteMembersBatch(Array.from(new Set(obsoleteGeneratedNiks)), territoryDisplayName);
-        }
+      const uniqueObsolete = Array.from(new Set(obsoleteGeneratedNiks));
+      if (onDeleteMembersBatch && uniqueObsolete.length > 0 && isBackendConfigured() && getToken()) {
+        // Hanya hapus di server untuk NIK sementara lama yang tergantikan
+        onDeleteMembersBatch(uniqueObsolete, territoryDisplayName);
       }
 
-      onSaveMembersBatch(parseResult.membersToSave);
+      clearTerritoryMatrixCache();
+      onSaveMembersBatch(parseResult.membersToSave, uniqueObsolete);
       setSubmitSuccess(
         `Berhasil menyimpan ${parseResult.membersToSave.length} data pengurus untuk ${territoryDisplayName} ke database!`
       );
-      if (onSuccessRefresh) onSuccessRefresh();
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
       setParseError(
         'Gagal menyimpan pengurus ke database: ' + (err?.message || 'Terjadi kesalahan sistem.')

@@ -3,6 +3,8 @@ import { Member, UserSession } from '../../types';
 import { GridRowItem } from '../../components/matrix';
 import { isAcceptableImportNik } from '../../utils/generatedIds';
 import { generateUniqueTerritoryNik } from '../../utils/territorialExcelTemplateUtils';
+import { cleanPersonName } from '../../utils/jobMatchingUtils';
+import { isDpdMatch } from '../../utils/structureReadinessUtils';
 
 export interface PrepareSaveParams {
   gridRows: GridRowItem[];
@@ -42,9 +44,17 @@ export function prepareDatabaseSavePayload({
   const occupiedNiks = new Set<string>(members.map((m) => m.nik));
   const niksToDelete: string[] = [];
 
-  // 1. Anggota yang dikosongkan namanya di slot dialihkan jadi kader biasa
-  gridRows.forEach((row) => {
+  // 1. Anggota yang dikosongkan namanya di slot (dan tidak lagi memegang slot lain di matriks ini) dialihkan jadi kader biasa
+  gridRows.forEach((row, idx) => {
     if (row.originalNik && !row.namaLengkap.trim()) {
+      const stillHasOtherSlot = gridRows.some(
+        (other, oIdx) =>
+          oIdx !== idx &&
+          other.originalNik === row.originalNik &&
+          other.namaLengkap.trim() !== ''
+      );
+      if (stillHasOtherSlot) return;
+
       const prevMember = members.find((m) => m.nik === row.originalNik);
       if (prevMember) {
         updatedMembersList.push({
@@ -62,6 +72,16 @@ export function prepareDatabaseSavePayload({
 
   // 2. Simpan setiap baris yang terisi nama
   const updatedGridRows: GridRowItem[] = [];
+  const batchNameToNik = new Map<string, string>();
+
+  // Pre-populate batchNameToNik dari baris yang sudah punya NIK valid
+  gridRows.forEach((row) => {
+    const nama = cleanPersonName(row.namaLengkap).toLowerCase();
+    const nikClean = (row.nik || row.originalNik || '').replace(/[^0-9]/g, '').trim();
+    if (nama && isAcceptableImportNik(nikClean)) {
+      batchNameToNik.set(nama, nikClean);
+    }
+  });
 
   gridRows.forEach((row, idx) => {
     const nama = row.namaLengkap.trim();
@@ -70,10 +90,14 @@ export function prepareDatabaseSavePayload({
       return;
     }
 
+    const normNama = cleanPersonName(nama).toLowerCase();
     const existingMember = members.find(
       (m) =>
         (row.originalNik && m.nik === row.originalNik) ||
-        (row.nik && m.nik === row.nik.trim())
+        (row.nik && m.nik === row.nik.trim()) ||
+        (normNama &&
+          cleanPersonName(m.namaLengkap).toLowerCase() === normNama &&
+          isDpdMatch(m.dpd, territoryDpd))
     );
 
     let nikClean = row.nik.replace(/[^0-9]/g, '').trim();
@@ -84,7 +108,9 @@ export function prepareDatabaseSavePayload({
         ? `${territoryDpd}|${territoryDpc}`
         : undefined;
     if (!isAcceptableImportNik(nikClean)) {
-      if (existingMember && isAcceptableImportNik(existingMember.nik)) {
+      if (normNama && batchNameToNik.has(normNama)) {
+        nikClean = batchNameToNik.get(normNama)!;
+      } else if (existingMember && isAcceptableImportNik(existingMember.nik)) {
         nikClean = existingMember.nik;
       } else {
         nikClean = generateUniqueTerritoryNik(
@@ -99,7 +125,15 @@ export function prepareDatabaseSavePayload({
       occupiedNiks.add(nikClean);
     }
 
-    if (row.originalNik && row.originalNik !== nikClean) {
+    if (normNama && nikClean) {
+      batchNameToNik.set(normNama, nikClean);
+    }
+
+    if (
+      row.originalNik &&
+      row.originalNik !== nikClean &&
+      !gridRows.some((other, oIdx) => oIdx !== idx && other.originalNik === row.originalNik && other.namaLengkap.trim())
+    ) {
       niksToDelete.push(row.originalNik);
     }
 
@@ -110,10 +144,8 @@ export function prepareDatabaseSavePayload({
         ? `_${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
         : '';
     const cleanS = (row.subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    const memberId =
-      row.id && !row.id.startsWith('empty_')
-        ? row.id
-        : `${nikClean}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+    const cleanJ = (row.jabatan || 'PENGURUS').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    const memberId = `${nikClean}_${cleanT}_${cleanD}${cleanR}_${cleanS}_${cleanJ}`;
 
     const { positions: _staleExistingPositions, ...existingMemberRest } = (existingMember ||
       {}) as Member;
@@ -135,6 +167,7 @@ export function prepareDatabaseSavePayload({
       isPengurus: true,
       tingkatKepengurusan: level,
       wilayahPenugasan: row.subOrg,
+      urutan: row.no,
       nomorSK:
         existingMember?.nomorSK ||
         `SK-${level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`,

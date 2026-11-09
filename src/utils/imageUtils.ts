@@ -1,5 +1,20 @@
 import { API_BASE_URL } from '../config/api';
 
+const failedImageUrls = new Set<string>();
+
+export function markImageUrlFailed(url?: string | null): void {
+  if (!url) return;
+  const trimmed = url.trim();
+  if (trimmed) {
+    failedImageUrls.add(trimmed);
+  }
+}
+
+export function isImageUrlFailed(url?: string | null): boolean {
+  if (!url) return false;
+  return failedImageUrls.has(url.trim());
+}
+
 /**
  * Normalizes an image URL:
  * - If data URI (base64) or blob: or absolute http(s):// -> returns as is
@@ -8,7 +23,7 @@ import { API_BASE_URL } from '../config/api';
 export function resolveImageUrl(url?: string | null): string {
   if (!url) return '';
   const trimmed = url.trim();
-  if (!trimmed) return '';
+  if (!trimmed || failedImageUrls.has(trimmed)) return '';
   if (
     trimmed.startsWith('data:') ||
     trimmed.startsWith('blob:') ||
@@ -19,8 +34,19 @@ export function resolveImageUrl(url?: string | null): string {
   }
 
   const base = API_BASE_URL.replace(/\/api\/?$/, '');
-  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${base}${cleanPath}`;
+  let cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (cleanPath.startsWith('/uploads/')) {
+    cleanPath = `/api${cleanPath}`;
+  } else if (!cleanPath.startsWith('/api/uploads/')) {
+    if (cleanPath.includes('_ktp_')) {
+      cleanPath = `/api/uploads/ktp${cleanPath}`;
+    } else if (cleanPath.includes('_profile_')) {
+      cleanPath = `/api/uploads/profile${cleanPath}`;
+    }
+  }
+  const fullUrl = `${base}${cleanPath}`;
+  if (failedImageUrls.has(fullUrl)) return '';
+  return fullUrl;
 }
 
 export function compressImageFile(

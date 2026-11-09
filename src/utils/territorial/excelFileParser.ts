@@ -11,6 +11,7 @@ import {
   normalizeSubOrgName,
   isJobTitleMatch,
   calculateJobMatchScore,
+  cleanPersonName,
 } from '../jobMatchingUtils';
 import {
   makeGeneratedEkta,
@@ -51,6 +52,8 @@ export async function parseTerritorialExcelFile(
   const expandedCurrentMembers = getExpandedStructuralMembers(currentMembers);
   const allExistingNiks = new Set<string>(currentMembers.map((m) => m.nik));
   const batchAssignedNiks = new Set<string>();
+  const batchNameToNik = new Map<string, string>();
+  const batchNikToName = new Map<string, string>();
 
   const territoryDpd = ctx.level === 'DPW' ? 'Sulawesi Utara' : ctx.dpd;
   const territoryDpc =
@@ -188,31 +191,34 @@ export async function parseTerritorialExcelFile(
       if (h === 'no' || h === 'no.' || h.startsWith('nomor urut') || h === 'num') {
         if (colNo === -1) colNo = c;
       } else if (
-        h.includes('kabupaten') ||
-        h.includes('kota') ||
-        h.includes('dpd') ||
-        h.includes('daerah')
-      ) {
-        if (colDpd === -1) colDpd = c;
-      } else if (
-        h.includes('tingkat') ||
-        h.includes('badan') ||
-        h.includes('sub org') ||
-        h.includes('bagian') ||
-        h.includes('seksi')
-      ) {
-        if (colSubOrg === -1) colSubOrg = c;
-      } else if (h.includes('jabatan') || h.includes('posisi') || h.includes('kedudukan')) {
-        if (colJabatan === -1) colJabatan = c;
-      } else if (
         h.includes('nama') &&
         !h.includes('ibu') &&
         !h.includes('ayah') &&
         !h.includes('jabatan')
       ) {
         if (colNama === -1) colNama = c;
+      } else if (h.includes('jabatan') || h.includes('posisi') || h.includes('kedudukan')) {
+        if (colJabatan === -1) colJabatan = c;
       } else if (h.includes('nik') || h.includes('ktp') || h.includes('no. identitas')) {
         if (colNik === -1) colNik = c;
+      } else if (
+        h.includes('tingkat') ||
+        h.includes('badan') ||
+        h.includes('sub org') ||
+        h.includes('sub organisasi') ||
+        h.includes('bagian') ||
+        h.includes('seksi') ||
+        h.includes('dewan')
+      ) {
+        if (colSubOrg === -1) colSubOrg = c;
+      } else if (
+        h.includes('kabupaten') ||
+        h.includes('kota') ||
+        h === 'dpd' ||
+        h.includes('nama dpd') ||
+        h.includes('wilayah dpd')
+      ) {
+        if (colDpd === -1) colDpd = c;
       } else if (h.includes('kta') || h.includes('e-kta') || h.includes('anggota')) {
         if (colEkta === -1) colEkta = c;
       } else if (
@@ -319,7 +325,11 @@ export async function parseTerritorialExcelFile(
       let rowDpc = territoryDpc;
       let rowDprt = territoryDprt;
 
-      if (ctx.level === 'DPD' && colDpd !== -1) {
+      if (
+        ctx.level === 'DPD' &&
+        colDpd !== -1 &&
+        (!ctx.dpd || ctx.dpd === 'ALL' || ctx.dpd === 'Sulawesi Utara')
+      ) {
         const rawRowDpd = String(row[colDpd] || '').trim();
         if (rawRowDpd) {
           const foundReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, rawRowDpd));
@@ -412,6 +422,9 @@ export async function parseTerritorialExcelFile(
       if (isFilled) {
         filledCount++;
 
+        const normNama = cleanPersonName(namaVal).toLowerCase();
+        const personScopeKey = `${rowDpd.toLowerCase().trim()}|${normNama}`;
+
         const existingSlotMember = findSameTerritorySlotMember(
           expandedCurrentMembers,
           rowLevel,
@@ -423,11 +436,30 @@ export async function parseTerritorialExcelFile(
           namaVal
         );
 
-        const hasValidExcelNik = isValidNik(nikVal) && !batchAssignedNiks.has(nikVal);
+        const existingSamePersonInTerritory = normNama
+          ? currentMembers.find(
+              (m) =>
+                cleanPersonName(m.namaLengkap).toLowerCase() === normNama &&
+                isDpdMatch(m.dpd, rowDpd)
+            )
+          : undefined;
+
+        const isSamePersonNikReuse =
+          isValidNik(nikVal) &&
+          batchAssignedNiks.has(nikVal) &&
+          normNama !== '' &&
+          batchNikToName.get(nikVal) === normNama;
+
+        const hasValidExcelNik =
+          isValidNik(nikVal) && (!batchAssignedNiks.has(nikVal) || isSamePersonNikReuse);
 
         if (hasValidExcelNik) {
           batchAssignedNiks.add(nikVal);
           allExistingNiks.add(nikVal);
+          if (normNama) {
+            batchNameToNik.set(personScopeKey, nikVal);
+            batchNikToName.set(nikVal, normNama);
+          }
           if (nikVal.length !== 16) {
             nikWarningNote = `⚠️ NIK ${nikVal.length} digit tetap disimpan (disarankan lengkapi jadi 16 digit KTP)`;
           }
@@ -435,13 +467,24 @@ export async function parseTerritorialExcelFile(
           if (rawExcelNik && !isValidNik(rawExcelNik)) {
             nikWarningNote = `⚠️ NIK Excel (${rawExcelNik.length} digit) terlalu pendek — memakai ID sementara`;
           }
-          if (
+          if (normNama && batchNameToNik.has(personScopeKey)) {
+            nikVal = batchNameToNik.get(personScopeKey)!;
+          } else if (
             existingSlotMember &&
             isValidNik(existingSlotMember.nik) &&
             !isGeneratedNik(existingSlotMember.nik) &&
-            !batchAssignedNiks.has(existingSlotMember.nik)
+            (!batchAssignedNiks.has(existingSlotMember.nik) ||
+              batchNikToName.get(existingSlotMember.nik) === normNama)
           ) {
             nikVal = existingSlotMember.nik;
+            batchAssignedNiks.add(nikVal);
+          } else if (
+            existingSamePersonInTerritory &&
+            isValidNik(existingSamePersonInTerritory.nik) &&
+            (!batchAssignedNiks.has(existingSamePersonInTerritory.nik) ||
+              batchNikToName.get(existingSamePersonInTerritory.nik) === normNama)
+          ) {
+            nikVal = existingSamePersonInTerritory.nik;
             batchAssignedNiks.add(nikVal);
           } else {
             nikVal = generateUniqueTerritoryNik(
@@ -453,6 +496,11 @@ export async function parseTerritorialExcelFile(
             );
             batchAssignedNiks.add(nikVal);
           }
+
+          if (normNama && nikVal) {
+            batchNameToNik.set(personScopeKey, nikVal);
+            batchNikToName.set(nikVal, normNama);
+          }
         }
 
         const memberId = buildTerritorialPositionId(
@@ -460,7 +508,8 @@ export async function parseTerritorialExcelFile(
           rowLevel,
           rowDpc,
           rowDprt,
-          finalSubOrg
+          finalSubOrg,
+          standardizedJabatan
         );
 
         const existingMember = currentMembers.find((m) => m.nik === nikVal);

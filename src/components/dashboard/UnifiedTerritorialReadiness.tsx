@@ -182,13 +182,25 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
     const totalDprts = currentRegion.subdistricts.reduce((sum, s) => sum + s.villages.length, 0);
 
     const coveredRegionalDpcs = new Set<string>();
+    const coveredRegionalDprts = new Set<string>();
+    const regionScopedMembers = activeDpdScope
+      ? activeScopedMembers
+      : activeScopedMembers.filter((m) => isDpdMatch(m.dpd, currentRegion.name));
+
     currentRegion.subdistricts.forEach((sub) => {
-      if (activeScopedMembers.some((m) => isDpcMatch(m.dpc, sub.name))) {
-        coveredRegionalDpcs.add(normalizeDpcName(sub.name).replace(/\s+/g, ''));
+      const subMembers = regionScopedMembers.filter((m) => isDpcMatch(m.dpc, sub.name));
+      if (subMembers.length > 0) {
+        const subKey = normalizeDpcName(sub.name).replace(/\s+/g, '');
+        coveredRegionalDpcs.add(subKey);
+        sub.villages.forEach((v) => {
+          if (subMembers.some((m) => isDprtMatch(m.dprt, v))) {
+            coveredRegionalDprts.add(`${subKey}__${normalizeDprtName(v).replace(/\s+/g, '')}`);
+          }
+        });
       }
     });
 
-    activeScopedMembers.forEach((m) => {
+    regionScopedMembers.forEach((m) => {
       const isDpc =
         m.tingkatKepengurusan === 'DPC' ||
         (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dpc')) ||
@@ -210,16 +222,7 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
 
     const filledDpcs = coveredRegionalDpcs.size;
 
-    const coveredRegionalDprts = new Set<string>();
-    currentRegion.subdistricts.forEach((sub) => {
-      sub.villages.forEach((v) => {
-        if (activeScopedMembers.some((m) => isDpcMatch(m.dpc, sub.name) && isDprtMatch(m.dprt, v))) {
-          coveredRegionalDprts.add(`${normalizeDpcName(sub.name).replace(/\s+/g, '')}__${normalizeDprtName(v).replace(/\s+/g, '')}`);
-        }
-      });
-    });
-
-    activeScopedMembers.forEach((m) => {
+    regionScopedMembers.forEach((m) => {
       const isDprt =
         m.tingkatKepengurusan === 'DPRt' ||
         (m.isPengurus && (m.jabatan || '').toLowerCase().includes('dprt')) ||

@@ -23,14 +23,18 @@ export function buildTerritorialPositionId(
   level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
   dpc: string,
   dprt: string,
-  subOrg: string
+  subOrg: string,
+  jabatan?: string
 ): string {
   const cleanT = (level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const cleanD = (dpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   const cleanR =
     level === 'DPRt' ? `_${(dprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}` : '';
   const cleanS = (subOrg || 'PIMPINAN').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-  return `${nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}`;
+  const cleanJ = jabatan
+    ? `_${jabatan.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
+    : '';
+  return `${nik}_${cleanT}_${cleanD}${cleanR}_${cleanS}${cleanJ}`;
 }
 
 export function getTerritoryScopeKey(
