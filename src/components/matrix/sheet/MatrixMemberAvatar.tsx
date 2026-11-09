@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { getInitials, getAvatarColor, resolveImageUrl } from '../../../utils/imageUtils';
+import {
+  getInitials,
+  getAvatarColor,
+  resolveImageUrl,
+  markImageUrlFailed,
+} from '../../../utils/imageUtils';
 
 export const MatrixMemberAvatar: React.FC<{
   fotoProfilUrl?: string;
@@ -27,7 +32,11 @@ export const MatrixMemberAvatar: React.FC<{
         alt={namaLengkap}
         className="w-full h-full object-cover"
         loading="lazy"
-        onError={() => setHasError(true)}
+        onError={() => {
+          markImageUrlFailed(fotoProfilUrl);
+          markImageUrlFailed(resolvedSrc);
+          setHasError(true);
+        }}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import { GridRowItem } from '../../components/matrix';
+import { getStructureTemplate } from '../../data/structureTemplates';
 
 export function cleanTerritorySlug(val?: string): string {
   return (val || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -50,7 +51,13 @@ export function saveDeletedSlotKeys(territoryKey: string, keys: Set<string>): vo
 
 export function saveCustomMatrixRows(matrixStorageKey: string, rowsToSave: GridRowItem[]): void {
   try {
-    localStorage.setItem(matrixStorageKey, JSON.stringify(rowsToSave));
+    // Jangan simpan base64 fotoProfilUrl yang berukuran besar ke localStorage matriks agar tidak memblokir main thread
+    const lightweightRows = rowsToSave.map((r) =>
+      r.fotoProfilUrl && r.fotoProfilUrl.startsWith('data:')
+        ? { ...r, fotoProfilUrl: '' }
+        : r
+    );
+    localStorage.setItem(matrixStorageKey, JSON.stringify(lightweightRows));
   } catch (e) {
     console.warn('Failed to save custom matrix rows to localStorage:', e);
   }
@@ -59,4 +66,42 @@ export function saveCustomMatrixRows(matrixStorageKey: string, rowsToSave: GridR
 export function getSlotKey(subOrg: string, no: number, jabatan: string): string {
   return `${subOrg.trim().toLowerCase()}__${no}__${jabatan.trim().toLowerCase()}`;
 }
+
+export function computeDeletedSlotKeysFromRows(
+  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt',
+  rows: GridRowItem[]
+): Set<string> {
+  const template = getStructureTemplate(level);
+  const rowCounts = new Map<string, number>();
+
+  rows.forEach((r) => {
+    const jab = r.templateJabatan || r.jabatan;
+    const key = `${r.subOrg}_${jab}`;
+    rowCounts.set(key, (rowCounts.get(key) || 0) + 1);
+    if (r.jabatan !== jab) {
+      const altKey = `${r.subOrg}_${r.jabatan}`;
+      rowCounts.set(altKey, (rowCounts.get(altKey) || 0) + 1);
+    }
+  });
+
+  const occMap = new Map<string, number>();
+  const deletedKeys = new Set<string>();
+
+  template.forEach((tpl) => {
+    const baseKey = `${tpl.subOrg}_${tpl.jabatan}`;
+    const occ = (occMap.get(baseKey) || 0) + 1;
+    occMap.set(baseKey, occ);
+
+    const remainingCount = rowCounts.get(baseKey) || 0;
+    if (occ > remainingCount) {
+      deletedKeys.add(`${baseKey}#${occ}`);
+      if (remainingCount === 0) {
+        deletedKeys.add(baseKey);
+      }
+    }
+  });
+
+  return deletedKeys;
+}
+
 

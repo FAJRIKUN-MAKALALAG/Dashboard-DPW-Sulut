@@ -1,6 +1,7 @@
 import { Member } from '../../types';
 import { getStructureTemplate } from '../../data/structureTemplates';
 import {
+  isDpdMatch,
   getExpandedStructuralMembers,
   getMemberSubOrgCategory,
   getSlotSubOrgCategory,
@@ -9,6 +10,7 @@ import {
   normalizeSubOrgName,
   assignItemsToTemplateSlots,
   isJobTitleMatch,
+  cleanPersonName,
 } from '../jobMatchingUtils';
 import {
   makeGeneratedEkta,
@@ -287,6 +289,8 @@ export function alignAndCheckWithTemplate(
 
   const allExistingNiksHelper = new Set<string>(currentMembers.map((m) => m.nik));
   const batchAssignedNiksHelper = new Set<string>();
+  const batchNameToNikHelper = new Map<string, string>();
+  const batchNikToNameHelper = new Map<string, string>();
   const newMembersToSave: Member[] = [];
 
   const isValidNikHelper = (nik?: string): boolean => isAcceptableImportNik(nik);
@@ -298,6 +302,9 @@ export function alignAndCheckWithTemplate(
 
     let nikVal = r.nik;
     const rowDpdTarget = r.dpd || territoryDpd;
+    const normNama = cleanPersonName(r.namaLengkap).toLowerCase();
+    const personScopeKey = `${rowDpdTarget.toLowerCase().trim()}|${normNama}`;
+
     const existingSlotMember = findSameTerritorySlotMember(
       expandedCurrentMembers,
       ctx.level,
@@ -309,19 +316,49 @@ export function alignAndCheckWithTemplate(
       r.namaLengkap
     );
 
-    const hasValidExcelNik = isValidNikHelper(nikVal) && !batchAssignedNiksHelper.has(nikVal);
+    const existingSamePersonInTerritory = normNama
+      ? currentMembers.find(
+          (m) =>
+            cleanPersonName(m.namaLengkap).toLowerCase() === normNama &&
+            isDpdMatch(m.dpd, rowDpdTarget)
+        )
+      : undefined;
+
+    const isSamePersonNikReuse =
+      isValidNikHelper(nikVal) &&
+      batchAssignedNiksHelper.has(nikVal) &&
+      normNama !== '' &&
+      batchNikToNameHelper.get(nikVal) === normNama;
+
+    const hasValidExcelNik =
+      isValidNikHelper(nikVal) && (!batchAssignedNiksHelper.has(nikVal) || isSamePersonNikReuse);
 
     if (hasValidExcelNik) {
       batchAssignedNiksHelper.add(nikVal);
       allExistingNiksHelper.add(nikVal);
+      if (normNama) {
+        batchNameToNikHelper.set(personScopeKey, nikVal);
+        batchNikToNameHelper.set(nikVal, normNama);
+      }
     } else {
-      if (
+      if (normNama && batchNameToNikHelper.has(personScopeKey)) {
+        nikVal = batchNameToNikHelper.get(personScopeKey)!;
+      } else if (
         existingSlotMember &&
         isValidNikHelper(existingSlotMember.nik) &&
         !isGeneratedNik(existingSlotMember.nik) &&
-        !batchAssignedNiksHelper.has(existingSlotMember.nik)
+        (!batchAssignedNiksHelper.has(existingSlotMember.nik) ||
+          batchNikToNameHelper.get(existingSlotMember.nik) === normNama)
       ) {
         nikVal = existingSlotMember.nik;
+        batchAssignedNiksHelper.add(nikVal);
+      } else if (
+        existingSamePersonInTerritory &&
+        isValidNikHelper(existingSamePersonInTerritory.nik) &&
+        (!batchAssignedNiksHelper.has(existingSamePersonInTerritory.nik) ||
+          batchNikToNameHelper.get(existingSamePersonInTerritory.nik) === normNama)
+      ) {
+        nikVal = existingSamePersonInTerritory.nik;
         batchAssignedNiksHelper.add(nikVal);
       } else {
         nikVal = generateUniqueTerritoryNik(
@@ -333,14 +370,23 @@ export function alignAndCheckWithTemplate(
         );
         batchAssignedNiksHelper.add(nikVal);
       }
+
+      if (normNama && nikVal) {
+        batchNameToNikHelper.set(personScopeKey, nikVal);
+        batchNikToNameHelper.set(nikVal, normNama);
+      }
     }
+
+    r.nik = nikVal;
+    const finalJabatan = r.jabatanExcel || r.jabatanMatched || 'Pengurus';
 
     const memberId = buildTerritorialPositionId(
       nikVal,
       ctx.level,
       territoryDpc,
       territoryDprt,
-      r.subOrg
+      r.subOrg,
+      finalJabatan
     );
 
     const existingMember = currentMembers.find((m) => m.nik === nikVal);

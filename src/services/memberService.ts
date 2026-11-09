@@ -243,7 +243,10 @@ export const MemberService = {
   /**
    * Import / upsert massal (dipecah per chunk).
    */
-  async upsertBatch(members: Member[]): Promise<boolean> {
+  async upsertBatch(
+    members: Member[],
+    options?: { replaceTerritorySubOrgs?: boolean }
+  ): Promise<boolean> {
     if (members.length === 0) return false;
     try {
       const payload = members.map(toApiPayload);
@@ -252,7 +255,10 @@ export const MemberService = {
         const chunk = payload.slice(i, i + BULK_UPSERT_CHUNK);
         const res = await apiFetch<{ imported: number; rejected: number; errors: any[] }>('/members/bulk', {
           method: 'POST',
-          body: { members: chunk },
+          body: {
+            members: chunk,
+            replaceTerritorySubOrgs: i === 0 && Boolean(options?.replaceTerritorySubOrgs),
+          },
         });
         if (res.rejected > 0) {
           allOk = false;

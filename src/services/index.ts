@@ -7,4 +7,5 @@ export * from './deletionService';
 export * from './realtimeService';
 export * from './userService';
 export * from './referralService';
+export * from './structureSlotService';
 

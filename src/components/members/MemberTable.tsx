@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { Member, UserSession } from '../../types';
 import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
-import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl, markImageUrlFailed } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 import { exportMembersToExcel, exportMembersToCsv } from '../../utils/excelUtils';
 import { canEditMember, canDirectDeleteMember } from '../../utils/permissionUtils';
@@ -298,11 +298,17 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                             title="Klik untuk melihat detail profil kader"
                           >
                             <div className="w-9 h-11 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-2xs group-hover/avatar:ring-2 group-hover/avatar:ring-amber-400 transition-all">
-                              {member.fotoProfilUrl ? (
+                              {resolveImageUrl(member.fotoProfilUrl) ? (
                                 <img
                                   src={resolveImageUrl(member.fotoProfilUrl)}
                                   alt={member.namaLengkap}
                                   className="w-full h-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    markImageUrlFailed(member.fotoProfilUrl);
+                                    markImageUrlFailed(e.currentTarget.src);
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               ) : (
                                 <div

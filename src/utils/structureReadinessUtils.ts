@@ -60,6 +60,16 @@ export const REQUIRED_POSITIONS = {
   DPRt: DPRT_STRUCTURE_TEMPLATE.length, // 11
 };
 
+const dpdNormCache = new Map<string, string>();
+const dpcNormCache = new Map<string, string>();
+const dprtNormCache = new Map<string, string>();
+const jobCleanCache = new Map<string, string>();
+
+const expandedMembersCache = new WeakMap<Member[], Member[]>();
+const readinessSummaryCache = new WeakMap<Member[], SulutStructureSummary>();
+const kpiStatsCache = new WeakMap<Member[], Map<string, StructureKpiStats>>();
+const dpdComplianceCache = new WeakMap<Member[], Map<string, DpdPimpinanCompliance>>();
+
 /**
  * Membersihkan dan menstandarkan nama DPD (Kabupaten/Kota)
  * Memisahkan secara ketat daerah yang memiliki kata dasar serupa
@@ -67,6 +77,9 @@ export const REQUIRED_POSITIONS = {
  */
 export function normalizeDpdName(raw?: string): string {
   if (!raw) return '';
+  const cached = dpdNormCache.get(raw);
+  if (cached !== undefined) return cached;
+
   let str = raw
     .toLowerCase()
     .trim()
@@ -74,19 +87,24 @@ export function normalizeDpdName(raw?: string): string {
     .trim();
 
   // Alias / Singkatan resmi daerah Sulut
-  if (str === 'bolmong' || str === 'bm') return 'bolaang mongondow';
-  if (str === 'bolmut') return 'bolaang mongondow utara';
-  if (str === 'bolsel') return 'bolaang mongondow selatan';
-  if (str === 'boltim') return 'bolaang mongondow timur';
-  if (str === 'minsel') return 'minahasa selatan';
-  if (str === 'minut') return 'minahasa utara';
-  if (str === 'mitra') return 'minahasa tenggara';
-  if (str === 'sitaro' || str.includes('tagulandang')) return 'kepulauan siau tagulandang biaro';
-  if (str === 'sangihe') return 'kepulauan sangihe';
-  if (str === 'talaud') return 'kepulauan talaud';
+  let res: string;
+  if (str === 'bolmong' || str === 'bm') res = 'bolaang mongondow';
+  else if (str === 'bolmut') res = 'bolaang mongondow utara';
+  else if (str === 'bolsel') res = 'bolaang mongondow selatan';
+  else if (str === 'boltim') res = 'bolaang mongondow timur';
+  else if (str === 'minsel') res = 'minahasa selatan';
+  else if (str === 'minut') res = 'minahasa utara';
+  else if (str === 'mitra') res = 'minahasa tenggara';
+  else if (str === 'sitaro' || str.includes('tagulandang')) res = 'kepulauan siau tagulandang biaro';
+  else if (str === 'sangihe') res = 'kepulauan sangihe';
+  else if (str === 'talaud') res = 'kepulauan talaud';
+  else {
+    // Hapus karakter khusus dan normalisasi spasi
+    res = str.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
 
-  // Hapus karakter khusus dan normalisasi spasi
-  return str.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  dpdNormCache.set(raw, res);
+  return res;
 }
 
 /**
@@ -95,6 +113,7 @@ export function normalizeDpdName(raw?: string): string {
  */
 export function isDpdMatch(memberDpd?: string, targetDpd?: string): boolean {
   if (!memberDpd || !targetDpd) return false;
+  if (memberDpd === targetDpd) return true;
   const norm1 = normalizeDpdName(memberDpd);
   const norm2 = normalizeDpdName(targetDpd);
   return norm1 === norm2;
@@ -105,13 +124,18 @@ export function isDpdMatch(memberDpd?: string, targetDpd?: string): boolean {
  */
 export function normalizeDpcName(raw?: string): string {
   if (!raw) return '';
-  return raw
+  const cached = dpcNormCache.get(raw);
+  if (cached !== undefined) return cached;
+
+  const res = raw
     .toLowerCase()
     .trim()
     .replace(/^(kecamatan|kec\.|kec)\s+/gi, '')
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  dpcNormCache.set(raw, res);
+  return res;
 }
 
 /**
@@ -119,6 +143,7 @@ export function normalizeDpcName(raw?: string): string {
  */
 export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
   if (!memberDpc || !targetDpc) return false;
+  if (memberDpc === targetDpc) return true;
   const norm1 = normalizeDpcName(memberDpc);
   const norm2 = normalizeDpcName(targetDpc);
   if (norm1 === norm2) return true;
@@ -130,6 +155,9 @@ export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
  */
 export function normalizeDprtName(raw?: string): string {
   if (!raw) return '';
+  const cached = dprtNormCache.get(raw);
+  if (cached !== undefined) return cached;
+
   let str = raw
     .toLowerCase()
     .trim()
@@ -144,10 +172,12 @@ export function normalizeDprtName(raw?: string): string {
     .replace(/\b(iv|4)\b/g, 'empat')
     .replace(/\b(v|5)\b/g, 'lima');
 
-  return str
+  const res = str
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  dprtNormCache.set(raw, res);
+  return res;
 }
 
 /**
@@ -155,6 +185,7 @@ export function normalizeDprtName(raw?: string): string {
  */
 export function isDprtMatch(memberDprt?: string, targetDprt?: string): boolean {
   if (!memberDprt || !targetDprt) return false;
+  if (memberDprt === targetDprt) return true;
   const norm1 = normalizeDprtName(memberDprt);
   const norm2 = normalizeDprtName(targetDprt);
   if (norm1 === norm2) return true;
@@ -165,12 +196,18 @@ export function isDprtMatch(memberDprt?: string, targetDprt?: string): boolean {
  * Normalizes strings to match positions flexibly
  */
 export function cleanJobTitle(j: string): string {
-  return j
+  if (!j) return '';
+  const cached = jobCleanCache.get(j);
+  if (cached !== undefined) return cached;
+
+  const res = j
     .toLowerCase()
     .replace(/bidang/g, 'bid')
     .replace(/usaha mikro kecil dan menengah/g, 'umkm')
     .replace(/&/g, 'dan')
     .replace(/[^a-z0-9]/g, '');
+  jobCleanCache.set(j, res);
+  return res;
 }
 
 /**
@@ -181,13 +218,18 @@ export function cleanJobTitle(j: string): string {
  */
 export function getExpandedStructuralMembers(members: Member[]): Member[] {
   if (!Array.isArray(members)) return [];
+  const cached = expandedMembersCache.get(members);
+  if (cached) return cached;
+
   const result: Member[] = [];
   for (const m of members) {
     if (Array.isArray(m.positions) && m.positions.length > 0) {
       for (const pos of m.positions) {
         result.push({
           ...m,
-          id: pos.id || `${m.nik}_${pos.tingkatKepengurusan}_${pos.dpc || 'UMUM'}_${pos.wilayahPenugasan || 'PIMPINAN'}`,
+          id:
+            pos.id ||
+            `${m.nik}_${pos.tingkatKepengurusan}_${pos.dpc || 'UMUM'}_${pos.wilayahPenugasan || 'PIMPINAN'}_${(pos.jabatan || '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`,
           tingkatKepengurusan: pos.tingkatKepengurusan as any,
           dpd: pos.dpd || m.dpd,
           dpc: pos.dpc || m.dpc,
@@ -204,6 +246,7 @@ export function getExpandedStructuralMembers(members: Member[]): Member[] {
       result.push(m);
     }
   }
+  expandedMembersCache.set(members, result);
   return result;
 }
 
@@ -211,11 +254,27 @@ export function getExpandedStructuralMembers(members: Member[]): Member[] {
  * Computes completeness analysis for DPW, DPD, DPC, and DPRt across all Sulut
  */
 export function computeStructureReadiness(members: Member[]): SulutStructureSummary {
+  const cached = readinessSummaryCache.get(members);
+  if (cached) return cached;
+
   const activeMembers = members.filter((m) => m.status === 'Aktif');
   const inactiveMembers = members.filter((m) => m.status !== 'Aktif');
   const pengurusBerSk = activeMembers.filter((m) => m.isPengurus);
   const anggotaBiasa = activeMembers.filter((m) => !m.isPengurus);
   const structuralActiveMembers = getExpandedStructuralMembers(activeMembers);
+
+  // Pre-index structuralActiveMembers by normalized DPD for O(1) regional lookup
+  const membersByDpd = new Map<string, Member[]>();
+  for (const m of structuralActiveMembers) {
+    const normDpd = normalizeDpdName(m.dpd);
+    if (!normDpd) continue;
+    let bucket = membersByDpd.get(normDpd);
+    if (!bucket) {
+      bucket = [];
+      membersByDpd.set(normDpd, bucket);
+    }
+    bucket.push(m);
+  }
 
   // 1. DPW Analysis
   const dpwMembers = structuralActiveMembers.filter(
@@ -249,7 +308,7 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
   const emptyDpds: string[] = [];
 
   const dpdList: TerritoryReadiness[] = SULUT_REGIONS.map((region) => {
-    const compliance = getDpdPimpinanCompliance(region.name, activeMembers);
+    const compliance = getDpdPimpinanCompliance(region.name, members);
     const filledCount = compliance.filledCount;
     const totalRequired = compliance.totalRequired; // 36
     const pct = compliance.percentage;
@@ -287,10 +346,15 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
 
   SULUT_REGIONS.forEach((region) => {
     totalDpcCount += region.subdistricts.length;
+    const normRegDpd = normalizeDpdName(region.name);
+    const regionMembers = membersByDpd.get(normRegDpd) || [];
+
     region.subdistricts.forEach((sub) => {
       totalDprtCount += sub.villages.length;
-      const subMembers = structuralActiveMembers.filter((m) => {
-        if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+      const normSubDpcKey = normalizeDpcName(sub.name).replace(/\s+/g, '');
+      const subAllMembers = regionMembers.filter((m) => isDpcMatch(m.dpc, sub.name));
+
+      const subMembers = subAllMembers.filter((m) => {
         const jLower = (m.jabatan || '').toLowerCase();
         const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
         return (
@@ -302,14 +366,15 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
         );
       });
       if (subMembers.length > 0) {
-        const dpcKey = `${normalizeDpdName(region.name)}__${normalizeDpcName(sub.name).replace(/\s+/g, '')}`;
+        const dpcKey = `${normRegDpd}__${normSubDpcKey}`;
         coveredDpcKeys.add(dpcKey);
       }
 
+      if (subAllMembers.length === 0) return;
+
       // Hitung desa/kelurahan DPRt yang telah memiliki pengurus atau kader terdata
       sub.villages.forEach((village) => {
-        const hasVillageMembers = structuralActiveMembers.some((m) => {
-          if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+        const hasVillageMembers = subAllMembers.some((m) => {
           if (!isDprtMatch(m.dprt, village)) return false;
           return (
             m.tingkatKepengurusan === 'DPRt' ||
@@ -319,7 +384,7 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
         });
 
         if (hasVillageMembers) {
-          const key = `${normalizeDpdName(region.name)}__${normalizeDpcName(sub.name).replace(/\s+/g, '')}__${normalizeDprtName(village).replace(/\s+/g, '')}`;
+          const key = `${normRegDpd}__${normSubDpcKey}__${normalizeDprtName(village).replace(/\s+/g, '')}`;
           coveredDprtKeys.add(key);
         }
       });
@@ -375,7 +440,7 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
 
   completedDprtCount = coveredDprtKeys.size;
 
-  return {
+  const summary: SulutStructureSummary = {
     totalMembersActive: activeMembers.length,
     totalMembersInactive: inactiveMembers.length,
     totalRegistered: members.length,
@@ -391,6 +456,8 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
     totalDprtCount,
     completedDprtCount,
   };
+  readinessSummaryCache.set(members, summary);
+  return summary;
 }
 
 /**
@@ -645,7 +712,29 @@ export function computeStructureKpiStats(
   selectedDpcFilter?: string,
   selectedDprtFilter?: string
 ): StructureKpiStats {
+  const cacheKey = `${selectedDpdFilter || 'ALL'}__${selectedDpcFilter || ''}__${selectedDprtFilter || ''}`;
+  let memberCacheMap = kpiStatsCache.get(members);
+  if (memberCacheMap) {
+    const cachedStats = memberCacheMap.get(cacheKey);
+    if (cachedStats) return cachedStats;
+  } else {
+    memberCacheMap = new Map<string, StructureKpiStats>();
+    kpiStatsCache.set(members, memberCacheMap);
+  }
+
   const activeMembers = getExpandedStructuralMembers(members).filter((m) => m.status === 'Aktif');
+  const membersByDpd = new Map<string, Member[]>();
+  for (const m of activeMembers) {
+    const normDpd = normalizeDpdName(m.dpd);
+    if (!normDpd) continue;
+    let bucket = membersByDpd.get(normDpd);
+    if (!bucket) {
+      bucket = [];
+      membersByDpd.set(normDpd, bucket);
+    }
+    bucket.push(m);
+  }
+
   const isDprtScoped = Boolean(selectedDprtFilter && selectedDprtFilter !== 'ALL');
   const isDpcScoped = Boolean(!isDprtScoped && selectedDpcFilter && selectedDpcFilter !== 'ALL');
   const isDpdScoped = Boolean(!isDprtScoped && !isDpcScoped && selectedDpdFilter && selectedDpdFilter !== 'ALL');
@@ -747,6 +836,8 @@ export function computeStructureKpiStats(
   const dprtTemplate = DPRT_STRUCTURE_TEMPLATE;
 
   targetRegions.forEach((region) => {
+    const regionMembers = membersByDpd.get(normalizeDpdName(region.name)) || [];
+
     // A. DPD level untuk region ini (Hanya jika bukan DPC/DPRt scoped)
     if (!isDpcScoped && !isDprtScoped) {
       dpdRequired += dpdTemplate.length;
@@ -754,8 +845,7 @@ export function computeStructureKpiStats(
       dpdBreakdown.pertimbanganRequired += dpdPerSlots.length;
       dpdBreakdown.pakarRequired += dpdPakSlots.length;
 
-      const dpdMembers = activeMembers.filter((m) => {
-        if (!isDpdMatch(m.dpd, region.name)) return false;
+      const dpdMembers = regionMembers.filter((m) => {
         const jLower = (m.jabatan || '').toLowerCase();
         const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
         return (
@@ -805,6 +895,8 @@ export function computeStructureKpiStats(
         return;
       }
 
+      const subAllMembers = regionMembers.filter((m) => isDpcMatch(m.dpc, sub.name));
+
       // Jika DPRt-scoped, lewati evaluasi jabatan DPC
       if (!isDprtScoped) {
         dpcRequired += dpcTemplate.length;
@@ -812,8 +904,7 @@ export function computeStructureKpiStats(
         dpcBreakdown.pertimbanganRequired += dpcPerSlots.length;
         dpcBreakdown.pakarRequired += dpcPakSlots.length;
 
-        const subMembers = activeMembers.filter((m) => {
-          if (!isDpdMatch(m.dpd, region.name) || !isDpcMatch(m.dpc, sub.name)) return false;
+        const subMembers = subAllMembers.filter((m) => {
           const jLower = (m.jabatan || '').toLowerCase();
           const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
           return (
@@ -860,13 +951,15 @@ export function computeStructureKpiStats(
         }
 
         dprtRequired += dprtTemplate.length;
-        const villageMembers = activeMembers.filter(
+        if (subAllMembers.length === 0) return;
+
+        const villageMembers = subAllMembers.filter(
           (m) =>
-            isDpdMatch(m.dpd, region.name) &&
-            isDpcMatch(m.dpc, sub.name) &&
             isDprtMatch(m.dprt, village) &&
             (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
         );
+        if (villageMembers.length === 0) return;
+
         const villageFilledCount = dprtTemplate.filter((slot) =>
           villageMembers.some((m) => isJobTitleMatch(m.jabatan, slot.jabatan))
         ).length;
@@ -888,7 +981,7 @@ export function computeStructureKpiStats(
     ? selectedDpdFilter
     : 'Sulawesi Utara';
 
-  return {
+  const result: StructureKpiStats = {
     dpwRequired,
     dpwFilled,
     dpwBreakdown,
@@ -907,6 +1000,8 @@ export function computeStructureKpiStats(
     isAllSulut,
     territoryName,
   };
+  memberCacheMap.set(cacheKey, result);
+  return result;
 }
 
 export interface DpdPimpinanSlotCompliance {
@@ -945,13 +1040,24 @@ export function getDpdPimpinanCompliance(
   dpdName: string,
   allMembers: Member[]
 ): DpdPimpinanCompliance {
+  const safeMembers = allMembers || [];
+  const normKey = normalizeDpdName(dpdName);
+  let compMap = dpdComplianceCache.get(safeMembers);
+  if (compMap) {
+    const cached = compMap.get(normKey);
+    if (cached) return cached;
+  } else {
+    compMap = new Map<string, DpdPimpinanCompliance>();
+    dpdComplianceCache.set(safeMembers, compMap);
+  }
+
   const pimpinanSlots = DPD_STRUCTURE_TEMPLATE.filter(
     (s) => getSlotSubOrgCategory(s) === 'PIMPINAN'
   );
   const totalRequired = pimpinanSlots.length || 36;
 
   // Anggota DPD untuk pimpinan daerah ini
-  const dpdMembers = getExpandedStructuralMembers(allMembers || []).filter((m) => {
+  const dpdMembers = getExpandedStructuralMembers(safeMembers).filter((m) => {
     if (m.status !== 'Aktif') return false;
     if (!isDpdMatch(m.dpd, dpdName)) return false;
     const isDpdLevel =
@@ -1005,7 +1111,7 @@ export function getDpdPimpinanCompliance(
   const hasSekretaris = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'sekretaris');
   const hasBendahara = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'bendahara');
 
-  return {
+  const compResult: DpdPimpinanCompliance = {
     dpdName,
     totalRequired,
     filledCount,
@@ -1021,4 +1127,6 @@ export function getDpdPimpinanCompliance(
       bendahara: hasBendahara,
     },
   };
+  compMap.set(normKey, compResult);
+  return compResult;
 }

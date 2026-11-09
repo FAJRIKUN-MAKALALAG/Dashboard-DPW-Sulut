@@ -3,6 +3,8 @@ export interface GridRowItem {
   no: number;
   subOrg: string;
   jabatan: string;
+  templateJabatan?: string;
+  isBaku?: boolean;
   namaLengkap: string;
   nik: string;
   nomorEKTA: string;

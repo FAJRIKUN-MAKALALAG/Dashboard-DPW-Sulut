@@ -8,6 +8,8 @@ import {
   getTerritoryStorageKeys,
   getStoredDeletedSlotKeys,
   saveCustomMatrixRows,
+  saveDeletedSlotKeys,
+  computeDeletedSlotKeysFromRows,
 } from './territorial/matrixStorage';
 import { calculateDpdPimpinanCompliance } from './territorial/matrixCompliance';
 import { buildTerritorialMatrixGridRows } from './territorial/matrixRowBuilder';
@@ -23,6 +25,8 @@ import {
   exportMatrixToExcel,
   getTerritoryOfficialTitle,
 } from './territorial/matrixPersistence';
+import { isBackendConfigured } from '../config/api';
+import { getToken, StructureSlotService } from '../services';
 
 export type { UseTerritorialMatrixProps };
 
@@ -58,7 +62,10 @@ export function useTerritorialMatrix({
   }, [level, selectedDpd, selectedDpc, selectedDprt]);
 
   // Build matrix whenever territory changes or members change
-  const buildMatrixRows = (currentDeletedKeys?: Set<string>, forceReset: boolean = false) => {
+  const buildMatrixRows = (
+    currentDeletedKeys?: Set<string>,
+    forceReset: boolean = false
+  ): GridRowItem[] => {
     const deletedKeys = currentDeletedKeys || getStoredDeletedSlotKeys(territoryKey);
     const result = buildTerritorialMatrixGridRows({
       level,
@@ -74,13 +81,81 @@ export function useTerritorialMatrix({
     });
     setGridRows(result.gridRows);
     setRawTerritoryMembers(result.rawTerritoryMembers);
+    return result.gridRows;
   };
 
   useEffect(() => {
-    buildMatrixRows();
+    let isCancelled = false;
+    const storedDeletedKeys = getStoredDeletedSlotKeys(territoryKey);
+
+    // Jika cache memori sudah ada untuk wilayah ini, gunakan deletedKeys dari cache sejak awal
+    // agar tidak terjadi render ganda saat berpindah tab
+    const cachedRes = StructureSlotService.getCachedTerritorySlots(
+      level,
+      selectedDpd,
+      selectedDpc,
+      selectedDprt
+    );
+    const initialDeletedKeys =
+      cachedRes?.slots && cachedRes.slots.length > 0
+        ? computeDeletedSlotKeysFromRows(level, cachedRes.slots)
+        : storedDeletedKeys;
+
+    const localRows = buildMatrixRows(initialDeletedKeys);
     setIsEditMode(false);
     setSaveSuccessMsg(null);
     setDeletedMemberNiks([]);
+
+    if (isBackendConfigured() && getToken() && !cachedRes) {
+      StructureSlotService.fetchTerritorySlots(level, selectedDpd, selectedDpc, selectedDprt)
+        .then((res) => {
+          if (isCancelled || !res?.slots || res.slots.length === 0) return;
+
+          const dbDeletedKeys = computeDeletedSlotKeysFromRows(level, res.slots);
+          const localFilled = localRows.filter((r) => r.namaLengkap.trim() !== '').length;
+          const dbFilled = res.slots.filter((r) => r.namaLengkap.trim() !== '').length;
+
+          // Kasus A: Jika di browser ini pernah ada penghapusan slot lowong yang belum sempat
+          // tersimpan ke DB (misal karena koneksi/error sebelumnya), dorong ke DB sekarang.
+          if (storedDeletedKeys.size > 0 && dbDeletedKeys.size === 0) {
+            StructureSlotService.syncTerritorySlots(
+              level,
+              selectedDpd,
+              selectedDpc,
+              selectedDprt,
+              localRows
+            ).catch(() => {});
+            return;
+          }
+
+          // Kasus B: Tabel `structure_slots` di PostgreSQL adalah Sumber Kebenaran Utama lintas akun.
+          // Hanya lakukan rebuild matriks jika daftar slot yang dihapus di DB berbeda dengan state saat ini!
+          const isDifferent =
+            dbDeletedKeys.size !== initialDeletedKeys.size ||
+            Array.from(dbDeletedKeys).some((k) => !initialDeletedKeys.has(k));
+
+          saveDeletedSlotKeys(territoryKey, dbDeletedKeys);
+          const finalRows = isDifferent ? buildMatrixRows(dbDeletedKeys) : localRows;
+
+          // Jika di DB belum tercatat pengurus yang sudah ada di wilayah ini, sinkronkan ke DB
+          if (localFilled > dbFilled) {
+            StructureSlotService.syncTerritorySlots(
+              level,
+              selectedDpd,
+              selectedDpc,
+              selectedDprt,
+              finalRows
+            ).catch(() => {});
+          }
+        })
+        .catch(() => {
+          // Gunakan hasil buildMatrixRows lokal jika backend belum merespons
+        });
+    }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [level, selectedDpd, selectedDpc, selectedDprt, members]);
 
   const handleCellChange = (id: string, field: keyof GridRowItem, value: string) => {
@@ -101,29 +176,82 @@ export function useTerritorialMatrix({
   };
 
   const handleDeleteRow = (id: string) => {
-    setGridRows((prev) => {
-      const { updatedRows, deletedNik } = deleteMatrixRow(prev, id, territoryKey, matrixStorageKey);
-      if (deletedNik) {
-        setDeletedMemberNiks((curr) => [...curr, deletedNik]);
+    const targetRow = gridRows.find((r) => r.id === id);
+    const isTargetFilled = Boolean(
+      targetRow &&
+        targetRow.namaLengkap &&
+        targetRow.namaLengkap.trim() !== '' &&
+        targetRow.namaLengkap !== '-'
+    );
+    const { updatedRows, deletedNik } = deleteMatrixRow(
+      gridRows,
+      id,
+      territoryKey,
+      matrixStorageKey
+    );
+    const updatedDeletedKeys = computeDeletedSlotKeysFromRows(level, updatedRows);
+    saveDeletedSlotKeys(territoryKey, updatedDeletedKeys);
+    setGridRows(updatedRows);
+
+    if (deletedNik) {
+      setDeletedMemberNiks((curr) => [...curr, deletedNik]);
+      setIsEditMode(true);
+    } else if (!isTargetFilled) {
+      // Jika menghapus slot jabatan yang memang sedang lowong (belum terisi),
+      // langsung perbarui ke database structure_slots tanpa harus masuk mode edit
+      if (isBackendConfigured() && getToken()) {
+        StructureSlotService.syncTerritorySlots(
+          level,
+          selectedDpd,
+          selectedDpc,
+          selectedDprt,
+          updatedRows
+        ).catch(() => {});
       }
-      return updatedRows;
-    });
-    setIsEditMode(true);
+      setSaveSuccessMsg('Slot jabatan lowong berhasil dihapus dari matriks!');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    } else {
+      setIsEditMode(true);
+    }
   };
 
   const handleDeleteSelectedRows = (selectedIds: string[]) => {
     if (selectedIds.length === 0) return;
 
-    setGridRows((prev) => {
-      const { updatedRows, niksToDelete } = deleteSelectedMatrixRows(prev, selectedIds, matrixStorageKey);
-      if (niksToDelete.length > 0 && onDeleteMembersBatch) {
-        const territoryLabel = level === 'DPW' ? 'DPW Sulawesi Utara' : `${level} ${selectedDpd}`;
-        onDeleteMembersBatch(niksToDelete, territoryLabel);
-      }
-      setSaveSuccessMsg(`Berhasil hard delete ${niksToDelete.length} data pengurus dari database!`);
-      setTimeout(() => setSaveSuccessMsg(null), 4000);
-      return updatedRows;
-    });
+    const { updatedRows, niksToDelete } = deleteSelectedMatrixRows(
+      gridRows,
+      selectedIds,
+      matrixStorageKey,
+      territoryKey
+    );
+    const updatedDeletedKeys = computeDeletedSlotKeysFromRows(level, updatedRows);
+    saveDeletedSlotKeys(territoryKey, updatedDeletedKeys);
+    setGridRows(updatedRows);
+
+    if (niksToDelete.length > 0 && onDeleteMembersBatch) {
+      const territoryLabel =
+        level === 'DPW'
+          ? 'DPW Sulawesi Utara'
+          : level === 'DPD'
+          ? `DPD ${selectedDpd}`
+          : level === 'DPC'
+          ? `DPC ${selectedDpc} (${selectedDpd})`
+          : `DPRt ${selectedDprt} (${selectedDpc})`;
+      onDeleteMembersBatch(niksToDelete, territoryLabel);
+    }
+
+    if (isBackendConfigured() && getToken()) {
+      StructureSlotService.syncTerritorySlots(
+        level,
+        selectedDpd,
+        selectedDpc,
+        selectedDprt,
+        updatedRows
+      ).catch(() => {});
+    }
+
+    setSaveSuccessMsg(`Berhasil menghapus data pengurus terpilih dari matriks & database!`);
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
   const handleResetTemplate = async () => {
@@ -154,6 +282,11 @@ export function useTerritorialMatrix({
         console.warn(e);
       }
       buildMatrixRows(new Set<string>(), true);
+      if (isBackendConfigured() && getToken()) {
+        StructureSlotService.resetTerritorySlots(level, selectedDpd, selectedDpc, selectedDprt).catch(
+          (err) => console.warn('Gagal mereset structure_slots di database:', err)
+        );
+      }
       setSaveSuccessMsg('Template standar berhasil dipulihkan!');
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     }
@@ -178,6 +311,15 @@ export function useTerritorialMatrix({
     onSaveMembersBatch(updatedMembersList, niksToDelete);
     setGridRows(updatedGridRows);
     saveCustomMatrixRows(matrixStorageKey, updatedGridRows);
+    if (isBackendConfigured() && getToken()) {
+      StructureSlotService.syncTerritorySlots(
+        level,
+        selectedDpd,
+        selectedDpc,
+        selectedDprt,
+        updatedGridRows
+      ).catch((err) => console.warn('Gagal menyinkronkan structure_slots ke database:', err));
+    }
     setSaveSuccessMsg(
       `Berhasil menyimpan perubahan ${updatedMembersList.length} data pengurus ke database!`
     );
