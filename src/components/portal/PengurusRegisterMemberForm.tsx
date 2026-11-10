@@ -672,8 +672,6 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             ktpQualityReport={ktpQualityReport}
             roleBadgeText="Anggota / Kader Biasa"
             recruiterLabel={`${perekrutNama} (${myReferralCode || 'Pengurus'})`}
-            autoRegisterDpp={autoRegisterDpp}
-            onToggleAutoRegisterDpp={setAutoRegisterDpp}
             onEditStep2={() => setCurrentStep(2)}
             onEditStep3={() => setCurrentStep(3)}
           />

@@ -690,8 +690,6 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                     ? `${kaderPerekrutNama} (${kaderPerekrutKodeReferral || 'Referral'})`
                     : undefined
                 }
-                autoRegisterDpp={autoRegisterDpp}
-                onToggleAutoRegisterDpp={setAutoRegisterDpp}
                 onEditStep2={() => setStep(2)}
                 onEditStep3={() => setStep(3)}
               />

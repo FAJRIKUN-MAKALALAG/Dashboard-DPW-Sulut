@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   Printer,
+  Globe,
 } from 'lucide-react';
 
 interface MemberManagementProps {
@@ -23,6 +24,7 @@ interface MemberManagementProps {
   initialStatusFilter?: MemberStatus;
   initialMembershipFilter?: 'ALL' | 'PENGURUS' | 'ANGGOTA';
   onOpenAddModal: () => void;
+  onOpenDppEktaModal?: (member?: Member) => void;
   onOpenStatusModal: (member: Member) => void;
   onOpenCardModal: (member: Member) => void;
   onOpenEditModal: (member: Member) => void;
@@ -40,6 +42,7 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
   initialStatusFilter,
   initialMembershipFilter,
   onOpenAddModal,
+  onOpenDppEktaModal,
   onOpenStatusModal,
   onOpenCardModal,
   onOpenEditModal,
@@ -136,14 +139,27 @@ export const MemberManagement: React.FC<MemberManagementProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {canAddMembers(session) && (
-            <button
-              onClick={onOpenAddModal}
-              className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
-              title="Tambah Kader Baru"
-            >
-              <UserPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Tambah Kader</span>
-            </button>
+            <>
+              <button
+                onClick={onOpenAddModal}
+                className="btn-white flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer"
+                title="Pendaftaran Keanggotaan (DPW Sulut)"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Daftar Keanggotaan</span>
+              </button>
+
+              {onOpenDppEktaModal && (
+                <button
+                  onClick={() => onOpenDppEktaModal()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white shadow-2xs cursor-pointer transition-colors"
+                  title="Pendaftaran e-KTA Pusat (Digital NasDem DPP)"
+                >
+                  <Globe className="w-3.5 h-3.5 text-[#FFDD00]" />
+                  <span>Pendaftaran e-KTA Pusat (DPP)</span>
+                </button>
+              )}
+            </>
           )}
 
           {onOpenPrintWithMembers && (

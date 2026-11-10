@@ -28,6 +28,20 @@ export function useAppModals() {
   // Referral Hub Modal (Kode Referral & Rekrutmen Pengurus)
   const [isReferralHubOpen, setIsReferralHubOpen] = useState(false);
 
+  // DPP e-KTA Pusat Registration Modal (Terpisah dari Pendaftaran Keanggotaan)
+  const [isDppEktaModalOpen, setIsDppEktaModalOpen] = useState(false);
+  const [dppEktaTargetMember, setDppEktaTargetMember] = useState<Member | null>(null);
+
+  const openDppEktaModal = (member?: Member | null) => {
+    setDppEktaTargetMember(member || null);
+    setIsDppEktaModalOpen(true);
+  };
+
+  const closeDppEktaModal = () => {
+    setIsDppEktaModalOpen(false);
+    setDppEktaTargetMember(null);
+  };
+
   const openPrintReport = () => {
     setPrintCustomMembers(null);
     setPrintInitialMode('STATISTICS');
@@ -131,6 +145,12 @@ export function useAppModals() {
     setIsUserManagementOpen,
     isReferralHubOpen,
     setIsReferralHubOpen,
+    isDppEktaModalOpen,
+    setIsDppEktaModalOpen,
+    dppEktaTargetMember,
+    setDppEktaTargetMember,
+    openDppEktaModal,
+    closeDppEktaModal,
     // Helper actions
     openDetailModal,
     closeDetailModal,

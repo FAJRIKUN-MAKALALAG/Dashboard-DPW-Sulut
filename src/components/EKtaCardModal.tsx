@@ -3,19 +3,27 @@ import { Member } from '../types';
 import { STATUS_BADGE_CONFIG } from '../data/sulutRegions';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
-import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, IdCard } from 'lucide-react';
+import { isOfficialDppEkta, getDppKtaCardUrl } from '../dpp-ekta';
+import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, Download, Globe, Sparkles } from 'lucide-react';
 
 interface EKtaCardModalProps {
   isOpen?: boolean;
   member: Member | null;
   onClose: () => void;
+  onOpenDppEktaModal?: (member: Member) => void;
 }
 
-export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, member, onClose }) => {
+export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
+  isOpen = true,
+  member,
+  onClose,
+  onOpenDppEktaModal,
+}) => {
   if (!isOpen || !member) return null;
 
   const statusConfig = STATUS_BADGE_CONFIG[member.status];
   const avatarColor = getAvatarColor(member.namaLengkap);
+  const hasOfficialDpp = isOfficialDppEkta(member.nomorEKTA);
 
   const handlePrint = () => {
     window.print();
@@ -158,29 +166,83 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
             </div>
           </div>
 
-          {/* Operational Details below card */}
-          <div className="no-print w-full mt-5 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
-            <div className="flex justify-between text-slate-500 dark:text-slate-400">
-              <span>Tanggal Registrasi Awal:</span>
-              <span className="text-slate-900 dark:text-white font-mono font-medium">{member.tanggalBergabung}</span>
-            </div>
-            <div className="flex justify-between text-slate-500 dark:text-slate-400">
-              <span>Nomor Kontak/WhatsApp:</span>
-              <span className="text-emerald-700 dark:text-emerald-400 font-mono font-semibold">{member.nomorHP}</span>
-            </div>
-            <div className="flex justify-between text-slate-500 dark:text-slate-400">
-              <span>Status Dokumen KTP:</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                {member.fotoKtpUrl ? (
-                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Terverifikasi KTP Elektronik
+            {/* Operational Details below card */}
+          <div className="no-print w-full mt-5 space-y-3">
+            {/* Official DPP e-KTA Status & Card Preview */}
+            {hasOfficialDpp ? (
+              <div className="p-3.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/70 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    Kartu Resmi Digital NasDem Pusat (DPP)
                   </span>
-                ) : (
-                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Belum Unggah KTP
-                  </span>
-                )}
-              </span>
+                  <a
+                    href={getDppKtaCardUrl(member.nomorEKTA, true)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Unduh PNG DPP</span>
+                  </a>
+                </div>
+                <div className="rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-950">
+                  <img
+                    src={getDppKtaCardUrl(member.nomorEKTA)}
+                    alt={`e-KTA DPP ${member.namaLengkap}`}
+                    className="w-full h-auto object-contain block"
+                  />
+                </div>
+              </div>
+            ) : (
+              onOpenDppEktaModal && (
+                <div className="p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 flex items-center justify-between gap-3 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-amber-900 dark:text-amber-200 block">
+                      Belum Memiliki 16 Digit e-KTA Pusat (DPP)
+                    </span>
+                    <span className="text-[11px] text-amber-800/90 dark:text-amber-300/80 block">
+                      Terbitkan e-KTA resmi DPP secara terpisah dari modul Pendaftaran e-KTA Pusat.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenDppEktaModal(member);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white text-[11px] font-bold shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#FFDD00]" />
+                    <span>Daftarkan e-KTA DPP</span>
+                  </button>
+                </div>
+              )
+            )}
+
+            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Tanggal Registrasi Awal:</span>
+                <span className="text-slate-900 dark:text-white font-mono font-medium">{member.tanggalBergabung}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Nomor Kontak/WhatsApp:</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-mono font-semibold">{member.nomorHP}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Status Dokumen KTP:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                  {member.fotoKtpUrl ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Terverifikasi KTP Elektronik
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Belum Unggah KTP
+                    </span>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
         </div>

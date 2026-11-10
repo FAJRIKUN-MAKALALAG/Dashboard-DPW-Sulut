@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileCheck2, Shield, Edit3, Globe } from 'lucide-react';
+import { FileCheck2, Shield, Edit3 } from 'lucide-react';
 import { KtpImageQualityReport } from '../../ktp-scanner';
 import { getInitials } from '../../utils/imageUtils';
 
@@ -23,8 +23,6 @@ interface RegistrationStep4SummaryProps {
   ktpQualityReport: KtpImageQualityReport | null;
   roleBadgeText: string;
   recruiterLabel?: string;
-  autoRegisterDpp?: boolean;
-  onToggleAutoRegisterDpp?: (val: boolean) => void;
   onEditStep2?: () => void;
   onEditStep3?: () => void;
 }
@@ -49,8 +47,6 @@ export const RegistrationStep4Summary: React.FC<RegistrationStep4SummaryProps> =
   ktpQualityReport,
   roleBadgeText,
   recruiterLabel,
-  autoRegisterDpp = true,
-  onToggleAutoRegisterDpp,
   onEditStep2,
   onEditStep3,
 }) => {
@@ -291,46 +287,6 @@ export const RegistrationStep4Summary: React.FC<RegistrationStep4SummaryProps> =
             </div>
           )}
         </div>
-      </div>
-
-      {/* Kartu Integrasi Digital NasDem DPP Pusat */}
-      <div className="p-3.5 sm:p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/20 space-y-3">
-        <div className="flex items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#1A3282] text-white flex items-center justify-center shrink-0">
-              <Globe className="w-4 h-4" />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-1.5">
-                <span>Penerbitan e-KTA Digital NasDem DPP</span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Admin Sulut Terhubung
-                </span>
-              </h5>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                Pembuatan e-KTA resmi dari portal pusat digital.partainasdem.id tanpa OTP/verifikasi mandiri pemohon.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <label className="flex items-start gap-3 p-3 rounded-lg bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/40 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-          <input
-            type="checkbox"
-            checked={autoRegisterDpp}
-            onChange={(e) => onToggleAutoRegisterDpp?.(e.target.checked)}
-            className="mt-0.5 w-4 h-4 text-[#1A3282] rounded border-slate-300 dark:border-slate-700 focus:ring-[#1A3282] cursor-pointer shrink-0"
-          />
-          <div className="text-xs space-y-0.5">
-            <span className="font-bold text-slate-900 dark:text-white block">
-              Daftarkan dan Terbitkan Nomor e-KTA DPP Resmi Sekarang
-            </span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-              Saat pendaftaran disimpan, sistem backend akan langsung menembus portal DPP menggunakan akun Admin Sulut, mengunggah foto e-KTP dan profil, serta otomatis mengaitkan Nomor e-KTA pusat resmi.
-            </span>
-          </div>
-        </label>
       </div>
     </div>
   );
