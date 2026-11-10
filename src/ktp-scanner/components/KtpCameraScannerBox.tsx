@@ -7,18 +7,19 @@ import {
   ScanLine,
   Image as ImageIcon,
 } from 'lucide-react';
+import { KTP_SCANNER_CONFIG } from '../ktpScannerConfig';
 import {
   KtpImageQualityReport,
   ExtractedKtpData,
   scanAndExtractKtpOnDevice,
-} from '../../utils/ktpOcrUtils';
+} from '../ktpScannerService';
 import {
   KtpStandardizationGuide,
   KtpScannedPreviewCard,
-} from './ktp-scanner/KtpStandardizationGuide';
-import { KtpLiveCameraViewport } from './ktp-scanner/KtpLiveCameraViewport';
+} from './KtpStandardizationGuide';
+import { KtpLiveCameraViewport } from './KtpLiveCameraViewport';
 
-interface KtpCameraScannerBoxProps {
+export interface KtpCameraScannerBoxProps {
   fotoKtpUrl: string;
   qualityReport: KtpImageQualityReport | null;
   extractedData: ExtractedKtpData | null;
@@ -108,7 +109,6 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
         const hasTorch = Boolean(capabilities && 'torch' in capabilities);
         setIsTorchSupported(hasTorch);
 
-        // Aktifkan autofocus kontinu otomatis jika kamera mendukung
         const advancedConstraints: any[] = [];
         if (Array.isArray(capabilities?.focusMode) && capabilities.focusMode.includes('continuous')) {
           advancedConstraints.push({ focusMode: 'continuous' });
@@ -200,7 +200,6 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     let cropW = vw;
     let cropH = vh;
 
-    // Hitung koordinat pemotongan (crop) yang presisi sesuai kotak bingkai putih di layar (object-cover)
     const videoRect = video.getBoundingClientRect();
     const guideRect = guideFrameRef.current?.getBoundingClientRect();
 
@@ -219,7 +218,7 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
       cropW = Math.min(vw - startX, guideRect.width * scale);
       cropH = Math.min(vh - startY, guideRect.height * scale);
     } else {
-      const targetAspect = 1.585;
+      const targetAspect = KTP_SCANNER_CONFIG.ID1_ASPECT_RATIO;
       cropW = vw * 0.88;
       cropH = cropW / targetAspect;
       if (cropH > vh * 0.82) {
@@ -231,10 +230,20 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     }
 
     const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = 1400;
-    captureCanvas.height = 884;
+    captureCanvas.width = KTP_SCANNER_CONFIG.TARGET_WIDTH;
+    captureCanvas.height = KTP_SCANNER_CONFIG.TARGET_HEIGHT;
     const ctx = captureCanvas.getContext('2d')!;
-    ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, 1400, 884);
+    ctx.drawImage(
+      video,
+      startX,
+      startY,
+      cropW,
+      cropH,
+      0,
+      0,
+      KTP_SCANNER_CONFIG.TARGET_WIDTH,
+      KTP_SCANNER_CONFIG.TARGET_HEIGHT
+    );
 
     const capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.94);
     stopCameraStream();
@@ -313,7 +322,6 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
 
       {!isCameraOpen && !isProcessingOcr && !fotoKtpUrl && (
         <>
-          {/* Tampilan Khusus Mobile (< md): Fokus Tombol Kamera Satu Tangan */}
           <div className="md:hidden p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3.5">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
@@ -350,7 +358,6 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
             </div>
           </div>
 
-          {/* Tampilan Tablet & Desktop (md+): Drag & Drop + Kamera / Upload Berdampingan */}
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -430,3 +437,4 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     </div>
   );
 };
+

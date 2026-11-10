@@ -42,27 +42,23 @@ export const KtpLiveCameraViewport: React.FC<KtpLiveCameraViewportProps> = ({
             ref={guideFrameRef}
             className="relative w-full max-w-[440px] aspect-[1.585/1] rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(2,6,23,0.65)]"
           >
-            {/* 4 Sudut Siku Penanda */}
             <div className="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-3 border-l-3 border-white rounded-tl-xl" />
             <div className="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-3 border-r-3 border-white rounded-tr-xl" />
             <div className="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-3 border-l-3 border-white rounded-bl-xl" />
             <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-3 border-r-3 border-white rounded-br-xl" />
 
-            {/* Panduan Area Header & NIK */}
             <div className="absolute top-[15%] left-[4%] right-[29%] h-[14%] border border-dashed border-white/65 rounded bg-white/10 flex items-center px-2">
               <span className="text-[9px] sm:text-[10px] font-mono font-semibold text-white tracking-wider uppercase">
                 16 Digit NIK KTP
               </span>
             </div>
 
-            {/* Panduan Area Biodata Kiri */}
             <div className="hidden sm:flex absolute top-[32%] left-[4%] right-[30%] bottom-[10%] border border-dashed border-white/40 rounded items-center justify-center">
               <span className="text-[10px] font-medium text-white/80">
                 Nama, TTL, Alamat, Kel/Desa & Kecamatan
               </span>
             </div>
 
-            {/* Panduan Area Pasfoto KTP Kanan */}
             <div className="absolute top-[21%] right-[4%] w-[24%] h-[56%] border border-dashed border-white/65 rounded bg-white/10 flex items-center justify-center text-center p-1">
               <span className="text-[9px] font-semibold text-white/90 leading-tight">
                 FOTO
@@ -86,7 +82,6 @@ export const KtpLiveCameraViewport: React.FC<KtpLiveCameraViewportProps> = ({
           )}
         </div>
 
-        {/* Notifikasi Info Flash jika perangkat tidak mendukung lampu LED */}
         {torchNotice && (
           <div className="absolute bottom-2.5 left-3 right-3 flex justify-center pointer-events-none">
             <div className="px-3 py-1.5 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-200 text-[11px] text-center shadow-md">
@@ -96,7 +91,7 @@ export const KtpLiveCameraViewport: React.FC<KtpLiveCameraViewportProps> = ({
         )}
       </div>
 
-      {/* Kontrol Kamera Bawah (Responsif Mobile & Desktop) */}
+      {/* Kontrol Kamera Bawah */}
       <div className="p-3 sm:p-3.5 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-2">
         <button
           type="button"
@@ -117,7 +112,6 @@ export const KtpLiveCameraViewport: React.FC<KtpLiveCameraViewportProps> = ({
         </button>
 
         <div className="flex items-center gap-1.5">
-          {/* Tombol Nyalakan / Matikan Flash Kamera */}
           <button
             type="button"
             onClick={onToggleTorch}
@@ -156,3 +150,4 @@ export const KtpLiveCameraViewport: React.FC<KtpLiveCameraViewportProps> = ({
     </div>
   );
 };
+

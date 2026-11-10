@@ -85,9 +85,6 @@ const STANDARD_KTP_PEKERJAAN = [
   'Pedagang',
 ];
 
-/**
- * Memperbaiki karakter angka yang sering tertukar oleh OCR pada baris NIK / Tanggal / RT-RW
- */
 export function normalizeOcrDigits(str: string): string {
   return (str || '')
     .replace(/[OoQDCU]/g, '0')
@@ -133,8 +130,9 @@ function matchBestStandardPekerjaan(rawVal: string): string {
   if (/RUMAH\s*TANGGA|IRT|MENGURUS/i.test(upper)) return 'Mengurus Rumah Tangga';
   if (/PELAJAR|MAHASISWA/i.test(upper)) return 'Pelajar/Mahasiswa';
   if (/BELUM.*BEKERJA|TIDAK.*BEKERJA/i.test(upper)) return 'Belum/Tidak Bekerja';
-  if (/SWASTA/i.test(upper)) return 'Karyawan Swasta';
   if (/WIRASWASTA/i.test(upper)) return 'Wiraswasta';
+  if (/WIRAUSAHA/i.test(upper)) return 'Wirausaha';
+  if (/SWASTA/i.test(upper)) return 'Karyawan Swasta';
   if (/PETANI|PEKEBUN/i.test(upper)) return 'Petani/Pekebun';
   if (/NELAYAN/i.test(upper)) return 'Nelayan/Perikanan';
   if (/HONORER/i.test(upper)) return 'Karyawan Honorer';
@@ -156,9 +154,6 @@ function matchBestStandardPekerjaan(rawVal: string): string {
   return toCleanTitleCase(cleaned);
 }
 
-/**
- * Mengekstrak 16 digit NIK terbaik dari teks OCR dan memvalidasi prefix Kabupaten/Kota Sulut (71XX)
- */
 export function extractBestNikFromText(rawText: string): string {
   const lines = (rawText || '')
     .split(/\r?\n/)
@@ -187,7 +182,6 @@ export function extractBestNikFromText(rawText: string): string {
 
   if (candidates.length === 0) return '';
 
-  // Perbaiki jika digit pertama/kedua salah baca pada KTP Sulut (misal '1106...' atau '7I06...' -> '7106...')
   const healedCandidates = candidates.map((cand) => {
     if (cand.length === 16 && !cand.startsWith('71')) {
       const possibleSulutPrefix = `71${cand.slice(2, 4)}`;
@@ -201,7 +195,6 @@ export function extractBestNikFromText(rawText: string): string {
     return cand;
   });
 
-  // Pilih kandidat dengan skor validasi tertinggi (16 digit + prefix Sulut + tanggal lahir valid)
   let bestNik = healedCandidates[0];
   let bestScore = -1;
 
@@ -224,6 +217,11 @@ export function extractBestNikFromText(rawText: string): string {
 
 function cleanPersonName(raw: string): string {
   return (raw || '')
+    .replace(/0/g, 'O')
+    .replace(/1/g, 'I')
+    .replace(/4/g, 'A')
+    .replace(/5/g, 'S')
+    .replace(/8/g, 'B')
     .replace(/\b(PROVINSI|KABUPATEN|KOTA|NIK|NAMA|TEMPAT|LAHIR|JENIS|KELAMIN)\b/gi, '')
     .replace(/[^a-zA-Z\s.,']/g, ' ')
     .replace(/\s+/g, ' ')
@@ -231,9 +229,6 @@ function cleanPersonName(raw: string): string {
     .toUpperCase();
 }
 
-/**
- * Mem-parsing teks mentah hasil OCR e-KTP Indonesia menjadi objek terstruktur
- */
 export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): ExtractedKtpData {
   const combinedForNik = dedicatedNikText ? `${dedicatedNikText}\n${rawText}` : rawText;
   const nik = extractBestNikFromText(combinedForNik);
@@ -259,7 +254,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
   let nikLineIdx = -1;
   let ttlLineIdx = -1;
 
-  // Iterasi baris demi baris untuk mengekstrak field e-KTP (dengan toleransi typo OCR)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const upper = line.toUpperCase();
@@ -268,7 +262,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       nikLineIdx = i;
     }
 
-    // Kabupaten / Kota Header
     if (!kabKota && /\b(KABUPATEN|KOTA|KAB\.)\b/i.test(upper) && !/PROVINSI/i.test(upper)) {
       const kabMatch = upper.match(/\b(KABUPATEN|KOTA)\s+[A-Z\s]+/);
       if (kabMatch) {
@@ -276,7 +269,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Nama Lengkap
     if (
       !namaLengkap &&
       /\b(NAMA|NANA|MAMA|HAMA|NAM4|NAWA)\b/i.test(upper) &&
@@ -292,7 +284,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Tempat / Tgl Lahir (Bisa dari label atau pola Tanggal DD-MM-YYYY)
     const hasTtlLabel = /\b(TEMPAT|TEMPAL|TMP|TGL|TGI|LAHIR|LAHL|TTL)\b/i.test(upper);
     const normDateLine = normalizeOcrDigits(line);
     const dateRegex = /(\d{2})\s*[-/.,\s]\s*(\d{2})\s*[-/.,\s]\s*((?:19|20)\d{2})/;
@@ -312,11 +303,13 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
         const ddNum = parseInt(d, 10);
         const mmNum = parseInt(m, 10);
         if (ddNum >= 1 && ddNum <= 31 && mmNum >= 1 && mmNum <= 12) {
-          tanggalLahir = `${y}-${d}-${m}`;
+          tanggalLahir = `${y}-${m}-${d}`;
         }
         const beforeDate = val
           .slice(0, valDateMatch.index)
           .replace(/^.*?\b(LAHIR|TGL|TEMPAT)\b[:\s]*/i, '')
+          .replace(/0/g, 'O')
+          .replace(/1/g, 'I')
           .replace(/[^a-zA-Z\s]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
@@ -325,14 +318,17 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
         }
       } else if (hasTtlLabel) {
         const parts = val.split(/[,:]/);
-        const candidatePlace = (parts[0] || '').replace(/[^a-zA-Z\s]/g, '').trim();
+        const candidatePlace = (parts[0] || '')
+          .replace(/0/g, 'O')
+          .replace(/1/g, 'I')
+          .replace(/[^a-zA-Z\s]/g, '')
+          .trim();
         if (candidatePlace.length >= 2) {
           tempatLahir = toCleanTitleCase(candidatePlace);
         }
       }
     }
 
-    // Jenis Kelamin
     if (
       !jenisKelamin &&
       /\b(JENIS\s*KELAMIN|KELAMIN|KELAM1N|LAKI|PEREMPUAN|PERENPUAN|WANITA|PRIA)\b/i.test(upper)
@@ -344,7 +340,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Alamat
     if (!alamat && /\b(ALAMAT|ALANAT|ALAMAL|ALA\s*MAT)\b/i.test(upper)) {
       const val = stripFieldLabel(line, /^.*?\b(ALAMAT|ALANAT|ALAMAL|ALA\s*MAT)\b/i)
         .replace(/\bGOL\.?\s*DARAH.*$/i, '')
@@ -355,7 +350,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // RT / RW
     if (!rtRw && (/\b(RT\s*\/?\s*RW|RTRW|RTIRW|RT\s+RW)\b/i.test(upper) || /\b00\d\s*[/|-]\s*00\d\b/.test(normDateLine))) {
       const rtMatch = normDateLine.match(/(\d{1,3})\s*[/|-]\s*(\d{1,3})/);
       if (rtMatch) {
@@ -363,7 +357,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Kel/Desa
     if (!kelDesa && /\b(KEL\s*\/?\s*DESA|KEI\s*\/?\s*DESA|KEL\s*\/?\s*DOSA|KELURAHAN|DESA|KEVDESA)\b/i.test(upper)) {
       const val = stripFieldLabel(
         line,
@@ -377,7 +370,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Kecamatan
     if (!kecamatan && /\b(KECAMATAN|KECANATAN|KECAMALAN|KECA\s*MATAN|KEC\.)\b/i.test(upper)) {
       const val = stripFieldLabel(
         line,
@@ -391,7 +383,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       }
     }
 
-    // Agama
     if (
       !agama &&
       /\b(AGAMA|AGANA|AQAMA|ISLAM|1SLAM|KRISTEN|KR1STEN|PROTESTAN|KATOLIK|KATHOLIK|HINDU|BUDDHA|BUDHA|KHONGHUCU|KONGHUCU)\b/i.test(
@@ -406,7 +397,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       else if (/KHONGHUCU|KONGHUCU/i.test(upper)) agama = 'Khonghucu';
     }
 
-    // Status Perkawinan
     if (!statusPerkawinan && /\b(PERKAWINAN|PERKAW1NAN|KAWIN|KAW1N|CERAI)\b/i.test(upper)) {
       if (/BELUM|BLN/i.test(upper)) statusPerkawinan = 'Belum Kawin';
       else if (/CERAI\s*HIDUP/i.test(upper)) statusPerkawinan = 'Cerai Hidup';
@@ -414,7 +404,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
       else if (/KAWIN|KAW1N/i.test(upper)) statusPerkawinan = 'Kawin';
     }
 
-    // Pekerjaan
     if (!pekerjaan && /\b(PEKERJAAN|PEKERIAAN|PEKERLAAN|PEKERJ4AN)\b/i.test(upper)) {
       const val = stripFieldLabel(line, /^.*?\b(PEKERJAAN|PEKERIAAN|PEKERLAAN|PEKERJ4AN)\b/i);
       const matchedJob = matchBestStandardPekerjaan(val);
@@ -424,7 +413,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
     }
   }
 
-  // Fallback Posisi Baris: Jika label "Nama" tidak terbaca, ambil baris tepat di atas TTL atau tepat di bawah NIK
   if (!namaLengkap) {
     const candidateIdx =
       ttlLineIdx > 0 ? ttlLineIdx - 1 : nikLineIdx >= 0 && nikLineIdx + 1 < lines.length ? nikLineIdx + 1 : -1;
@@ -439,7 +427,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
     }
   }
 
-  // Fallback Pekerjaan: Jika label "Pekerjaan" tidak terbaca tetapi ada kata pekerjaan standar di baris bawah
   if (!pekerjaan) {
     for (const line of lines) {
       if (/\b(WIRASWASTA|KARYAWAN\s*SWASTA|MENGURUS\s*RUMAH\s*TANGGA|PELAJAR|MAHASISWA|PEGAWAI\s*NEGERI|PETANI|PEKEBUN|NELAYAN|BELUM\s*\/?\s*TIDAK\s*BEKERJA|PENSIUNAN)\b/i.test(line)) {
@@ -449,7 +436,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
     }
   }
 
-  // Perkaya & Validasi Silang dengan Dekoder 16-Digit NIK
   const nikInfo = decodeIndonesianNik(nik);
   if (nikInfo.isValidFormat) {
     if (!tanggalLahir && nikInfo.tanggalLahir) {
@@ -466,7 +452,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
     }
   }
 
-  // Cocokkan ke Master Wilayah Sulawesi Utara (termasuk Fuzzy Matching Kecamatan & Kelurahan)
   const territoryMatch = matchSulutTerritoryFromKtp(kabKota, kecamatan, kelDesa, nik);
   if (territoryMatch.matchedDpc) {
     kecamatan = territoryMatch.matchedDpc;
@@ -516,10 +501,6 @@ export function parseKtpOcrText(rawText: string, dedicatedNikText?: string): Ext
   };
 }
 
-/**
- * Menggabungkan dua hasil ekstraksi OCR (misal dari Zonal Biodata & Full Card)
- * dengan memilih field yang paling lengkap dan akurat dari keduanya.
- */
 export function mergeExtractedKtpData(
   primary: ExtractedKtpData,
   secondary: ExtractedKtpData
@@ -583,3 +564,4 @@ export function mergeExtractedKtpData(
     croppedFaceDataUrl: primary.croppedFaceDataUrl || secondary.croppedFaceDataUrl,
   };
 }
+

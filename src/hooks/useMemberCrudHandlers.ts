@@ -76,24 +76,35 @@ export function useMemberCrudHandlers({
 
     showToast(`Kader baru ${newMember.namaLengkap} (${newMember.dpd}) berhasil didaftarkan.`);
 
+    let dppRes: any = null;
+    let officialEkta: string | undefined = undefined;
+
     if (isSupabaseConfigured()) {
-      createSingleMemberToSupabase(newMember)
-        .then(() => {
-          setMembers((prev) =>
-            prev.map((m) =>
-              m.nik === newMember.nik
-                ? {
-                    ...m,
-                    fotoProfilUrl: newMember.fotoProfilUrl || m.fotoProfilUrl,
-                    fotoKtpUrl: newMember.fotoKtpUrl || m.fotoKtpUrl,
-                  }
-                : m
-            )
-          );
-        })
-        .catch((err) => {
-          console.error('Gagal menyimpan kader baru ke backend:', err);
-        });
+      try {
+        const res: any = await createSingleMemberToSupabase(newMember);
+        const item = res?.member || res;
+        officialEkta = item?.nomorEkta || item?.nomor_ekta;
+        dppRes = res?.dppResult;
+
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.nik === newMember.nik
+              ? {
+                  ...m,
+                  nomorEKTA: officialEkta || m.nomorEKTA,
+                  fotoProfilUrl: newMember.fotoProfilUrl || m.fotoProfilUrl,
+                  fotoKtpUrl: newMember.fotoKtpUrl || m.fotoKtpUrl,
+                }
+              : m
+          )
+        );
+
+        if (officialEkta && officialEkta !== newMember.nik) {
+          showToast(`e-KTA Resmi DPP NasDem berhasil diterbitkan: ${officialEkta}`);
+        }
+      } catch (err) {
+        console.error('Gagal menyimpan kader baru ke backend:', err);
+      }
     }
 
     recordAuditLog({
@@ -105,6 +116,8 @@ export function useMemberCrudHandlers({
       actor: session.adminName,
       dpd: newMember.dpd,
     });
+
+    return { officialEkta, dppResult: dppRes };
   };
 
   // 2. FITUR EDIT DATA ANGGOTA (Memperbarui data yang ada)

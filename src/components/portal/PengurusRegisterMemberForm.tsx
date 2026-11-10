@@ -12,12 +12,12 @@ import { Member, UserSession, DirectLeaderInfo } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
 import {
+  KtpCameraScannerBox,
   KtpImageQualityReport,
   ExtractedKtpData,
   decodeIndonesianNik,
-} from '../../utils/ktpOcrUtils';
+} from '../../ktp-scanner';
 import { compressImageFile } from '../../utils/imageUtils';
-import { KtpCameraScannerBox } from './KtpCameraScannerBox';
 import {
   RegistrationStepProgressBar,
   WizardStepNumber,
@@ -32,7 +32,7 @@ interface PengurusRegisterMemberFormProps {
   activePengurusMember: Member | null;
   myReferralCode: string;
   ketuaLangsung: DirectLeaderInfo | null;
-  onAddMember: (newMember: Member) => void;
+  onAddMember: (newMember: Member) => void | Promise<any>;
   perekrutNama: string;
   perekrutJabatan: string;
   perekrutNik?: string;
@@ -158,6 +158,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [ocrNotice, setOcrNotice] = useState<string | null>(null);
+  const [autoRegisterDpp, setAutoRegisterDpp] = useState<boolean>(true);
 
   useEffect(() => {
     if (isDpdLocked) setInputDpd(lockedDpdName);
@@ -347,7 +348,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     setCurrentStep(targetStep);
   };
 
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep2()) {
       setCurrentStep(2);
@@ -363,10 +364,12 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     const finalDprt = isDprtLocked ? lockedDprtName : inputDprt.trim() || 'Umum';
 
     setIsSubmitting(true);
+    setFormError(null);
 
     const newMember: Member = {
       nik: cleanNik,
       nomorEKTA: cleanNik,
+      autoRegisterDpp,
       namaLengkap: inputNama.trim(),
       jenisKelamin: inputJenisKelamin || undefined,
       tempatLahir: inputTempatLahir.trim() || undefined,
@@ -402,30 +405,42 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       ketuaLangsungTingkat: ketuaLangsung?.tingkat || undefined,
     };
 
-    onAddMember(newMember);
-    setIsSubmitting(false);
-    setFormSuccess(
-      `Kader "${newMember.namaLengkap}" (NIK: ${newMember.nik}) berhasil didaftarkan lengkap beserta data e-KTP di wilayah ${newMember.dpd} (${newMember.dpc})!`
-    );
+    try {
+      const res: any = await onAddMember(newMember);
+      const officialEkta = res?.officialEkta;
+      if (officialEkta && officialEkta !== cleanNik) {
+        setFormSuccess(
+          `Kader "${newMember.namaLengkap}" berhasil didaftarkan! Nomor e-KTA DPP Resmi (${officialEkta}) berhasil diterbitkan di wilayah ${newMember.dpd} (${newMember.dpc}).`
+        );
+      } else {
+        setFormSuccess(
+          `Kader "${newMember.namaLengkap}" (NIK: ${newMember.nik}) berhasil didaftarkan lengkap beserta data e-KTP di wilayah ${newMember.dpd} (${newMember.dpc})!`
+        );
+      }
 
-    setFotoKtpUrl('');
-    setFotoProfilUrl('');
-    setKtpQualityReport(null);
-    setExtractedKtpData(null);
-    setOcrNotice(null);
-    setInputNik('');
-    setInputNama('');
-    setInputTempatLahir('');
-    setInputTanggalLahir('');
-    setInputJenisKelamin('');
-    setInputAgama('Kristen Protestan');
-    setInputPekerjaan('');
-    setInputAlamat('');
-    setInputHp('');
-    setInputEmail('');
-    setInputSosmed('');
-    if (!isDprtLocked) setInputDprt('');
-    setCurrentStep(1);
+      setFotoKtpUrl('');
+      setFotoProfilUrl('');
+      setKtpQualityReport(null);
+      setExtractedKtpData(null);
+      setOcrNotice(null);
+      setInputNik('');
+      setInputNama('');
+      setInputTempatLahir('');
+      setInputTanggalLahir('');
+      setInputJenisKelamin('');
+      setInputAgama('Kristen Protestan');
+      setInputPekerjaan('');
+      setInputAlamat('');
+      setInputHp('');
+      setInputEmail('');
+      setInputSosmed('');
+      if (!isDprtLocked) setInputDprt('');
+      setCurrentStep(1);
+    } catch (err: any) {
+      setFormError(`Gagal mendaftarkan kader: ${err?.message || err || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -657,6 +672,8 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             ktpQualityReport={ktpQualityReport}
             roleBadgeText="Anggota / Kader Biasa"
             recruiterLabel={`${perekrutNama} (${myReferralCode || 'Pengurus'})`}
+            autoRegisterDpp={autoRegisterDpp}
+            onToggleAutoRegisterDpp={setAutoRegisterDpp}
             onEditStep2={() => setCurrentStep(2)}
             onEditStep3={() => setCurrentStep(3)}
           />

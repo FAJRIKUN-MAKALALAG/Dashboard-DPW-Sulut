@@ -46,6 +46,8 @@ export interface Member {
   kaderPerekrutJabatan?: string;
   kaderPerekrutDpd?: string;
   kaderPerekrutKodeReferral?: string;
+  // Integrasi DPP Digital NasDem Pusat
+  autoRegisterDpp?: boolean;
   // Atribusi Ketua Langsung (Hierarkis berdasarkan struktur organisasi)
   ketuaLangsungNik?: string;
   ketuaLangsungNama?: string;
