@@ -23,6 +23,45 @@ export const SULUT_NIK_PREFIX_TO_DPD: Record<string, string> = {
 };
 
 /**
+ * Menghitung kemiripan dua string (0.0 - 1.0) berbasis Levenshtein Distance
+ * untuk mengoreksi salah baca 1-2 huruf oleh OCR pada nama Kecamatan/Kelurahan/Pekerjaan.
+ */
+export function stringSimilarity(a: string, b: string): number {
+  const s1 = (a || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const s2 = (b || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!s1 || !s2) return 0;
+  if (s1 === s2) return 1;
+
+  const len1 = s1.length;
+  const len2 = s2.length;
+  const maxLen = Math.max(len1, len2);
+  if (maxLen === 0) return 1;
+
+  const dp: number[] = Array.from({ length: len2 + 1 }, (_, i) => i);
+  for (let i = 1; i <= len1; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= len2; j++) {
+      const temp = dp[j];
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+      prev = temp;
+    }
+  }
+
+  return 1 - dp[len2] / maxLen;
+}
+
+/**
  * Mendekode informasi pasti dari 16 digit NIK KTP Indonesia:
  * - Digit 1-4: Kode Provinsi & Kabupaten/Kota
  * - Digit 7-12: DDMMYY (Jika perempuan, DD ditambah 40)
@@ -75,8 +114,17 @@ export function decodeIndonesianNik(rawNik: string): {
   };
 }
 
+function cleanTerritoryNoise(raw: string): string {
+  return (raw || '')
+    .replace(/\b(KABUPATEN|KAB|KOTA|KECAMATAN|KEC|KELURAHAN|KEL|DESA)\b\.?/gi, '')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * Mencocokkan teks Kabupaten, Kecamatan, dan Kelurahan hasil OCR ke master wilayah SULUT_REGIONS
+ * dilengkapi dengan Fuzzy Similarity (toleransi salah baca karakter OCR).
  */
 export function matchSulutTerritoryFromKtp(
   kabKotaText: string,
@@ -88,47 +136,121 @@ export function matchSulutTerritoryFromKtp(
   matchedDpc?: string;
   matchedDprt?: string;
 } {
+  const cleanKec = cleanTerritoryNoise(kecamatanText);
+  const cleanKel = cleanTerritoryNoise(kelDesaText);
   const decodedNik = decodeIndonesianNik(nik);
+
+  // 1. Cari DPD (Kabupaten/Kota) dari 4 digit awal NIK atau teks Header KTP
   let matchedRegion = decodedNik.dpdName
     ? SULUT_REGIONS.find((r) => isDpdMatch(r.name, decodedNik.dpdName))
     : undefined;
 
   if (!matchedRegion && kabKotaText) {
     matchedRegion = SULUT_REGIONS.find((r) => isDpdMatch(r.name, kabKotaText));
+    if (!matchedRegion) {
+      let bestScore = 0;
+      for (const r of SULUT_REGIONS) {
+        const score = stringSimilarity(
+          cleanTerritoryNoise(r.name),
+          cleanTerritoryNoise(kabKotaText)
+        );
+        if (score > bestScore && score >= 0.72) {
+          bestScore = score;
+          matchedRegion = r;
+        }
+      }
+    }
   }
 
-  if (!matchedRegion && kecamatanText) {
+  // Fallback cari DPD dari nama Kecamatan jika NIK/KabKota belum terdeteksi
+  if (!matchedRegion && cleanKec) {
     matchedRegion = SULUT_REGIONS.find((r) =>
-      r.subdistricts.some((s) => isDpcMatch(s.name, kecamatanText))
+      r.subdistricts.some((s) => isDpcMatch(s.name, cleanKec))
     );
+    if (!matchedRegion) {
+      let bestScore = 0;
+      for (const r of SULUT_REGIONS) {
+        for (const s of r.subdistricts) {
+          const score = stringSimilarity(s.name, cleanKec);
+          if (score > bestScore && score >= 0.76) {
+            bestScore = score;
+            matchedRegion = r;
+          }
+        }
+      }
+    }
   }
 
   if (!matchedRegion) {
     return {};
   }
 
-  let matchedSub = kecamatanText
-    ? matchedRegion.subdistricts.find((s) => isDpcMatch(s.name, kecamatanText))
+  // 2. Cari DPC (Kecamatan) secara eksak lalu fuzzy di dalam DPD tersebut
+  let matchedSub = cleanKec
+    ? matchedRegion.subdistricts.find((s) => isDpcMatch(s.name, cleanKec))
     : undefined;
 
-  if (!matchedSub && kelDesaText) {
-    matchedSub = matchedRegion.subdistricts.find((s) =>
-      s.villages.some((v) => isDprtMatch(v, kelDesaText))
-    );
+  if (!matchedSub && cleanKec) {
+    let bestSubScore = 0;
+    for (const s of matchedRegion.subdistricts) {
+      const score = stringSimilarity(s.name, cleanKec);
+      if (score > bestSubScore && score >= 0.68) {
+        bestSubScore = score;
+        matchedSub = s;
+      }
+    }
   }
 
-  let matchedVillage: string | undefined = undefined;
-  if (matchedSub && kelDesaText) {
-    matchedVillage = matchedSub.villages.find((v) => isDprtMatch(v, kelDesaText));
+  // 3. Jika DPC belum ketemu tapi Kel/Desa terbaca, cari DPC yang memiliki Kel/Desa tersebut
+  if (!matchedSub && cleanKel) {
+    matchedSub = matchedRegion.subdistricts.find((s) =>
+      s.villages.some((v) => isDprtMatch(v, cleanKel))
+    );
+    if (!matchedSub) {
+      let bestVilScore = 0;
+      for (const s of matchedRegion.subdistricts) {
+        for (const v of s.villages) {
+          const score = stringSimilarity(v, cleanKel);
+          if (score > bestVilScore && score >= 0.74) {
+            bestVilScore = score;
+            matchedSub = s;
+          }
+        }
+      }
+    }
   }
-  if (!matchedVillage && kelDesaText) {
-    matchedVillage = kelDesaText.trim();
+
+  // 4. Cari DPRt (Desa/Kelurahan) di dalam DPC terpilih (atau seluruh DPC di DPD tersebut)
+  let matchedVillage: string | undefined = undefined;
+  if (cleanKel) {
+    const searchSubs = matchedSub ? [matchedSub] : matchedRegion.subdistricts;
+    for (const s of searchSubs) {
+      const exactV = s.villages.find((v) => isDprtMatch(v, cleanKel));
+      if (exactV) {
+        matchedVillage = exactV;
+        if (!matchedSub) matchedSub = s;
+        break;
+      }
+    }
+
+    if (!matchedVillage) {
+      let bestVScore = 0;
+      for (const s of searchSubs) {
+        for (const v of s.villages) {
+          const score = stringSimilarity(v, cleanKel);
+          if (score > bestVScore && score >= 0.68) {
+            bestVScore = score;
+            matchedVillage = v;
+            if (!matchedSub) matchedSub = s;
+          }
+        }
+      }
+    }
   }
 
   return {
     matchedDpd: matchedRegion.name,
     matchedDpc: matchedSub?.name,
-    matchedDprt: matchedVillage,
+    matchedDprt: matchedVillage || (cleanKel ? cleanKel : undefined),
   };
 }
-
