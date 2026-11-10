@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Member } from '../../types';
 import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
-import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
+import { getInitials, getAvatarColor, resolveImageUrl, markImageUrlFailed } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 
 interface MemberHeroCardProps {
@@ -38,6 +38,13 @@ export const MemberHeroCard: React.FC<MemberHeroCardProps> = ({
 }) => {
   const statusConfig = STATUS_BADGE_CONFIG[member.status];
   const avatarColor = getAvatarColor(member.namaLengkap);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [member.fotoProfilUrl]);
+
+  const resolvedPhotoUrl = !imgError ? resolveImageUrl(member.fotoProfilUrl) : '';
 
   return (
     <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white border-b border-slate-800 relative overflow-hidden">
@@ -51,11 +58,16 @@ export const MemberHeroCard: React.FC<MemberHeroCardProps> = ({
           {/* Profile Photo with Upload Trigger */}
           <div className="relative group shrink-0">
             <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl overflow-hidden border-2 border-amber-400/80 shadow-lg bg-slate-800 flex items-center justify-center relative">
-              {member.fotoProfilUrl ? (
+              {resolvedPhotoUrl ? (
                 <img
-                  src={resolveImageUrl(member.fotoProfilUrl)}
+                  src={resolvedPhotoUrl}
                   alt={member.namaLengkap}
                   className="w-full h-full object-cover"
+                  onError={() => {
+                    markImageUrlFailed(member.fotoProfilUrl);
+                    markImageUrlFailed(resolvedPhotoUrl);
+                    setImgError(true);
+                  }}
                 />
               ) : (
                 <div

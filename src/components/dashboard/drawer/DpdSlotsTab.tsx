@@ -106,7 +106,7 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
                   {slot.isFilled && slot.member ? (
                     <div className="flex items-start sm:items-center gap-2 mt-1.5">
                       <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                        {slot.member.fotoProfilUrl ? (
+                        {resolveImageUrl(slot.member.fotoProfilUrl) ? (
                           <img
                             src={resolveImageUrl(slot.member.fotoProfilUrl)}
                             alt={slot.member.namaLengkap}

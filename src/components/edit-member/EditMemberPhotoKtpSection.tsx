@@ -58,7 +58,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
 
           <div className="flex items-center gap-3">
             <div className="w-14 h-18 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              {fotoProfilUrl ? (
+              {resolveImageUrl(fotoProfilUrl) ? (
                 <img
                   src={resolveImageUrl(fotoProfilUrl)}
                   alt="Preview"
@@ -117,7 +117,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
 
           <div className="flex items-center gap-3">
             <div className="w-20 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              {fotoKtpUrl ? (
+              {resolveImageUrl(fotoKtpUrl) ? (
                 <img
                   src={resolveImageUrl(fotoKtpUrl)}
                   alt="Preview KTP"
