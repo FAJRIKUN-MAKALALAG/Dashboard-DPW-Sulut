@@ -1,28 +1,103 @@
 import React from 'react';
-import { Printer, QrCode } from 'lucide-react';
+import { Printer, QrCode, Globe, Download, Sparkles } from 'lucide-react';
 import { Member } from '../../types';
 import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
 import { getInitials, getAvatarColor } from '../../utils/imageUtils';
+import { isOfficialDppEkta, getDppKtaCardUrl } from '../../dpp-ekta';
 import nasdemLogo from '../../assets/logo/logo_nasdem.png';
 
 interface MemberEktaTabProps {
   member: Member;
   onOpenCardModal: (member: Member) => void;
+  onOpenDppEktaModal?: (member: Member) => void;
 }
 
 export const MemberEktaTab: React.FC<MemberEktaTabProps> = ({
   member,
   onOpenCardModal,
+  onOpenDppEktaModal,
 }) => {
   const statusConfig = STATUS_BADGE_CONFIG[member.status];
   const avatarColor = getAvatarColor(member.namaLengkap);
+  const hasOfficialDpp = isOfficialDppEkta(member.nomorEKTA);
 
   return (
     <div className="space-y-5">
+      {/* Status e-KTA Pusat DPP Banner */}
+      <div
+        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border text-xs ${
+          hasOfficialDpp
+            ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/70'
+            : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/70'
+        }`}
+      >
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <Globe className={`w-4 h-4 ${hasOfficialDpp ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`} />
+            <h4 className="font-bold text-slate-900 dark:text-white">
+              {hasOfficialDpp
+                ? `Terdaftar Resmi di Digital NasDem Pusat (No. e-KTA: ${member.nomorEKTA})`
+                : 'Belum Terdaftar e-KTA Pusat (Masih Nomor Lokal DPW)'}
+            </h4>
+          </div>
+          <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+            {hasOfficialDpp
+              ? 'Anggota ini telah memiliki 16 digit Nomor e-KTA resmi yang diterbitkan langsung oleh portal Digital NasDem DPP.'
+              : 'Daftarkan anggota ini pada modul Pendaftaran e-KTA Pusat (DPP) untuk menerbitkan 16 digit Nomor e-KTA resmi DPP.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {hasOfficialDpp ? (
+            <a
+              href={getDppKtaCardUrl(member.nomorEKTA, true)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh Kartu Resmi DPP</span>
+            </a>
+          ) : (
+            onOpenDppEktaModal && (
+              <button
+                type="button"
+                onClick={() => onOpenDppEktaModal(member)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1A3282] hover:bg-[#21409A] text-white shadow-2xs cursor-pointer transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#FFDD00]" />
+                <span>Daftarkan e-KTA Pusat (DPP)</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Jika sudah punya e-KTA resmi DPP 16 digit, tampilkan juga kartu asli dari server DPP */}
+      {hasOfficialDpp && (
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Kartu e-KTA Resmi Digital NasDem Pusat (DPP)
+            </span>
+            <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              {member.nomorEKTA}
+            </span>
+          </div>
+          <div className="max-w-md mx-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-md bg-slate-100 dark:bg-slate-950">
+            <img
+              src={getDppKtaCardUrl(member.nomorEKTA)}
+              alt={`Kartu e-KTA DPP ${member.namaLengkap}`}
+              className="w-full h-auto object-contain block"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white">
-            Kartu Tanda Anggota Elektronik (e-KTA)
+            Kartu Tanda Anggota Elektronik (e-KTA DPW Sulut)
           </h4>
           <p className="text-slate-500 dark:text-slate-400 text-[11px]">
             Standar kartu digital DPW Partai NasDem Sulawesi Utara dilengkapi Chip ID &amp; QR Verifikasi.

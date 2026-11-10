@@ -17,8 +17,10 @@ import {
   ShieldCheck,
   UserPlus,
   Camera,
+  Globe,
 } from 'lucide-react';
 import { canAddMembers } from '../utils/permissionUtils';
+import { DppEktaRegistrationPanel, isOfficialDppEkta } from '../dpp-ekta';
 import {
   PengurusHierarchyCard,
   PengurusRegisterMemberForm,
@@ -34,6 +36,7 @@ interface PengurusPortalPageProps {
   onRefreshCloud?: () => void;
   isRefreshingCloud?: boolean;
   onOpenCardModal?: (member: Member) => void;
+  onMemberEktaUpdated?: (nik: string, nokta: string) => void;
 }
 
 export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
@@ -42,11 +45,12 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   onAddMember,
   onRefreshCloud,
   onOpenCardModal,
+  onMemberEktaUpdated,
 }) => {
   const isAnggota = session.role === 'ANGGOTA';
 
-  // Mode Tab Internal: 'profil' | 'rekrutmen' (khusus fokus mobile) | 'pencarian'
-  const [activePortalTab, setActivePortalTab] = useState<'profil' | 'rekrutmen' | 'pencarian'>('profil');
+  // Mode Tab Internal: 'profil' | 'rekrutmen' (khusus fokus mobile) | 'ekta_dpp' (Pendaftaran e-KTA Pusat) | 'pencarian'
+  const [activePortalTab, setActivePortalTab] = useState<'profil' | 'rekrutmen' | 'ekta_dpp' | 'pencarian'>('profil');
 
   // State profil pengurus aktif
   const [profile, setProfile] = useState<MyReferralProfile | null>(null);
@@ -498,9 +502,27 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             }`}
           >
             <IdCard className="w-3.5 h-3.5" />
-            <span className="md:hidden">Profil &amp; Referral</span>
-            <span className="hidden md:inline">Profil, Referral &amp; Rekrutmen</span>
+            <span className="md:hidden">Profil &amp; Keanggotaan</span>
+            <span className="hidden md:inline">1. Pendaftaran Keanggotaan &amp; Profil</span>
           </button>
+
+          {canAddMembers(session) && (
+            <button
+              type="button"
+              onClick={() => setActivePortalTab('ekta_dpp')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                activePortalTab === 'ekta_dpp'
+                  ? 'bg-[#1A3282] dark:bg-[#21409A] text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-[#FDB813]" />
+              <span>2. Pendaftaran e-KTA Pusat (DPP)</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/20 text-amber-600 dark:text-amber-300">
+                {territoryMembers.filter((m) => !isOfficialDppEkta(m.nomorEKTA)).length} Belum
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -513,7 +535,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
           >
             <Search className="w-3.5 h-3.5" />
             <span className="md:hidden">Data Wilayah ({territoryMembers.length})</span>
-            <span className="hidden md:inline">{searchTerritoryTitle} ({territoryMembers.length})</span>
+            <span className="hidden md:inline">3. {searchTerritoryTitle} ({territoryMembers.length})</span>
           </button>
         </div>
       )}
@@ -675,6 +697,21 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
             )}
           </div>
         )}
+
+      {/* ================= TAB: PENDAFTARAN E-KTA PUSAT (DPP) - TERPISAH DARI KEANGGOTAAN ================= */}
+      {!isAnggota && activePortalTab === 'ekta_dpp' && (
+        <DppEktaRegistrationPanel
+          members={territoryMembers}
+          onMemberEktaUpdated={(nik, nokta) => {
+            if (onMemberEktaUpdated) {
+              onMemberEktaUpdated(nik, nokta);
+            }
+            if (onRefreshCloud) {
+              onRefreshCloud();
+            }
+          }}
+        />
+      )}
 
       {/* ================= TAB 2: PENCARIAN ANGGOTA WILAYAH (HANYA PENGURUS & ADMIN) ================= */}
       {!isAnggota && activePortalTab === 'pencarian' && (

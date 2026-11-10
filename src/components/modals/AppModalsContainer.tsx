@@ -16,6 +16,7 @@ import {
 } from './index';
 import { TemplateDownloadHubModal } from '../territorial/TemplateDownloadHubModal';
 import { ReferralHubModal } from '../referral/ReferralHubModal';
+import { DppEktaModal } from '../../dpp-ekta';
 
 interface AppModalsContainerProps {
   modals: AppModalsState;
@@ -33,6 +34,7 @@ interface AppModalsContainerProps {
   onRecordAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
   onNavigateToTerritory: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onClearAuditLogs?: () => void;
+  onMemberEktaUpdated?: (nik: string, nokta: string) => void;
 }
 
 export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
@@ -51,6 +53,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   onRecordAuditLog,
   onNavigateToTerritory,
   onClearAuditLogs,
+  onMemberEktaUpdated,
 }) => {
   return (
     <>
@@ -111,6 +114,9 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           isOpen={modals.isCardModalOpen}
           member={modals.selectedMember}
           onClose={modals.closeCardModal}
+          onOpenDppEktaModal={(m) => {
+            modals.openDppEktaModal(m);
+          }}
         />
       )}
 
@@ -149,6 +155,10 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onOpenCardModal={(m) => {
           modals.openCardModal(m);
         }}
+        onOpenDppEktaModal={(m) => {
+          modals.closeDetailModal();
+          modals.openDppEktaModal(m);
+        }}
       />
 
       <DeletionRequestModal
@@ -180,6 +190,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         isOpen={modals.isReferralHubOpen}
         onClose={() => modals.setIsReferralHubOpen(false)}
         session={session}
+      />
+
+      <DppEktaModal
+        isOpen={modals.isDppEktaModalOpen}
+        onClose={modals.closeDppEktaModal}
+        members={members}
+        initialMember={modals.dppEktaTargetMember}
+        onMemberEktaUpdated={onMemberEktaUpdated}
       />
     </>
   );

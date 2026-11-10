@@ -1,3 +1,5 @@
+import { KTP_SCANNER_CONFIG } from './ktpScannerConfig';
+
 export interface KtpImageQualityReport {
   isValid: boolean;
   score: number; // 0 - 100
@@ -39,11 +41,6 @@ function loadImageElement(source: string | File): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * Menghapus corak latar biru/cyan (guilloche) khas e-KTP Indonesia,
- * lalu melakukan penajaman tepi (unsharp mask) & Adaptive Local Normalization
- * menggunakan Integral Image sehingga tahan terhadap bayangan / silau lampu.
- */
 function buildAdaptiveOcrGrayscale(
   rgba: Uint8ClampedArray,
   width: number,
@@ -69,9 +66,6 @@ function buildAdaptiveOcrGrayscale(
     totalLum += lum;
     if (lum > 245) brightPixels++;
 
-    // Latar belakang e-KTP berwarna cyan/biru muda (B & G tinggi, R lebih rendah),
-    // sedangkan huruf cetak berwarna hitam pekat (R, G, B semuanya rendah).
-    // Gunakan dominansi kanal merah & angkat piksel biru muda menjadi putih bersih.
     const isCyanBackground = b > r + 16 && g > r + 10 && b > 95;
     if (isCyanBackground) {
       cyanFiltered[p] = Math.min(255, Math.round(b * 0.65 + g * 0.35 + 28));
@@ -83,7 +77,6 @@ function buildAdaptiveOcrGrayscale(
   const avgLum = totalLum / pixelCount;
   const glareRatio = brightPixels / pixelCount;
 
-  // Hitung ketajaman (gradient edge energy) pada area teks kiri-tengah
   let edgeEnergy = 0;
   let edgeSamples = 0;
   const textAreaW = Math.floor(width * 0.71);
@@ -98,7 +91,6 @@ function buildAdaptiveOcrGrayscale(
   }
   const sharpnessVal = edgeSamples > 0 ? edgeEnergy / edgeSamples : 0;
 
-  // 3x3 Unsharp Mask untuk mempertegas goresan huruf & angka NIK
   const sharpened = new Uint8ClampedArray(pixelCount);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -119,7 +111,6 @@ function buildAdaptiveOcrGrayscale(
     }
   }
 
-  // Bangun Integral Image 2D untuk Adaptive Local Normalization (Bradley-Roth / Sauvola style)
   const integral = new Float64Array(pixelCount);
   for (let y = 0; y < height; y++) {
     let rowSum = 0;
@@ -150,10 +141,8 @@ function buildAdaptiveOcrGrayscale(
       const idx = y * width + x;
       const val = sharpened[idx];
 
-      // Jika nilai piksel jauh lebih gelap dari rata-rata blok lokalnya -> huruf hitam
       const ratio = localMean > 10 ? val / localMean : 1;
       if (ratio < 0.78 && val < 175) {
-        // Gelapkan huruf secara proporsional agar anti-aliasing tetap halus bagi LSTM Tesseract
         const ink = Math.max(0, Math.round((ratio - 0.45) * 260));
         enhancedGray[idx] = Math.min(90, Math.max(0, ink));
       } else if (ratio < 0.87 && val < 195) {
@@ -172,17 +161,6 @@ function buildAdaptiveOcrGrayscale(
   };
 }
 
-/**
- * Standarisasi & Pra-Pemrosesan Citra e-KTP:
- * 1. Memutar otomatis jika foto diambil vertikal (portrait) menjadi horizontal (landscape).
- * 2. Mengecek kualitas pencahayaan (gelap / silau flash) dan ketajaman (blur).
- * 3. Menghasilkan:
- *    - `standardizedKtpDataUrl`: Gambar KTP warna berkualitas rapi (rasio e-KTP) untuk arsip database.
- *    - `ocrEnhancedDataUrl`: Gambar KTP Adaptive-Threshold dengan area pasfoto di-mask putih.
- *    - `nikZoneDataUrl`: Potongan khusus area baris 16-digit NIK yang diperbesar untuk akurasi angka.
- *    - `biodataZoneDataUrl`: Potongan khusus blok teks biodata kiri-tengah tanpa gangguan pasfoto/ttd.
- *    - `croppedFaceDataUrl`: Potongan pasfoto wajah dari sisi kanan KTP untuk foto profil kader.
- */
 export async function standardizeAndPreprocessKtpImage(
   imageSource: string | File
 ): Promise<PreprocessedKtpImages> {
@@ -192,10 +170,9 @@ export async function standardizeAndPreprocessKtpImage(
   const srcH = img.naturalHeight || img.height;
   const wasAutoRotated = srcH > srcW * 1.08;
 
-  const targetW = 1400;
-  const targetH = 884; // Rasio standar kartu ID-1 e-KTP (85.6mm x 53.98mm ~ 1.585)
+  const targetW = KTP_SCANNER_CONFIG.TARGET_WIDTH;
+  const targetH = KTP_SCANNER_CONFIG.TARGET_HEIGHT;
 
-  // 1. Canvas Standar Warna (untuk disimpan sebagai fotoKtpUrl)
   const colorCanvas = document.createElement('canvas');
   colorCanvas.width = targetW;
   colorCanvas.height = targetH;
@@ -213,25 +190,23 @@ export async function standardizeAndPreprocessKtpImage(
 
   const standardizedKtpDataUrl = colorCanvas.toDataURL('image/jpeg', 0.88);
 
-  // 2. Potong Pasfoto Wajah dari Sisi Kanan KTP (Area standar pasfoto e-KTP Indonesia)
   const faceCanvas = document.createElement('canvas');
-  faceCanvas.width = 300;
-  faceCanvas.height = 380;
+  faceCanvas.width = KTP_SCANNER_CONFIG.FACE_CROP_WIDTH;
+  faceCanvas.height = KTP_SCANNER_CONFIG.FACE_CROP_HEIGHT;
   const faceCtx = faceCanvas.getContext('2d')!;
   faceCtx.drawImage(
     colorCanvas,
-    Math.round(targetW * 0.715),
-    Math.round(targetH * 0.21),
-    Math.round(targetW * 0.245),
-    Math.round(targetH * 0.56),
+    Math.round(targetW * KTP_SCANNER_CONFIG.FACE_ROI.xRatio),
+    Math.round(targetH * KTP_SCANNER_CONFIG.FACE_ROI.yRatio),
+    Math.round(targetW * KTP_SCANNER_CONFIG.FACE_ROI.widthRatio),
+    Math.round(targetH * KTP_SCANNER_CONFIG.FACE_ROI.heightRatio),
     0,
     0,
-    300,
-    380
+    KTP_SCANNER_CONFIG.FACE_CROP_WIDTH,
+    KTP_SCANNER_CONFIG.FACE_CROP_HEIGHT
   );
   const croppedFaceDataUrl = faceCanvas.toDataURL('image/jpeg', 0.86);
 
-  // 3. Evaluasi Kualitas Gambar & Pra-pemrosesan Adaptive Local Threshold untuk OCR
   const ocrCanvas = document.createElement('canvas');
   ocrCanvas.width = targetW;
   ocrCanvas.height = targetH;
@@ -247,8 +222,6 @@ export async function standardizeAndPreprocessKtpImage(
     targetH
   );
 
-  // Masking putih pada area Pasfoto & Tanda Tangan di sisi kanan (x >= 71.5%, y >= 19%)
-  // agar wajah, baju, dan tanda tangan tidak pernah dibaca sebagai huruf acak oleh OCR.
   const maskStartX = Math.floor(targetW * 0.715);
   const maskStartY = Math.floor(targetH * 0.19);
 
@@ -266,7 +239,6 @@ export async function standardizeAndPreprocessKtpImage(
   ocrCtx.putImageData(imgData, 0, 0);
   const ocrEnhancedDataUrl = ocrCanvas.toDataURL('image/png');
 
-  // 4. Zona Khusus Baris NIK (Bagian Atas KTP, diperbesar 1.35x dengan padding putih)
   const nikSrcX = Math.round(targetW * 0.03);
   const nikSrcY = Math.round(targetH * 0.12);
   const nikSrcW = Math.round(targetW * 0.71);
@@ -291,7 +263,6 @@ export async function standardizeAndPreprocessKtpImage(
   );
   const nikZoneDataUrl = nikCanvas.toDataURL('image/png');
 
-  // 5. Zona Khusus Blok Teks Biodata (Kiri-Tengah tanpa Pasfoto)
   const bioSrcX = Math.round(targetW * 0.02);
   const bioSrcY = Math.round(targetH * 0.13);
   const bioSrcW = Math.round(targetW * 0.705);
@@ -306,14 +277,19 @@ export async function standardizeAndPreprocessKtpImage(
   bioCtx.drawImage(ocrCanvas, bioSrcX, bioSrcY, bioSrcW, bioSrcH, 16, 16, bioSrcW, bioSrcH);
   const biodataZoneDataUrl = bioCanvas.toDataURL('image/png');
 
-  // 6. Evaluasi Skor Kualitas
   const warnings: string[] = [];
   const tips: string[] = [];
+  const q = KTP_SCANNER_CONFIG.QUALITY_THRESHOLDS;
 
   const brightnessStatus: 'TOO_DARK' | 'TOO_BRIGHT' | 'GOOD' =
-    avgLum < 58 ? 'TOO_DARK' : avgLum > 228 || glareRatio > 0.3 ? 'TOO_BRIGHT' : 'GOOD';
-  const sharpnessStatus: 'BLURRY' | 'GOOD' = sharpnessVal < 7.5 ? 'BLURRY' : 'GOOD';
-  const resolutionStatus: 'LOW' | 'GOOD' = Math.max(srcW, srcH) < 500 ? 'LOW' : 'GOOD';
+    avgLum < q.minBrightness
+      ? 'TOO_DARK'
+      : avgLum > q.maxBrightness || glareRatio > q.maxGlareRatio
+      ? 'TOO_BRIGHT'
+      : 'GOOD';
+  const sharpnessStatus: 'BLURRY' | 'GOOD' = sharpnessVal < q.minSharpness ? 'BLURRY' : 'GOOD';
+  const resolutionStatus: 'LOW' | 'GOOD' =
+    Math.max(srcW, srcH) < q.minResolutionPx ? 'LOW' : 'GOOD';
 
   if (brightnessStatus === 'TOO_DARK') {
     warnings.push('Pencahayaan KTP tampak agak gelap.');
@@ -349,7 +325,7 @@ export async function standardizeAndPreprocessKtpImage(
     biodataZoneDataUrl,
     croppedFaceDataUrl,
     quality: {
-      isValid: score >= 55,
+      isValid: score >= q.minValidScore,
       score: Math.max(0, score),
       isLandscape: true,
       wasAutoRotated,
@@ -361,3 +337,4 @@ export async function standardizeAndPreprocessKtpImage(
     },
   };
 }
+

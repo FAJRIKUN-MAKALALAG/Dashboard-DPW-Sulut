@@ -45,6 +45,7 @@ import {
   Menu,
   ArrowLeft,
   Download,
+  Globe,
 } from 'lucide-react';
 
 export default function App() {
@@ -118,6 +119,22 @@ export default function App() {
     session,
     showToast,
   });
+
+  // Callback sinkronisasi langsung ketika Nomor e-KTA Resmi DPP (16 digit) diterbitkan
+  const handleMemberEktaUpdated = useCallback(
+    (nik: string, nokta: string) => {
+      setMembers((prev) => {
+        const updated = prev.map((m) => (m.nik === nik ? { ...m, nomorEKTA: nokta } : m));
+        saveMembers(updated);
+        return updated;
+      });
+      if (modals.selectedMember && modals.selectedMember.nik === nik) {
+        modals.setSelectedMember({ ...modals.selectedMember, nomorEKTA: nokta });
+      }
+      showToast(`✅ Nomor e-KTA Resmi DPP (${nokta}) berhasil disinkronkan untuk NIK ${nik}!`);
+    },
+    [modals, showToast]
+  );
 
   // Manual Cloud Sync Trigger
   const handleRefreshFromSupabase = async () => {
@@ -486,6 +503,18 @@ export default function App() {
 
             {session?.role !== 'ANGGOTA' && (
               <button
+                onClick={() => modals.openDppEktaModal()}
+                className="flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs bg-[#1A3282] hover:bg-[#21409A] text-white border border-blue-900 transition-colors"
+                title="Modul Pendaftaran e-KTA Pusat (Digital NasDem DPP)"
+                aria-label="Pendaftaran e-KTA DPP"
+              >
+                <Globe className="w-4 h-4 md:w-3.5 md:h-3.5 text-[#FFDD00]" />
+                <span className="hidden md:inline whitespace-nowrap">e-KTA Pusat (DPP)</span>
+              </button>
+            )}
+
+            {session?.role !== 'ANGGOTA' && (
+              <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
                 className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                 title="Pusat Unduh Template Excel Resmi Partai NasDem (DPW, DPD, DPC, DPRt)"
@@ -560,6 +589,7 @@ export default function App() {
               onRefreshCloud={handleRefreshFromSupabase}
               isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={modals.openCardModal}
+              onMemberEktaUpdated={handleMemberEktaUpdated}
             />
           )}
 
@@ -666,6 +696,7 @@ export default function App() {
               initialStatusFilter={navStatusFilter}
               initialMembershipFilter={navMembershipFilter}
               onOpenAddModal={() => modals.setIsAddModalOpen(true)}
+              onOpenDppEktaModal={(m) => modals.openDppEktaModal(m)}
               onOpenStatusModal={modals.openStatusModal}
               onOpenCardModal={modals.openCardModal}
               onOpenEditModal={modals.openEditModal}
@@ -713,6 +744,7 @@ export default function App() {
         onRecordAuditLog={crud.recordAuditLog}
         onNavigateToTerritory={handleNavigateToTerritory}
         onClearAuditLogs={() => setAuditLogs([])}
+        onMemberEktaUpdated={handleMemberEktaUpdated}
       />
     </div>
   );

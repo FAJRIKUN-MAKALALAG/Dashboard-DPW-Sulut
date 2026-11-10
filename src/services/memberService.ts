@@ -47,6 +47,9 @@ function toApiPayload(member: Member): Record<string, any> {
   delete payload.diubah_oleh;
   if (!payload.foto_profil_url) delete payload.foto_profil_url;
   if (!payload.foto_ktp_url) delete payload.foto_ktp_url;
+  if (member.autoRegisterDpp !== undefined) {
+    payload.autoRegisterDpp = member.autoRegisterDpp;
+  }
   return payload;
 }
 
@@ -148,7 +151,7 @@ export const MemberService = {
   /**
    * Mendaftarkan anggota baru ke database (POST).
    */
-  async createOne(member: Member): Promise<boolean> {
+  async createOne(member: Member): Promise<any> {
     try {
       const payload = toApiPayload(member);
       const res = await apiFetch<any>('/members', { method: 'POST', body: payload });
@@ -156,9 +159,12 @@ export const MemberService = {
         const item = res.member || res;
         if (item.fotoProfilUrl) member.fotoProfilUrl = item.fotoProfilUrl;
         if (item.fotoKtpUrl) member.fotoKtpUrl = item.fotoKtpUrl;
+        if (item.nomorEkta || item.nomor_ekta) {
+          member.nomorEKTA = item.nomorEkta || item.nomor_ekta;
+        }
       }
       invalidateMemberCache();
-      return true;
+      return res || true;
     } catch (err) {
       console.error('[API] Gagal mendaftarkan anggota baru:', err);
       throw err;

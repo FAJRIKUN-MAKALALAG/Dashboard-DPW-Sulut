@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileCheck2, Shield, Edit3 } from 'lucide-react';
-import { KtpImageQualityReport } from '../../utils/ktpOcrUtils';
+import { KtpImageQualityReport } from '../../ktp-scanner';
 import { getInitials } from '../../utils/imageUtils';
 
 interface RegistrationStep4SummaryProps {

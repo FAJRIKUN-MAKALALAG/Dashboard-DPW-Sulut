@@ -12,12 +12,12 @@ import {
 } from 'lucide-react';
 import { referralService } from '../services/referralService';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
-import { KtpCameraScannerBox } from './portal/KtpCameraScannerBox';
 import {
+  KtpCameraScannerBox,
   ExtractedKtpData,
   KtpImageQualityReport,
   decodeIndonesianNik,
-} from '../utils/ktpOcrUtils';
+} from '../ktp-scanner';
 import {
   RegistrationStepProgressBar,
   WizardStepNumber,
@@ -164,6 +164,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [refValidation, setRefValidation] = useState<{ loading: boolean; valid?: boolean; error?: string } | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [autoRegisterDpp, setAutoRegisterDpp] = useState<boolean>(true);
 
   // Live validation for referral code
   useEffect(() => {
@@ -446,6 +447,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     const newMember: Member = {
       nik: cleanedNik,
       nomorEKTA: cleanedNik,
+      autoRegisterDpp,
       namaLengkap: namaLengkap.trim(),
       jenisKelamin: jenisKelamin || undefined,
       tempatLahir: tempatLahir.trim() || undefined,

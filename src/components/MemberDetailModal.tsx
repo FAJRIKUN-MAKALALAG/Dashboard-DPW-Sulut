@@ -28,6 +28,7 @@ interface MemberDetailModalProps {
   onOpenEdit: (member: Member) => void;
   onOpenStatusChange: (member: Member) => void;
   onOpenCardModal: (member: Member) => void;
+  onOpenDppEktaModal?: (member: Member) => void;
 }
 
 export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
@@ -39,6 +40,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   onOpenEdit,
   onOpenStatusChange,
   onOpenCardModal,
+  onOpenDppEktaModal,
 }) => {
   const { showAlert, showConfirm } = useDialog();
   const [activeTab, setActiveTab] = useState<'profile' | 'ktp' | 'ekta' | 'history'>('profile');
@@ -386,6 +388,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 <MemberEktaTab
                   member={member}
                   onOpenCardModal={onOpenCardModal}
+                  onOpenDppEktaModal={onOpenDppEktaModal}
                 />
               )}
 

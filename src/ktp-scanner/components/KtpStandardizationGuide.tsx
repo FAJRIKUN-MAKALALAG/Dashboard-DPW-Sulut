@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Trash2,
 } from 'lucide-react';
-import { KtpImageQualityReport, ExtractedKtpData } from '../../../utils/ktpOcrUtils';
+import { KtpImageQualityReport } from '../ktpImageProcessor';
+import { ExtractedKtpData } from '../ktpTextParser';
 
 export const KtpStandardizationGuide: React.FC = () => {
   const [mobileExpanded, setMobileExpanded] = useState<boolean>(false);
@@ -30,7 +31,7 @@ export const KtpStandardizationGuide: React.FC = () => {
           <div className="flex items-center gap-2 min-w-0">
             <ShieldCheck className="w-4 h-4 text-[#1A3282] dark:text-slate-300 shrink-0" />
             <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-              Panduan Foto e-KTP (Posisi Rata, Tanpa Flash, Fokus Tajam)
+              Panduan Foto e-KTP (Posisi Rata, Fokus Tajam)
             </span>
           </div>
           {mobileExpanded ? (
@@ -48,7 +49,7 @@ export const KtpStandardizationGuide: React.FC = () => {
             </div>
             <div className="flex items-start gap-2">
               <Sun className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
-              <span>Hindari pantulan lampu/flash tepat di atas angka NIK dan Nama.</span>
+              <span>Gunakan tombol Flash jika ruangan gelap, namun hindari pantulan tepat di atas NIK.</span>
             </div>
             <div className="flex items-start gap-2">
               <Focus className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
@@ -66,7 +67,7 @@ export const KtpStandardizationGuide: React.FC = () => {
             <span>Standar Kualitas Pemotretan & Unggah e-KTP</span>
           </span>
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
-            Pemindaian Otomatis e-KTP
+            Deep Learning OCR e-KTP
           </span>
         </div>
 
@@ -84,9 +85,9 @@ export const KtpStandardizationGuide: React.FC = () => {
           <div className="flex items-start gap-2 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
             <Sun className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-slate-800 dark:text-slate-200">2. Bebas Pantulan Cahaya</p>
+              <p className="font-semibold text-slate-800 dark:text-slate-200">2. Pencahayaan Merata</p>
               <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-                Hindari pantulan lampu/flash di atas tulisan NIK & Nama agar mudah terbaca.
+                Nyalakan Flash kamera bila gelap, hindari pantulan cahaya tepat di atas NIK.
               </p>
             </div>
           </div>
@@ -128,7 +129,6 @@ export const KtpScannedPreviewCard: React.FC<KtpScannedPreviewCardProps> = ({
   return (
     <div className="p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-        {/* Gambar KTP Terstandarisasi */}
         <div className="md:col-span-5 lg:col-span-6 space-y-2.5">
           <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 aspect-[1.585/1]">
             <img
@@ -170,7 +170,6 @@ export const KtpScannedPreviewCard: React.FC<KtpScannedPreviewCardProps> = ({
           </div>
         </div>
 
-        {/* Ringkasan Kualitas Citra & Hasil Pembacaan */}
         <div className="md:col-span-7 lg:col-span-6 space-y-3">
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -246,3 +245,4 @@ export const KtpScannedPreviewCard: React.FC<KtpScannedPreviewCardProps> = ({
     </div>
   );
 };
+

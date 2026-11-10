@@ -1,5 +1,5 @@
-import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch, isDpcMatch, isDprtMatch } from '../structureReadinessUtils';
+import { SULUT_REGIONS } from '../data/sulutRegions';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 
 /**
  * Peta Kode BPS/Dukcapil 4 Digit Awal NIK Sulawesi Utara (Provinsi 71)
@@ -140,7 +140,6 @@ export function matchSulutTerritoryFromKtp(
   const cleanKel = cleanTerritoryNoise(kelDesaText);
   const decodedNik = decodeIndonesianNik(nik);
 
-  // 1. Cari DPD (Kabupaten/Kota) dari 4 digit awal NIK atau teks Header KTP
   let matchedRegion = decodedNik.dpdName
     ? SULUT_REGIONS.find((r) => isDpdMatch(r.name, decodedNik.dpdName))
     : undefined;
@@ -162,7 +161,6 @@ export function matchSulutTerritoryFromKtp(
     }
   }
 
-  // Fallback cari DPD dari nama Kecamatan jika NIK/KabKota belum terdeteksi
   if (!matchedRegion && cleanKec) {
     matchedRegion = SULUT_REGIONS.find((r) =>
       r.subdistricts.some((s) => isDpcMatch(s.name, cleanKec))
@@ -185,7 +183,6 @@ export function matchSulutTerritoryFromKtp(
     return {};
   }
 
-  // 2. Cari DPC (Kecamatan) secara eksak lalu fuzzy di dalam DPD tersebut
   let matchedSub = cleanKec
     ? matchedRegion.subdistricts.find((s) => isDpcMatch(s.name, cleanKec))
     : undefined;
@@ -201,7 +198,6 @@ export function matchSulutTerritoryFromKtp(
     }
   }
 
-  // 3. Jika DPC belum ketemu tapi Kel/Desa terbaca, cari DPC yang memiliki Kel/Desa tersebut
   if (!matchedSub && cleanKel) {
     matchedSub = matchedRegion.subdistricts.find((s) =>
       s.villages.some((v) => isDprtMatch(v, cleanKel))
@@ -220,7 +216,6 @@ export function matchSulutTerritoryFromKtp(
     }
   }
 
-  // 4. Cari DPRt (Desa/Kelurahan) di dalam DPC terpilih (atau seluruh DPC di DPD tersebut)
   let matchedVillage: string | undefined = undefined;
   if (cleanKel) {
     const searchSubs = matchedSub ? [matchedSub] : matchedRegion.subdistricts;
@@ -254,3 +249,4 @@ export function matchSulutTerritoryFromKtp(
     matchedDprt: matchedVillage || (cleanKel ? cleanKel : undefined),
   };
 }
+
