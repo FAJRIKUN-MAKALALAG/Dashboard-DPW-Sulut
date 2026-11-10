@@ -541,7 +541,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                           {slot.isFilled && slot.member ? (
                             <div className="flex items-center gap-2 mt-1">
                               <div className="w-5 h-6 rounded overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                                {slot.member.fotoProfilUrl ? (
+                                {resolveImageUrl(slot.member.fotoProfilUrl) ? (
                                   <img
                                     src={resolveImageUrl(slot.member.fotoProfilUrl)}
                                     alt={slot.member.namaLengkap}
@@ -636,7 +636,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                         <td className="p-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                              {m.fotoProfilUrl ? (
+                              {resolveImageUrl(m.fotoProfilUrl) ? (
                                 <img
                                   src={resolveImageUrl(m.fotoProfilUrl)}
                                   alt={m.namaLengkap}

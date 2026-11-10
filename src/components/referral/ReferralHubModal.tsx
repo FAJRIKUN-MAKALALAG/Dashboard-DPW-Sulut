@@ -473,7 +473,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                                 <td className="p-3 font-semibold text-slate-900 dark:text-white">
                                   <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                                      {m.fotoProfilUrl ? (
+                                      {resolveImageUrl(m.fotoProfilUrl) ? (
                                         <img
                                           src={resolveImageUrl(m.fotoProfilUrl)}
                                           alt={m.namaLengkap}
@@ -562,7 +562,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                                 <td className="p-3 font-semibold text-slate-900 dark:text-white">
                                   <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                                      {m.fotoProfilUrl ? (
+                                      {resolveImageUrl(m.fotoProfilUrl) ? (
                                         <img
                                           src={resolveImageUrl(m.fotoProfilUrl)}
                                           alt={m.namaLengkap}

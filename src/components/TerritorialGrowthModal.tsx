@@ -699,7 +699,7 @@ export const TerritorialGrowthModal: React.FC<TerritorialGrowthModalProps> = ({
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-2xs">
-                                  {m.fotoProfilUrl ? (
+                                  {resolveImageUrl(m.fotoProfilUrl) ? (
                                     <img
                                       src={resolveImageUrl(m.fotoProfilUrl)}
                                       alt={m.namaLengkap}

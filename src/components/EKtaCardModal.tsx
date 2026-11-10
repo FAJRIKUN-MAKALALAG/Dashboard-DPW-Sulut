@@ -91,7 +91,7 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({ isOpen = true, mem
               {/* Photo box with chip */}
               <div className="col-span-1 flex flex-col items-center gap-1.5">
                 <div className="w-16 h-20 rounded-lg bg-slate-800 border border-amber-500/40 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-inner">
-                  {member.fotoProfilUrl ? (
+                  {resolveImageUrl(member.fotoProfilUrl) ? (
                     <img
                       src={resolveImageUrl(member.fotoProfilUrl)}
                       alt={member.namaLengkap}
