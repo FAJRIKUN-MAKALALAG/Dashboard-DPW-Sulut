@@ -42,6 +42,9 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
 }) => {
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
+  const [isTorchSupported, setIsTorchSupported] = useState<boolean>(false);
+  const [torchNotice, setTorchNotice] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isProcessingOcr, setIsProcessingOcr] = useState<boolean>(false);
   const [ocrProgress, setOcrProgress] = useState<number>(0);
@@ -49,15 +52,24 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const guideFrameRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const stopCameraStream = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.applyConstraints({ advanced: [{ torch: false } as any] }).catch(() => {});
+        } catch {}
+        track.stop();
+      });
       streamRef.current = null;
     }
+    setIsTorchOn(false);
+    setIsTorchSupported(false);
+    setTorchNotice(null);
     setIsCameraOpen(false);
   }, []);
 
@@ -86,6 +98,26 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
         audio: false,
       });
       streamRef.current = stream;
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        const capabilities = (
+          typeof videoTrack.getCapabilities === 'function' ? videoTrack.getCapabilities() : {}
+        ) as any;
+
+        const hasTorch = Boolean(capabilities && 'torch' in capabilities);
+        setIsTorchSupported(hasTorch);
+
+        // Aktifkan autofocus kontinu otomatis jika kamera mendukung
+        const advancedConstraints: any[] = [];
+        if (Array.isArray(capabilities?.focusMode) && capabilities.focusMode.includes('continuous')) {
+          advancedConstraints.push({ focusMode: 'continuous' });
+        }
+        if (advancedConstraints.length > 0) {
+          videoTrack.applyConstraints({ advanced: advancedConstraints }).catch(() => {});
+        }
+      }
+
       setIsCameraOpen(true);
       setTimeout(() => {
         if (videoRef.current) {
@@ -98,6 +130,30 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
       setCameraError(
         'Kamera langsung tidak dapat diakses (pastikan izin kamera diberikan). Anda tetap dapat memilih foto KTP dari galeri atau membuka kamera perangkat.'
       );
+    }
+  };
+
+  const handleToggleTorch = async () => {
+    setTorchNotice(null);
+    const stream = streamRef.current;
+    const videoTrack = stream?.getVideoTracks()?.[0];
+    if (!videoTrack) return;
+
+    const nextTorch = !isTorchOn;
+    try {
+      await videoTrack.applyConstraints({
+        advanced: [{ torch: nextTorch } as any],
+      });
+      setIsTorchOn(nextTorch);
+      setIsTorchSupported(true);
+    } catch {
+      setIsTorchOn(false);
+      setTorchNotice(
+        'Kamera perangkat/browser ini belum mendukung kontrol lampu senter (Flash LED) langsung.'
+      );
+      setTimeout(() => {
+        setTorchNotice(null);
+      }, 3500);
     }
   };
 
@@ -139,24 +195,48 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     const vw = video.videoWidth;
     const vh = video.videoHeight;
 
-    const targetAspect = 1.585;
-    let cropW = vw * 0.88;
-    let cropH = cropW / targetAspect;
-    if (cropH > vh * 0.82) {
-      cropH = vh * 0.82;
-      cropW = cropH * targetAspect;
+    let startX = 0;
+    let startY = 0;
+    let cropW = vw;
+    let cropH = vh;
+
+    // Hitung koordinat pemotongan (crop) yang presisi sesuai kotak bingkai putih di layar (object-cover)
+    const videoRect = video.getBoundingClientRect();
+    const guideRect = guideFrameRef.current?.getBoundingClientRect();
+
+    if (guideRect && videoRect.width > 0 && videoRect.height > 0) {
+      const scale = Math.max(vw / videoRect.width, vh / videoRect.height);
+      const renderedW = videoRect.width * scale;
+      const renderedH = videoRect.height * scale;
+      const offsetX = (vw - renderedW) / 2;
+      const offsetY = (vh - renderedH) / 2;
+
+      const relX = guideRect.left - videoRect.left;
+      const relY = guideRect.top - videoRect.top;
+
+      startX = Math.max(0, offsetX + relX * scale);
+      startY = Math.max(0, offsetY + relY * scale);
+      cropW = Math.min(vw - startX, guideRect.width * scale);
+      cropH = Math.min(vh - startY, guideRect.height * scale);
+    } else {
+      const targetAspect = 1.585;
+      cropW = vw * 0.88;
+      cropH = cropW / targetAspect;
+      if (cropH > vh * 0.82) {
+        cropH = vh * 0.82;
+        cropW = cropH * targetAspect;
+      }
+      startX = (vw - cropW) / 2;
+      startY = (vh - cropH) / 2;
     }
 
-    const startX = (vw - cropW) / 2;
-    const startY = (vh - cropH) / 2;
-
     const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = 1100;
-    captureCanvas.height = 694;
+    captureCanvas.width = 1400;
+    captureCanvas.height = 884;
     const ctx = captureCanvas.getContext('2d')!;
-    ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, 1100, 694);
+    ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, 1400, 884);
 
-    const capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.92);
+    const capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.94);
     stopCameraStream();
     processKtpSource(capturedDataUrl);
   };
@@ -200,6 +280,11 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
       {isCameraOpen && (
         <KtpLiveCameraViewport
           videoRef={videoRef}
+          guideFrameRef={guideFrameRef}
+          isTorchOn={isTorchOn}
+          isTorchSupported={isTorchSupported}
+          torchNotice={torchNotice}
+          onToggleTorch={handleToggleTorch}
           onStopCamera={stopCameraStream}
           onCapture={handleCaptureFromLiveCamera}
           onToggleFacingMode={handleToggleFacingMode}
