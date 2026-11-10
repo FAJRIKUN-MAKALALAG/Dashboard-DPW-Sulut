@@ -1,4 +1,4 @@
-import { Member, SulutRegion } from '../types';
+import { Member } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import {
   DPW_STRUCTURE_TEMPLATE,
@@ -7,6 +7,62 @@ import {
   DPRT_STRUCTURE_TEMPLATE,
 } from '../data/structureTemplates';
 import { isJobTitleMatch } from './jobMatchingUtils';
+import {
+  normalizeDpdName,
+  isDpdMatch,
+  normalizeDpcName,
+  isDpcMatch,
+  normalizeDprtName,
+  isDprtMatch,
+  cleanJobTitle,
+  getExpandedStructuralMembers,
+  getMemberSubOrgCategory,
+  getSlotSubOrgCategory,
+  getDewanWilayahInfo,
+} from './structure/territoryNormalization';
+import type {
+  SubOrgCategory,
+  DewanWilayahInfo,
+} from './structure/territoryNormalization';
+import {
+  computeStructureKpiStats,
+  getDpdPimpinanCompliance,
+} from './structure/structureComplianceUtils';
+import type {
+  SubOrgBreakdown,
+  StructureKpiStats,
+  DpdPimpinanSlotCompliance,
+  DpdPimpinanCompliance,
+  DpdComplianceInfo,
+  DpdComplianceResult,
+} from './structure/structureComplianceUtils';
+
+export {
+  normalizeDpdName,
+  isDpdMatch,
+  normalizeDpcName,
+  isDpcMatch,
+  normalizeDprtName,
+  isDprtMatch,
+  cleanJobTitle,
+  getExpandedStructuralMembers,
+  getMemberSubOrgCategory,
+  getSlotSubOrgCategory,
+  getDewanWilayahInfo,
+  computeStructureKpiStats,
+  getDpdPimpinanCompliance,
+};
+
+export type {
+  SubOrgCategory,
+  DewanWilayahInfo,
+  SubOrgBreakdown,
+  StructureKpiStats,
+  DpdPimpinanSlotCompliance,
+  DpdPimpinanCompliance,
+  DpdComplianceInfo,
+  DpdComplianceResult,
+};
 
 export interface TerritoryReadiness {
   id: string;
@@ -34,7 +90,7 @@ export interface SulutStructureSummary {
   // Level Breakdown
   dpw: TerritoryReadiness;
   dpdList: TerritoryReadiness[];
-  
+
   // High-level summary of completed areas
   fullyCompletedDpds: string[];
   partiallyFilledDpds: string[];
@@ -54,201 +110,13 @@ export interface SulutStructureSummary {
  * - DPRt: 11 jabatan pengurus ranting desa/kelurahan
  */
 export const REQUIRED_POSITIONS = {
-  DPW: DPW_STRUCTURE_TEMPLATE.filter((s) => s.subOrg === 'DEWAN PIMPINAN WILAYAH').length || 36, // 36 inti DPW
-  DPD: DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH')).length || 36, // 36 inti DPD
-  DPC: DPC_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN CABANG')).length || 17, // 17 inti DPC
-  DPRt: DPRT_STRUCTURE_TEMPLATE.length, // 11
+  DPW: DPW_STRUCTURE_TEMPLATE.filter((s) => s.subOrg === 'DEWAN PIMPINAN WILAYAH').length || 36,
+  DPD: DPD_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN DAERAH')).length || 36,
+  DPC: DPC_STRUCTURE_TEMPLATE.filter((s) => s.subOrg.includes('DEWAN PIMPINAN CABANG')).length || 17,
+  DPRt: DPRT_STRUCTURE_TEMPLATE.length,
 };
 
-const dpdNormCache = new Map<string, string>();
-const dpcNormCache = new Map<string, string>();
-const dprtNormCache = new Map<string, string>();
-const jobCleanCache = new Map<string, string>();
-
-const expandedMembersCache = new WeakMap<Member[], Member[]>();
 const readinessSummaryCache = new WeakMap<Member[], SulutStructureSummary>();
-const kpiStatsCache = new WeakMap<Member[], Map<string, StructureKpiStats>>();
-const dpdComplianceCache = new WeakMap<Member[], Map<string, DpdPimpinanCompliance>>();
-
-/**
- * Membersihkan dan menstandarkan nama DPD (Kabupaten/Kota)
- * Memisahkan secara ketat daerah yang memiliki kata dasar serupa
- * (misal: Kabupaten Minahasa vs Kabupaten Minahasa Selatan vs Minahasa Utara vs Minahasa Tenggara)
- */
-export function normalizeDpdName(raw?: string): string {
-  if (!raw) return '';
-  const cached = dpdNormCache.get(raw);
-  if (cached !== undefined) return cached;
-
-  let str = raw
-    .toLowerCase()
-    .trim()
-    .replace(/^(kabupaten|kab\.|kab|kota|kotamadya)\s+/gi, '')
-    .trim();
-
-  // Alias / Singkatan resmi daerah Sulut
-  let res: string;
-  if (str === 'bolmong' || str === 'bm') res = 'bolaang mongondow';
-  else if (str === 'bolmut') res = 'bolaang mongondow utara';
-  else if (str === 'bolsel') res = 'bolaang mongondow selatan';
-  else if (str === 'boltim') res = 'bolaang mongondow timur';
-  else if (str === 'minsel') res = 'minahasa selatan';
-  else if (str === 'minut') res = 'minahasa utara';
-  else if (str === 'mitra') res = 'minahasa tenggara';
-  else if (str === 'sitaro' || str.includes('tagulandang')) res = 'kepulauan siau tagulandang biaro';
-  else if (str === 'sangihe') res = 'kepulauan sangihe';
-  else if (str === 'talaud') res = 'kepulauan talaud';
-  else {
-    // Hapus karakter khusus dan normalisasi spasi
-    res = str.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-  }
-
-  dpdNormCache.set(raw, res);
-  return res;
-}
-
-/**
- * Robust matching for DPD names:
- * Menjamin kesesuaian eksak setelah normalisasi agar Minahasa dan Minahasa Selatan/Utara/Tenggara tidak tertukar.
- */
-export function isDpdMatch(memberDpd?: string, targetDpd?: string): boolean {
-  if (!memberDpd || !targetDpd) return false;
-  if (memberDpd === targetDpd) return true;
-  const norm1 = normalizeDpdName(memberDpd);
-  const norm2 = normalizeDpdName(targetDpd);
-  return norm1 === norm2;
-}
-
-/**
- * Membersihkan dan menstandarkan nama DPC (Kecamatan)
- */
-export function normalizeDpcName(raw?: string): string {
-  if (!raw) return '';
-  const cached = dpcNormCache.get(raw);
-  if (cached !== undefined) return cached;
-
-  const res = raw
-    .toLowerCase()
-    .trim()
-    .replace(/^(kecamatan|kec\.|kec)\s+/gi, '')
-    .replace(/[^a-z0-9]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  dpcNormCache.set(raw, res);
-  return res;
-}
-
-/**
- * Robust matching for DPC names (handles 'Kec.', 'Kecamatan', case-insensitive, exact match)
- */
-export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
-  if (!memberDpc || !targetDpc) return false;
-  if (memberDpc === targetDpc) return true;
-  const norm1 = normalizeDpcName(memberDpc);
-  const norm2 = normalizeDpcName(targetDpc);
-  if (norm1 === norm2) return true;
-  return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
-}
-
-/**
- * Membersihkan dan menstandarkan nama DPRt (Desa/Kelurahan)
- */
-export function normalizeDprtName(raw?: string): string {
-  if (!raw) return '';
-  const cached = dprtNormCache.get(raw);
-  if (cached !== undefined) return cached;
-
-  let str = raw
-    .toLowerCase()
-    .trim()
-    .replace(/^(desa|kelurahan|kel\.|kel|des)\s+/gi, '')
-    .trim();
-
-  // Normalize roman numerals and digits to Indonesian words for uniform matching
-  str = str
-    .replace(/\b(i|1)\b/g, 'satu')
-    .replace(/\b(ii|2)\b/g, 'dua')
-    .replace(/\b(iii|3)\b/g, 'tiga')
-    .replace(/\b(iv|4)\b/g, 'empat')
-    .replace(/\b(v|5)\b/g, 'lima');
-
-  const res = str
-    .replace(/[^a-z0-9]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  dprtNormCache.set(raw, res);
-  return res;
-}
-
-/**
- * Robust matching for DPRt names (handles 'Desa', 'Kelurahan', 'Kel.', case-insensitive, exact match)
- */
-export function isDprtMatch(memberDprt?: string, targetDprt?: string): boolean {
-  if (!memberDprt || !targetDprt) return false;
-  if (memberDprt === targetDprt) return true;
-  const norm1 = normalizeDprtName(memberDprt);
-  const norm2 = normalizeDprtName(targetDprt);
-  if (norm1 === norm2) return true;
-  return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
-}
-
-/**
- * Normalizes strings to match positions flexibly
- */
-export function cleanJobTitle(j: string): string {
-  if (!j) return '';
-  const cached = jobCleanCache.get(j);
-  if (cached !== undefined) return cached;
-
-  const res = j
-    .toLowerCase()
-    .replace(/bidang/g, 'bid')
-    .replace(/usaha mikro kecil dan menengah/g, 'umkm')
-    .replace(/&/g, 'dan')
-    .replace(/[^a-z0-9]/g, '');
-  jobCleanCache.set(j, res);
-  return res;
-}
-
-/**
- * Mengembangkan daftar Member menjadi daftar penugasan struktural teritorial.
- * Jika seorang kader memiliki beberapa jabatan (positions: [...]), fungsi ini akan
- * menghasilkan 1 entitas penugasan untuk setiap jabatan yang dimilikinya, sehingga
- * keterisian struktur DPD/DPC/DPRt tetap 100% lengkap tanpa menggandakan data orang asli di database.
- */
-export function getExpandedStructuralMembers(members: Member[]): Member[] {
-  if (!Array.isArray(members)) return [];
-  const cached = expandedMembersCache.get(members);
-  if (cached) return cached;
-
-  const result: Member[] = [];
-  for (const m of members) {
-    if (Array.isArray(m.positions) && m.positions.length > 0) {
-      for (const pos of m.positions) {
-        result.push({
-          ...m,
-          id:
-            pos.id ||
-            `${m.nik}_${pos.tingkatKepengurusan}_${pos.dpc || 'UMUM'}_${pos.wilayahPenugasan || 'PIMPINAN'}_${(pos.jabatan || '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`,
-          tingkatKepengurusan: pos.tingkatKepengurusan as any,
-          dpd: pos.dpd || m.dpd,
-          dpc: pos.dpc || m.dpc,
-          dprt: pos.dprt || m.dprt,
-          wilayahPenugasan: pos.wilayahPenugasan || m.wilayahPenugasan,
-          jabatan: pos.jabatan || m.jabatan,
-          nomorSK: pos.nomorSK || m.nomorSK,
-          tanggalSK: pos.tanggalSK || m.tanggalSK,
-          urutan: pos.urutan ?? m.urutan,
-          isPengurus: true,
-        });
-      }
-    } else {
-      result.push(m);
-    }
-  }
-  expandedMembersCache.set(members, result);
-  return result;
-}
 
 /**
  * Computes completeness analysis for DPW, DPD, DPC, and DPRt across all Sulut
@@ -310,7 +178,7 @@ export function computeStructureReadiness(members: Member[]): SulutStructureSumm
   const dpdList: TerritoryReadiness[] = SULUT_REGIONS.map((region) => {
     const compliance = getDpdPimpinanCompliance(region.name, members);
     const filledCount = compliance.filledCount;
-    const totalRequired = compliance.totalRequired; // 36
+    const totalRequired = compliance.totalRequired;
     const pct = compliance.percentage;
     const missing = compliance.vacantSlots.map((s) => s.jabatan);
     const status: 'LENGKAP' | 'SEBAGIAN' | 'KOSONG' =
@@ -559,574 +427,4 @@ export function computeDprtReadinessForDpc(
       missingPositions: missing,
     };
   });
-}
-
-export type SubOrgCategory = 'PERTIMBANGAN' | 'PAKAR' | 'PIMPINAN';
-
-export function getMemberSubOrgCategory(m: Member): SubOrgCategory {
-  const jLower = (m.jabatan || '').toLowerCase();
-  const wLower = (m.wilayahPenugasan || '').toLowerCase();
-  if (jLower.includes('pertimbangan') || wLower.includes('pertimbangan') || jLower.includes('wankar') || wLower.includes('wankar')) return 'PERTIMBANGAN';
-  if (jLower.includes('pakar') || wLower.includes('pakar') || jLower.includes('wangan') || wLower.includes('wangan')) return 'PAKAR';
-  return 'PIMPINAN';
-}
-
-export function getSlotSubOrgCategory(slot: { subOrg: string }): SubOrgCategory {
-  const sLower = slot.subOrg.toLowerCase();
-  if (sLower.includes('pertimbangan') || sLower.includes('wankar')) return 'PERTIMBANGAN';
-  if (sLower.includes('pakar') || sLower.includes('wangan')) return 'PAKAR';
-  return 'PIMPINAN';
-}
-
-export interface DewanWilayahInfo {
-  isDewan: boolean;
-  category: 'PERTIMBANGAN' | 'PAKAR' | null;
-  level: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'UNKNOWN';
-  councilName: string; // "Dewan Pertimbangan" | "Dewan Pakar"
-  shortLocationLabel: string; // e.g. "DPW Sulut", "DPD Kab. Minahasa Selatan", "DPC Kec. Amurang"
-  badgeText: string; // e.g. "Dewan Pertimbangan · DPW Sulut"
-  detailedTerritory: string; // e.g. "Tingkat DPW Sulawesi Utara", "DPD Kab. Minahasa Selatan", "DPC Kec. Amurang, Kab. Minahasa Selatan"
-}
-
-/**
- * Mendeteksi apakah anggota merupakan Dewan Pakar / Dewan Pertimbangan
- * dan menghasilkan label wilayah teritorial yang sangat jelas (DPW, DPD mana, atau DPC mana).
- */
-export function getDewanWilayahInfo(m: Member): DewanWilayahInfo {
-  const cat = getMemberSubOrgCategory(m);
-  if (cat !== 'PERTIMBANGAN' && cat !== 'PAKAR') {
-    return {
-      isDewan: false,
-      category: null,
-      level: 'UNKNOWN',
-      councilName: '',
-      shortLocationLabel: '',
-      badgeText: '',
-      detailedTerritory: '',
-    };
-  }
-
-  const councilName = cat === 'PERTIMBANGAN' ? 'Dewan Pertimbangan' : 'Dewan Pakar';
-
-  // Deteksi Tingkat Kepengurusan
-  const tingkat = m.tingkatKepengurusan?.toUpperCase() || '';
-  const wil = (m.wilayahPenugasan || '').toUpperCase();
-  const dpd = (m.dpd || '').trim();
-  const dpc = (m.dpc || '').trim();
-  const dprt = (m.dprt || '').trim();
-
-  let level: 'DPW' | 'DPD' | 'DPC' | 'DPRt' = 'DPD';
-
-  if (
-    tingkat === 'DPW' ||
-    wil.includes('DPW') ||
-    dpd === 'Sulawesi Utara' ||
-    dpd === 'DPW Sulut' ||
-    (!dpd && !dpc)
-  ) {
-    level = 'DPW';
-  } else if (
-    tingkat === 'DPC' ||
-    wil.includes('DPC') ||
-    wil.includes('CABANG') ||
-    (dpc && dpc !== '-' && dpc !== 'Wilayah DPD' && dpc !== 'Umum (DPD)' && dpc !== 'Pusat/Umum')
-  ) {
-    level = 'DPC';
-  } else if (tingkat === 'DPRT' || wil.includes('RANTING') || (dprt && dprt !== '-' && dprt !== 'Pusat/Umum')) {
-    level = 'DPRt';
-  } else {
-    level = 'DPD';
-  }
-
-  let shortLocationLabel = '';
-  let detailedTerritory = '';
-
-  if (level === 'DPW') {
-    shortLocationLabel = 'DPW Sulut';
-    detailedTerritory = 'Tingkat Provinsi / DPW Sulawesi Utara';
-  } else if (level === 'DPD') {
-    const cleanDpd = dpd || 'Sulawesi Utara';
-    shortLocationLabel = cleanDpd.startsWith('DPD') ? cleanDpd : `DPD ${cleanDpd}`;
-    detailedTerritory = cleanDpd.startsWith('DPD') ? cleanDpd : `DPD ${cleanDpd}`;
-  } else if (level === 'DPC') {
-    const cleanKec = dpc ? dpc.replace(/^(kecamatan|kec\.|kec)\s+/gi, '') : 'Cabang';
-    shortLocationLabel = `DPC Kec. ${cleanKec}`;
-    detailedTerritory = `DPC Kec. ${cleanKec}${dpd ? `, ${dpd}` : ''}`;
-  } else {
-    shortLocationLabel = `DPRt ${dprt}`;
-    detailedTerritory = `DPRt ${dprt}${dpc ? `, Kec. ${dpc}` : ''}${dpd ? `, ${dpd}` : ''}`;
-  }
-
-  return {
-    isDewan: true,
-    category: cat,
-    level,
-    councilName,
-    shortLocationLabel,
-    badgeText: `${councilName} · ${shortLocationLabel}`,
-    detailedTerritory,
-  };
-}
-
-export interface SubOrgBreakdown {
-  pimpinanRequired: number;
-  pimpinanFilled: number;
-  pertimbanganRequired: number;
-  pertimbanganFilled: number;
-  pakarRequired: number;
-  pakarFilled: number;
-}
-
-export interface StructureKpiStats {
-  dpwRequired: number;
-  dpwFilled: number;
-  dpwBreakdown: SubOrgBreakdown;
-
-  dpdRequired: number;
-  dpdFilled: number;
-  dpdBreakdown: SubOrgBreakdown;
-
-  dpcRequired: number;
-  dpcFilled: number;
-  dpcBreakdown: SubOrgBreakdown;
-
-  dprtRequired: number;
-  dprtFilled: number;
-
-  totalRequired: number;
-  totalFilled: number;
-  totalEmpty: number;
-  percentage: number;
-  isAllSulut: boolean;
-  territoryName: string;
-}
-
-/**
- * Menghitung seluruh keterisian posisi struktur organisasi resmi
- * (DPW, DPD, DPC, DPRt) berdasarkan template susunan pengurus
- * dengan rincian Dewan Pimpinan, Dewan Pertimbangan, dan Dewan Pakar
- */
-export function computeStructureKpiStats(
-  members: Member[],
-  selectedDpdFilter: string = 'ALL',
-  selectedDpcFilter?: string,
-  selectedDprtFilter?: string
-): StructureKpiStats {
-  const cacheKey = `${selectedDpdFilter || 'ALL'}__${selectedDpcFilter || ''}__${selectedDprtFilter || ''}`;
-  let memberCacheMap = kpiStatsCache.get(members);
-  if (memberCacheMap) {
-    const cachedStats = memberCacheMap.get(cacheKey);
-    if (cachedStats) return cachedStats;
-  } else {
-    memberCacheMap = new Map<string, StructureKpiStats>();
-    kpiStatsCache.set(members, memberCacheMap);
-  }
-
-  const activeMembers = getExpandedStructuralMembers(members).filter((m) => m.status === 'Aktif');
-  const membersByDpd = new Map<string, Member[]>();
-  for (const m of activeMembers) {
-    const normDpd = normalizeDpdName(m.dpd);
-    if (!normDpd) continue;
-    let bucket = membersByDpd.get(normDpd);
-    if (!bucket) {
-      bucket = [];
-      membersByDpd.set(normDpd, bucket);
-    }
-    bucket.push(m);
-  }
-
-  const isDprtScoped = Boolean(selectedDprtFilter && selectedDprtFilter !== 'ALL');
-  const isDpcScoped = Boolean(!isDprtScoped && selectedDpcFilter && selectedDpcFilter !== 'ALL');
-  const isDpdScoped = Boolean(!isDprtScoped && !isDpcScoped && selectedDpdFilter && selectedDpdFilter !== 'ALL');
-  const isAllSulut = !isDprtScoped && !isDpcScoped && !isDpdScoped;
-
-  let dpwRequired = 0;
-  let dpwFilled = 0;
-  const dpwBreakdown: SubOrgBreakdown = {
-    pimpinanRequired: 0,
-    pimpinanFilled: 0,
-    pertimbanganRequired: 0,
-    pertimbanganFilled: 0,
-    pakarRequired: 0,
-    pakarFilled: 0,
-  };
-
-  let dpdRequired = 0;
-  let dpdFilled = 0;
-  const dpdBreakdown: SubOrgBreakdown = {
-    pimpinanRequired: 0,
-    pimpinanFilled: 0,
-    pertimbanganRequired: 0,
-    pertimbanganFilled: 0,
-    pakarRequired: 0,
-    pakarFilled: 0,
-  };
-
-  let dpcRequired = 0;
-  let dpcFilled = 0;
-  const dpcBreakdown: SubOrgBreakdown = {
-    pimpinanRequired: 0,
-    pimpinanFilled: 0,
-    pertimbanganRequired: 0,
-    pertimbanganFilled: 0,
-    pakarRequired: 0,
-    pakarFilled: 0,
-  };
-
-  let dprtRequired = 0;
-  let dprtFilled = 0;
-
-  // 1. DPW Level (Hanya dihitung jika melihat seluruh Sulut)
-  if (isAllSulut) {
-    const dpwMembers = activeMembers.filter(
-      (m) => m.tingkatKepengurusan === 'DPW' || m.dpd === 'Sulawesi Utara'
-    );
-
-    const pimSlots = DPW_STRUCTURE_TEMPLATE.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
-    const perSlots = DPW_STRUCTURE_TEMPLATE.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
-    const pakSlots = DPW_STRUCTURE_TEMPLATE.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
-
-    const pimFilled = pimSlots.filter((slot) =>
-      dpwMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    const perFilled = perSlots.filter((slot) =>
-      dpwMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    const pakFilled = pakSlots.filter((slot) =>
-      dpwMembers.some(
-        (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
-      )
-    ).length;
-
-    dpwBreakdown.pimpinanRequired = pimSlots.length;
-    dpwBreakdown.pimpinanFilled = Math.min(pimFilled, pimSlots.length);
-    dpwBreakdown.pertimbanganRequired = perSlots.length;
-    dpwBreakdown.pertimbanganFilled = Math.min(perFilled, perSlots.length);
-    dpwBreakdown.pakarRequired = pakSlots.length;
-    dpwBreakdown.pakarFilled = Math.min(pakFilled, pakSlots.length);
-
-    dpwRequired = DPW_STRUCTURE_TEMPLATE.length;
-    dpwFilled =
-      dpwBreakdown.pimpinanFilled +
-      dpwBreakdown.pertimbanganFilled +
-      dpwBreakdown.pakarFilled;
-  }
-
-  // 2. Tentukan daftar Region yang dievaluasi
-  const targetRegions = isAllSulut
-    ? SULUT_REGIONS
-    : SULUT_REGIONS.filter((r) => isDpdMatch(r.name, selectedDpdFilter));
-
-  const dpdTemplate = DPD_STRUCTURE_TEMPLATE;
-  const dpdPimSlots = dpdTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
-  const dpdPerSlots = dpdTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
-  const dpdPakSlots = dpdTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
-
-  const dpcTemplate = DPC_STRUCTURE_TEMPLATE;
-  const dpcPimSlots = dpcTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
-  const dpcPerSlots = dpcTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
-  const dpcPakSlots = dpcTemplate.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
-
-  const dprtTemplate = DPRT_STRUCTURE_TEMPLATE;
-
-  targetRegions.forEach((region) => {
-    const regionMembers = membersByDpd.get(normalizeDpdName(region.name)) || [];
-
-    // A. DPD level untuk region ini (Hanya jika bukan DPC/DPRt scoped)
-    if (!isDpcScoped && !isDprtScoped) {
-      dpdRequired += dpdTemplate.length;
-      dpdBreakdown.pimpinanRequired += dpdPimSlots.length;
-      dpdBreakdown.pertimbanganRequired += dpdPerSlots.length;
-      dpdBreakdown.pakarRequired += dpdPakSlots.length;
-
-      const dpdMembers = regionMembers.filter((m) => {
-        const jLower = (m.jabatan || '').toLowerCase();
-        const isNotOtherLevel = m.tingkatKepengurusan !== 'DPC' && m.tingkatKepengurusan !== 'DPRt' && m.tingkatKepengurusan !== 'DPW';
-        return (
-          m.tingkatKepengurusan === 'DPD' ||
-          jLower.includes('dpd') ||
-          jLower.includes('daerah') ||
-          m.dpc === 'Umum (DPD)' ||
-          m.dpc === 'Wilayah DPD' ||
-          !m.dpc ||
-          m.dpc === '-' ||
-          (m.isPengurus && isNotOtherLevel) ||
-          (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpc') && !jLower.includes('ranting'))
-        );
-      });
-
-      const regPimFilled = dpdPimSlots.filter((slot) =>
-        dpdMembers.some(
-          (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-        )
-      ).length;
-
-      const regPerFilled = dpdPerSlots.filter((slot) =>
-        dpdMembers.some(
-          (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-        )
-      ).length;
-
-      const regPakFilled = dpdPakSlots.filter((slot) =>
-        dpdMembers.some(
-          (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
-        )
-      ).length;
-
-      dpdBreakdown.pimpinanFilled += Math.min(regPimFilled, dpdPimSlots.length);
-      dpdBreakdown.pertimbanganFilled += Math.min(regPerFilled, dpdPerSlots.length);
-      dpdBreakdown.pakarFilled += Math.min(regPakFilled, dpdPakSlots.length);
-      dpdFilled +=
-        Math.min(regPimFilled, dpdPimSlots.length) +
-        Math.min(regPerFilled, dpdPerSlots.length) +
-        Math.min(regPakFilled, dpdPakSlots.length);
-    }
-
-    // B. DPC level untuk kecamatan di region ini
-    region.subdistricts.forEach((sub) => {
-      // Jika DPC-scoped, lewati kecamatan yang bukan wilayah tugasnya
-      if (isDpcScoped && !isDpcMatch(sub.name, selectedDpcFilter)) {
-        return;
-      }
-
-      const subAllMembers = regionMembers.filter((m) => isDpcMatch(m.dpc, sub.name));
-
-      // Jika DPRt-scoped, lewati evaluasi jabatan DPC
-      if (!isDprtScoped) {
-        dpcRequired += dpcTemplate.length;
-        dpcBreakdown.pimpinanRequired += dpcPimSlots.length;
-        dpcBreakdown.pertimbanganRequired += dpcPerSlots.length;
-        dpcBreakdown.pakarRequired += dpcPakSlots.length;
-
-        const subMembers = subAllMembers.filter((m) => {
-          const jLower = (m.jabatan || '').toLowerCase();
-          const isNotOtherLevel = m.tingkatKepengurusan !== 'DPD' && m.tingkatKepengurusan !== 'DPW';
-          return (
-            m.tingkatKepengurusan === 'DPC' ||
-            jLower.includes('dpc') ||
-            jLower.includes('cabang') ||
-            (m.isPengurus && m.dpc !== 'Umum (DPD)' && m.dpc !== 'Wilayah DPD' && isNotOtherLevel) ||
-            (m.jabatan && m.jabatan !== 'Anggota Biasa' && isNotOtherLevel && !jLower.includes('dpd') && !jLower.includes('dpw'))
-          );
-        });
-
-        const subPimFilled = dpcPimSlots.filter((slot) =>
-          subMembers.some(
-            (m) => getMemberSubOrgCategory(m) === 'PIMPINAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-          )
-        ).length;
-
-        const subPerFilled = dpcPerSlots.filter((slot) =>
-          subMembers.some(
-            (m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN' && isJobTitleMatch(m.jabatan, slot.jabatan)
-          )
-        ).length;
-
-        const subPakFilled = dpcPakSlots.filter((slot) =>
-          subMembers.some(
-            (m) => getMemberSubOrgCategory(m) === 'PAKAR' && isJobTitleMatch(m.jabatan, slot.jabatan)
-          )
-        ).length;
-
-        dpcBreakdown.pimpinanFilled += Math.min(subPimFilled, dpcPimSlots.length);
-        dpcBreakdown.pertimbanganFilled += Math.min(subPerFilled, dpcPerSlots.length);
-        dpcBreakdown.pakarFilled += Math.min(subPakFilled, dpcPakSlots.length);
-        dpcFilled +=
-          Math.min(subPimFilled, dpcPimSlots.length) +
-          Math.min(subPerFilled, dpcPerSlots.length) +
-          Math.min(subPakFilled, dpcPakSlots.length);
-      }
-
-      // C. DPRt level untuk desa/kelurahan di kecamatan ini
-      sub.villages.forEach((village) => {
-        // Jika DPRt-scoped, hanya hitung desa spesifik tersebut
-        if (isDprtScoped && !isDprtMatch(village, selectedDprtFilter)) {
-          return;
-        }
-
-        dprtRequired += dprtTemplate.length;
-        if (subAllMembers.length === 0) return;
-
-        const villageMembers = subAllMembers.filter(
-          (m) =>
-            isDprtMatch(m.dprt, village) &&
-            (m.tingkatKepengurusan === 'DPRt' || m.isPengurus)
-        );
-        if (villageMembers.length === 0) return;
-
-        const villageFilledCount = dprtTemplate.filter((slot) =>
-          villageMembers.some((m) => isJobTitleMatch(m.jabatan, slot.jabatan))
-        ).length;
-        dprtFilled += Math.min(villageFilledCount, dprtTemplate.length);
-      });
-    });
-  });
-
-  const totalRequired = dpwRequired + dpdRequired + dpcRequired + dprtRequired;
-  const totalFilled = dpwFilled + dpdFilled + dpcFilled + dprtFilled;
-  const totalEmpty = Math.max(0, totalRequired - totalFilled);
-  const percentage = totalRequired > 0 ? Number(((totalFilled / totalRequired) * 100).toFixed(1)) : 0;
-
-  const territoryName = isDprtScoped
-    ? selectedDprtFilter!
-    : isDpcScoped
-    ? selectedDpcFilter!
-    : isDpdScoped
-    ? selectedDpdFilter
-    : 'Sulawesi Utara';
-
-  const result: StructureKpiStats = {
-    dpwRequired,
-    dpwFilled,
-    dpwBreakdown,
-    dpdRequired,
-    dpdFilled,
-    dpdBreakdown,
-    dpcRequired,
-    dpcFilled,
-    dpcBreakdown,
-    dprtRequired,
-    dprtFilled,
-    totalRequired,
-    totalFilled,
-    totalEmpty,
-    percentage,
-    isAllSulut,
-    territoryName,
-  };
-  memberCacheMap.set(cacheKey, result);
-  return result;
-}
-
-export interface DpdPimpinanSlotCompliance {
-  no: number;
-  subOrg: string;
-  jabatan: string;
-  isFilled: boolean;
-  member?: Member;
-}
-
-export interface DpdPimpinanCompliance {
-  dpdName: string;
-  totalRequired: number; // 36
-  filledCount: number;
-  vacantCount: number;
-  percentage: number;
-  isComplete: boolean;
-  slots: DpdPimpinanSlotCompliance[];
-  vacantSlots: DpdPimpinanSlotCompliance[];
-  filledSlots: DpdPimpinanSlotCompliance[];
-  ksbStatus: {
-    ketua: boolean;
-    sekretaris: boolean;
-    bendahara: boolean;
-  };
-}
-
-export type DpdComplianceInfo = DpdPimpinanCompliance;
-export type DpdComplianceResult = DpdPimpinanCompliance;
-
-/**
- * Memeriksa kepatuhan formasi DPD Bagian A (Dewan Pimpinan Daerah / 36 Jabatan Baku).
- * Mengembalikan status keterisian x/36 dan daftar jabatan mana saja yang belum terisi (lowong).
- */
-export function getDpdPimpinanCompliance(
-  dpdName: string,
-  allMembers: Member[]
-): DpdPimpinanCompliance {
-  const safeMembers = allMembers || [];
-  const normKey = normalizeDpdName(dpdName);
-  let compMap = dpdComplianceCache.get(safeMembers);
-  if (compMap) {
-    const cached = compMap.get(normKey);
-    if (cached) return cached;
-  } else {
-    compMap = new Map<string, DpdPimpinanCompliance>();
-    dpdComplianceCache.set(safeMembers, compMap);
-  }
-
-  const pimpinanSlots = DPD_STRUCTURE_TEMPLATE.filter(
-    (s) => getSlotSubOrgCategory(s) === 'PIMPINAN'
-  );
-  const totalRequired = pimpinanSlots.length || 36;
-
-  // Anggota DPD untuk pimpinan daerah ini
-  const dpdMembers = getExpandedStructuralMembers(safeMembers).filter((m) => {
-    if (m.status !== 'Aktif') return false;
-    if (!isDpdMatch(m.dpd, dpdName)) return false;
-    const isDpdLevel =
-      m.tingkatKepengurusan === 'DPD' ||
-      (!m.tingkatKepengurusan && (m.isPengurus || Boolean(m.nomorSK)));
-    if (!isDpdLevel) return false;
-    // Bukan pertimbangan dan bukan pakar
-    const cat = getMemberSubOrgCategory(m);
-    return cat === 'PIMPINAN';
-  });
-
-  const usedMemberNiks = new Set<string>();
-  const slots: DpdPimpinanSlotCompliance[] = [];
-  const filledSlots: DpdPimpinanSlotCompliance[] = [];
-  const vacantSlots: DpdPimpinanSlotCompliance[] = [];
-
-  for (const slot of pimpinanSlots) {
-    // Cari anggota yang cocok dengan jabatan slot ini
-    const matched = dpdMembers.find(
-      (m) => !usedMemberNiks.has(m.nik) && isJobTitleMatch(m.jabatan, slot.jabatan)
-    );
-
-    if (matched) {
-      usedMemberNiks.add(matched.nik);
-      const item: DpdPimpinanSlotCompliance = {
-        no: slot.no,
-        subOrg: slot.subOrg,
-        jabatan: slot.jabatan,
-        isFilled: true,
-        member: matched,
-      };
-      slots.push(item);
-      filledSlots.push(item);
-    } else {
-      const item: DpdPimpinanSlotCompliance = {
-        no: slot.no,
-        subOrg: slot.subOrg,
-        jabatan: slot.jabatan,
-        isFilled: false,
-      };
-      slots.push(item);
-      vacantSlots.push(item);
-    }
-  }
-
-  const filledCount = filledSlots.length;
-  const vacantCount = vacantSlots.length;
-  const percentage = Math.round((filledCount / totalRequired) * 100);
-
-  const hasKetua = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'ketua');
-  const hasSekretaris = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'sekretaris');
-  const hasBendahara = filledSlots.some((s) => s.jabatan.trim().toLowerCase() === 'bendahara');
-
-  const compResult: DpdPimpinanCompliance = {
-    dpdName,
-    totalRequired,
-    filledCount,
-    vacantCount,
-    percentage,
-    isComplete: filledCount >= totalRequired,
-    slots,
-    vacantSlots,
-    filledSlots,
-    ksbStatus: {
-      ketua: hasKetua,
-      sekretaris: hasSekretaris,
-      bendahara: hasBendahara,
-    },
-  };
-  compMap.set(normKey, compResult);
-  return compResult;
 }

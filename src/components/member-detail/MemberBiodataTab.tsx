@@ -94,6 +94,35 @@ export const MemberBiodataTab: React.FC<MemberBiodataTabProps> = ({
             </div>
 
             <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400">Tempat, Tanggal Lahir</span>
+              <span className="font-medium text-slate-900 dark:text-white">
+                {member.tempatLahir || '-'}{member.tanggalLahir ? `, ${member.tanggalLahir}` : ''}
+              </span>
+            </div>
+
+            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400">Jenis Kelamin</span>
+              <span className="font-medium text-slate-900 dark:text-white">{member.jenisKelamin || '-'}</span>
+            </div>
+
+            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400">Agama</span>
+              <span className="font-medium text-slate-900 dark:text-white">{member.agama || '-'}</span>
+            </div>
+
+            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400">Pekerjaan</span>
+              <span className="font-medium text-slate-900 dark:text-white">{member.pekerjaan || '-'}</span>
+            </div>
+
+            <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400 shrink-0">Alamat Lengkap KTP</span>
+              <span className="font-medium text-slate-900 dark:text-white text-right">
+                {member.alamatLengkap || '-'}
+              </span>
+            </div>
+
+            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
               <span className="text-slate-500 dark:text-slate-400">Nomor HP / WhatsApp</span>
               <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
                 {member.nomorHP || '-'}

@@ -1,24 +1,18 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Member, MemberStatus, UserSession } from '../types';
-import { SULUT_REGIONS, LEVEL_PARTY_ROLES, STATUS_OPTIONS } from '../data/sulutRegions';
-import { compressImageFile, generateSimulatedKtp, getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
+import { SULUT_REGIONS } from '../data/sulutRegions';
+import { compressImageFile, generateSimulatedKtp } from '../utils/imageUtils';
 import {
   Edit3,
   X,
   AlertCircle,
-  ShieldCheck,
   CheckCircle2,
-  Camera,
-  Upload,
-  IdCard,
-  Trash2,
-  Sparkles,
   User,
   Save,
-  Loader2,
-  Shield,
 } from 'lucide-react';
 import { referralService } from '../services/referralService';
+import { EditMemberPhotoKtpSection } from './edit-member/EditMemberPhotoKtpSection';
+import { EditMemberPartyReferralSection } from './edit-member/EditMemberPartyReferralSection';
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -43,6 +37,14 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   const [nik, setNik] = useState<string>(member?.nik || '');
   const [nomorEKTA, setNomorEKTA] = useState<string>(member?.nomorEKTA || '');
   const [namaLengkap, setNamaLengkap] = useState<string>(member?.namaLengkap || '');
+  const [jenisKelamin, setJenisKelamin] = useState<'Laki-laki' | 'Perempuan' | ''>(
+    (member?.jenisKelamin as 'Laki-laki' | 'Perempuan' | '') || ''
+  );
+  const [tempatLahir, setTempatLahir] = useState<string>(member?.tempatLahir || '');
+  const [tanggalLahir, setTanggalLahir] = useState<string>(member?.tanggalLahir || '');
+  const [agama, setAgama] = useState<string>(member?.agama || '');
+  const [pekerjaan, setPekerjaan] = useState<string>(member?.pekerjaan || '');
+  const [alamatLengkap, setAlamatLengkap] = useState<string>(member?.alamatLengkap || '');
   const [nomorHP, setNomorHP] = useState<string>(member?.nomorHP && member.nomorHP !== '-' ? member.nomorHP : '');
   const [email, setEmail] = useState<string>(member?.email || '');
   const [sosmed, setSosmed] = useState<string>(member?.sosmed || '');
@@ -88,7 +90,6 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
     return [{ value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' }];
   }, [session.role]);
 
-  // Status Kepengurusan & SK
   const [isPengurus, setIsPengurus] = useState<boolean>(member?.isPengurus ?? true);
   const [tingkatKepengurusan, setTingkatKepengurusan] = useState<'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus'>(
     member?.tingkatKepengurusan || 'DPW'
@@ -106,19 +107,24 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   const [kaderPerekrutNama, setKaderPerekrutNama] = useState<string>(member?.kaderPerekrutNama || '');
   const [kaderPerekrutJabatan, setKaderPerekrutJabatan] = useState<string>(member?.kaderPerekrutJabatan || 'Pengurus DPW/DPD NasDem');
   const [kaderPerekrutKodeReferral, setKaderPerekrutKodeReferral] = useState<string>(member?.kaderPerekrutKodeReferral || '');
+  const [kaderPerekrutNik, setKaderPerekrutNik] = useState<string>('');
+  const [ketuaLangsungInfo, setKetuaLangsungInfo] = useState<{ nik: string; nama: string; jabatan: string; tingkat: string } | null>(null);
+  const [refValidation, setRefValidation] = useState<{ loading: boolean; valid?: boolean; error?: string } | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [isUploadingKtp, setIsUploadingKtp] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const ktpInputRef = useRef<HTMLInputElement>(null);
-
-  // Synchronize form states on member change
   useEffect(() => {
     if (member) {
       setNik(member.nik || '');
       setNomorEKTA(member.nomorEKTA || '');
       setNamaLengkap(member.namaLengkap || '');
+      setJenisKelamin((member.jenisKelamin as 'Laki-laki' | 'Perempuan' | '') || '');
+      setTempatLahir(member.tempatLahir || '');
+      setTanggalLahir(member.tanggalLahir || '');
+      setAgama(member.agama || '');
+      setPekerjaan(member.pekerjaan || '');
+      setAlamatLengkap(member.alamatLengkap || '');
       setNomorHP(member.nomorHP && member.nomorHP !== '-' ? member.nomorHP : '');
       setEmail(member.email || '');
       setSosmed(member.sosmed || '');
@@ -150,20 +156,11 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
             }
           : null
       );
-      setRefValidation(
-        member.kaderPerekrutKodeReferral
-          ? { loading: false, valid: true }
-          : null
-      );
+      setRefValidation(member.kaderPerekrutKodeReferral ? { loading: false, valid: true } : null);
       setErrorMsg(null);
     }
   }, [member, isOpen]);
 
-  const [kaderPerekrutNik, setKaderPerekrutNik] = useState<string>('');
-  const [ketuaLangsungInfo, setKetuaLangsungInfo] = useState<{ nik: string; nama: string; jabatan: string; tingkat: string } | null>(null);
-  const [refValidation, setRefValidation] = useState<{ loading: boolean; valid?: boolean; error?: string } | null>(null);
-
-  // Live validation for referral code
   useEffect(() => {
     const clean = kaderPerekrutKodeReferral.trim().toUpperCase();
     if (!clean || clean.length < 4) {
@@ -182,13 +179,11 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
           setKaderPerekrutNama(res.recruiter.namaLengkap);
           setKaderPerekrutJabatan(res.recruiter.jabatan);
           setKaderPerekrutNik(res.recruiter.nik);
-          if (res.directLeader) {
-            setKetuaLangsungInfo(res.directLeader);
-          }
+          if (res.directLeader) setKetuaLangsungInfo(res.directLeader);
         } else {
           setRefValidation({ loading: false, valid: false, error: res.error || 'Kode referral tidak ditemukan' });
         }
-      } catch (e: any) {
+      } catch {
         if (!active) return;
         setRefValidation({ loading: false, valid: false, error: 'Gagal memvalidasi kode' });
       }
@@ -206,34 +201,26 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   const cleanedNik = useMemo(() => nik.replace(/[^0-9]/g, '').trim(), [nik]);
   const isUnchangedNik = cleanedNik !== '' && cleanedNik === originalCleanNik;
 
-  // Duplicate detection in EDIT MODE:
-  // If the user hasn't changed NIK, it NEVER flags as duplicate against self or legacy duplicate rows
   const duplicateMember = useMemo(() => {
-    if (!cleanedNik) return null;
-    if (isUnchangedNik) return null;
-
+    if (!cleanedNik || isUnchangedNik) return null;
     return existingMembers.find((m) => {
-      // Exclude current member being edited
       if (m.nik === originalNik) return false;
       const mClean = (m.nik || '').replace(/[^0-9]/g, '').trim();
       if (mClean === originalCleanNik) return false;
       if (member?.nomorEKTA && m.nomorEKTA === member.nomorEKTA) return false;
-
       return mClean === cleanedNik;
     });
   }, [cleanedNik, existingMembers, isUnchangedNik, originalNik, originalCleanNik, member]);
 
-  // Update default DPC if empty
   useEffect(() => {
     if (!dpc && availableSubdistricts.length > 0) {
       setDpc(availableSubdistricts[0].name);
     }
-  }, [dpd]);
+  }, [dpd, dpc, availableSubdistricts]);
 
   if (!isOpen || !member) return null;
 
   const handleAutoGenerateEkta = () => {
-    // Generate nomor e-KTA format numerik DPP NasDem (16 digit angka)
     const base = cleanedNik.length === 16 ? cleanedNik : `2503${Date.now()}`.padEnd(16, '0').slice(0, 16);
     setNomorEKTA(base);
   };
@@ -250,7 +237,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       setErrorMsg('Gagal memproses foto profil.');
     } finally {
       setIsUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
+      e.target.value = '';
     }
   };
 
@@ -266,7 +253,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       setErrorMsg('Gagal memproses foto KTP.');
     } finally {
       setIsUploadingKtp(false);
-      if (ktpInputRef.current) ktpInputRef.current.value = '';
+      e.target.value = '';
     }
   };
 
@@ -285,19 +272,16 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
     e.preventDefault();
     setErrorMsg(null);
 
-    // If user changed NIK to a new number, validate length
     if (!isUnchangedNik && cleanedNik.length !== 16) {
       setErrorMsg(`NIK harus tepat 16 digit angka (saat ini ${cleanedNik.length} digit).`);
       return;
     }
-
     if (duplicateMember) {
       setErrorMsg(
         `NIK ${cleanedNik} sudah terdaftar atas nama "${duplicateMember.namaLengkap}" (${duplicateMember.dpd}). Duplikasi data ditolak demi integritas database.`
       );
       return;
     }
-
     if (!namaLengkap.trim()) {
       setErrorMsg('Nama Lengkap wajib diisi.');
       return;
@@ -310,20 +294,24 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
       nik: cleanedNik || member.nik,
       nomorEKTA: finalEkta,
       namaLengkap: namaLengkap.trim(),
+      jenisKelamin: jenisKelamin || undefined,
+      tempatLahir: tempatLahir.trim() || undefined,
+      tanggalLahir: tanggalLahir.trim() || undefined,
+      agama: agama.trim() || undefined,
+      pekerjaan: pekerjaan.trim() || undefined,
+      alamatLengkap: alamatLengkap.trim() || undefined,
       nomorHP: nomorHP.trim() || '-',
       email: email.trim() || undefined,
       sosmed: sosmed.trim() || undefined,
       dpd,
       dpc: dpc || 'Umum',
       dprt: dprt.trim() || 'Umum',
-
       isPengurus,
       tingkatKepengurusan: isPengurus ? tingkatKepengurusan : 'Bukan Pengurus',
       wilayahPenugasan: isPengurus ? wilayahPenugasan.trim() : undefined,
       nomorSK: isPengurus && nomorSK.trim() ? nomorSK.trim() : undefined,
       tanggalSK: isPengurus && tanggalSK.trim() ? tanggalSK.trim() : undefined,
       kodeReferral: isPengurus ? kodeReferral.trim() : undefined,
-
       jabatan,
       status,
       catatanMutasi: catatanMutasi.trim() || member.catatanMutasi,
@@ -347,17 +335,10 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
     onClose();
   };
 
-  const avatarColor = getAvatarColor(namaLengkap || 'NasDem');
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0" onClick={onClose} />
 
-      {/* Centered Modal Card Container */}
       <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col max-h-[92vh] overflow-hidden z-10 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
@@ -388,572 +369,296 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
           </button>
         </div>
 
-          {/* Form Body */}
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-              {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {/* Section: Upload Foto Profil & KTP */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                  <Camera className="w-4 h-4" />
-                  <span>Foto Profil & Dokumen KTP Kader</span>
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Photo Profile Box */}
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Foto Profil Kader
-                      </label>
-                      {fotoProfilUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setFotoProfilUrl('')}
-                          className="text-[10px] text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" /> Hapus
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-18 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                        {fotoProfilUrl ? (
-                          <img
-                            src={resolveImageUrl(fotoProfilUrl)}
-                            alt="Preview"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className={`w-full h-full flex flex-col items-center justify-center ${avatarColor.bgClass} ${avatarColor.textClass}`}
-                          >
-                            <span className="text-sm font-bold font-mono">
-                              {getInitials(namaLengkap || 'ND')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-1.5 flex-1">
-                        <button
-                          type="button"
-                          onClick={() => photoInputRef.current?.click()}
-                          disabled={isUploadingPhoto}
-                          className="btn-white w-full py-1.5 px-2.5 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Upload className="w-3.5 h-3.5 text-blue-500" />
-                          <span>{fotoProfilUrl ? 'Ganti Foto' : 'Unggah Foto'}</span>
-                        </button>
-                        <p className="text-[10px] text-slate-400">Format JPG/PNG, maks 5MB.</p>
-                      </div>
-                    </div>
-
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoUpload}
-                    />
-                  </div>
-
-                  {/* KTP Document Box */}
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Dokumen Foto KTP
-                      </label>
-                      {fotoKtpUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setFotoKtpUrl('')}
-                          className="text-[10px] text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" /> Hapus
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-20 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                        {fotoKtpUrl ? (
-                          <img
-                            src={resolveImageUrl(fotoKtpUrl)}
-                            alt="Preview KTP"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <IdCard className="w-6 h-6 text-slate-400" />
-                        )}
-                      </div>
-
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => ktpInputRef.current?.click()}
-                            disabled={isUploadingKtp}
-                            className="btn-white flex-1 py-1 px-2 text-[11px] font-medium rounded-lg flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            <Upload className="w-3 h-3 text-blue-500" />
-                            <span>{fotoKtpUrl ? 'Ganti' : 'Unggah'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleGenerateSimulatedKtp}
-                            className="btn-white py-1 px-2 text-[11px] font-medium rounded-lg flex items-center justify-center gap-1 cursor-pointer"
-                            title="Hasilkan e-KTP otomatis"
-                          >
-                            <Sparkles className="w-3 h-3 text-amber-500" />
-                            <span>Auto</span>
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-slate-400">Scan KTP asli atau simulasi.</p>
-                      </div>
-                    </div>
-
-                    <input
-                      ref={ktpInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleKtpUpload}
-                    />
-                  </div>
-                </div>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
               </div>
+            )}
 
-              {/* Section: Identitas Pokok */}
-              <div className="space-y-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-blue-500" />
-                  <span>Identitas Pokok Anggota</span>
-                </span>
+            <EditMemberPhotoKtpSection
+              namaLengkap={namaLengkap}
+              fotoProfilUrl={fotoProfilUrl}
+              onClearFotoProfil={() => setFotoProfilUrl('')}
+              onPhotoUpload={handlePhotoUpload}
+              isUploadingPhoto={isUploadingPhoto}
+              fotoKtpUrl={fotoKtpUrl}
+              onClearFotoKtp={() => setFotoKtpUrl('')}
+              onKtpUpload={handleKtpUpload}
+              isUploadingKtp={isUploadingKtp}
+              onGenerateSimulatedKtp={handleGenerateSimulatedKtp}
+            />
 
-                {/* Row NIK & e-KTA */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Nomor Induk Kependudukan (NIK Kader Terdaftar) <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={20}
-                      value={nik}
-                      onChange={(e) => setNik(e.target.value)}
-                      placeholder="Contoh: 7171011504620001"
-                      className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors ${
-                        duplicateMember
-                          ? 'border-rose-500 focus:ring-rose-400'
-                          : isUnchangedNik
-                          ? 'border-emerald-500/40 bg-emerald-50/10 dark:bg-emerald-950/10 focus:ring-emerald-400'
-                          : 'border-slate-300 dark:border-slate-700'
-                      }`}
-                      required
-                    />
-                    <div className="flex items-center justify-between text-[11px] mt-1 text-slate-500">
-                      <span>Panjang: {cleanedNik.length}/16 digit</span>
-                      {(cleanedNik.length === 16 || isUnchangedNik) && !duplicateMember && (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Kader Terverifikasi
-                        </span>
-                      )}
-                      {duplicateMember && (
-                        <span className="text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> NIK Sudah Digunakan Kader Lain
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            {/* Section: Identitas Pokok */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-blue-500" />
+                <span>Identitas Pokok Anggota</span>
+              </span>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Nomor e-KTA Partai NasDem
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleAutoGenerateEkta}
-                        className="text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:underline cursor-pointer"
-                      >
-                        Auto Generate e-KTA
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={nomorEKTA}
-                      onChange={(e) => setNomorEKTA(e.target.value)}
-                      placeholder="Contoh: 2503196713393376"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Nama Lengkap & Nomor HP */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Nama Lengkap (Beserta Gelar) <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={namaLengkap}
-                      onChange={(e) => setNamaLengkap(e.target.value)}
-                      placeholder="Contoh: Dr. J. Victor Mailangkay, SH, MH"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Nomor HP / WhatsApp Aktif
-                    </label>
-                    <input
-                      type="text"
-                      value={nomorHP}
-                      onChange={(e) => setNomorHP(e.target.value)}
-                      placeholder="Contoh: 081244558891"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Email & Sosial Media */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Contoh: victor.mailangkay@nasdem.id"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Media Sosial (IG / FB / TikTok / X)
-                    </label>
-                    <input
-                      type="text"
-                      value={sosmed}
-                      onChange={(e) => setSosmed(e.target.value)}
-                      placeholder="Contoh: @victor_nasdem / fb.com/victor"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Status Kepengurusan & SK Resmi */}
-                <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Status SK Kepengurusan & Kode Referral</span>
-                    </span>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-blue-900 dark:text-blue-200">
-                      <input
-                        type="checkbox"
-                        checked={isPengurus}
-                        onChange={(e) => setIsPengurus(e.target.checked)}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>Tercatat Sebagai Pengurus Ber-SK</span>
-                    </label>
-                  </div>
-
-                  {isPengurus && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                          Tingkat Kepengurusan
-                        </label>
-                        <select
-                          value={tingkatKepengurusan}
-                          onChange={(e) => setTingkatKepengurusan(e.target.value as any)}
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold"
-                        >
-                          {allowedTingkatOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                          Nomor SK Kepengurusan
-                        </label>
-                        <input
-                          type="text"
-                          value={nomorSK}
-                          onChange={(e) => setNomorSK(e.target.value)}
-                          placeholder="SK-DPW-SULUT/2024/001"
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                          Kode Referral Rekrutmen
-                        </label>
-                        <input
-                          type="text"
-                          value={kodeReferral}
-                          onChange={(e) => setKodeReferral(e.target.value.toUpperCase())}
-                          placeholder="REF-DPW-0001"
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs font-mono font-bold text-amber-600 dark:text-amber-400 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Struktur Domisili Daerah */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      DPD (Kabupaten / Kota)
-                      {isDpdLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
-                    </label>
-                    <select
-                      value={dpd}
-                      disabled={isDpdLocked}
-                      onChange={(e) => {
-                        setDpd(e.target.value);
-                        const region = SULUT_REGIONS.find((r) => r.name === e.target.value);
-                        if (region && region.subdistricts.length > 0) {
-                          setDpc(region.subdistricts[0].name);
-                        }
-                      }}
-                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                        isDpdLocked
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
-                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
-                      }`}
-                    >
-                      {SULUT_REGIONS.map((r) => (
-                        <option key={r.name} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      DPC (Kecamatan)
-                      {isDpcLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
-                    </label>
-                    <select
-                      value={dpc}
-                      disabled={isDpcLocked}
-                      onChange={(e) => setDpc(e.target.value)}
-                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                        isDpcLocked
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
-                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
-                      }`}
-                    >
-                      {availableSubdistricts.map((sub) => (
-                        <option key={sub.name} value={sub.name}>
-                          Kec. {sub.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      DPRt (Kelurahan / Desa)
-                      {isDprtLocked && <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-normal">(Terkunci sesuai akun)</span>}
-                    </label>
-                    <input
-                      type="text"
-                      value={dprt}
-                      disabled={isDprtLocked}
-                      onChange={(e) => setDprt(e.target.value)}
-                      placeholder="Contoh: Ranomeida"
-                      className={`w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                        isDprtLocked
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed font-medium'
-                          : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white'
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                {/* Jabatan & Status */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Jabatan / Penugasan Partai
-                    </label>
-                    <select
-                      value={jabatan}
-                      onChange={(e) => setJabatan(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-medium"
-                    >
-                      {(isPengurus && tingkatKepengurusan !== 'Bukan Pengurus'
-                        ? LEVEL_PARTY_ROLES[tingkatKepengurusan as 'DPW' | 'DPD' | 'DPC' | 'DPRt']
-                        : LEVEL_PARTY_ROLES.UMUM
-                      ).map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Status Keanggotaan
-                    </label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as MemberStatus)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold"
-                    >
-                      {STATUS_OPTIONS.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Catatan Lapangan */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Catatan Faktual / Keterangan Penugasan
+                    Nomor Induk Kependudukan (NIK Kader Terdaftar) <span className="text-rose-500">*</span>
                   </label>
-                  <textarea
-                    rows={2}
-                    value={catatanMutasi}
-                    onChange={(e) => setCatatanMutasi(e.target.value)}
-                    placeholder="Contoh: Pengurus DPW Partai NasDem Sulut periode 2024-2029..."
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  <input
+                    type="text"
+                    maxLength={20}
+                    value={nik}
+                    onChange={(e) => setNik(e.target.value)}
+                    placeholder="Contoh: 7171011504620001"
+                    className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors ${
+                      duplicateMember
+                        ? 'border-rose-500 focus:ring-rose-400'
+                        : isUnchangedNik
+                        ? 'border-emerald-500/40 bg-emerald-50/10 dark:bg-emerald-950/10 focus:ring-emerald-400'
+                        : 'border-slate-300 dark:border-slate-700'
+                    }`}
+                    required
+                  />
+                  <div className="flex items-center justify-between text-[11px] mt-1 text-slate-500">
+                    <span>Panjang: {cleanedNik.length}/16 digit</span>
+                    {(cleanedNik.length === 16 || isUnchangedNik) && !duplicateMember && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Kader Terverifikasi
+                      </span>
+                    )}
+                    {duplicateMember && (
+                      <span className="text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> NIK Sudah Digunakan Kader Lain
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Nomor e-KTA Partai NasDem
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAutoGenerateEkta}
+                      className="text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:underline cursor-pointer"
+                    >
+                      Auto Generate e-KTA
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={nomorEKTA}
+                    onChange={(e) => setNomorEKTA(e.target.value)}
+                    placeholder="Contoh: 2503196713393376"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                 </div>
               </div>
 
-              {/* Kader Pengusung / Perekrut (Sistem Referral Berjenjang) */}
-              <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Kader Perekrut (Referral Pengurus Berjenjang)</span>
-                  </span>
-
-                  {refValidation?.loading && (
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Memvalidasi kode...</span>
-                    </span>
-                  )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Nama Lengkap (Beserta Gelar) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={namaLengkap}
+                    onChange={(e) => setNamaLengkap(e.target.value)}
+                    placeholder="Contoh: Dr. J. Victor Mailangkay, SH, MH"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    required
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Kode Referral Perekrut
-                    </label>
-                    <input
-                      type="text"
-                      value={kaderPerekrutKodeReferral}
-                      onChange={(e) => setKaderPerekrutKodeReferral(e.target.value.toUpperCase())}
-                      placeholder="Contoh: NSD-DPC-5ZXF"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs font-mono font-bold text-amber-600 dark:text-amber-400 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400 uppercase tracking-wide"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Nama Kader Perekrut
-                    </label>
-                    <input
-                      type="text"
-                      value={kaderPerekrutNama}
-                      onChange={(e) => setKaderPerekrutNama(e.target.value)}
-                      placeholder="Otomatis dari kode referral"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Jabatan Perekrut
-                    </label>
-                    <input
-                      type="text"
-                      value={kaderPerekrutJabatan}
-                      onChange={(e) => setKaderPerekrutJabatan(e.target.value)}
-                      placeholder="Jabatan di partai"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Nomor HP / WhatsApp Aktif
+                  </label>
+                  <input
+                    type="text"
+                    value={nomorHP}
+                    onChange={(e) => setNomorHP(e.target.value)}
+                    placeholder="Contoh: 081244558891"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Contoh: victor.mailangkay@nasdem.id"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
                 </div>
 
-                {/* Status Validasi Real-time & Info Ketua Langsung */}
-                {refValidation?.valid && (
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-1.5 animate-in fade-in">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>Kode Sah: {kaderPerekrutNama} ({kaderPerekrutJabatan})</span>
-                    </div>
-                    {ketuaLangsungInfo && (
-                      <div className="text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pl-5 font-medium">
-                        <Shield className="w-3.5 h-3.5 text-amber-500" />
-                        <span>
-                          Ketua Langsung Terkait: <strong>{ketuaLangsungInfo.nama}</strong> ({ketuaLangsungInfo.jabatan}) — Perekrutan otomatis diatribusikan ke perekrut & dilaporkan ke pimpinan.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Media Sosial (IG / FB / TikTok / X)
+                  </label>
+                  <input
+                    type="text"
+                    value={sosmed}
+                    onChange={(e) => setSosmed(e.target.value)}
+                    placeholder="Contoh: @victor_nasdem / fb.com/victor"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
 
-                {refValidation?.valid === false && (
-                  <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
-                    <span>{refValidation.error || 'Kode referral tidak ditemukan di database resmi.'}</span>
-                  </div>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Tempat Lahir (KTP)
+                  </label>
+                  <input
+                    type="text"
+                    value={tempatLahir}
+                    onChange={(e) => setTempatLahir(e.target.value)}
+                    placeholder="Contoh: MANADO"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Tanggal Lahir (KTP)
+                  </label>
+                  <input
+                    type="date"
+                    value={tanggalLahir}
+                    onChange={(e) => setTanggalLahir(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Jenis Kelamin
+                  </label>
+                  <select
+                    value={jenisKelamin}
+                    onChange={(e) => setJenisKelamin(e.target.value as 'Laki-laki' | 'Perempuan' | '')}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  >
+                    <option value="">-- Pilih --</option>
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Agama (KTP)
+                  </label>
+                  <input
+                    type="text"
+                    value={agama}
+                    onChange={(e) => setAgama(e.target.value)}
+                    placeholder="Contoh: Kristen Protestan"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Pekerjaan (KTP)
+                  </label>
+                  <input
+                    type="text"
+                    value={pekerjaan}
+                    onChange={(e) => setPekerjaan(e.target.value)}
+                    placeholder="Contoh: WIRASWASTA"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Alamat Lengkap Sesuai KTP
+                  </label>
+                  <input
+                    type="text"
+                    value={alamatLengkap}
+                    onChange={(e) => setAlamatLengkap(e.target.value)}
+                    placeholder="Jalan, Lingkungan, RT/RW"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm cursor-pointer transition-colors flex items-center gap-1.5"
-              >
-                <Save className="w-4 h-4" />
-                <span>Konfirmasi & Simpan Perubahan</span>
-              </button>
-            </div>
-          </form>
-        </div>
+            <EditMemberPartyReferralSection
+              isPengurus={isPengurus}
+              onChangeIsPengurus={setIsPengurus}
+              tingkatKepengurusan={tingkatKepengurusan}
+              onChangeTingkatKepengurusan={setTingkatKepengurusan}
+              allowedTingkatOptions={allowedTingkatOptions}
+              nomorSK={nomorSK}
+              onChangeNomorSK={setNomorSK}
+              kodeReferral={kodeReferral}
+              onChangeKodeReferral={setKodeReferral}
+              dpd={dpd}
+              onChangeDpd={(val) => {
+                setDpd(val);
+                const region = SULUT_REGIONS.find((r) => r.name === val);
+                if (region && region.subdistricts.length > 0) {
+                  setDpc(region.subdistricts[0].name);
+                }
+              }}
+              isDpdLocked={isDpdLocked}
+              dpc={dpc}
+              onChangeDpc={setDpc}
+              isDpcLocked={isDpcLocked}
+              availableSubdistricts={availableSubdistricts}
+              dprt={dprt}
+              onChangeDprt={setDprt}
+              isDprtLocked={isDprtLocked}
+              jabatan={jabatan}
+              onChangeJabatan={setJabatan}
+              status={status}
+              onChangeStatus={setStatus}
+              catatanMutasi={catatanMutasi}
+              onChangeCatatanMutasi={setCatatanMutasi}
+              kaderPerekrutKodeReferral={kaderPerekrutKodeReferral}
+              onChangeKaderPerekrutKodeReferral={setKaderPerekrutKodeReferral}
+              kaderPerekrutNama={kaderPerekrutNama}
+              onChangeKaderPerekrutNama={setKaderPerekrutNama}
+              kaderPerekrutJabatan={kaderPerekrutJabatan}
+              onChangeKaderPerekrutJabatan={setKaderPerekrutJabatan}
+              refValidation={refValidation}
+              ketuaLangsungInfo={ketuaLangsungInfo}
+            />
+          </div>
+
+          <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm cursor-pointer transition-colors flex items-center gap-1.5"
+            >
+              <Save className="w-4 h-4" />
+              <span>Konfirmasi & Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
       </div>
+    </div>
   );
 };
-
-
