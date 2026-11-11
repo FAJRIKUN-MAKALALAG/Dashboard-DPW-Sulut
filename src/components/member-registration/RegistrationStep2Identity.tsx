@@ -64,6 +64,8 @@ interface RegistrationStep2IdentityProps {
   onChangeTanggalLahir: (val: string) => void;
   jenisKelamin: string;
   onChangeJenisKelamin: (val: 'Laki-laki' | 'Perempuan' | '') => void;
+  golonganDarah?: string;
+  onChangeGolonganDarah?: (val: string) => void;
   agama: string;
   onChangeAgama: (val: string) => void;
   pekerjaan: string;
@@ -91,6 +93,8 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
   onChangeTanggalLahir,
   jenisKelamin,
   onChangeJenisKelamin,
+  golonganDarah = '',
+  onChangeGolonganDarah,
   agama,
   onChangeAgama,
   pekerjaan,
@@ -343,11 +347,11 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
           </div>
         </div>
 
-        {/* Baris 2: Tempat Lahir, Tanggal Lahir, Jenis Kelamin */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        {/* Baris 2: Tempat Lahir, Tanggal Lahir, Jenis Kelamin, Golongan Darah */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Tempat Lahir
+              Tempat Lahir <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <input
               type="text"
@@ -360,7 +364,7 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Tanggal Lahir
+              Tanggal Lahir <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <input
               type="date"
@@ -370,7 +374,7 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
             />
           </div>
 
-          <div className="md:col-span-2 lg:col-span-1">
+          <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               Jenis Kelamin <span className="text-rose-500">*</span>
             </label>
@@ -384,13 +388,30 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
               <option value="Perempuan">Perempuan</option>
             </select>
           </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Golongan Darah <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
+            </label>
+            <select
+              value={golonganDarah}
+              onChange={(e) => onChangeGolonganDarah?.(e.target.value)}
+              className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-[#1A3282] dark:focus:border-slate-500"
+            >
+              <option value="">- Tidak Tahu (Opsional) -</option>
+              <option value="O">Golongan O</option>
+              <option value="A">Golongan A</option>
+              <option value="B">Golongan B</option>
+              <option value="AB">Golongan AB</option>
+            </select>
+          </div>
         </div>
 
         {/* Baris 3: Agama & Pekerjaan */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Agama
+              Agama <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <select
               value={agama}

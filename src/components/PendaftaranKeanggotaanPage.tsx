@@ -284,3 +284,4 @@ export const PendaftaranKeanggotaanPage: React.FC<PendaftaranKeanggotaanPageProp
     </div>
   );
 };
+
