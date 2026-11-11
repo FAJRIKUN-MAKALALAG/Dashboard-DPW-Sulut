@@ -47,8 +47,6 @@ import {
   Menu,
   ArrowLeft,
   Download,
-  Globe,
-  UserPlus,
 } from 'lucide-react';
 
 export default function App() {
@@ -517,38 +515,6 @@ export default function App() {
                 <Sun className="w-4 h-4 text-slate-300" />
               )}
             </button>
-
-            {session?.role !== 'ANGGOTA' && (
-              <button
-                onClick={() => setActiveTab('rekrutmen')}
-                className={`flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs border transition-colors ${
-                  activeTab === 'rekrutmen'
-                    ? 'bg-emerald-600 text-white border-emerald-700'
-                    : 'btn-white text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-                title="Pendaftaran Anggota Baru (Kader DPW Sulut)"
-                aria-label="Daftar Anggota Baru"
-              >
-                <UserPlus className="w-4 h-4 md:w-3.5 md:h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden md:inline whitespace-nowrap">Daftar Anggota</span>
-              </button>
-            )}
-
-            {session?.role !== 'ANGGOTA' && (
-              <button
-                onClick={() => handleNavigateToDppEkta()}
-                className={`flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs border transition-colors ${
-                  activeTab === 'ekta_dpp'
-                    ? 'bg-[#FDB813] text-slate-950 border-[#FDB813]'
-                    : 'bg-[#1A3282] hover:bg-[#21409A] text-white border-blue-900'
-                }`}
-                title="Modul Pendaftaran & Penerbitan e-KTA Pusat (DPP)"
-                aria-label="Pendaftaran e-KTA DPP"
-              >
-                <Globe className="w-4 h-4 md:w-3.5 md:h-3.5 text-[#FFDD00]" />
-                <span className="hidden md:inline whitespace-nowrap">e-KTA Pusat (DPP)</span>
-              </button>
-            )}
 
             {session?.role !== 'ANGGOTA' && (
               <button
