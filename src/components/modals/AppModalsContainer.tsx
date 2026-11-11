@@ -35,6 +35,7 @@ interface AppModalsContainerProps {
   onNavigateToTerritory: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
   onClearAuditLogs?: () => void;
   onMemberEktaUpdated?: (nik: string, nokta: string) => void;
+  onNavigateToDppEkta?: (m?: Member) => void;
 }
 
 export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
@@ -54,6 +55,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   onNavigateToTerritory,
   onClearAuditLogs,
   onMemberEktaUpdated,
+  onNavigateToDppEkta,
 }) => {
   return (
     <>
@@ -115,7 +117,12 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           member={modals.selectedMember}
           onClose={modals.closeCardModal}
           onOpenDppEktaModal={(m) => {
-            modals.openDppEktaModal(m);
+            modals.closeCardModal();
+            if (onNavigateToDppEkta) {
+              onNavigateToDppEkta(m);
+            } else {
+              modals.openDppEktaModal(m);
+            }
           }}
         />
       )}
@@ -157,7 +164,11 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         }}
         onOpenDppEktaModal={(m) => {
           modals.closeDetailModal();
-          modals.openDppEktaModal(m);
+          if (onNavigateToDppEkta) {
+            onNavigateToDppEkta(m);
+          } else {
+            modals.openDppEktaModal(m);
+          }
         }}
       />
 

@@ -30,9 +30,21 @@ import {
   Shield,
   PanelLeftClose,
   PanelLeftOpen,
+  UserPlus,
+  Globe,
 } from 'lucide-react';
 
-export type MainNavTab = 'dashboard' | 'analytics' | 'portal' | 'dpw' | 'dpd' | 'dpc' | 'dprt' | 'members';
+export type MainNavTab =
+  | 'dashboard'
+  | 'analytics'
+  | 'portal'
+  | 'rekrutmen'
+  | 'ekta_dpp'
+  | 'dpw'
+  | 'dpd'
+  | 'dpc'
+  | 'dprt'
+  | 'members';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -478,6 +490,84 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Section: Pendaftaran Mandiri & e-KTA DPP (Hanya Pengurus & Admin) */}
+            {session?.role !== 'ANGGOTA' && (
+              <div>
+                <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
+                  Pendaftaran &amp; e-KTA
+                </span>
+                <div className="space-y-1">
+                  {/* 1. Pendaftaran Anggota Baru (Kader DPW Sulut) */}
+                  <button
+                    onClick={() => handleNavClick('rekrutmen')}
+                    className={navItemClass(activeTab === 'rekrutmen')}
+                    title="Pendaftaran Anggota Baru & Rekrutmen Kader"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={iconContainerClass(activeTab === 'rekrutmen')}>
+                        <UserPlus className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div className={`text-left ${textHiddenIfCollapsed}`}>
+                        <span className="block leading-none">Daftar Anggota Baru</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'rekrutmen'
+                              ? 'text-white/75'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          Scan KTP &amp; Rekrutmen
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                        activeTab === 'rekrutmen'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      }`}
+                    >
+                      FORM
+                    </span>
+                  </button>
+
+                  {/* 2. Pendaftaran & Penerbitan e-KTA Pusat (DPP) */}
+                  <button
+                    onClick={() => handleNavClick('ekta_dpp')}
+                    className={navItemClass(activeTab === 'ekta_dpp')}
+                    title="Pusat Pendaftaran & Penerbitan e-KTA Resmi DPP"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={iconContainerClass(activeTab === 'ekta_dpp')}>
+                        <Globe className="w-4 h-4 text-[#FFDD00]" />
+                      </div>
+                      <div className={`text-left ${textHiddenIfCollapsed}`}>
+                        <span className="block leading-none">e-KTA Pusat (DPP)</span>
+                        <span
+                          className={`text-[10px] block mt-0.5 leading-none ${
+                            activeTab === 'ekta_dpp'
+                              ? 'text-white/75'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          digital.partainasdem.id
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                        activeTab === 'ekta_dpp'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-[#1A3282]/20 dark:bg-blue-900/40 text-[#21409A] dark:text-blue-300 border border-blue-500/30'
+                      }`}
+                    >
+                      PUSAT
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Section 2: Database & Pencarian Anggota (Hanya Pengurus Ber-SK & Admin) */}
             {session?.role !== 'ANGGOTA' && (

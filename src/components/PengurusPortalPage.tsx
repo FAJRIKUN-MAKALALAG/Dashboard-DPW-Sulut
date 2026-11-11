@@ -37,6 +37,8 @@ interface PengurusPortalPageProps {
   isRefreshingCloud?: boolean;
   onOpenCardModal?: (member: Member) => void;
   onMemberEktaUpdated?: (nik: string, nokta: string) => void;
+  onNavigateToEktaDpp?: () => void;
+  onNavigateToPendaftaran?: () => void;
 }
 
 export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
@@ -46,6 +48,8 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   onRefreshCloud,
   onOpenCardModal,
   onMemberEktaUpdated,
+  onNavigateToEktaDpp,
+  onNavigateToPendaftaran,
 }) => {
   const isAnggota = session.role === 'ANGGOTA';
 

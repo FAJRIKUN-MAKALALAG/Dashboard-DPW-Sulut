@@ -12,6 +12,8 @@ export const VALID_MAIN_TABS: MainNavTab[] = [
   'dashboard',
   'analytics',
   'portal',
+  'rekrutmen',
+  'ekta_dpp',
   'dpw',
   'dpd',
   'dpc',
@@ -98,6 +100,9 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
     case 'portal':
     case 'members':
       return true;
+    case 'rekrutmen':
+    case 'ekta_dpp':
+      return session?.role !== 'ANGGOTA';
     default:
       return true;
   }
