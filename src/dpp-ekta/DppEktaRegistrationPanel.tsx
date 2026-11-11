@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Globe,
   AlertCircle,
@@ -58,7 +58,7 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
   const [tempatLahir, setTempatLahir] = useState('');
   const [tanggalLahir, setTanggalLahir] = useState('');
   const [jenisKelamin, setJenisKelamin] = useState<'Laki-laki' | 'Perempuan'>('Laki-laki');
-  const [golonganDarah, setGolonganDarah] = useState('O');
+  const [golonganDarah, setGolonganDarah] = useState('');
   const [statusPerkawinan, setStatusPerkawinan] = useState('B');
   const [agama, setAgama] = useState('Kristen Protestan');
   const [pendidikan, setPendidikan] = useState('4');
@@ -133,7 +133,10 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
 
     setNik(cleanNikVal);
     setNamaLengkap(fullMember.namaLengkap || '');
-    setTempatLahir(fullMember.tempatLahir || decoded.tempatLahirSuggestion || 'MANADO');
+    setTempatLahir(fullMember.tempatLahir || '');
+    if ((fullMember as any).golonganDarah) {
+      setGolonganDarah((fullMember as any).golonganDarah);
+    }
     setTanggalLahir(fullMember.tanggalLahir || decoded.tanggalLahir || '1990-01-01');
     setJenisKelamin(
       fullMember.jenisKelamin === 'Perempuan' || decoded.jenisKelamin === 'Perempuan'
@@ -163,9 +166,11 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
   }, [initialMember]);
 
   const cleanNik = useMemo(() => nik.replace(/[^0-9]/g, '').trim(), [nik]);
+  const lastAutoDecodedNikRef = useRef<string>('');
 
   useEffect(() => {
-    if (cleanNik.length === 16) {
+    if (cleanNik.length === 16 && lastAutoDecodedNikRef.current !== cleanNik) {
+      lastAutoDecodedNikRef.current = cleanNik;
       const dec = decodeIndonesianNik(cleanNik);
       if (dec.isValidFormat) {
         if (!tanggalLahir && dec.tanggalLahir) setTanggalLahir(dec.tanggalLahir);
@@ -176,6 +181,8 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
           if (matchedReg) setDpd(matchedReg.name);
         }
       }
+    } else if (cleanNik.length < 16) {
+      lastAutoDecodedNikRef.current = '';
     }
   }, [cleanNik]);
 
@@ -309,7 +316,7 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
         tempatLahir: tempatLahir.trim() || 'MANADO',
         tanggalLahir: tanggalLahir || '1990-01-01',
         jenisKelamin,
-        golonganDarah,
+        golonganDarah: golonganDarah || 'O',
         statusPerkawinan,
         agama,
         pendidikan,

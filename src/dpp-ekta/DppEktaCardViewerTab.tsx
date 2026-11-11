@@ -114,3 +114,4 @@ export const DppEktaCardViewerTab: React.FC<DppEktaCardViewerTabProps> = ({
     </div>
   );
 };
+

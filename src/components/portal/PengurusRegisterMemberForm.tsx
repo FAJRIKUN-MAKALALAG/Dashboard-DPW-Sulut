@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   UserPlus,
   CheckCircle2,
@@ -142,6 +142,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
   const [inputTempatLahir, setInputTempatLahir] = useState<string>('');
   const [inputTanggalLahir, setInputTanggalLahir] = useState<string>('');
   const [inputJenisKelamin, setInputJenisKelamin] = useState<'Laki-laki' | 'Perempuan' | ''>('');
+  const [inputGolonganDarah, setInputGolonganDarah] = useState<string>('');
   const [inputAgama, setInputAgama] = useState<string>('Kristen Protestan');
   const [inputPekerjaan, setInputPekerjaan] = useState<string>('');
 
@@ -200,23 +201,30 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     return members.find((m) => (m.nik || '').replace(/[^0-9]/g, '').trim() === cleanNik) || null;
   }, [cleanNik, members]);
 
+  const lastAutoDecodedNikRef = useRef<string>('');
+
   useEffect(() => {
     if (cleanNik.length === 16 && nikDecoded.isValidFormat) {
-      if (!inputTanggalLahir && nikDecoded.tanggalLahir) {
-        setInputTanggalLahir(nikDecoded.tanggalLahir);
+      if (lastAutoDecodedNikRef.current !== cleanNik) {
+        lastAutoDecodedNikRef.current = cleanNik;
+        if (!inputTanggalLahir && nikDecoded.tanggalLahir) {
+          setInputTanggalLahir(nikDecoded.tanggalLahir);
+        }
+        if (!inputJenisKelamin && nikDecoded.jenisKelamin) {
+          setInputJenisKelamin(nikDecoded.jenisKelamin);
+        }
+        if (!inputTempatLahir && nikDecoded.tempatLahirSuggestion) {
+          setInputTempatLahir(nikDecoded.tempatLahirSuggestion);
+        }
+        if (!isDpdLocked && nikDecoded.dpdName) {
+          const matchedReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, nikDecoded.dpdName));
+          if (matchedReg) setInputDpd(matchedReg.name);
+        }
       }
-      if (!inputJenisKelamin && nikDecoded.jenisKelamin) {
-        setInputJenisKelamin(nikDecoded.jenisKelamin);
-      }
-      if (!inputTempatLahir && nikDecoded.tempatLahirSuggestion) {
-        setInputTempatLahir(nikDecoded.tempatLahirSuggestion);
-      }
-      if (!isDpdLocked && nikDecoded.dpdName) {
-        const matchedReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, nikDecoded.dpdName));
-        if (matchedReg) setInputDpd(matchedReg.name);
-      }
+    } else if (cleanNik.length < 16) {
+      lastAutoDecodedNikRef.current = '';
     }
-  }, [cleanNik, nikDecoded, inputTanggalLahir, inputJenisKelamin, inputTempatLahir, isDpdLocked]);
+  }, [cleanNik, nikDecoded.isValidFormat, isDpdLocked]);
 
   const handleApplyNikDecoderManually = () => {
     if (!nikDecoded.isValidFormat) {
@@ -256,6 +264,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     if (ext.tempatLahir) setInputTempatLahir(ext.tempatLahir);
     if (ext.tanggalLahir) setInputTanggalLahir(ext.tanggalLahir);
     if (ext.jenisKelamin) setInputJenisKelamin(ext.jenisKelamin);
+    if ((ext as any).golonganDarah) setInputGolonganDarah((ext as any).golonganDarah);
     if (ext.agama) setInputAgama(ext.agama);
     if (ext.pekerjaan) setInputPekerjaan(ext.pekerjaan);
     if (ext.alamatLengkap) setInputAlamat(ext.alamatLengkap);
@@ -374,6 +383,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       jenisKelamin: inputJenisKelamin || undefined,
       tempatLahir: inputTempatLahir.trim() || undefined,
       tanggalLahir: inputTanggalLahir || undefined,
+      golonganDarah: inputGolonganDarah || undefined,
       agama: inputAgama || undefined,
       pekerjaan: inputPekerjaan.trim() || undefined,
       alamatLengkap: inputAlamat.trim() || undefined,
@@ -428,6 +438,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       setInputTempatLahir('');
       setInputTanggalLahir('');
       setInputJenisKelamin('');
+      setInputGolonganDarah('');
       setInputAgama('Kristen Protestan');
       setInputPekerjaan('');
       setInputAlamat('');
@@ -567,6 +578,8 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             onChangeTanggalLahir={setInputTanggalLahir}
             jenisKelamin={inputJenisKelamin}
             onChangeJenisKelamin={setInputJenisKelamin}
+            golonganDarah={inputGolonganDarah}
+            onChangeGolonganDarah={setInputGolonganDarah}
             agama={inputAgama}
             onChangeAgama={setInputAgama}
             pekerjaan={inputPekerjaan}
@@ -658,6 +671,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             tempatLahir={inputTempatLahir}
             tanggalLahir={inputTanggalLahir}
             jenisKelamin={inputJenisKelamin}
+            golonganDarah={inputGolonganDarah}
             agama={inputAgama}
             pekerjaan={inputPekerjaan}
             alamatLengkap={inputAlamat}

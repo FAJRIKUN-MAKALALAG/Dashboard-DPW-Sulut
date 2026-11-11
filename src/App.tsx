@@ -25,6 +25,8 @@ import { AppSidebar, MainNavTab } from './components/layout/AppSidebar';
 import { TerritorialStructurePage } from './components/TerritorialStructurePage';
 import { PengurusPortalPage } from './components/PengurusPortalPage';
 import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
+import { PendaftaranKeanggotaanPage } from './components/PendaftaranKeanggotaanPage';
+import { PendaftaranEktaDppPage } from './components/PendaftaranEktaDppPage';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
@@ -46,6 +48,7 @@ import {
   ArrowLeft,
   Download,
   Globe,
+  UserPlus,
 } from 'lucide-react';
 
 export default function App() {
@@ -95,6 +98,14 @@ export default function App() {
       setToastMessage(null);
     }, 4000);
   }, []);
+
+  // State target kader untuk Halaman Penuh e-KTA DPP
+  const [dppInitialMember, setDppInitialMember] = useState<Member | null>(null);
+
+  const handleNavigateToDppEkta = useCallback((m?: Member) => {
+    setDppInitialMember(m || null);
+    setActiveTab('ekta_dpp');
+  }, [setActiveTab]);
 
   // Hook: Modal Dialog States & Helpers
   const modals = useAppModals();
@@ -353,6 +364,10 @@ export default function App() {
       setActiveTab(getDefaultActiveTab(session));
       return;
     }
+    if ((activeTab === 'rekrutmen' || activeTab === 'ekta_dpp') && session?.role === 'ANGGOTA') {
+      setActiveTab('portal');
+      return;
+    }
   }, [session, activeTab]);
 
   const handleSelectSession = (newSession: UserSession) => {
@@ -469,6 +484,8 @@ export default function App() {
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
                 {activeTab === 'analytics' && 'Pusat Analisis & Visualisasi Data (Command Center)'}
                 {activeTab === 'portal' && (session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Kerja Mandiri Pengurus')}
+                {activeTab === 'rekrutmen' && 'Pendaftaran Anggota Baru (Kader DPW Sulut)'}
+                {activeTab === 'ekta_dpp' && 'Pusat Pendaftaran & Penerbitan e-KTA Pusat (DPP)'}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
@@ -503,9 +520,29 @@ export default function App() {
 
             {session?.role !== 'ANGGOTA' && (
               <button
-                onClick={() => modals.openDppEktaModal()}
-                className="flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs bg-[#1A3282] hover:bg-[#21409A] text-white border border-blue-900 transition-colors"
-                title="Modul Pendaftaran e-KTA Pusat (Digital NasDem DPP)"
+                onClick={() => setActiveTab('rekrutmen')}
+                className={`flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs border transition-colors ${
+                  activeTab === 'rekrutmen'
+                    ? 'bg-emerald-600 text-white border-emerald-700'
+                    : 'btn-white text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+                title="Pendaftaran Anggota Baru (Kader DPW Sulut)"
+                aria-label="Daftar Anggota Baru"
+              >
+                <UserPlus className="w-4 h-4 md:w-3.5 md:h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden md:inline whitespace-nowrap">Daftar Anggota</span>
+              </button>
+            )}
+
+            {session?.role !== 'ANGGOTA' && (
+              <button
+                onClick={() => handleNavigateToDppEkta()}
+                className={`flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-bold rounded-xl cursor-pointer shadow-2xs border transition-colors ${
+                  activeTab === 'ekta_dpp'
+                    ? 'bg-[#FDB813] text-slate-950 border-[#FDB813]'
+                    : 'bg-[#1A3282] hover:bg-[#21409A] text-white border-blue-900'
+                }`}
+                title="Modul Pendaftaran & Penerbitan e-KTA Pusat (DPP)"
                 aria-label="Pendaftaran e-KTA DPP"
               >
                 <Globe className="w-4 h-4 md:w-3.5 md:h-3.5 text-[#FFDD00]" />
@@ -590,6 +627,32 @@ export default function App() {
               isRefreshingCloud={isRefreshingCloud}
               onOpenCardModal={modals.openCardModal}
               onMemberEktaUpdated={handleMemberEktaUpdated}
+              onNavigateToEktaDpp={() => handleNavigateToDppEkta()}
+              onNavigateToPendaftaran={() => setActiveTab('rekrutmen')}
+            />
+          )}
+
+          {/* Tab 1.6: Halaman Penuh Pendaftaran Keanggotaan Baru (DPW Sulut) */}
+          {activeTab === 'rekrutmen' && session?.role !== 'ANGGOTA' && (
+            <PendaftaranKeanggotaanPage
+              members={accessibleMembers}
+              session={session}
+              onAddMember={crud.handleAddMember}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+              onNavigateToEktaDpp={() => handleNavigateToDppEkta()}
+              onNavigateToMembers={() => setActiveTab('members')}
+            />
+          )}
+
+          {/* Tab 1.7: Halaman Penuh Pendaftaran & Penerbitan e-KTA Pusat (DPP) */}
+          {activeTab === 'ekta_dpp' && session?.role !== 'ANGGOTA' && (
+            <PendaftaranEktaDppPage
+              members={accessibleMembers}
+              initialMember={dppInitialMember}
+              onMemberEktaUpdated={handleMemberEktaUpdated}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+              onNavigateToPendaftaran={() => setActiveTab('rekrutmen')}
+              onNavigateToMembers={() => setActiveTab('members')}
             />
           )}
 
@@ -695,8 +758,8 @@ export default function App() {
               initialDpdFilter={navDpdFilter}
               initialStatusFilter={navStatusFilter}
               initialMembershipFilter={navMembershipFilter}
-              onOpenAddModal={() => modals.setIsAddModalOpen(true)}
-              onOpenDppEktaModal={(m) => modals.openDppEktaModal(m)}
+              onOpenAddModal={() => setActiveTab('rekrutmen')}
+              onOpenDppEktaModal={(m) => handleNavigateToDppEkta(m)}
               onOpenStatusModal={modals.openStatusModal}
               onOpenCardModal={modals.openCardModal}
               onOpenEditModal={modals.openEditModal}
@@ -745,6 +808,7 @@ export default function App() {
         onNavigateToTerritory={handleNavigateToTerritory}
         onClearAuditLogs={() => setAuditLogs([])}
         onMemberEktaUpdated={handleMemberEktaUpdated}
+        onNavigateToDppEkta={handleNavigateToDppEkta}
       />
     </div>
   );

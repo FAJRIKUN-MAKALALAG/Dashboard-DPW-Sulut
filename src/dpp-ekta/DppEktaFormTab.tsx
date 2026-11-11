@@ -296,28 +296,26 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              Tempat Lahir *
+              Tempat Lahir <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <input
               type="text"
               value={tempatLahir}
               onChange={(e) => setTempatLahir(e.target.value)}
-              placeholder="MANADO"
+              placeholder="Contoh: Manado"
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
-              required
             />
           </div>
 
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              Tanggal Lahir *
+              Tanggal Lahir <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <input
               type="date"
               value={tanggalLahir}
               onChange={(e) => setTanggalLahir(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
-              required
             />
           </div>
 
@@ -337,13 +335,14 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
 
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              Golongan Darah
+              Golongan Darah <span className="text-[10px] font-normal text-slate-400">(Opsional)</span>
             </label>
             <select
               value={golonganDarah}
               onChange={(e) => setGolonganDarah(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
             >
+              <option value="">- Tidak Tahu / Belum Tahu (Opsional) -</option>
               {DPP_GOL_DARAH_OPTIONS.map((g) => (
                 <option key={g} value={g}>
                   Golongan Darah {g}
@@ -510,7 +509,7 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
 
           <div className="sm:col-span-3 space-y-1">
             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              RT / RW *
+              RT / RW <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">(Opsional)</span>
             </label>
             <div className="flex items-center gap-1.5">
               <input
@@ -556,7 +555,7 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              Nomor HP / WhatsApp
+              Nomor HP / WhatsApp <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">(Opsional)</span>
             </label>
             <input
               type="tel"
@@ -610,3 +609,4 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
     </form>
   );
 };
+

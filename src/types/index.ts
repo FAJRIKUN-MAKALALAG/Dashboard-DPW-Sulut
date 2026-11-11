@@ -35,6 +35,7 @@ export interface Member {
   jenisKelamin?: 'Laki-laki' | 'Perempuan' | '-' | string;
   tempatLahir?: string;
   tanggalLahir?: string;
+  golonganDarah?: string;
   alamatLengkap?: string;
   agama?: string;
   pekerjaan?: string;

@@ -9,6 +9,7 @@ interface RegistrationStep4SummaryProps {
   tempatLahir: string;
   tanggalLahir: string;
   jenisKelamin: string;
+  golonganDarah?: string;
   agama: string;
   pekerjaan: string;
   alamatLengkap: string;
@@ -33,6 +34,7 @@ export const RegistrationStep4Summary: React.FC<RegistrationStep4SummaryProps> =
   tempatLahir,
   tanggalLahir,
   jenisKelamin,
+  golonganDarah,
   agama,
   pekerjaan,
   alamatLengkap,
@@ -123,7 +125,7 @@ export const RegistrationStep4Summary: React.FC<RegistrationStep4SummaryProps> =
           <div className="flex justify-between gap-2 text-[11px]">
             <span className="text-slate-500">Gender & Agama</span>
             <span className="font-medium text-slate-900 dark:text-white text-right">
-              {jenisKelamin || '-'} · {agama || '-'}
+              {jenisKelamin || '-'} · {agama || '-'} {golonganDarah ? `· Gol. ${golonganDarah}` : ''}
             </span>
           </div>
           <div className="flex justify-between gap-2 text-[11px]">
@@ -249,7 +251,7 @@ export const RegistrationStep4Summary: React.FC<RegistrationStep4SummaryProps> =
           <div className="grid grid-cols-2 gap-2 py-1 border-b border-slate-200/70 dark:border-slate-800">
             <span className="text-slate-500">Jenis Kelamin & Agama</span>
             <span className="font-semibold text-slate-900 dark:text-white text-right">
-              {jenisKelamin || '-'} · {agama || '-'}
+              {jenisKelamin || '-'} · {agama || '-'} {golonganDarah ? `(Gol. Darah: ${golonganDarah})` : ''}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2 py-1 border-b border-slate-200/70 dark:border-slate-800">
