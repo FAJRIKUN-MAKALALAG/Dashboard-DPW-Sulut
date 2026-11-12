@@ -41,6 +41,12 @@ import { useMemberCrudHandlers } from './hooks/useMemberCrudHandlers';
 import { useAppRouting, parseCurrentRoute, isTabPermitted } from './hooks/useAppRouting';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import {
+  ChatFloatingButton,
+  PengurusChatPopup,
+  SuperAdminChatInboxModal,
+  supportChatService,
+} from './components/chat';
+import {
   Printer,
   CheckCircle2,
   Sun,
@@ -62,6 +68,55 @@ export default function App() {
   });
   // Hook: PWA Mobile Install & Home Screen Shortcut
   const pwa = usePwaInstall();
+  // Fitur Chat Laporan & Keluhan Super Admin DPW
+  const [isPengurusChatOpen, setIsPengurusChatOpen] = useState(false);
+  const [isSuperAdminInboxOpen, setIsSuperAdminInboxOpen] = useState(false);
+  const [unreadSupportChatCount, setUnreadSupportChatCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkUnread = async () => {
+      try {
+        if (session.role === 'SUPER_ADMIN') {
+          const threads = await supportChatService.getThreads();
+          const totalUnread = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+          setUnreadSupportChatCount((prev) => (prev === totalUnread ? prev : totalUnread));
+        } else {
+          const threadId = session.adminNik || session.adminName || 'USER_THREAD';
+          const msgs = await supportChatService.getMessages(threadId);
+          const unread = msgs.filter((m) => m.recipientRole === 'PENGURUS' && !m.isRead).length;
+          setUnreadSupportChatCount((prev) => (prev === unread ? prev : unread));
+        }
+      } catch {
+        /* abaikan */
+      }
+    };
+
+    checkUnread();
+    const timer = setInterval(checkUnread, 10000);
+    const unsubscribe = supportChatService.subscribe((event) => {
+      if (event.type === 'NEW_MESSAGE' || event.type === 'READ_UPDATE') {
+        checkUnread();
+      }
+    });
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
+  }, [isAuthenticated, session.role, session.adminNik, session.adminName]);
+
+  useEffect(() => {
+    const handleOpenChat = () => {
+      if (session.role === 'SUPER_ADMIN') {
+        setIsSuperAdminInboxOpen(true);
+      } else {
+        setIsPengurusChatOpen(true);
+      }
+    };
+    window.addEventListener('nasdem_open_support_chat', handleOpenChat);
+    return () => window.removeEventListener('nasdem_open_support_chat', handleOpenChat);
+  }, [session.role]);
   // Hook: Application URL Routing & Deep Linking (Two-Way Browser History Sync)
   const {
     activeTab,
@@ -181,6 +236,8 @@ export default function App() {
     MemberService.invalidateCache();
     AuditService.invalidateCache();
     DeletionRequestService.invalidateCache();
+    setIsSuperAdminInboxOpen(false);
+    setIsPengurusChatOpen(false);
     const wasAlreadyAuthenticated = isAuthenticated;
     setSession(userSession);
     saveSession(userSession);
@@ -220,6 +277,8 @@ export default function App() {
     MemberService.invalidateCache();
     AuditService.invalidateCache();
     DeletionRequestService.invalidateCache();
+    setIsSuperAdminInboxOpen(false);
+    setIsPengurusChatOpen(false);
     setIsAuthenticated(false);
     localStorage.removeItem('nasdem_sulut_authenticated');
     clearToken();
@@ -372,6 +431,8 @@ export default function App() {
   }, [session, activeTab]);
 
   const handleSelectSession = (newSession: UserSession) => {
+    setIsSuperAdminInboxOpen(false);
+    setIsPengurusChatOpen(false);
     setSession(newSession);
     saveSession(newSession);
     showToast(`Beralih ke peran: ${newSession.jabatan}`);
@@ -424,6 +485,9 @@ export default function App() {
         onOpenUserManagement={() => modals.setIsUserManagementOpen(true)}
         onOpenReferralHub={() => modals.setIsReferralHubOpen(true)}
         onOpenInstallPwa={pwa.openInstallModal}
+        onOpenSuperAdminInbox={() => setIsSuperAdminInboxOpen(true)}
+        onOpenPengurusChat={() => setIsPengurusChatOpen(true)}
+        unreadChatCount={unreadSupportChatCount}
         onLogout={handleLogout}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -786,7 +850,41 @@ export default function App() {
         isIos={pwa.isIos}
         isAndroid={pwa.isAndroid}
         onTriggerInstall={pwa.triggerInstall}
+        isSuperAdminInboxOpen={isSuperAdminInboxOpen}
+        onCloseSuperAdminInbox={() => setIsSuperAdminInboxOpen(false)}
       />
+
+      {/* Floating Button Bantuan & Laporan */}
+      <ChatFloatingButton
+        isOpen={isPengurusChatOpen || isSuperAdminInboxOpen}
+        unreadCount={unreadSupportChatCount}
+        role={session.role}
+        onClick={() => {
+          if (session.role === 'SUPER_ADMIN') {
+            setIsSuperAdminInboxOpen(true);
+          } else {
+            setIsPengurusChatOpen(true);
+          }
+        }}
+      />
+
+      {/* Pop-up Chat Khusus Pengurus & Anggota */}
+      {session.role !== 'SUPER_ADMIN' && (
+        <PengurusChatPopup
+          isOpen={isPengurusChatOpen}
+          onClose={() => setIsPengurusChatOpen(false)}
+          session={session}
+        />
+      )}
+
+      {/* Modal Inbox Khusus Super Admin */}
+      {session.role === 'SUPER_ADMIN' && (
+        <SuperAdminChatInboxModal
+          isOpen={isSuperAdminInboxOpen}
+          onClose={() => setIsSuperAdminInboxOpen(false)}
+          session={session}
+        />
+      )}
     </div>
   );
 }

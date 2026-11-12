@@ -405,3 +405,4 @@ export const InstallPwaModal: React.FC<InstallPwaModalProps> = ({
     </div>
   );
 };
+

@@ -1,5 +1,5 @@
 // Service Worker for NasDem Digital Sulut PWA
-const CACHE_NAME = 'nasdem-sulut-v1';
+const CACHE_NAME = 'nasdem-sulut-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -37,6 +37,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Jangan sentuh di localhost atau lingkungan pengembangan agar live-reload bekerja instan
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    return;
+  }
 
   // Jangan sentuh API request atau auth (selalu network langsung)
   if (
@@ -79,3 +84,4 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+

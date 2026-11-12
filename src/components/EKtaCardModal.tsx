@@ -38,19 +38,19 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
       />
 
       {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 print:static print:pl-0 print:w-full print:justify-center">
-        <div className="w-screen max-w-lg sm:max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right print:w-full print:max-w-none print:shadow-none print:border-none print:bg-white">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10 print:static print:pl-0 print:w-full print:justify-center">
+        <div className="w-full sm:w-screen sm:max-w-lg md:max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right print:w-full print:max-w-none print:shadow-none print:border-none print:bg-white">
           {/* Header */}
-          <div className="no-print flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+          <div className="no-print flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
                 Pratinjau e-KTA Digital Partai NasDem Sulut
               </h3>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               title="Tutup Panel"
             >
               <X className="w-5 h-5" />
@@ -58,7 +58,7 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
           </div>
 
         {/* Card Body */}
-        <div className="p-6 flex flex-col items-center flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-6 flex flex-col items-center flex-1 overflow-y-auto overscroll-contain">
           {/* Physical e-KTA simulation card */}
           <div className="w-full max-w-md aspect-[1.58/1] rounded-2xl p-5 relative overflow-hidden shadow-2xl border border-blue-500/30 bg-gradient-to-br from-slate-950 via-blue-950/80 to-slate-900 text-white flex flex-col justify-between">
             {/* Background watermark / security pattern */}
@@ -248,19 +248,19 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
         </div>
 
         {/* Actions Footer */}
-        <div className="no-print shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
+        <div className="no-print shrink-0 p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3">
+          <button
+            onClick={onClose}
+            className="btn-white w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-xl cursor-pointer"
+          >
+            Tutup
+          </button>
           <button
             onClick={handlePrint}
-            className="btn-white flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg cursor-pointer"
+            className="btn-white w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-xl cursor-pointer"
           >
             <Printer className="w-4 h-4 text-blue-500" />
             <span>Cetak Kartu Fisik</span>
-          </button>
-          <button
-            onClick={onClose}
-            className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
-          >
-            Tutup
           </button>
         </div>
       </div>

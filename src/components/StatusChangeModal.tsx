@@ -81,26 +81,26 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
       />
 
       {/* Slide-over Right Drawer Container */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-xl sm:max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div className="w-full sm:w-screen sm:max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
                 <ShieldAlert className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
                   Pembaruan Status Keanggotaan Kader
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Audit Trail Mandiri DPW Sulut · Soft-Delete Berkas Tanpa Menghilangkan Arsip
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                  Audit Trail Mandiri DPW Sulut · Soft-Delete Berkas
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               title="Tutup Panel"
             >
               <X className="w-5 h-5" />
@@ -109,7 +109,7 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
 
           {/* Form Body */}
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 overscroll-contain">
           {/* Member Visual Summary Card */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5">
             <div className="w-14 h-16 rounded-xl overflow-hidden border border-amber-400/60 bg-slate-800 shrink-0 flex items-center justify-center">
@@ -202,11 +202,11 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
                       onChange={() => setSelectedStatus(st)}
                       className="mt-1 text-amber-500 focus:ring-amber-400 accent-amber-500"
                     />
-                    <div className="text-xs flex-1">
-                      <div className="flex items-center justify-between">
+                    <div className="text-xs flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                         <span className="font-semibold">{st}</span>
                         <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded border font-mono font-medium ${
+                          className={`text-[10px] px-1.5 py-0.5 rounded border font-mono font-medium self-start sm:self-auto ${
                             config.isCountedInExecutive
                               ? 'text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50'
                               : 'text-rose-800 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/50'
@@ -215,7 +215,7 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
                           {config.isCountedInExecutive ? 'Terhitung di Eksekutif' : 'Dikeluarkan dari Total'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
                         {st === 'Aktif'
                           ? 'Kader aktif dalam konsolidasi struktur dan pemenangan pemilu DPW.'
                           : st === 'Non-Aktif (Meninggal)'
@@ -286,24 +286,24 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="shrink-0 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-white px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="btn-white px-5 py-2 text-xs font-semibold rounded-lg shadow-sm cursor-pointer"
-              >
-                Simpan Perubahan Status
-              </button>
-            </div>
-          </form>
+        <div className="shrink-0 p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-white w-full sm:w-auto px-4 py-2 text-xs font-medium rounded-lg cursor-pointer"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            className="w-full sm:w-auto px-5 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-amber-500 to-[#FDB813] hover:from-amber-600 hover:to-amber-500 text-slate-950 shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
+          >
+            Simpan Perubahan Status
+          </button>
         </div>
-      </div>
+      </form>
     </div>
-  );
+  </div>
+</div>
+);
 };

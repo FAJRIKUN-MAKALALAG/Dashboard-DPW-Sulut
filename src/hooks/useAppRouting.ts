@@ -102,7 +102,7 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
       return true;
     case 'rekrutmen':
     case 'ekta_dpp':
-      return session?.role !== 'ANGGOTA';
+      return true;
     default:
       return true;
   }

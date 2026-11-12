@@ -3,32 +3,33 @@ import App from './App.tsx';
 import { AppDialogProvider } from './components/ui/AppDialogProvider';
 import './index.css';
 
-// Register PWA Service Worker for Mobile Install & Offline Capabilities
+// Kelola Service Worker: Unregister di localhost agar perubahan kode langsung tampil seketika
 if (
   typeof window !== 'undefined' &&
   'serviceWorker' in navigator &&
-  (window.location.protocol === 'https:' ||
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1')
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const reg of registrations) {
+      reg.unregister();
+    }
+  });
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      for (const name of names) {
+        caches.delete(name);
+      }
+    });
+  }
+} else if (
+  typeof window !== 'undefined' &&
+  'serviceWorker' in navigator &&
+  window.location.protocol === 'https:'
 ) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((reg) => {
-        reg.onupdatefound = () => {
-          const installingWorker = reg.installing;
-          if (installingWorker) {
-            installingWorker.onstatechange = () => {
-              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('Versi baru NasDem Digital Sulut tersedia.');
-              }
-            };
-          }
-        };
-      })
-      .catch((err) => {
-        console.warn('PWA ServiceWorker registration notice:', err);
-      });
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('PWA ServiceWorker notice:', err);
+    });
   });
 }
 

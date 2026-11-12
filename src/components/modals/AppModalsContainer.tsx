@@ -18,6 +18,7 @@ import {
 import { TemplateDownloadHubModal } from '../territorial/TemplateDownloadHubModal';
 import { ReferralHubModal } from '../referral/ReferralHubModal';
 import { DppEktaModal } from '../../dpp-ekta';
+import { SuperAdminChatInboxModal } from '../chat';
 
 interface AppModalsContainerProps {
   modals: AppModalsState;
@@ -44,6 +45,8 @@ interface AppModalsContainerProps {
   isIos?: boolean;
   isAndroid?: boolean;
   onTriggerInstall?: () => Promise<'accepted' | 'dismissed' | 'manual'>;
+  isSuperAdminInboxOpen?: boolean;
+  onCloseSuperAdminInbox?: () => void;
 }
 
 export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
@@ -71,6 +74,8 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   isIos,
   isAndroid,
   onTriggerInstall,
+  isSuperAdminInboxOpen,
+  onCloseSuperAdminInbox,
 }) => {
   return (
     <>
@@ -235,6 +240,14 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           isIos={Boolean(isIos)}
           isAndroid={Boolean(isAndroid)}
           onTriggerInstall={onTriggerInstall}
+        />
+      )}
+
+      {isSuperAdminInboxOpen && onCloseSuperAdminInbox && (
+        <SuperAdminChatInboxModal
+          isOpen={isSuperAdminInboxOpen}
+          onClose={onCloseSuperAdminInbox}
+          session={session}
         />
       )}
     </>
