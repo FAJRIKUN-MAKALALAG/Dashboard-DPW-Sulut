@@ -13,6 +13,7 @@ import {
   AuditTrailModal,
   ExecutiveReportPrintModal,
   UserManagementModal,
+  InstallPwaModal,
 } from './index';
 import { TemplateDownloadHubModal } from '../territorial/TemplateDownloadHubModal';
 import { ReferralHubModal } from '../referral/ReferralHubModal';
@@ -36,6 +37,13 @@ interface AppModalsContainerProps {
   onClearAuditLogs?: () => void;
   onMemberEktaUpdated?: (nik: string, nokta: string) => void;
   onNavigateToDppEkta?: (m?: Member) => void;
+  isInstallPwaOpen?: boolean;
+  onCloseInstallPwa?: () => void;
+  isInstallable?: boolean;
+  isInstalled?: boolean;
+  isIos?: boolean;
+  isAndroid?: boolean;
+  onTriggerInstall?: () => Promise<'accepted' | 'dismissed' | 'manual'>;
 }
 
 export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
@@ -56,6 +64,13 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   onClearAuditLogs,
   onMemberEktaUpdated,
   onNavigateToDppEkta,
+  isInstallPwaOpen,
+  onCloseInstallPwa,
+  isInstallable,
+  isInstalled,
+  isIos,
+  isAndroid,
+  onTriggerInstall,
 }) => {
   return (
     <>
@@ -210,6 +225,18 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         initialMember={modals.dppEktaTargetMember}
         onMemberEktaUpdated={onMemberEktaUpdated}
       />
+
+      {isInstallPwaOpen && onCloseInstallPwa && onTriggerInstall && (
+        <InstallPwaModal
+          isOpen={isInstallPwaOpen}
+          onClose={onCloseInstallPwa}
+          isInstallable={Boolean(isInstallable)}
+          isInstalled={Boolean(isInstalled)}
+          isIos={Boolean(isIos)}
+          isAndroid={Boolean(isAndroid)}
+          onTriggerInstall={onTriggerInstall}
+        />
+      )}
     </>
   );
 };
