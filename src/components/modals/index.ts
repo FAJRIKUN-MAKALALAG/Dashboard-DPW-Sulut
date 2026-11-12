@@ -11,4 +11,5 @@ export { ExecutiveReportPrintModal } from '../ExecutiveReportPrintModal';
 export { StructureDrilldownModal } from '../StructureDrilldownModal';
 export { TerritorialGrowthModal } from '../TerritorialGrowthModal';
 export { UserManagementModal } from '../UserManagementModal';
+export { InstallPwaModal } from './InstallPwaModal';
 export { AppModalsContainer } from './AppModalsContainer';

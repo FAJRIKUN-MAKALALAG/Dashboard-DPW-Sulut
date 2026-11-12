@@ -32,6 +32,8 @@ import {
   PanelLeftOpen,
   UserPlus,
   Globe,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 
 export type MainNavTab =
@@ -62,6 +64,7 @@ interface AppSidebarProps {
   onOpenDeletionApproval: () => void;
   onOpenUserManagement?: () => void;
   onOpenReferralHub?: () => void;
+  onOpenInstallPwa?: () => void;
   onLogout: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -85,6 +88,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenDeletionApproval,
   onOpenUserManagement,
   onOpenReferralHub,
+  onOpenInstallPwa,
   onLogout,
   isMobileOpen,
   onCloseMobile,
@@ -726,6 +730,39 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Download / Pasang Shortcut Aplikasi HP */}
+            {onOpenInstallPwa && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => {
+                    onOpenInstallPwa();
+                    onCloseMobile();
+                  }}
+                  className={`group flex items-center ${
+                    isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                  } w-full py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 bg-gradient-to-r from-blue-50/90 via-slate-50 to-amber-50/50 dark:from-blue-950/40 dark:via-slate-900 dark:to-amber-950/20 border border-blue-200/90 dark:border-blue-900/60 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-xs transition-all duration-150 cursor-pointer`}
+                  title="Pasang Shortcut Aplikasi NasDem Sulut di HP (Android & iPhone)"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-[#1A3282] text-[#FFDD00] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                      <Smartphone className="w-4 h-4" />
+                    </div>
+                    <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                      <span className="block leading-none truncate text-slate-900 dark:text-white font-extrabold">
+                        Pasang Aplikasi di HP
+                      </span>
+                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5 block leading-none truncate">
+                        Android &amp; iPhone (Shortcut)
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md bg-[#FDB813] text-slate-950 font-black uppercase shrink-0 ${textHiddenIfCollapsed}`}>
+                    PWA
+                  </span>
+                </button>
               </div>
             )}
 

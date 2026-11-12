@@ -39,6 +39,7 @@ import { useAppModals } from './hooks/useAppModals';
 import { useAppRealtimeSync } from './hooks/useAppRealtimeSync';
 import { useMemberCrudHandlers } from './hooks/useMemberCrudHandlers';
 import { useAppRouting, parseCurrentRoute, isTabPermitted } from './hooks/useAppRouting';
+import { usePwaInstall } from './hooks/usePwaInstall';
 import {
   Printer,
   CheckCircle2,
@@ -59,6 +60,8 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('nasdem_sulut_authenticated') === 'true' && Boolean(getToken());
   });
+  // Hook: PWA Mobile Install & Home Screen Shortcut
+  const pwa = usePwaInstall();
   // Hook: Application URL Routing & Deep Linking (Two-Way Browser History Sync)
   const {
     activeTab,
@@ -420,6 +423,7 @@ export default function App() {
         onOpenDeletionApproval={() => modals.setIsDeletionApprovalOpen(true)}
         onOpenUserManagement={() => modals.setIsUserManagementOpen(true)}
         onOpenReferralHub={() => modals.setIsReferralHubOpen(true)}
+        onOpenInstallPwa={pwa.openInstallModal}
         onLogout={handleLogout}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -775,6 +779,13 @@ export default function App() {
         onClearAuditLogs={() => setAuditLogs([])}
         onMemberEktaUpdated={handleMemberEktaUpdated}
         onNavigateToDppEkta={handleNavigateToDppEkta}
+        isInstallPwaOpen={pwa.isInstallModalOpen}
+        onCloseInstallPwa={pwa.closeInstallModal}
+        isInstallable={pwa.isInstallable}
+        isInstalled={pwa.isInstalled}
+        isIos={pwa.isIos}
+        isAndroid={pwa.isAndroid}
+        onTriggerInstall={pwa.triggerInstall}
       />
     </div>
   );
