@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Send,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 import { UserSession } from '../../types';
 import { SupportThread, SupportMessage } from './types';
@@ -181,6 +182,35 @@ export const SuperAdminChatInboxModal: React.FC<SuperAdminChatInboxModalProps> =
       );
     } catch (err) {
       console.error('Gagal membalas pesan:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!selectedThread) return;
+    try {
+      await supportChatService.deleteMessage(msgId, selectedThread.threadId);
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      fetchThreads(false);
+    } catch (err: any) {
+      alert(err?.message || 'Gagal menghapus pesan.');
+    }
+  };
+
+  const handleDeleteEntireThread = async () => {
+    if (!selectedThread) return;
+    const confirm = window.confirm(
+      `Apakah Anda yakin ingin menghapus seluruh riwayat percakapan room ini (${selectedThread.pengurusName}) secara permanen? Tindakan ini tidak dapat dibatalkan.`
+    );
+    if (!confirm) return;
+
+    try {
+      await supportChatService.deleteThread(selectedThread.threadId);
+      setSelectedThread(null);
+      setMessages([]);
+      setIsMobileDetailOpen(false);
+      fetchThreads(true);
+    } catch (err: any) {
+      alert(err?.message || 'Gagal menghapus percakapan.');
     }
   };
 
@@ -421,6 +451,18 @@ export const SuperAdminChatInboxModal: React.FC<SuperAdminChatInboxModalProps> =
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleDeleteEntireThread}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                      title="Hapus seluruh riwayat percakapan room ini"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                      <span className="hidden sm:inline">Hapus Percakapan</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* List Pesan */}
@@ -435,6 +477,8 @@ export const SuperAdminChatInboxModal: React.FC<SuperAdminChatInboxModalProps> =
                         key={msg.id}
                         message={msg}
                         isMyMessage={msg.senderRole === 'SUPER_ADMIN'}
+                        canDelete={true}
+                        onDelete={handleDeleteMessage}
                       />
                     ))
                   )}

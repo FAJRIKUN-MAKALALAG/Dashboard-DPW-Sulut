@@ -94,7 +94,7 @@ export const MemberEktaTab: React.FC<MemberEktaTabProps> = ({
         </div>
       )}
 
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white">
             Kartu Tanda Anggota Elektronik (e-KTA DPW Sulut)
@@ -106,7 +106,7 @@ export const MemberEktaTab: React.FC<MemberEktaTabProps> = ({
         <button
           type="button"
           onClick={() => onOpenCardModal(member)}
-          className="btn-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer"
+          className="btn-white flex items-center justify-center gap-1.5 w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded-lg font-semibold cursor-pointer shrink-0"
         >
           <Printer className="w-3.5 h-3.5 text-blue-500" />
           <span>Mode Cetak / Unduh</span>
@@ -115,7 +115,7 @@ export const MemberEktaTab: React.FC<MemberEktaTabProps> = ({
 
       {/* Rendered Live e-KTA Card */}
       <div className="max-w-xl mx-auto">
-        <div className="relative w-full aspect-[85.6/53.98] rounded-2xl overflow-hidden shadow-2xl p-5 flex flex-col justify-between border border-amber-500/40 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white select-none">
+        <div className="relative w-full aspect-[85.6/53.98] rounded-2xl overflow-hidden shadow-2xl p-3 sm:p-5 flex flex-col justify-between border border-amber-500/40 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white select-none">
           {/* Background watermarks */}
           <div className="absolute inset-0 bg-radial from-blue-700/20 via-transparent to-transparent pointer-events-none" />
           <div className="absolute right-0 bottom-0 translate-x-10 translate-y-10 w-64 h-64 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />

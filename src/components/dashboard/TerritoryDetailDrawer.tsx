@@ -272,7 +272,7 @@ export const TerritoryDetailDrawer: React.FC<TerritoryDetailDrawerProps> = ({
 
       {/* Slide-over Right Drawer Container - Full width di mobile, slide-over di desktop */}
       <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-0 sm:pl-10 pointer-events-none z-10">
-        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 sm:border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
+        <div className="pointer-events-auto w-full sm:w-screen sm:max-w-2xl md:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 sm:border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           
           {/* 1. Header Drawer & Collapsible KPI Summaries */}
           <DrawerHeader

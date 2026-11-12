@@ -1,13 +1,20 @@
 import React from 'react';
-import { Check, CheckCheck, Shield, User, Paperclip } from 'lucide-react';
+import { Check, CheckCheck, Shield, User, Paperclip, Trash2 } from 'lucide-react';
 import { SupportMessage } from './types';
 
 interface ChatMessageBubbleProps {
   message: SupportMessage;
   isMyMessage: boolean;
+  canDelete?: boolean;
+  onDelete?: (messageId: string) => void;
 }
 
-export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({ message, isMyMessage }) => {
+export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
+  message,
+  isMyMessage,
+  canDelete = false,
+  onDelete,
+}) => {
   const formatTime = (isoString: string) => {
     try {
       const date = new Date(isoString);
@@ -124,6 +131,22 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({ message, i
                 </span>
               )}
             </span>
+          )}
+
+          {canDelete && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('Hapus pesan ini secara permanen?')) {
+                  onDelete(message.id);
+                }
+              }}
+              className="p-1 rounded-md hover:bg-rose-500/20 text-rose-300 dark:text-rose-400 opacity-70 hover:opacity-100 transition-opacity cursor-pointer ml-1"
+              title="Hapus pesan ini (Super Admin)"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           )}
         </div>
       </div>

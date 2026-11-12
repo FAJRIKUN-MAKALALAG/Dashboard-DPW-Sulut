@@ -274,6 +274,53 @@ export const supportChatService = {
   },
 
   /**
+   * Khusus Super Admin: Menghapus 1 pesan tertentu
+   */
+  async deleteMessage(messageId: string, threadId: string): Promise<boolean> {
+    try {
+      await apiFetch(`/support/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.warn('Gagal menghapus pesan di server:', err);
+    }
+
+    // Hapus juga dari local persistence
+    const all = getLocalMessages();
+    const filtered = all.filter((m) => m.id !== messageId);
+    saveLocalMessages(filtered);
+
+    notifyRealtimeUpdate({ type: 'NEW_MESSAGE', threadId });
+    return true;
+  },
+
+  /**
+   * Khusus Super Admin: Menghapus seluruh riwayat percakapan room/thread
+   */
+  async deleteThread(threadId: string): Promise<boolean> {
+    try {
+      await apiFetch('/support/threads', {
+        method: 'DELETE',
+        query: { thread_id: threadId },
+      });
+    } catch (err) {
+      console.warn('Gagal menghapus thread di server:', err);
+    }
+
+    // Hapus seluruh pesan thread tersebut dari local persistence
+    const all = getLocalMessages();
+    const filtered = all.filter(
+      (m) =>
+        m.threadId !== threadId &&
+        !(threadId.includes('__ALL_DPW') && m.threadId === threadId.split('__ALL_DPW')[0])
+    );
+    saveLocalMessages(filtered);
+
+    notifyRealtimeUpdate({ type: 'NEW_MESSAGE', threadId });
+    return true;
+  },
+
+  /**
    * Mengirim notifikasi realtime bahwa pengguna sedang mengetik
    */
   sendTyping(threadId: string, senderName: string, senderRole: string): void {

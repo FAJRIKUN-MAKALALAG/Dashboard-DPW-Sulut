@@ -44,7 +44,10 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const threadId = session.adminNik || session.adminName || 'USER_THREAD';
+  // Menentukan room chat yang unik berdasarkan target admin yang dipilih
+  const baseUserNik = session.adminNik || session.adminName || 'USER_THREAD';
+  const targetId = selectedTarget?.id || 'ALL_DPW';
+  const threadId = `${baseUserNik}__${targetId}`;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,29 +55,18 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
 
   const fetchMessages = async (showLoader = false) => {
     if (!threadId) return;
-    if (showLoader && messages.length === 0) setIsLoading(true);
+    if (showLoader) setIsLoading(true);
     try {
       const data = await supportChatService.getMessages(threadId);
-      // Mencegah kedip & re-render berulang: Merge pesan dan hanya ganti state jika ada perubahan nyata
-      setMessages((prev) => {
+      // Setiap room memiliki riwayat pesan terpisah
+      setMessages(() => {
         const map = new Map<string, SupportMessage>();
-        prev.forEach((m) => {
-          if (m?.id) map.set(m.id, m);
-        });
         (data || []).forEach((m) => {
           if (m?.id) map.set(m.id, m);
         });
-        const merged = Array.from(map.values()).sort((a, b) =>
+        return Array.from(map.values()).sort((a, b) =>
           (a.createdAt || '').localeCompare(b.createdAt || '')
         );
-
-        if (
-          merged.length === prev.length &&
-          merged.every((m, idx) => m.id === prev[idx]?.id && m.isRead === prev[idx]?.isRead)
-        ) {
-          return prev;
-        }
-        return merged;
       });
 
       // Tandai telah dibaca HANYA jika ada pesan baru yang belum dibaca dari Super Admin
@@ -156,6 +148,8 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
     target?: AdminTargetOption
   ) => {
     const chosenTarget = target || selectedTarget;
+    const effectiveTargetId = chosenTarget?.id || 'ALL_DPW';
+    const effectiveThreadId = `${baseUserNik}__${effectiveTargetId}`;
     try {
       const newMsg = await supportChatService.sendMessage(
         {
@@ -165,15 +159,15 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
           recipientName: chosenTarget?.name,
         },
         session,
-        threadId
+        effectiveThreadId
       );
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
       scrollToBottom();
-    } catch (err) {
-      console.error('Gagal mengirim pesan:', err);
+    } catch (err: any) {
+      alert(err?.message || 'Gagal mengirim pesan.');
     }
   };
 
@@ -342,7 +336,12 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
                   <button
                     key={adm.id}
                     type="button"
-                    onClick={() => setSelectedTarget(adm)}
+                    onClick={() => {
+                      if (selectedTarget?.id !== adm.id) {
+                        setSelectedTarget(adm);
+                        setMessages([]);
+                      }
+                    }}
                     className={`w-full text-left p-3 rounded-xl transition-all duration-150 cursor-pointer border ${
                       isSelected
                         ? 'bg-[#1A3282] text-white border-[#FDB813] shadow-md ring-2 ring-[#FDB813]/40'
@@ -516,7 +515,10 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
                     key={adm.id}
                     type="button"
                     onClick={() => {
-                      setSelectedTarget(adm);
+                      if (selectedTarget?.id !== adm.id) {
+                        setSelectedTarget(adm);
+                        setMessages([]);
+                      }
                       setIsMobileAdminPickerOpen(false);
                     }}
                     className={`w-full text-left p-3 rounded-2xl flex items-start gap-3 transition-colors ${

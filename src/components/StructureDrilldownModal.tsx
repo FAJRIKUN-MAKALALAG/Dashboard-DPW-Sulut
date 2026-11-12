@@ -231,8 +231,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
       />
 
       {/* Slide-over Right Drawer Container - Mentok ke pojok kanan layar */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-4 sm:pl-10 pointer-events-none z-10">
-        <div className="pointer-events-auto w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
+      <div className="fixed inset-y-0 right-0 max-w-full flex justify-end pl-0 sm:pl-10 pointer-events-none z-10">
+        <div className="pointer-events-auto w-full sm:w-screen sm:max-w-2xl md:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full animate-drawer-slide">
           {/* Drawer Header */}
           <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10">
             <div className="flex items-center gap-3">

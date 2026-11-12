@@ -224,26 +224,26 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
         />
 
         {/* Slide-over Right Drawer Container */}
-        <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-          <div className="w-screen max-w-2xl sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
+        <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+          <div className="w-full sm:w-screen sm:max-w-3xl lg:max-w-4xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl flex flex-col h-full transform transition-all ease-in-out duration-300 animate-in slide-in-from-right">
             {/* Header Bar */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between px-3.5 py-3 sm:px-5 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
                 <img
                   src={nasdemLogo}
                   alt="Logo Partai NasDem"
-                  className="h-9 w-auto object-contain shrink-0"
+                  className="h-8 sm:h-9 w-auto object-contain shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <h3 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white truncate">
                       Detail Profil & Dokumen Kader
                     </h3>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      DPW NasDem Sulut
+                    <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                      DPW Sulut
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     Data Pokok Anggota · e-KTA Mandiri & Verifikasi Arsip KTP
                   </p>
                 </div>
@@ -252,7 +252,8 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors shrink-0"
+                title="Tutup Panel"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -302,24 +303,24 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
             />
 
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-1 px-5 pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-medium">
+            <div className="flex items-center gap-1 px-3.5 sm:px-5 pt-2 sm:pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-medium overflow-x-auto no-scrollbar shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className={`pb-3 px-3.5 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`pb-3 px-3 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'profile'
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                <span>Biodata & Struktur</span>
+                <span>Biodata &amp; Struktur</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('ktp')}
-                className={`pb-3 px-3.5 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`pb-3 px-3 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'ktp'
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -335,7 +336,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('ekta')}
-                className={`pb-3 px-3.5 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`pb-3 px-3 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'ekta'
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -348,19 +349,19 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('history')}
-                className={`pb-3 px-3.5 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`pb-3 px-3 border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'history'
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <Clock className="w-4 h-4" />
-                <span>Riwayat Mutasi & Audit</span>
+                <span>Riwayat Mutasi &amp; Audit</span>
               </button>
             </div>
 
             {/* Tab Content Body */}
-            <div className="p-5 sm:p-6 flex-1 overflow-y-auto">
+            <div className="p-3.5 sm:p-6 flex-1 overflow-y-auto overscroll-contain">
               {activeTab === 'profile' && (
                 <MemberBiodataTab
                   member={member}
@@ -398,14 +399,14 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs shrink-0">
-              <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-                ID NIK: {member.nik} · DPW Partai NasDem Sulawesi Utara
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs shrink-0">
+              <span className="text-slate-500 dark:text-slate-400 font-mono text-[10px] sm:text-[11px] text-center sm:text-left truncate">
+                ID NIK: {member.nik} · DPW Partai NasDem Sulut
               </span>
               <button
                 type="button"
                 onClick={onClose}
-                className="btn-white px-4 py-1.5 rounded-lg font-medium cursor-pointer"
+                className="btn-white w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-xl font-semibold cursor-pointer"
               >
                 Tutup
               </button>
