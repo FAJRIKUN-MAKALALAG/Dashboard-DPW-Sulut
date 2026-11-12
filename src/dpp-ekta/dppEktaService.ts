@@ -19,8 +19,15 @@ export interface DppWilayahItem {
 export interface DppCheckKtpResponse {
   nik: string;
   existsInDpp: boolean;
+  nomorEktaDpp?: string;
+  namaDpp?: string;
+  fotoProfilDpp?: string;
+  fotoKtpDpp?: string;
+  phoneDpp?: string;
+  wilayahTextDpp?: string;
   existsInLocal: boolean;
   localMember?: any;
+  message?: string;
 }
 
 export interface DppCreateKtaPayload {
@@ -129,6 +136,22 @@ export const dppEktaService = {
     const result = await apiFetch<DppCreateKtaResult>('/dpp/create-kta', {
       method: 'POST',
       body: payload,
+    });
+    const mappedMember = result.member ? mapApiMember(result.member) : undefined;
+    return { result, mappedMember };
+  },
+
+  async syncExistingKta(
+    nik: string,
+    nomorEkta?: string,
+    extra?: { namaLengkap?: string; dpd?: string; dpc?: string; dprt?: string }
+  ): Promise<{
+    result: DppCreateKtaResult;
+    mappedMember?: Member;
+  }> {
+    const result = await apiFetch<DppCreateKtaResult>('/dpp/sync-existing-kta', {
+      method: 'POST',
+      body: { nik, nomorEkta, ...extra },
     });
     const mappedMember = result.member ? mapApiMember(result.member) : undefined;
     return { result, mappedMember };

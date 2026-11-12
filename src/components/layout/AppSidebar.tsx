@@ -34,6 +34,7 @@ import {
   Globe,
   Smartphone,
   Download,
+  MessageSquare,
 } from 'lucide-react';
 
 export type MainNavTab =
@@ -65,6 +66,9 @@ interface AppSidebarProps {
   onOpenUserManagement?: () => void;
   onOpenReferralHub?: () => void;
   onOpenInstallPwa?: () => void;
+  onOpenSuperAdminInbox?: () => void;
+  onOpenPengurusChat?: () => void;
+  unreadChatCount?: number;
   onLogout: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -89,6 +93,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenUserManagement,
   onOpenReferralHub,
   onOpenInstallPwa,
+  onOpenSuperAdminInbox,
+  onOpenPengurusChat,
+  unreadChatCount = 0,
   onLogout,
   isMobileOpen,
   onCloseMobile,
@@ -195,14 +202,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </div>
             </div>
 
-            {/* Collapse Toggle on Desktop */}
-            {onToggleCollapse && (
+            {/* Collapse Toggle on Desktop: HANYA tampil saat sidebar sedang TERBUKA */}
+            {onToggleCollapse && !isCollapsed && (
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className={`hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ${
-                  isCollapsed ? 'hidden' : ''
-                }`}
+                className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
                 title="Perkecil Sidebar"
               >
                 <PanelLeftClose className="w-4 h-4" />
@@ -710,21 +715,27 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         onOpenUserManagement();
                         onCloseMobile();
                       }}
-                      title="Manajemen Akun Admin"
-                      className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-colors cursor-pointer mt-1`}
+                      title="Manajemen Akun & Hak Akses Pengguna"
+                      className={`group flex items-center ${
+                        isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                      } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer mt-1`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-[#1A3282] dark:bg-[#21409A] text-[#FFDD00] flex items-center justify-center font-bold">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1A3282] dark:text-blue-400 flex items-center justify-center font-bold border border-blue-200/60 dark:border-blue-900/50 shadow-2xs group-hover:scale-105 transition-transform">
                           <KeyRound className="w-4 h-4" />
                         </div>
-                        <div className={`text-left ${textHiddenIfCollapsed}`}>
-                          <span className="block leading-none">Manajemen Akun</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 block">
+                        <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                          <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                            Manajemen Akun
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
                             Kelola Akses Admin
                           </span>
                         </div>
                       </div>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold uppercase ${textHiddenIfCollapsed}`}>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-blue-100/80 dark:bg-blue-950/80 text-[#1A3282] dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                      >
                         SUPER
                       </span>
                     </button>
@@ -733,7 +744,94 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </div>
             )}
 
-            {/* Download / Pasang Shortcut Aplikasi HP */}
+            {/* Menu Chat Helpdesk Super Admin: Tampil untuk SEMUA peran (Super Admin, Pengurus DPW/DPD/DPC/DPRt, & Anggota) */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span
+                className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}
+              >
+                Bantuan &amp; Pengaduan
+              </span>
+
+              {session?.role === 'SUPER_ADMIN' ? (
+                onOpenSuperAdminInbox && (
+                  <button
+                    onClick={() => {
+                      onOpenSuperAdminInbox();
+                      onCloseMobile();
+                    }}
+                    title="Pusat Pesan & Laporan Pengurus (Helpdesk)"
+                    className={`group flex items-center ${
+                      isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                    } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                        <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                          Pesan Pengurus
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
+                          Pusat Laporan &amp; Keluhan
+                        </span>
+                      </div>
+                    </div>
+                    {unreadChatCount && unreadChatCount > 0 ? (
+                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
+                        {unreadChatCount}
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                      >
+                        HELPDESK
+                      </span>
+                    )}
+                  </button>
+                )
+              ) : (
+                onOpenPengurusChat && (
+                  <button
+                    onClick={() => {
+                      onOpenPengurusChat();
+                      onCloseMobile();
+                    }}
+                    title="Hubungi & Laporkan Masalah ke Admin DPW"
+                    className={`group flex items-center ${
+                      isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                    } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                        <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                          Chat Admin DPW
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
+                          Bantuan &amp; Lapor Kendala
+                        </span>
+                      </div>
+                    </div>
+                    {unreadChatCount && unreadChatCount > 0 ? (
+                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
+                        {unreadChatCount}
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                      >
+                        CHAT
+                      </span>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Download / Pasang Shortcut Aplikasi HP & Desktop */}
             {onOpenInstallPwa && (
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
@@ -743,23 +841,25 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   }}
                   className={`group flex items-center ${
                     isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-                  } w-full py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 bg-gradient-to-r from-blue-50/90 via-slate-50 to-amber-50/50 dark:from-blue-950/40 dark:via-slate-900 dark:to-amber-950/20 border border-blue-200/90 dark:border-blue-900/60 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-xs transition-all duration-150 cursor-pointer`}
-                  title="Pasang Shortcut Aplikasi NasDem Sulut di HP (Android & iPhone)"
+                  } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all duration-150 cursor-pointer`}
+                  title="Pasang Shortcut Aplikasi NasDem Sulut di HP (Android & iPhone) atau Komputer / Laptop"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-[#1A3282] text-[#FFDD00] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1A3282] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-900/50 shadow-2xs group-hover:scale-105 transition-transform">
                       <Smartphone className="w-4 h-4" />
                     </div>
                     <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
-                      <span className="block leading-none truncate text-slate-900 dark:text-white font-extrabold">
-                        Pasang Aplikasi di HP
+                      <span className="block leading-none truncate text-slate-900 dark:text-slate-100 font-bold">
+                        Pasang Aplikasi di HP / Desktop
                       </span>
-                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5 block leading-none truncate">
-                        Android &amp; iPhone (Shortcut)
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none truncate">
+                        Android, iPhone &amp; Laptop (Shortcut)
                       </span>
                     </div>
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md bg-[#FDB813] text-slate-950 font-black uppercase shrink-0 ${textHiddenIfCollapsed}`}>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-700 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                  >
                     PWA
                   </span>
                 </button>

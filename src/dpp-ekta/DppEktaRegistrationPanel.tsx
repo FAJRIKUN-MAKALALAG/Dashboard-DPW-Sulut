@@ -82,8 +82,12 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
   const [nikDppCheckInfo, setNikDppCheckInfo] = useState<{
     checked: boolean;
     existsInDpp: boolean;
+    nomorEktaDpp?: string;
+    namaDpp?: string;
     existsInLocal: boolean;
   } | null>(null);
+  const [manualEktaInput, setManualEktaInput] = useState('');
+  const [isSyncingExisting, setIsSyncingExisting] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -238,12 +242,71 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
       setNikDppCheckInfo({
         checked: true,
         existsInDpp: res.existsInDpp,
+        nomorEktaDpp: res.nomorEktaDpp,
+        namaDpp: res.namaDpp,
         existsInLocal: res.existsInLocal,
       });
+      if (res.nomorEktaDpp) {
+        setManualEktaInput(res.nomorEktaDpp);
+      }
+      // Otomatis isi Nama Lengkap dari DPP Pusat jika ditemukan (dan bukan admin Gabriela)
+      const isGabriela =
+        (res.namaDpp || '').toLowerCase().includes('gabriela') ||
+        (res.namaDpp || '').toLowerCase().includes('senduk');
+      if (res.namaDpp && !isGabriela) {
+        setNamaLengkap(res.namaDpp);
+      }
+      // Otomatis isi data nomor HP dan foto jika ada dari server DPP
+      if (res.phoneDpp && !nomorHP.trim()) {
+        setNomorHP(res.phoneDpp);
+      }
+      if (res.fotoKtpDpp && !fotoKtpUrl) {
+        setFotoKtpUrl(res.fotoKtpDpp);
+      }
+      if (res.fotoProfilDpp && !fotoProfilUrl) {
+        setFotoProfilUrl(res.fotoProfilDpp);
+      }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Gagal memeriksa NIK ke server DPP.');
     } finally {
       setCheckingNikStatus(false);
+    }
+  };
+
+  const handleSyncExistingEkta = async () => {
+    if (cleanNik.length < 9) {
+      setErrorMessage('Masukkan NIK yang valid terlebih dahulu.');
+      return;
+    }
+    const ektaToSync = manualEktaInput.trim() || nikDppCheckInfo?.nomorEktaDpp;
+    if (!ektaToSync) {
+      setErrorMessage('Silakan ketik nomor e-KTA resmi 16 digit Anda (contoh: 2574055961675481).');
+      return;
+    }
+    setIsSyncingExisting(true);
+    setErrorMessage(null);
+    try {
+      const { result, mappedMember } = await dppEktaService.syncExistingKta(cleanNik, ektaToSync, {
+        namaLengkap: namaLengkap.trim() || undefined,
+        dpd,
+        dpc,
+        dprt,
+      });
+
+      setCreatedResult(result);
+      const syncedEkta = result.nomor_ekta || ektaToSync;
+      if (syncedEkta) {
+        if (onMemberEktaUpdated) {
+          onMemberEktaUpdated(cleanNik, syncedEkta, mappedMember);
+        }
+        setViewingNokta(syncedEkta);
+        setViewingMemberName(namaLengkap.trim() || 'Kader NasDem');
+        setActiveSubTab('card_viewer');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal menyinkronkan e-KTA resmi dari DPP Pusat.');
+    } finally {
+      setIsSyncingExisting(false);
     }
   };
 
@@ -298,6 +361,12 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
     e.preventDefault();
     setErrorMessage(null);
     setCreatedResult(null);
+
+    // Jika NIK sudah ada di DPP, lakukan penarikan e-KTA resmi (Auto-Sync)
+    if (nikDppCheckInfo?.existsInDpp) {
+      await handleSyncExistingEkta();
+      return;
+    }
 
     if (cleanNik.length < 9 || cleanNik.length > 16) {
       setErrorMessage('NIK harus terdiri dari 9 hingga 16 digit angka.');
@@ -528,6 +597,10 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
           nikDppCheckInfo={nikDppCheckInfo}
           setNikDppCheckInfo={setNikDppCheckInfo}
           onCheckNikInDpp={handleCheckNikInDpp}
+          onSyncExistingEkta={handleSyncExistingEkta}
+          isSyncingExisting={isSyncingExisting}
+          manualEktaInput={manualEktaInput}
+          setManualEktaInput={setManualEktaInput}
           availableSubdistricts={availableSubdistricts}
           availableVillages={availableVillages}
           isSubmitting={isSubmitting}
