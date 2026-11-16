@@ -54,9 +54,9 @@ export async function scanAndExtractKtpOnDevice(
     quality,
   } = await standardizeAndPreprocessKtpImage(imageSource);
 
-  // 1. Prioritas Utama: Mesin Deep Learning RapidOCR (PP-OCRv4 ONNX) di Server Backend
+  // 1. Prioritas Utama: Mesin Google Cloud Document AI (fallback RapidOCR ONNX) di Server Backend
   try {
-    onProgress?.(45, 'Membaca NIK & Biodata dengan Deep Learning OCR (PP-OCRv4)...');
+    onProgress?.(45, 'Membaca NIK & Biodata dengan Google Cloud Document AI...');
     const backendRes = await apiFetch<any>(KTP_SCANNER_CONFIG.BACKEND_SCAN_ENDPOINT, {
       method: 'POST',
       body: { image: standardizedKtpDataUrl },
