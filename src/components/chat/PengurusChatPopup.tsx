@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Minus,
-  Maximize2,
   ShieldCheck,
   Shield,
   Sparkles,
   Lock,
   MessageSquare,
+  MessageSquareText,
   RefreshCw,
   ArrowLeft,
   ChevronDown,
@@ -20,6 +20,7 @@ import { SupportMessage, ChatCategory, AdminTargetOption } from './types';
 import { supportChatService } from './supportChatService';
 import { ChatMessageBubble } from './ChatMessageBubble';
 import { ChatInputBox } from './ChatInputBox';
+import { useDraggableBubble } from './useDraggableBubble';
 
 interface PengurusChatPopupProps {
   isOpen: boolean;
@@ -43,6 +44,14 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const {
+    containerRef: minimizedRef,
+    position: bubblePos,
+    isDragging: isBubbleDragging,
+    handlePointerDown: handleBubblePointerDown,
+    handleClickCapture: handleBubbleClickCapture,
+  } = useDraggableBubble();
 
   // Menentukan room chat yang unik berdasarkan target admin yang dipilih
   const baseUserNik = session.adminNik || session.adminName || 'USER_THREAD';
@@ -173,44 +182,39 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
 
   if (!isOpen) return null;
 
-  // 1. TAMPILAN SAAT DIMINIMALKAN (Floating Pill di pojok kanan bawah)
+  // 1. TAMPILAN SAAT DIMINIMALKAN (Icon-Only Bubble yang dapat digeser)
   if (isMinimized) {
     return (
-      <div className="fixed bottom-5 right-5 z-[9999] transition-all duration-300 ease-out animate-in slide-in-from-bottom-3 fade-in">
-        <div
+      <div
+        ref={minimizedRef}
+        onPointerDown={handleBubblePointerDown}
+        onClickCapture={handleBubbleClickCapture}
+        style={{
+          right: `${bubblePos.right}px`,
+          bottom: `${bubblePos.bottom}px`,
+          transform: 'translate3d(0px, 0px, 0px)',
+        }}
+        className={`fixed z-[9999] touch-none select-none will-change-transform ${
+          isBubbleDragging ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
+      >
+        <button
+          type="button"
           onClick={() => setIsMinimized(false)}
-          className="bg-gradient-to-r from-[#1A3282] to-[#21409A] hover:from-[#152868] hover:to-[#1A3282] text-white px-4 py-2.5 rounded-full shadow-2xl border-2 border-[#FDB813] flex items-center gap-3 cursor-pointer group transform hover:scale-102 active:scale-98 transition-all"
+          title="Chat Admin DPW (Klik untuk buka, tahan & geser untuk pindah)"
+          aria-label="Buka kembali Chat Admin DPW"
+          className={`relative group w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#1A3282] to-[#21409A] hover:from-[#152868] hover:to-[#1A3282] text-white shadow-[0_8px_24px_-4px_rgba(26,50,130,0.65)] border-2 border-[#FDB813] flex items-center justify-center transition-transform duration-150 ${
+            isBubbleDragging
+              ? 'cursor-grabbing scale-110 ring-4 ring-amber-400/40 shadow-2xl'
+              : 'cursor-pointer hover:scale-105 active:scale-95'
+          }`}
         >
-          <div className="relative">
-            <MessageSquare className="w-4 h-4 text-[#FFDD00]" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[#1A3282]" />
-          </div>
-          <div className="text-xs font-bold truncate max-w-[200px]">
-            Chat Admin DPW ({selectedTarget?.name || 'Aktif'})
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(false);
-            }}
-            className="p-1 rounded-full hover:bg-white/10 text-white/80 hover:text-white"
-            title="Perbesar Layar"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-1 rounded-full hover:bg-white/10 text-white/80 hover:text-white"
-            title="Tutup Chat"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+          {!isBubbleDragging && (
+            <span className="absolute -inset-1 rounded-full bg-amber-400/20 animate-ping pointer-events-none" />
+          )}
+          <MessageSquareText className="w-6 h-6 text-[#FFDD00] pointer-events-none" />
+          <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-[#1A3282] pointer-events-none" />
+        </button>
       </div>
     );
   }
@@ -255,12 +259,18 @@ export const PengurusChatPopup: React.FC<PengurusChatPopupProps> = ({
 
             <div className="min-w-0">
               <div className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-1.5">
-                <span>Pusat Bantuan &amp; Chat Admin DPW</span>
-                <Sparkles className="w-3.5 h-3.5 text-[#FFDD00]" />
+                <span className="sm:hidden">Chat Admin DPW</span>
+                <span className="hidden sm:inline">Pusat Bantuan &amp; Chat Admin DPW</span>
+                <Sparkles className="w-3.5 h-3.5 text-[#FFDD00] shrink-0" />
               </div>
-              <div className="text-[10px] text-blue-200 truncate flex items-center gap-1.5 mt-0.5">
+              <div className="text-[10px] text-blue-200 truncate flex items-center gap-1 mt-0.5">
                 <ShieldCheck className="w-3 h-3 text-emerald-300 shrink-0" />
-                <span className="truncate">
+                <span className="truncate sm:hidden">
+                  {selectedTarget?.isDefaultTeam
+                    ? 'Respon Cepat DPW'
+                    : selectedTarget?.name || 'Admin DPW'}
+                </span>
+                <span className="truncate hidden sm:inline">
                   {selectedTarget?.isDefaultTeam
                     ? 'Tim Admin DPW Standby (Respon Cepat)'
                     : `Ditujukan ke: ${selectedTarget?.name || 'Admin DPW'}`}

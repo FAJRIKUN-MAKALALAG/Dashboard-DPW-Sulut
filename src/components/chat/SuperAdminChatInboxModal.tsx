@@ -251,14 +251,19 @@ export const SuperAdminChatInboxModal: React.FC<SuperAdminChatInboxModalProps> =
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <h3 className="text-xs sm:text-base font-black text-white truncate">
-                  Pusat Pesan Pengurus (Helpdesk Super Admin)
+                  <span className="sm:hidden">Helpdesk Pengurus</span>
+                  <span className="hidden sm:inline">Pusat Pesan Pengurus (Helpdesk Super Admin)</span>
                 </h3>
                 <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-[#FDB813] text-slate-950 shrink-0">
-                  MASTER INBOX
+                  <span className="sm:hidden">INBOX</span>
+                  <span className="hidden sm:inline">MASTER INBOX</span>
                 </span>
               </div>
-              <p className="hidden sm:block text-xs text-blue-100/90 mt-0.5 truncate">
-                Kelola laporan kendala data, permohonan SK, dan bantuan pengurus se-Sulawesi Utara
+              <p className="text-[10px] sm:text-xs text-blue-100/90 mt-0.5 truncate">
+                <span className="sm:hidden">Laporan &amp; bantuan pengurus Sulut</span>
+                <span className="hidden sm:inline">
+                  Kelola laporan kendala data, permohonan SK, dan bantuan pengurus se-Sulawesi Utara
+                </span>
               </p>
             </div>
           </div>
