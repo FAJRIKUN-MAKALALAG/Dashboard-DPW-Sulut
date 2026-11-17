@@ -18,6 +18,7 @@ import {
   KtpScannedPreviewCard,
 } from './KtpStandardizationGuide';
 import { KtpLiveCameraViewport } from './KtpLiveCameraViewport';
+import { KtpImageCropperModal } from './KtpImageCropperModal';
 
 export interface KtpCameraScannerBoxProps {
   fotoKtpUrl: string;
@@ -51,12 +52,14 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
   const [ocrProgress, setOcrProgress] = useState<number>(0);
   const [ocrStatusText, setOcrStatusText] = useState<string>('');
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [cropModalSource, setCropModalSource] = useState<string | File | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const guideFrameRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const lastRawSourceRef = useRef<string | File | null>(null);
 
   const stopCameraStream = useCallback(() => {
     if (streamRef.current) {
@@ -246,6 +249,7 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     );
 
     const capturedDataUrl = captureCanvas.toDataURL('image/jpeg', 0.94);
+    lastRawSourceRef.current = capturedDataUrl;
     stopCameraStream();
     processKtpSource(capturedDataUrl);
   };
@@ -253,7 +257,8 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    processKtpSource(file);
+    lastRawSourceRef.current = file;
+    setCropModalSource(file);
     e.target.value = '';
   };
 
@@ -262,7 +267,8 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      processKtpSource(file);
+      lastRawSourceRef.current = file;
+      setCropModalSource(file);
     }
   };
 
@@ -414,10 +420,30 @@ export const KtpCameraScannerBox: React.FC<KtpCameraScannerBoxProps> = ({
           extractedData={extractedData}
           onRetakeCamera={() => startCameraStream('environment')}
           onReplaceFileClick={() => fileInputRef.current?.click()}
+          onOpenCropModal={() => setCropModalSource(lastRawSourceRef.current || fotoKtpUrl)}
           onClearKtp={onClearKtp}
           onProceedNext={onProceedNext}
         />
       )}
+
+      <KtpImageCropperModal
+        isOpen={Boolean(cropModalSource)}
+        imageSource={cropModalSource}
+        title="Potong & Paskan Foto e-KTP"
+        subtitle="Jika foto KTP diambil dari jauh, perbesar (zoom) atau tarik sudut bingkai kuning tepat mengelilingi kartu e-KTP."
+        primaryButtonText="Potong & Pindai e-KTP"
+        showSkipCropButton={true}
+        onConfirmCrop={(res) => {
+          setCropModalSource(null);
+          processKtpSource(res.croppedKtpDataUrl);
+        }}
+        onSkipCrop={() => {
+          const raw = cropModalSource;
+          setCropModalSource(null);
+          if (raw) processKtpSource(raw);
+        }}
+        onCancel={() => setCropModalSource(null)}
+      />
 
       <input
         ref={fileInputRef}

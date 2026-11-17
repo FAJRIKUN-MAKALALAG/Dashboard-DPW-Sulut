@@ -25,4 +25,7 @@ export {
   KtpStandardizationGuide,
   KtpScannedPreviewCard,
 } from './components/KtpStandardizationGuide';
+export { KtpImageCropperModal } from './components/KtpImageCropperModal';
+export type { KtpCropResult, KtpImageCropperModalProps } from './components/KtpImageCropperModal';
+
 

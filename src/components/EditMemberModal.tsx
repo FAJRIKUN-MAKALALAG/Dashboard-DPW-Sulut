@@ -388,6 +388,12 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
               fotoKtpUrl={fotoKtpUrl}
               onClearFotoKtp={() => setFotoKtpUrl('')}
               onKtpUpload={handleKtpUpload}
+              onCroppedKtp={(croppedKtp, croppedFace) => {
+                setFotoKtpUrl(croppedKtp);
+                if (!fotoProfilUrl && croppedFace) {
+                  setFotoProfilUrl(croppedFace);
+                }
+              }}
               isUploadingKtp={isUploadingKtp}
               onGenerateSimulatedKtp={handleGenerateSimulatedKtp}
             />
