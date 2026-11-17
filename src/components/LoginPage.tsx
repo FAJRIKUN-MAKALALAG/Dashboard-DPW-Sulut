@@ -235,13 +235,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  {/* NIK / e-KTA */}
+                  {/* Username / NIK / e-KTA */}
                   <div>
                     <label
                       htmlFor="login-username"
                       className="block text-xs font-semibold text-slate-700 mb-1.5"
                     >
-                      NIK KTP / Nomor e-KTA
+                      Username / NIK KTP / Nomor e-KTA
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -253,7 +253,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         autoComplete="username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Masukkan 16 digit NIK atau No. e-KTA"
+                        placeholder="Masukkan Username, 16 digit NIK, atau No. e-KTA"
                         className="w-full h-11 pl-10 pr-4 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#1A3282] focus:ring-3 focus:ring-[#1A3282]/10 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all font-mono"
                         required
                       />

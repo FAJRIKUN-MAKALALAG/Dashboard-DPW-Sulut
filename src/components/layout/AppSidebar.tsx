@@ -240,12 +240,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
           {/* Navigation Links Scrollable Area */}
           <div className="px-2.5 py-3 space-y-5 overflow-y-auto max-h-[calc(100vh-170px)]">
-            {/* Section 1: Dashboard & Struktur Organisasi */}
-            <div>
-              <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
-                {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Struktur & Tata Kelola'}
-              </span>
-              <div className="space-y-1">
+            {/* Section 1: Dashboard & Struktur Organisasi (Disembunyikan untuk Admin Inventory) */}
+            {session?.role !== 'ADMIN_INVENTORY' && (
+              <div>
+                <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
+                  {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Struktur & Tata Kelola'}
+                </span>
+                <div className="space-y-1">
                 {/* 1. Dashboard Utama (HANYA untuk Super Admin, Ketua DPW, Ketua DPD, Ketua DPC) */}
                 {hasDashboard && (
                   <button
@@ -501,9 +502,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 )}
               </div>
             </div>
+            )}
 
             {/* Section: Pendaftaran Mandiri & e-KTA DPP (Hanya Pengurus & Admin) */}
-            {session?.role !== 'ANGGOTA' && (
+            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   Pendaftaran &amp; e-KTA
@@ -581,7 +583,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             )}
 
             {/* Section 2: Database & Pencarian Anggota (Hanya Pengurus Ber-SK & Admin) */}
-            {session?.role !== 'ANGGOTA' && (
+            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   Pencarian &amp; Data Anggota
@@ -631,12 +633,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   Alat Operasional
                 </span>
                 <div className="space-y-1">
-                  {/* Inventaris Kantor DPW (5 Lantai): HANYA SUPER ADMIN */}
-                  {session?.role === 'SUPER_ADMIN' && (
+                  {/* Inventaris Kantor DPW (5 Lantai): SUPER ADMIN & ADMIN INVENTORY */}
+                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_INVENTORY') && (
                     <button
                       onClick={() => handleNavClick('inventory')}
                       className={navItemClass(activeTab === 'inventory')}
-                      title="Inventaris & Aset Kantor DPW Sulut (Khusus Super Admin)"
+                      title="Inventaris & Aset Kantor DPW Sulut (5 Lantai)"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className={iconContainerClass(activeTab === 'inventory')}>
@@ -717,34 +719,36 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   )}
 
                   {/* Persetujuan Hapus */}
-                  <button
-                    onClick={() => {
-                      onOpenDeletionApproval();
-                      onCloseMobile();
-                    }}
-                    title={
-                      session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
-                        ? 'Persetujuan Hapus'
-                        : 'Status Pengajuan Hapus'
-                    }
-                    className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <span className={textHiddenIfCollapsed}>
-                        {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                  {session?.role !== 'ADMIN_INVENTORY' && (
+                    <button
+                      onClick={() => {
+                        onOpenDeletionApproval();
+                        onCloseMobile();
+                      }}
+                      title={
+                        session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
                           ? 'Persetujuan Hapus'
-                          : 'Status Pengajuan Hapus'}
-                      </span>
-                    </div>
-                    {pendingDeletionCount > 0 && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 dark:bg-blue-600 text-white ${textHiddenIfCollapsed}`}>
-                        {pendingDeletionCount}
-                      </span>
-                    )}
-                  </button>
+                          : 'Status Pengajuan Hapus'
+                      }
+                      className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <span className={textHiddenIfCollapsed}>
+                          {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                            ? 'Persetujuan Hapus'
+                            : 'Status Pengajuan Hapus'}
+                        </span>
+                      </div>
+                      {pendingDeletionCount > 0 && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 dark:bg-blue-600 text-white ${textHiddenIfCollapsed}`}>
+                          {pendingDeletionCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   {/* Manajemen Akun Admin: HANYA SUPER ADMIN */}
                   {showUserMgmt && onOpenUserManagement && (

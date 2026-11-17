@@ -226,10 +226,13 @@ export default function App() {
     }
   };
 
-  // Guard: Anggota biasa tanpa SK HANYA boleh mengakses portal (Profil Saya)
+  // Guard: Anggota biasa tanpa SK HANYA boleh mengakses portal (Profil Saya),
+  // dan Admin Inventory HANYA mengakses halaman Inventaris Kantor.
   useEffect(() => {
     if (session?.role === 'ANGGOTA' && activeTab !== 'portal') {
       setActiveTab('portal');
+    } else if (session?.role === 'ADMIN_INVENTORY' && activeTab !== 'inventory') {
+      setActiveTab('inventory');
     }
   }, [session?.role, activeTab]);
 
@@ -370,30 +373,48 @@ export default function App() {
     }
   }, [session, members]);
 
-  // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt)
+  // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt, Inventory, Anggota)
   const accessibleMembers = useMemo(() => {
-    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (!session) return [];
+    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
       return members;
     }
+    if (session.role === 'ADMIN_INVENTORY') {
+      return [];
+    }
+    if (session.role === 'ANGGOTA') {
+      const myNik = (session.adminNik || '').trim();
+      return myNik ? members.filter((m) => m.nik === myNik) : [];
+    }
+
+    const dpdWant = (session.dpdAccess || '').trim();
+    if (!dpdWant || dpdWant === 'ALL' || dpdWant === '-' || dpdWant === 'Sulawesi Utara') {
+      return [];
+    }
+
+    const dpcWant =
+      session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' && session.dpcAccess !== '-'
+        ? session.dpcAccess.trim()
+        : '';
+    if ((session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && !dpcWant) {
+      return [];
+    }
+
+    const dprtWant =
+      session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' && session.dprtAccess !== '-'
+        ? session.dprtAccess.trim()
+        : '';
+    if (session.role === 'ADMIN_DPRT' && !dprtWant) {
+      return [];
+    }
+
     return members.filter((m) => {
-      if (session.dpdAccess && session.dpdAccess !== 'ALL') {
-        if (!isDpdMatch(m.dpd, session.dpdAccess)) return false;
+      if (!isDpdMatch(m.dpd, dpdWant)) return false;
+      if ((session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && !isDpcMatch(m.dpc, dpcWant)) {
+        return false;
       }
-      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
-        const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)'
-          ? session.dpcAccess
-          : '';
-        if (targetDpc) {
-          if (!isDpcMatch(m.dpc, targetDpc)) return false;
-        }
-      }
-      if (session.role === 'ADMIN_DPRT') {
-        const targetDprt = session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum'
-          ? session.dprtAccess
-          : '';
-        if (targetDprt) {
-          if (!isDprtMatch(m.dprt, targetDprt)) return false;
-        }
+      if (session.role === 'ADMIN_DPRT' && !isDprtMatch(m.dprt, dprtWant)) {
+        return false;
       }
       return true;
     });
@@ -401,6 +422,12 @@ export default function App() {
 
   // Tab Guard: Cegah akses di luar kewenangan peran
   useEffect(() => {
+    if (session?.role === 'ADMIN_INVENTORY') {
+      if (activeTab !== 'inventory') {
+        setActiveTab('inventory');
+      }
+      return;
+    }
     if (!canAccessDashboard(session) && activeTab === 'dashboard') {
       setActiveTab('portal');
       return;
@@ -592,7 +619,7 @@ export default function App() {
               )}
             </button>
 
-            {session?.role !== 'ANGGOTA' && (
+            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
               <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
                 className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -604,7 +631,7 @@ export default function App() {
               </button>
             )}
 
-            {session?.role !== 'ANGGOTA' && (
+            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
               <button
                 onClick={modals.openPrintReport}
                 className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -813,10 +840,11 @@ export default function App() {
             />
           )}
 
-          {/* Tab 7: Inventaris Kantor DPW Sulut (5 Lantai) - HANYA SUPER ADMIN */}
-          {activeTab === 'inventory' && session?.role === 'SUPER_ADMIN' && (
-            <InventoryPage session={session} showToast={showToast} />
-          )}
+          {/* Tab 7: Inventaris Kantor DPW Sulut (5 Lantai) - SUPER ADMIN & ADMIN INVENTORY */}
+          {activeTab === 'inventory' &&
+            (session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_INVENTORY') && (
+              <InventoryPage session={session} showToast={showToast} />
+            )}
           </div>
         </main>
 

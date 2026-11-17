@@ -384,6 +384,7 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
               fotoProfilUrl={fotoProfilUrl}
               onClearFotoProfil={() => setFotoProfilUrl('')}
               onPhotoUpload={handlePhotoUpload}
+              onCroppedFotoProfil={setFotoProfilUrl}
               isUploadingPhoto={isUploadingPhoto}
               fotoKtpUrl={fotoKtpUrl}
               onClearFotoKtp={() => setFotoKtpUrl('')}

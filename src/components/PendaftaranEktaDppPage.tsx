@@ -17,10 +17,10 @@ export const PendaftaranEktaDppPage: React.FC<PendaftaranEktaDppPageProps> = ({
   onMemberEktaUpdated,
 }) => {
   return (
-    <div className="w-full max-w-6xl mx-auto animate-page-enter pb-16 font-sans">
-      {/* Container Panel Utama: Lebar Penuh Responsif di Mobile & Desktop */}
+    <div className="w-full animate-page-enter pb-10 font-sans">
+      {/* Container Panel Utama: Memanfaatkan Lebar Penuh Desktop & Responsif Mobile */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        <div className="p-3 sm:p-5 md:p-8">
+        <div className="p-3 sm:p-5 lg:p-6">
           <DppEktaRegistrationPanel
             members={members}
             initialMember={initialMember}

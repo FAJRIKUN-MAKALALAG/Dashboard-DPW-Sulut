@@ -10,9 +10,11 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Crop,
 } from 'lucide-react';
 import { Member } from '../../types';
 import { getInitials, getAvatarColor } from '../../utils/imageUtils';
+import { ImageCropperModal } from '../ui/ImageCropperModal';
 
 export const AGAMA_OPTIONS = [
   'Kristen Protestan',
@@ -44,6 +46,7 @@ interface RegistrationStep2IdentityProps {
   fotoProfilUrl: string;
   onRescanKtp: () => void;
   onUploadProfilePhoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onCroppedProfilePhoto?: (croppedDataUrl: string) => void;
   onClearProfilePhoto: () => void;
   isUploadingPhoto?: boolean;
   nik: string;
@@ -77,6 +80,7 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
   fotoProfilUrl,
   onRescanKtp,
   onUploadProfilePhoto,
+  onCroppedProfilePhoto,
   onClearProfilePhoto,
   isUploadingPhoto = false,
   nik,
@@ -102,7 +106,19 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
 }) => {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [showMobileKtpPreview, setShowMobileKtpPreview] = useState<boolean>(false);
+  const [profileCropSource, setProfileCropSource] = useState<string | File | null>(null);
   const avatarColor = getAvatarColor(namaLengkap || 'NasDem');
+
+  const handleSelectProfileFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (onCroppedProfilePhoto) {
+      setProfileCropSource(file);
+      e.target.value = '';
+    } else {
+      onUploadProfilePhoto(e);
+    }
+  };
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -127,7 +143,7 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
               <span className="text-xs font-bold text-slate-900 dark:text-white block">
                 Pasfoto & Dokumen e-KTP
               </span>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
@@ -136,6 +152,16 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
                 >
                   {fotoProfilUrl ? 'Ganti Pasfoto' : 'Unggah Pasfoto'}
                 </button>
+                {fotoProfilUrl && onCroppedProfilePhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileCropSource(fotoProfilUrl)}
+                    className="px-2 py-1 rounded-md bg-[#1A3282] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Crop className="w-3 h-3 text-amber-300" />
+                    <span>Crop</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onRescanKtp}
@@ -245,17 +271,30 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
             </div>
 
             <div className="space-y-1.5 flex-1">
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={isUploadingPhoto}
-                className="btn-white w-full py-1.5 px-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>{fotoProfilUrl ? 'Ganti Pasfoto' : 'Unggah Pasfoto'}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="btn-white flex-1 py-1.5 px-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                  <span>{fotoProfilUrl ? 'Ganti Pasfoto' : 'Unggah Pasfoto'}</span>
+                </button>
+                {fotoProfilUrl && onCroppedProfilePhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileCropSource(fotoProfilUrl)}
+                    className="py-1.5 px-2.5 text-xs font-bold rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                    title="Potong / Crop Pasfoto"
+                  >
+                    <Crop className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Crop</span>
+                  </button>
+                )}
+              </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                Otomatis terambil dari foto KTP atau unggah pasfoto baru.
+                Otomatis terambil dari KTP atau unggah &amp; crop pasfoto baru.
               </p>
             </div>
           </div>
@@ -267,7 +306,19 @@ export const RegistrationStep2Identity: React.FC<RegistrationStep2IdentityProps>
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={onUploadProfilePhoto}
+        onChange={handleSelectProfileFile}
+      />
+
+      <ImageCropperModal
+        mode="profile"
+        isOpen={Boolean(profileCropSource)}
+        imageSource={profileCropSource}
+        primaryButtonText="Simpan Pasfoto Kader"
+        onConfirmCrop={(res) => {
+          setProfileCropSource(null);
+          onCroppedProfilePhoto?.(res.croppedDataUrl);
+        }}
+        onCancel={() => setProfileCropSource(null)}
       />
 
       {/* Form Identitas KTP (Responsif: 1 Kolom di Mobile, 2-3 Kolom di Tablet & Desktop) */}

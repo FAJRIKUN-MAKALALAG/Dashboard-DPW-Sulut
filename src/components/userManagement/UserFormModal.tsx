@@ -12,6 +12,7 @@ import {
   EyeOff,
   RefreshCw,
   Check,
+  Package,
 } from 'lucide-react';
 
 interface UserFormModalProps {
@@ -105,7 +106,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/20 border-2 border-blue-400 dark:border-blue-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
-      <div className="flex items-center justify-between pb-3 border-b border-blue-200/60 dark:border-blue-900/60 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-blue-200/60 dark:border-blue-900/60 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
             {editingUserId ? <Edit3 className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
@@ -114,12 +115,31 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
             {editingUserId ? 'Perbarui Hak Akses Akun Admin' : 'Penerbitan Akun Admin & Hak Akses Baru'}
           </h3>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setFormRole('ADMIN_INVENTORY');
+              if (!formJabatan.trim()) setFormJabatan('Admin Inventaris Kantor DPW Sulut');
+              if (!formFullName.trim()) setFormFullName('Admin Inventaris Kantor DPW');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border ${
+              formRole === 'ADMIN_INVENTORY'
+                ? 'bg-[#1A3282] text-white border-[#1A3282]'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-amber-400" />
+            <span>Set Role: Admin Inventory</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {formError && (
@@ -136,11 +156,30 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         </div>
       )}
 
+      {formRole === 'ADMIN_INVENTORY' && (
+        <div className="p-3 mb-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#1A3282] text-white flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4 text-amber-300" />
+          </div>
+          <div>
+            <span className="font-bold text-slate-900 dark:text-white block">
+              Mode Akun Admin Inventory (Gedung Kantor DPW 5 Lantai)
+            </span>
+            <span className="text-[11px] text-slate-500">
+              Cukup isi <strong>Nama Lengkap</strong>, <strong>Username Login</strong> bebas (contoh: <code className="font-mono text-blue-600">admin_inventory</code>), dan <strong>Password</strong>. Kolom NIK &amp; E-KTA bersifat opsional.
+            </span>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={onSave} className="space-y-4">
         {/* Step 1: Auto-search Kader from DB */}
         <div className="relative">
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-            Cari Kader dari Database (Nama Lengkap / NIK / E-KTA)
+            Cari Kader dari Database (Nama Lengkap / NIK / E-KTA){' '}
+            {formRole === 'ADMIN_INVENTORY' && (
+              <span className="font-normal text-slate-400">(Opsional untuk Admin Inventory)</span>
+            )}
           </label>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -301,10 +340,17 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               </label>
               <select
                 value={formRole}
-                onChange={(e) => setFormRole(e.target.value as UserRole)}
+                onChange={(e) => {
+                  const nextRole = e.target.value as UserRole;
+                  setFormRole(nextRole);
+                  if (nextRole === 'ADMIN_INVENTORY' && !formJabatan.trim()) {
+                    setFormJabatan('Admin Inventaris Kantor DPW Sulut');
+                  }
+                }}
                 className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-bold text-amber-600 dark:text-amber-400"
               >
                 <option value="SUPER_ADMIN">★ SUPER ADMINISTRATOR (Akses Tertinggi)</option>
+                <option value="ADMIN_INVENTORY">📦 ADMIN INVENTORY (Inventaris Kantor DPW 5 Lantai)</option>
                 <option value="ADMIN_DPW">ADMIN DPW (Tingkat Provinsi)</option>
                 <option value="ADMIN_DPD">ADMIN DPD (Tingkat Kab/Kota)</option>
                 <option value="ADMIN_DPC">ADMIN DPC (Tingkat Kecamatan)</option>
@@ -317,11 +363,15 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
                 Cakupan DPD (Kabupaten/Kota)
               </label>
-              {formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' ? (
+              {formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' || formRole === 'ADMIN_INVENTORY' ? (
                 <input
                   type="text"
                   disabled
-                  value="SEMUA KAB/KOTA SE-SULUT (ALL)"
+                  value={
+                    formRole === 'ADMIN_INVENTORY'
+                      ? 'GEDUNG KANTOR DPW SULUT (5 LANTAI)'
+                      : 'SEMUA KAB/KOTA SE-SULUT (ALL)'
+                  }
                   className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-slate-400 font-bold"
                 />
               ) : (

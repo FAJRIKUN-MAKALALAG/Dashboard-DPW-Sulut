@@ -73,7 +73,14 @@ export interface MemberPosition {
   urutan?: number;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN_DPW' | 'ADMIN_DPD' | 'ADMIN_DPC' | 'ADMIN_DPRT' | 'ANGGOTA';
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'ADMIN_DPW'
+  | 'ADMIN_DPD'
+  | 'ADMIN_DPC'
+  | 'ADMIN_DPRT'
+  | 'ADMIN_INVENTORY'
+  | 'ANGGOTA';
 
 export interface UserSession {
   role: UserRole;

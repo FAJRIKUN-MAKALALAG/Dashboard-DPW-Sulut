@@ -52,16 +52,15 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 }) => {
   const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
 
-  // Available regions scoped to session role & territory
+  // Available regions strictly scoped to session role & territory (Fail-Closed)
   const availableRegions = useMemo(() => {
     if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
       return SULUT_REGIONS;
     }
-    if (session.dpdAccess && session.dpdAccess !== 'ALL') {
-      const filtered = SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess));
-      return filtered.length > 0 ? filtered : SULUT_REGIONS;
+    if (session.dpdAccess && session.dpdAccess !== 'ALL' && session.dpdAccess !== '-') {
+      return SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess));
     }
-    return SULUT_REGIONS;
+    return [];
   }, [session]);
 
   // Territory Selector State
@@ -99,14 +98,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     );
   }, [availableRegions, selectedDpd]);
 
-  // Subdistricts scoped to session role & territory
+  // Subdistricts strictly scoped to session role & territory (Fail-Closed)
   const availableSubdistricts = useMemo(() => {
     const subs = currentRegion?.subdistricts || [];
     if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
-      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
-        const filtered = subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
-        return filtered.length > 0 ? filtered : subs;
+      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' && session.dpcAccess !== '-') {
+        return subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
       }
+      return [];
     }
     return subs;
   }, [currentRegion, session]);
@@ -128,14 +127,14 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
     );
   }, [availableSubdistricts, currentRegion, selectedDpc]);
 
-  // Villages scoped to session role & territory
+  // Villages strictly scoped to session role & territory (Fail-Closed)
   const availableVillages = useMemo(() => {
     const vils = currentSubdistrict?.villages || [];
     if (session?.role === 'ADMIN_DPRT') {
-      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
-        const filtered = vils.filter((v) => isDprtMatch(v, session.dprtAccess));
-        return filtered.length > 0 ? filtered : vils;
+      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' && session.dprtAccess !== '-') {
+        return vils.filter((v) => isDprtMatch(v, session.dprtAccess));
       }
+      return [];
     }
     return vils;
   }, [currentSubdistrict, session]);

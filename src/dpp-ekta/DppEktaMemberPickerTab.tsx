@@ -78,9 +78,9 @@ export const DppEktaMemberPickerTab: React.FC<DppEktaMemberPickerTabProps> = ({
       </div>
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
-        <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800">
+        <div className="max-h-[540px] overflow-y-auto grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:gap-px bg-slate-200 dark:bg-slate-800">
           {filteredMembers.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">
+            <div className="lg:col-span-2 p-8 text-center text-xs text-slate-500 bg-white dark:bg-slate-900">
               Tidak ada anggota yang sesuai dengan filter pencarian.
             </div>
           ) : (
@@ -90,7 +90,7 @@ export const DppEktaMemberPickerTab: React.FC<DppEktaMemberPickerTabProps> = ({
               return (
                 <div
                   key={`${m.nik}_${m.id || ''}`}
-                  className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="p-3.5 sm:p-4 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

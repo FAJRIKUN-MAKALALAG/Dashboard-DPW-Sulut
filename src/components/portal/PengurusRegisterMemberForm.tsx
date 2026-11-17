@@ -563,6 +563,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             fotoProfilUrl={fotoProfilUrl}
             onRescanKtp={() => setCurrentStep(1)}
             onUploadProfilePhoto={handleProfilePhotoUpload}
+            onCroppedProfilePhoto={setFotoProfilUrl}
             onClearProfilePhoto={() => setFotoProfilUrl('')}
             nik={inputNik}
             onChangeNik={setInputNik}

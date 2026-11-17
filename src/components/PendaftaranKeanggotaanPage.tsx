@@ -147,10 +147,10 @@ export const PendaftaranKeanggotaanPage: React.FC<PendaftaranKeanggotaanPageProp
   const perekrutNik = activePengurusMember?.nik || session.adminNik;
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 animate-page-enter pb-16 font-sans">
-      {/* 1. Container Form Utama: Lebar Penuh & Bebas dari Kotak Dialog Popup */}
+    <div className="w-full space-y-4 animate-page-enter pb-10 font-sans">
+      {/* 1. Container Form Utama: Memanfaatkan Lebar Penuh Desktop & Responsif Mobile */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        <div className="p-3 sm:p-5 md:p-8">
+        <div className="p-3 sm:p-5 lg:p-6">
           <PengurusRegisterMemberForm
             members={members}
             session={session}

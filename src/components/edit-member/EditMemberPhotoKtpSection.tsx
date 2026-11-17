@@ -1,13 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Trash2, Upload, IdCard, Sparkles, Crop } from 'lucide-react';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
-import { KtpImageCropperModal } from '../../ktp-scanner';
+import { ImageCropperModal } from '../ui/ImageCropperModal';
 
 interface EditMemberPhotoKtpSectionProps {
   namaLengkap: string;
   fotoProfilUrl: string;
   onClearFotoProfil: () => void;
   onPhotoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onCroppedFotoProfil?: (croppedProfileUrl: string) => void;
   isUploadingPhoto: boolean;
   fotoKtpUrl: string;
   onClearFotoKtp: () => void;
@@ -22,6 +23,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
   fotoProfilUrl,
   onClearFotoProfil,
   onPhotoUpload,
+  onCroppedFotoProfil,
   isUploadingPhoto,
   fotoKtpUrl,
   onClearFotoKtp,
@@ -33,7 +35,19 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
   const photoInputRef = useRef<HTMLInputElement>(null);
   const ktpInputRef = useRef<HTMLInputElement>(null);
   const [cropSource, setCropSource] = useState<string | File | null>(null);
+  const [profileCropSource, setProfileCropSource] = useState<string | File | null>(null);
   const avatarColor = getAvatarColor(namaLengkap || 'NasDem');
+
+  const handleSelectProfileFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (onCroppedFotoProfil) {
+      setProfileCropSource(file);
+      e.target.value = '';
+    } else {
+      onPhotoUpload(e);
+    }
+  };
 
   const handleSelectKtpFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,16 +105,29 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
             </div>
 
             <div className="space-y-1.5 flex-1">
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={isUploadingPhoto}
-                className="btn-white w-full py-1.5 px-2.5 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5 text-blue-500" />
-                <span>{fotoProfilUrl ? 'Ganti Foto' : 'Unggah Foto'}</span>
-              </button>
-              <p className="text-[10px] text-slate-400">Format JPG/PNG, maks 5MB.</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="btn-white flex-1 py-1.5 px-2.5 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-blue-500" />
+                  <span>{fotoProfilUrl ? 'Ganti Foto' : 'Unggah Foto'}</span>
+                </button>
+                {fotoProfilUrl && onCroppedFotoProfil && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileCropSource(fotoProfilUrl)}
+                    className="py-1.5 px-2.5 text-xs font-bold rounded-lg bg-[#1A3282] text-white flex items-center justify-center gap-1 cursor-pointer"
+                    title="Potong / Crop Foto Profil"
+                  >
+                    <Crop className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Crop</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">Format JPG/PNG, maks 5MB (bisa di-crop).</p>
             </div>
           </div>
 
@@ -109,7 +136,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={onPhotoUpload}
+            onChange={handleSelectProfileFile}
           />
         </div>
 
@@ -189,16 +216,29 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
         </div>
       </div>
 
-      <KtpImageCropperModal
+      <ImageCropperModal
+        mode="ktp"
         isOpen={Boolean(cropSource)}
         imageSource={cropSource}
         title="Potong & Perbesar Foto e-KTP Kader"
         primaryButtonText="Simpan Hasil Crop KTP"
         onConfirmCrop={(res) => {
           setCropSource(null);
-          onCroppedKtp?.(res.croppedKtpDataUrl, res.croppedFaceDataUrl);
+          onCroppedKtp?.(res.croppedDataUrl, res.croppedFaceDataUrl);
         }}
         onCancel={() => setCropSource(null)}
+      />
+
+      <ImageCropperModal
+        mode="profile"
+        isOpen={Boolean(profileCropSource)}
+        imageSource={profileCropSource}
+        primaryButtonText="Simpan Pasfoto Profil"
+        onConfirmCrop={(res) => {
+          setProfileCropSource(null);
+          onCroppedFotoProfil?.(res.croppedDataUrl);
+        }}
+        onCancel={() => setProfileCropSource(null)}
       />
     </div>
   );
