@@ -23,7 +23,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
   const [items, setItems] = useState<InventoryItem[]>(() => loadLocalInventory());
   const [selectedFloor, setSelectedFloor] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [mobileGridCols, setMobileGridCols] = useState<3 | 4>(3);
+  const [mobileGridCols, setMobileGridCols] = useState<2 | 3 | 4>(3);
 
   // Modals State
   const [detailItem, setDetailItem] = useState<InventoryItem | null>(null);
@@ -149,13 +149,13 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
   };
 
   return (
-    <div className="w-[100%] max-w-[100vw] space-y-[0.75rem]">
+    <div className="w-[100%] max-w-[100vw] space-y-[0.85rem]">
       {/* ========================================================================= */}
       {/* 1. COMPACT SINGLE-LINE TOOLBAR (TIDAK MENGHALANGI PANDANGAN BARANG)       */}
       {/* ========================================================================= */}
       <div className="w-[100%] bg-white dark:bg-slate-900 border-[1px] border-slate-200/90 dark:border-slate-800 rounded-[14px] px-[2.5%] sm:px-[1.2%] py-[0.5rem] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-[0.5rem]">
-        {/* Left: 5-Floor Inline Segmented Pills (Satu Baris Rapi, Tanpa Turun Baris) */}
-        <div className="w-[100%] md:w-[52%] lg:w-[48%] grid grid-cols-5 gap-[1%] bg-slate-100/90 dark:bg-slate-800/80 p-[0.2rem] rounded-[10px]">
+        {/* Left: 5-Floor Inline Segmented Pills */}
+        <div className="w-[100%] md:w-[50%] lg:w-[46%] grid grid-cols-5 gap-[1%] bg-slate-100/90 dark:bg-slate-800/80 p-[0.2rem] rounded-[10px]">
           {DPW_FLOORS.map((f) => {
             const count = items.filter((i) => i.lantai === f.lantai).length;
             const isActive = selectedFloor === f.lantai;
@@ -190,8 +190,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
           })}
         </div>
 
-        {/* Right: Search Input + Grid Switcher (3/4) + Tombol Tambah (Satu Baris) */}
-        <div className="w-[100%] md:w-[46%] lg:w-[48%] flex items-center justify-between md:justify-end gap-[1.8%]">
+        {/* Right: Search Input + Grid Switcher (2/3/4) + Tombol Tambah */}
+        <div className="w-[100%] md:w-[48%] lg:w-[52%] flex items-center justify-between md:justify-end gap-[1.5%]">
           {/* Compact Search Input */}
           <div className="flex-1 relative min-w-0">
             <Search className="w-[0.8rem] h-[0.8rem] text-slate-400 absolute left-[0.65rem] top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -213,13 +213,26 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
             )}
           </div>
 
-          {/* Compact 3 / 4 Grid Pill */}
+          {/* Pilihan Ukuran Grid: 2 Grid (Besar), 3 Grid (Sedang), 4 Grid (Rapat) */}
           <div className="inline-flex items-center rounded-[10px] border-[1px] border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800 p-[0.15em] shrink-0">
             <button
               type="button"
+              onClick={() => setMobileGridCols(2)}
+              title="Tampilan 2 Kolom Besar (Lebar 49%)"
+              className={`text-[0.65rem] sm:text-[0.7rem] font-semibold px-[0.55em] py-[0.38em] rounded-[7px] flex items-center gap-[0.2rem] cursor-pointer whitespace-nowrap transition-all ${
+                mobileGridCols === 2
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <LayoutGrid className="w-[0.68rem] h-[0.68rem] hidden lg:inline" />
+              <span>2 Grid</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setMobileGridCols(3)}
-              title="Tampilan 3 Kolom Sejajar"
-              className={`text-[0.65rem] sm:text-[0.7rem] font-semibold px-[0.6em] py-[0.38em] rounded-[7px] flex items-center gap-[0.2rem] cursor-pointer whitespace-nowrap transition-all ${
+              title="Tampilan 3 Kolom Sejajar (Lebar 32.4%)"
+              className={`text-[0.65rem] sm:text-[0.7rem] font-semibold px-[0.55em] py-[0.38em] rounded-[7px] flex items-center gap-[0.2rem] cursor-pointer whitespace-nowrap transition-all ${
                 mobileGridCols === 3
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
                   : 'text-slate-500 dark:text-slate-400'
@@ -231,8 +244,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
             <button
               type="button"
               onClick={() => setMobileGridCols(4)}
-              title="Tampilan 4 Kolom Sejajar"
-              className={`text-[0.65rem] sm:text-[0.7rem] font-semibold px-[0.6em] py-[0.38em] rounded-[7px] flex items-center gap-[0.2rem] cursor-pointer whitespace-nowrap transition-all ${
+              title="Tampilan 4 Kolom Sejajar (Lebar 24.1%)"
+              className={`text-[0.65rem] sm:text-[0.7rem] font-semibold px-[0.55em] py-[0.38em] rounded-[7px] flex items-center gap-[0.2rem] cursor-pointer whitespace-nowrap transition-all ${
                 mobileGridCols === 4
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
                   : 'text-slate-500 dark:text-slate-400'
@@ -258,24 +271,29 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ session, showToast
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. LANGSUNG GRID CARD BARANG PADA LANTAI AKTIF                            */}
+      {/* 2. PENGATURAN LEBAR & JARAK GRID CARD BARANG                              */}
+      {/*    Ubah persentase w-[...] di bawah ini untuk mengatur lebar tiap kartu   */}
       {/* ========================================================================= */}
       <div key={selectedFloor} className="w-[100%] animate-tab-enter">
         {displayedItems.length > 0 ? (
           <div
             className={`w-[100%] flex flex-wrap items-stretch justify-start ${
-              mobileGridCols === 4
-                ? 'gap-x-[1.6%] gap-y-[0.6rem] sm:gap-y-[0.9rem]'
-                : 'gap-x-[2%] gap-y-[0.7rem] sm:gap-y-[1rem]'
+              mobileGridCols === 2
+                ? 'gap-x-[2%] gap-y-[0.9rem] sm:gap-y-[1.25rem]'
+                : mobileGridCols === 4
+                ? 'gap-x-[1.2%] gap-y-[0.7rem] sm:gap-y-[1rem]'
+                : 'gap-x-[1.4%] gap-y-[0.85rem] sm:gap-y-[1.15rem]'
             }`}
           >
             {displayedItems.map((item) => (
               <div
                 key={item.id}
                 className={
-                  mobileGridCols === 4
-                    ? 'w-[23.8%] flex'
-                    : 'w-[32%] xl:w-[23.5%] flex'
+                  mobileGridCols === 2
+                    ? 'w-[49%] flex'
+                    : mobileGridCols === 4
+                    ? 'w-[24.1%] flex'
+                    : 'w-[32.4%] flex'
                 }
               >
                 <InventoryItemCard

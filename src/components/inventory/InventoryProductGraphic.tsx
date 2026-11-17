@@ -98,9 +98,9 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
       />
 
       {/* Studio Minimalist Vector Illustration */}
-      <div className="relative z-10 transition-transform duration-300 group-hover:scale-105 flex flex-col items-center">
+      <div className="relative z-10 w-[100%] h-[100%] transition-transform duration-300 group-hover:scale-105 flex flex-col items-center justify-center">
         {visual === 'desk' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             {/* Monitor on desk */}
             <rect x="44" y="14" width="32" height="20" rx="2" className="fill-slate-200/80 dark:fill-slate-700/80 stroke-current" strokeWidth="2" />
             <path d="M56 34V40M64 34V40M50 40H70" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -121,7 +121,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'conference_table' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             {/* Back chairs */}
             <path d="M28 32V25C28 23 30 22 33 22H39C42 22 44 23 44 25V32" stroke="currentColor" strokeWidth="1.8" />
             <path d="M52 30V23C52 21 54 20 57 20H63C66 20 68 21 68 23V30" stroke="currentColor" strokeWidth="1.8" />
@@ -135,7 +135,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'chair' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             {/* Backrest */}
             <rect x="44" y="12" width="32" height="32" rx="6" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <line x1="50" y1="22" x2="70" y2="22" stroke="currentColor" strokeWidth="1.3" strokeDasharray="2 2" />
@@ -153,7 +153,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'sofa' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="20" y="24" width="80" height="28" rx="5" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2" />
             <line x1="47" y1="24" x2="47" y2="52" stroke="currentColor" strokeWidth="1.5" />
             <line x1="73" y1="24" x2="73" y2="52" stroke="currentColor" strokeWidth="1.5" />
@@ -167,7 +167,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'cabinet' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="34" y="12" width="52" height="66" rx="2" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <line x1="60" y1="12" x2="60" y2="78" stroke="currentColor" strokeWidth="1.8" />
             <line x1="34" y1="34" x2="86" y2="34" stroke="currentColor" strokeWidth="1.4" />
@@ -178,7 +178,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'rack' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <path d="M30 12V78M90 12V78" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             <line x1="30" y1="20" x2="90" y2="20" stroke="currentColor" strokeWidth="2" />
             <line x1="30" y1="38" x2="90" y2="38" stroke="currentColor" strokeWidth="2" />
@@ -192,7 +192,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'computer' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="26" y="16" width="68" height="42" rx="3" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <rect x="31" y="21" width="58" height="30" rx="1" className="fill-slate-100 dark:fill-slate-700/60 stroke-current" strokeWidth="1.2" />
             <path d="M54 58L50 68H70L66 58" className="fill-slate-200 dark:fill-slate-700 stroke-current" strokeWidth="2" strokeLinejoin="round" />
@@ -201,7 +201,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'ac' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="18" y="24" width="84" height="26" rx="5" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <line x1="24" y1="43" x2="96" y2="43" stroke="currentColor" strokeWidth="1.8" />
             <rect x="82" y="30" width="10" height="4" rx="1" className="fill-slate-300 dark:fill-slate-600" />
@@ -210,7 +210,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'printer' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <path d="M40 28V16H80V28" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2" />
             <rect x="24" y="28" width="72" height="32" rx="4" className="fill-slate-100 dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <rect x="38" y="50" width="44" height="22" rx="1.5" className="fill-white dark:fill-slate-700 stroke-current" strokeWidth="2" />
@@ -221,7 +221,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'tv' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="18" y="14" width="84" height="48" rx="3" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <rect x="23" y="19" width="74" height="38" rx="1" className="fill-slate-100 dark:fill-slate-700/60 stroke-current" strokeWidth="1.2" />
             <path d="M46 62V76M74 62V76M36 76H84" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -229,7 +229,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'sound' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             {/* Speaker Box */}
             <rect x="28" y="14" width="40" height="62" rx="4" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <circle cx="48" cy="30" r="7" className="fill-slate-100 dark:fill-slate-700 stroke-current" strokeWidth="1.8" />
@@ -242,7 +242,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'podium' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <path d="M36 22L84 22L78 32H42L36 22Z" className="fill-slate-200 dark:fill-slate-700 stroke-current" strokeWidth="2" strokeLinejoin="round" />
             <rect x="44" y="32" width="32" height="40" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2" />
             <circle cx="60" cy="48" r="7" className="fill-slate-100 dark:fill-slate-700 stroke-current" strokeWidth="1.6" />
@@ -251,7 +251,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'flag' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <line x1="36" y1="14" x2="36" y2="78" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             <path d="M36 18C50 14 64 22 84 18V46C64 50 50 42 36 46V18Z" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" strokeLinejoin="round" />
             <circle cx="60" cy="32" r="6" className="fill-slate-200 dark:fill-slate-700 stroke-current" strokeWidth="1.6" />
@@ -259,7 +259,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'camera' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <rect x="32" y="24" width="56" height="36" rx="5" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" />
             <path d="M48 24L52 17H68L72 24" className="fill-slate-200 dark:fill-slate-700 stroke-current" strokeWidth="2" />
             <circle cx="60" cy="42" r="11" className="fill-slate-100 dark:fill-slate-700 stroke-current" strokeWidth="2" />
@@ -269,7 +269,7 @@ export const InventoryProductGraphic: React.FC<InventoryProductGraphicProps> = (
         )}
 
         {visual === 'box' && (
-          <svg className="w-24 h-20 text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
+          <svg className="w-[58%] h-[58%] max-w-[11rem] max-h-[9rem] text-slate-600 dark:text-slate-300" viewBox="0 0 120 90" fill="none">
             <path d="M60 16L94 32V62L60 78L26 62V32L60 16Z" className="fill-white dark:fill-slate-800 stroke-current" strokeWidth="2.2" strokeLinejoin="round" />
             <path d="M26 32L60 48L94 32M60 48V78" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
           </svg>
