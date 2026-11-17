@@ -347,13 +347,16 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
     try {
       const compressed = await compressImageFile(
         file,
-        target === 'ktp' ? 1100 : 600,
+        target === 'ktp' ? 1400 : 600,
+        target === 'ktp' ? 1000 : 600,
         0.85
       );
       if (target === 'ktp') setFotoKtpUrl(compressed);
       else setFotoProfilUrl(compressed);
     } catch {
       setErrorMessage('Gagal memproses berkas gambar.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -585,6 +588,7 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
           fotoKtpUrl={fotoKtpUrl}
           setFotoKtpUrl={setFotoKtpUrl}
           fotoProfilUrl={fotoProfilUrl}
+          setFotoProfilUrl={setFotoProfilUrl}
           saveToLocalMembers={saveToLocalMembers}
           setSaveToLocalMembers={setSaveToLocalMembers}
           showKtpScanner={showKtpScanner}

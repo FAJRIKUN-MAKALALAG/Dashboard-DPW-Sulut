@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
-import { Camera, Trash2, Upload, IdCard, Sparkles } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Camera, Trash2, Upload, IdCard, Sparkles, Crop } from 'lucide-react';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
+import { KtpImageCropperModal } from '../../ktp-scanner';
 
 interface EditMemberPhotoKtpSectionProps {
   namaLengkap: string;
@@ -11,6 +12,7 @@ interface EditMemberPhotoKtpSectionProps {
   fotoKtpUrl: string;
   onClearFotoKtp: () => void;
   onKtpUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onCroppedKtp?: (croppedKtpUrl: string, croppedFaceUrl?: string) => void;
   isUploadingKtp: boolean;
   onGenerateSimulatedKtp: () => void;
 }
@@ -24,12 +26,25 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
   fotoKtpUrl,
   onClearFotoKtp,
   onKtpUpload,
+  onCroppedKtp,
   isUploadingKtp,
   onGenerateSimulatedKtp,
 }) => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const ktpInputRef = useRef<HTMLInputElement>(null);
+  const [cropSource, setCropSource] = useState<string | File | null>(null);
   const avatarColor = getAvatarColor(namaLengkap || 'NasDem');
+
+  const handleSelectKtpFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (onCroppedKtp) {
+      setCropSource(file);
+      e.target.value = '';
+    } else {
+      onKtpUpload(e);
+    }
+  };
 
   return (
     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
@@ -129,7 +144,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
             </div>
 
             <div className="space-y-1.5 flex-1">
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => ktpInputRef.current?.click()}
@@ -139,6 +154,17 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
                   <Upload className="w-3 h-3 text-blue-500" />
                   <span>{fotoKtpUrl ? 'Ganti' : 'Unggah'}</span>
                 </button>
+                {fotoKtpUrl && onCroppedKtp && (
+                  <button
+                    type="button"
+                    onClick={() => setCropSource(fotoKtpUrl)}
+                    className="py-1 px-2 text-[11px] font-bold rounded-lg bg-[#1A3282] text-white flex items-center justify-center gap-1 cursor-pointer"
+                    title="Potong / Crop Foto KTP"
+                  >
+                    <Crop className="w-3 h-3 text-amber-300" />
+                    <span>Crop</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onGenerateSimulatedKtp}
@@ -149,7 +175,7 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
                   <span>Auto</span>
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400">Scan KTP asli atau simulasi.</p>
+              <p className="text-[10px] text-slate-400">Scan/unggah KTP asli (bisa di-crop).</p>
             </div>
           </div>
 
@@ -158,10 +184,22 @@ export const EditMemberPhotoKtpSection: React.FC<EditMemberPhotoKtpSectionProps>
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={onKtpUpload}
+            onChange={handleSelectKtpFile}
           />
         </div>
       </div>
+
+      <KtpImageCropperModal
+        isOpen={Boolean(cropSource)}
+        imageSource={cropSource}
+        title="Potong & Perbesar Foto e-KTP Kader"
+        primaryButtonText="Simpan Hasil Crop KTP"
+        onConfirmCrop={(res) => {
+          setCropSource(null);
+          onCroppedKtp?.(res.croppedKtpDataUrl, res.croppedFaceDataUrl);
+        }}
+        onCancel={() => setCropSource(null)}
+      />
     </div>
   );
 };

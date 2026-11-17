@@ -1,11 +1,24 @@
-import React from 'react';
-import { Globe, CheckCircle2, Upload, Camera, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  Globe,
+  CheckCircle2,
+  Upload,
+  Camera,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
+  Crop,
+  ScanLine,
+} from 'lucide-react';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch, isDpcMatch } from '../utils/structureReadinessUtils';
+import { compressImageFile, resolveImageUrl } from '../utils/imageUtils';
 import {
   KtpCameraScannerBox,
+  KtpImageCropperModal,
   ExtractedKtpData,
   KtpImageQualityReport,
+  scanAndExtractKtpOnDevice,
 } from '../ktp-scanner';
 import {
   DPP_PENDIDIKAN_OPTIONS,
@@ -57,6 +70,7 @@ interface DppEktaFormTabProps {
   fotoKtpUrl: string;
   setFotoKtpUrl: (v: string) => void;
   fotoProfilUrl: string;
+  setFotoProfilUrl?: (v: string) => void;
   saveToLocalMembers: boolean;
   setSaveToLocalMembers: (v: boolean) => void;
   showKtpScanner: boolean;
@@ -133,6 +147,7 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
   fotoKtpUrl,
   setFotoKtpUrl,
   fotoProfilUrl,
+  setFotoProfilUrl,
   saveToLocalMembers,
   setSaveToLocalMembers,
   showKtpScanner,
@@ -154,6 +169,68 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
   isSubmitting,
   onSubmit,
 }) => {
+  const [ktpCropModalSource, setKtpCropModalSource] = useState<string | File | null>(null);
+  const [isRunningCropOcr, setIsRunningCropOcr] = useState<boolean>(false);
+  const [cropOcrLabel, setCropOcrLabel] = useState<string>('');
+  const lastRawKtpSourceRef = useRef<string | File | null>(null);
+
+  const handleSelectKtpFileForCrop = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    lastRawKtpSourceRef.current = file;
+    setKtpCropModalSource(file);
+    e.target.value = '';
+  };
+
+  const handleSkipKtpCrop = async () => {
+    const src = ktpCropModalSource;
+    setKtpCropModalSource(null);
+    if (!src) return;
+    if (typeof src === 'string') {
+      setFotoKtpUrl(src);
+    } else {
+      try {
+        const compressed = await compressImageFile(src, 1400, 1000, 0.88);
+        setFotoKtpUrl(compressed);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const handleConfirmKtpCrop = async (res: {
+    croppedKtpDataUrl: string;
+    croppedFaceDataUrl: string;
+    triggerOcr?: boolean;
+  }) => {
+    setKtpCropModalSource(null);
+    setFotoKtpUrl(res.croppedKtpDataUrl);
+    if (!fotoProfilUrl && res.croppedFaceDataUrl && setFotoProfilUrl) {
+      setFotoProfilUrl(res.croppedFaceDataUrl);
+    }
+
+    if (res.triggerOcr) {
+      setIsRunningCropOcr(true);
+      setCropOcrLabel('Membaca NIK & Biodata dari hasil crop e-KTP...');
+      try {
+        const scanResult = await scanAndExtractKtpOnDevice(res.croppedKtpDataUrl, (_pct, label) => {
+          setCropOcrLabel(label);
+        });
+        onScanComplete({
+          fotoKtpUrl: scanResult.standardizedKtpDataUrl || res.croppedKtpDataUrl,
+          croppedFaceDataUrl: scanResult.croppedFaceDataUrl || res.croppedFaceDataUrl,
+          quality: scanResult.quality,
+          extracted: scanResult.extracted,
+        });
+      } catch {
+        /* tetap simpan hasil crop meskipun OCR gagal */
+      } finally {
+        setIsRunningCropOcr(false);
+        setCropOcrLabel('');
+      }
+    }
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {/* Baris Scan / Upload Foto KTP & Profil */}
@@ -164,7 +241,7 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
               1. Dokumen Foto e-KTP &amp; Pasfoto Profil (Format JPEG/PNG)
             </h4>
             <p className="text-[11px] text-slate-500">
-              Server DPP membutuhkan foto KTP &amp; foto profil untuk dicetak langsung pada kartu fisik e-KTA.
+              Server DPP membutuhkan foto KTP &amp; foto profil untuk dicetak langsung pada kartu fisik e-KTA. Jika foto KTP diambil dari jauh, Anda dapat memotong (crop) bagian KTP-nya saja.
             </p>
           </div>
           <button
@@ -190,11 +267,30 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
           </div>
         )}
 
+        {isRunningCropOcr && (
+          <div className="p-3 rounded-xl bg-[#1A3282]/10 dark:bg-slate-900 border border-[#1A3282]/30 dark:border-slate-700 flex items-center gap-2.5 text-xs font-semibold text-[#1A3282] dark:text-amber-300">
+            <ScanLine className="w-4 h-4 animate-pulse shrink-0" />
+            <span>{cropOcrLabel || 'Mengekstrak data NIK & Biodata dari hasil crop e-KTP...'}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-            <div className="w-20 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
-              {fotoKtpUrl ? (
-                <img src={fotoKtpUrl} alt="KTP" className="w-full h-full object-cover" />
+            <div
+              onClick={() => {
+                if (fotoKtpUrl) setKtpCropModalSource(lastRawKtpSourceRef.current || fotoKtpUrl);
+              }}
+              title={fotoKtpUrl ? 'Klik untuk potong / sesuaikan posisi foto KTP' : undefined}
+              className={`w-22 h-15 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 ${
+                fotoKtpUrl ? 'cursor-pointer hover:ring-2 hover:ring-[#1A3282] transition-all' : ''
+              }`}
+            >
+              {resolveImageUrl(fotoKtpUrl) ? (
+                <img
+                  src={resolveImageUrl(fotoKtpUrl)}
+                  alt="KTP"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-[10px] font-bold text-slate-400">Foto KTP</span>
               )}
@@ -203,23 +299,41 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 Berkas Foto e-KTP
               </div>
-              <label className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
-                <Upload className="w-3 h-3" />
-                <span>Pilih Foto KTP</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => onUploadFile(e, 'ktp')}
-                  className="hidden"
-                />
-              </label>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
+                  <Upload className="w-3 h-3" />
+                  <span>{fotoKtpUrl ? 'Ganti Foto KTP' : 'Pilih Foto KTP'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSelectKtpFileForCrop}
+                    className="hidden"
+                  />
+                </label>
+
+                {fotoKtpUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setKtpCropModalSource(lastRawKtpSourceRef.current || fotoKtpUrl)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white text-[11px] font-bold cursor-pointer transition-colors"
+                    title="Potong & perbesar bagian kartu KTP"
+                  >
+                    <Crop className="w-3 h-3 text-amber-300" />
+                    <span>Potong / Crop</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-            <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
-              {fotoProfilUrl ? (
-                <img src={fotoProfilUrl} alt="Profil" className="w-full h-full object-cover" />
+            <div className="w-14 h-15 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
+              {resolveImageUrl(fotoProfilUrl) ? (
+                <img
+                  src={resolveImageUrl(fotoProfilUrl)}
+                  alt="Profil"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-[10px] font-bold text-slate-400">Pasfoto</span>
               )}
@@ -228,7 +342,7 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 Pasfoto Profil Kader
               </div>
-              <label className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
+              <label className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
                 <Upload className="w-3 h-3" />
                 <span>Pilih Foto Profil</span>
                 <input
@@ -242,6 +356,20 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Cropper Foto e-KTP */}
+      <KtpImageCropperModal
+        isOpen={Boolean(ktpCropModalSource)}
+        imageSource={ktpCropModalSource}
+        title="Potong & Perbesar Foto e-KTP"
+        subtitle="Jika foto KTP diambil dari jauh, perbesar (zoom) atau geser ke-4 sudut bingkai kuning tepat pada kartu e-KTP."
+        primaryButtonText="Simpan Hasil Crop KTP"
+        showOcrButton={true}
+        showSkipCropButton={true}
+        onConfirmCrop={handleConfirmKtpCrop}
+        onSkipCrop={handleSkipKtpCrop}
+        onCancel={() => setKtpCropModalSource(null)}
+      />
 
       {/* 2. Biodata Utama sesuai Form createKTA DPP */}
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3.5">

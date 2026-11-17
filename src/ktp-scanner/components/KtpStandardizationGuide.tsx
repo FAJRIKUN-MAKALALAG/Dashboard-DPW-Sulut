@@ -12,6 +12,7 @@ import {
   ChevronUp,
   ArrowRight,
   Trash2,
+  Crop,
 } from 'lucide-react';
 import { KtpImageQualityReport } from '../ktpImageProcessor';
 import { ExtractedKtpData } from '../ktpTextParser';
@@ -113,6 +114,7 @@ interface KtpScannedPreviewCardProps {
   extractedData: ExtractedKtpData | null;
   onRetakeCamera: () => void;
   onReplaceFileClick: () => void;
+  onOpenCropModal?: () => void;
   onClearKtp: () => void;
   onProceedNext: () => void;
 }
@@ -123,6 +125,7 @@ export const KtpScannedPreviewCard: React.FC<KtpScannedPreviewCardProps> = ({
   extractedData,
   onRetakeCamera,
   onReplaceFileClick,
+  onOpenCropModal,
   onClearKtp,
   onProceedNext,
 }) => {
@@ -140,9 +143,29 @@ export const KtpScannedPreviewCard: React.FC<KtpScannedPreviewCardProps> = ({
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               <span>e-KTP Terstandarisasi</span>
             </div>
+            {onOpenCropModal && (
+              <button
+                type="button"
+                onClick={onOpenCropModal}
+                className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-[#1A3282]/95 hover:bg-[#1A3282] text-white text-[10px] font-bold flex items-center gap-1 shadow-md cursor-pointer transition-colors"
+              >
+                <Crop className="w-3 h-3 text-amber-300" />
+                <span>Potong / Crop KTP</span>
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {onOpenCropModal && (
+              <button
+                type="button"
+                onClick={onOpenCropModal}
+                className="py-2 px-2.5 rounded-lg bg-[#1A3282] hover:bg-[#21409A] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Crop className="w-3.5 h-3.5 text-amber-300" />
+                <span>Crop Ulang</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onRetakeCamera}
