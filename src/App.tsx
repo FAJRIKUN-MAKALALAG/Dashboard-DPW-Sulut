@@ -27,6 +27,7 @@ import { PengurusPortalPage } from './components/PengurusPortalPage';
 import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
 import { PendaftaranKeanggotaanPage } from './components/PendaftaranKeanggotaanPage';
 import { PendaftaranEktaDppPage } from './components/PendaftaranEktaDppPage';
+import { InventoryPage } from './components/inventory';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
@@ -428,6 +429,10 @@ export default function App() {
       setActiveTab('portal');
       return;
     }
+    if (activeTab === 'inventory' && session?.role !== 'SUPER_ADMIN') {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
   }, [session, activeTab]);
 
   const handleSelectSession = (newSession: UserSession) => {
@@ -544,6 +549,8 @@ export default function App() {
                     ? 'Susunan Pengurus DPC Kecamatan'
                     : activeTab === 'dprt'
                     ? 'Susunan Pengurus DPRt Ranting Desa'
+                    : activeTab === 'inventory'
+                    ? 'Inventaris & Aset Kantor DPW Sulut (5 Lantai)'
                     : 'Database Seluruh Kader Daerah'
                 }
               >
@@ -556,6 +563,7 @@ export default function App() {
                 {activeTab === 'dpd' && 'Susunan Pengurus DPD Kab/Kota'}
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
                 {activeTab === 'dprt' && 'Susunan Pengurus DPRt Desa'}
+                {activeTab === 'inventory' && 'Inventaris Kantor DPW Sulut (5 Lantai)'}
                 {activeTab === 'members' && (
                   session?.role === 'ADMIN_DPRT'
                     ? `Pencarian DPRt (${session.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting'})`
@@ -803,6 +811,11 @@ export default function App() {
               onBackToDashboard={() => setActiveTab('dashboard')}
               onOpenPrintWithMembers={modals.openPrintWithMembers}
             />
+          )}
+
+          {/* Tab 7: Inventaris Kantor DPW Sulut (5 Lantai) - HANYA SUPER ADMIN */}
+          {activeTab === 'inventory' && session?.role === 'SUPER_ADMIN' && (
+            <InventoryPage session={session} showToast={showToast} />
           )}
           </div>
         </main>

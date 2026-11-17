@@ -19,6 +19,7 @@ export const VALID_MAIN_TABS: MainNavTab[] = [
   'dpc',
   'dprt',
   'members',
+  'inventory',
 ];
 
 export interface ParsedRouteParams {
@@ -103,6 +104,8 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
     case 'rekrutmen':
     case 'ekta_dpp':
       return true;
+    case 'inventory':
+      return session.role === 'SUPER_ADMIN';
     default:
       return true;
   }
@@ -199,6 +202,8 @@ export function formatDocumentTitle(
       return `DPRt ${dprt || 'Desa'}${dpc ? ` (${dpc})` : ''} — ${baseSuffix}`;
     case 'members':
       return `${dpd ? `Kader ${dpd}` : 'Database Kader'} — ${baseSuffix}`;
+    case 'inventory':
+      return `Inventaris Kantor (5 Lantai) — ${baseSuffix}`;
     default:
       return baseSuffix;
   }

@@ -35,6 +35,7 @@ import {
   Smartphone,
   Download,
   MessageSquare,
+  Package,
 } from 'lucide-react';
 
 export type MainNavTab =
@@ -47,7 +48,8 @@ export type MainNavTab =
   | 'dpd'
   | 'dpc'
   | 'dprt'
-  | 'members';
+  | 'members'
+  | 'inventory';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -629,6 +631,42 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   Alat Operasional
                 </span>
                 <div className="space-y-1">
+                  {/* Inventaris Kantor DPW (5 Lantai): HANYA SUPER ADMIN */}
+                  {session?.role === 'SUPER_ADMIN' && (
+                    <button
+                      onClick={() => handleNavClick('inventory')}
+                      className={navItemClass(activeTab === 'inventory')}
+                      title="Inventaris & Aset Kantor DPW Sulut (Khusus Super Admin)"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={iconContainerClass(activeTab === 'inventory')}>
+                          <Package className="w-4 h-4" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed}`}>
+                          <span className="block leading-none">Inventaris Kantor</span>
+                          <span
+                            className={`text-[10px] block mt-0.5 leading-none ${
+                              activeTab === 'inventory'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            Aset Gedung 5 Lantai
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                          activeTab === 'inventory'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        5 LT
+                      </span>
+                    </button>
+                  )}
+
                   {/* Kode Referral Saya */}
                   {showReferral && onOpenReferralHub && (
                     <button
