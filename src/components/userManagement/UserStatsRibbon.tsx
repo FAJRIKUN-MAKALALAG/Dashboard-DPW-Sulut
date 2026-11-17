@@ -8,6 +8,7 @@ export interface UserStats {
   dpd: number;
   dpc: number;
   dprt: number;
+  inventory?: number;
 }
 
 interface UserStatsRibbonProps {
@@ -16,7 +17,7 @@ interface UserStatsRibbonProps {
 
 export const UserStatsRibbon: React.FC<UserStatsRibbonProps> = ({ stats }) => {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 text-xs">
+    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 text-xs">
       <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <span className="text-[9px] sm:text-[10px] text-slate-400 block font-semibold uppercase truncate">Total Akun</span>
         <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white font-mono">{stats.total}</span>
@@ -24,6 +25,10 @@ export const UserStatsRibbon: React.FC<UserStatsRibbonProps> = ({ stats }) => {
       <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold uppercase truncate">Aktif</span>
         <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{stats.active}</span>
+      </div>
+      <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <span className="text-[9px] sm:text-[10px] text-teal-600 dark:text-teal-400 block font-semibold uppercase truncate">Inventory</span>
+        <span className="text-sm sm:text-base font-extrabold text-teal-600 dark:text-teal-400 font-mono">{stats.inventory ?? 0}</span>
       </div>
       <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
         <span className="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase truncate">Admin DPW</span>

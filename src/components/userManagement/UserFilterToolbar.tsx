@@ -38,6 +38,7 @@ export const UserFilterToolbar: React.FC<UserFilterToolbarProps> = ({
         >
           <option value="ALL">Semua Peran</option>
           <option value="SUPER_ADMIN">Super Admin</option>
+          <option value="ADMIN_INVENTORY">Admin Inventory</option>
           <option value="ADMIN_DPW">Admin DPW</option>
           <option value="ADMIN_DPD">Admin DPD</option>
           <option value="ADMIN_DPC">Admin DPC</option>

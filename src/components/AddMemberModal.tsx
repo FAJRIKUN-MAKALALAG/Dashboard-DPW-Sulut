@@ -587,6 +587,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 fotoProfilUrl={fotoProfilUrl}
                 onRescanKtp={() => setStep(1)}
                 onUploadProfilePhoto={handlePhotoUpload}
+                onCroppedProfilePhoto={setFotoProfilUrl}
                 onClearProfilePhoto={() => setFotoProfilUrl('')}
                 isUploadingPhoto={isUploadingPhoto}
                 nik={nik}

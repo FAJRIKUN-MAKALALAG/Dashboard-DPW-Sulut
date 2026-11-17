@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { compressImageFile, resolveImageUrl } from '../../utils/imageUtils';
+import { ImageCropperModal } from '../ui/ImageCropperModal';
+import { Crop } from 'lucide-react';
 import { MemberService } from '../../services/memberService';
 
 interface EditProfileModalProps {
@@ -66,28 +68,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [profileCropSource, setProfileCropSource] = useState<string | File | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const ktpInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      setIsCompressingPhoto(true);
-      setErrorMsg(null);
-      // Kompresi di browser sebelum kirim ke backend
-      const compressed = await compressImageFile(file, 800, 800, 0.82);
-      setFotoProfilUrl(compressed);
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg('Gagal memproses foto profil. Silakan gunakan format JPG atau PNG.');
-    } finally {
-      setIsCompressingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
+    setErrorMsg(null);
+    setProfileCropSource(file);
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const handleKtpUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,15 +239,28 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     className="hidden"
                     id="profile-photo-input"
                   />
-                  <button
-                    type="button"
-                    disabled={isCompressingPhoto}
-                    onClick={() => photoInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white transition-colors cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{fotoProfilUrl ? 'Ganti Foto' : 'Pilih Foto'}</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={isCompressingPhoto}
+                      onClick={() => photoInputRef.current?.click()}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{fotoProfilUrl ? 'Ganti Foto' : 'Pilih Foto'}</span>
+                    </button>
+                    {fotoProfilUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setProfileCropSource(fotoProfilUrl)}
+                        className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-[#1A3282] hover:bg-[#21409A] text-white transition-colors cursor-pointer shrink-0"
+                        title="Potong / Crop Foto Profil"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Crop</span>
+                      </button>
+                    )}
+                  </div>
                   {fotoProfilUrl && (
                     <button
                       type="button"
@@ -518,6 +524,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </div>
         </form>
       </div>
+
+      <ImageCropperModal
+        mode="profile"
+        isOpen={Boolean(profileCropSource)}
+        imageSource={profileCropSource}
+        primaryButtonText="Simpan Foto Profil"
+        onConfirmCrop={(res) => {
+          setProfileCropSource(null);
+          setFotoProfilUrl(res.croppedDataUrl);
+        }}
+        onCancel={() => setProfileCropSource(null)}
+      />
     </div>
   );
 };

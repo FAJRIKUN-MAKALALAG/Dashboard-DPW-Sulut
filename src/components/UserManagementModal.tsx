@@ -201,6 +201,15 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
     setIsSaving(true);
     try {
+      const isGlobalRole =
+        formRole === 'ADMIN_DPW' ||
+        formRole === 'SUPER_ADMIN' ||
+        formRole === 'ADMIN_INVENTORY';
+      const defaultJabatanForRole =
+        formRole === 'ADMIN_INVENTORY'
+          ? 'Admin Inventaris Kantor DPW Sulut'
+          : `Admin ${formRole}`;
+
       if (editingUserId) {
         // Edit Existing User
         await UserService.update(editingUserId, {
@@ -210,10 +219,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           password: formPassword.trim(),
           fullName: formFullName.trim(),
           role: formRole,
-          dpdAccess: formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' ? 'ALL' : formDpdAccess,
+          dpdAccess: isGlobalRole ? 'ALL' : formDpdAccess,
           dpcAccess: formRole === 'ADMIN_DPC' || formRole === 'ADMIN_DPRT' ? formDpcAccess : 'ALL',
           dprtAccess: formRole === 'ADMIN_DPRT' ? formDprtAccess : 'ALL',
-          jabatan: formJabatan.trim(),
+          jabatan: formJabatan.trim() || defaultJabatanForRole,
           isActive: formIsActive,
         });
 
@@ -223,7 +232,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           action: 'UPDATE',
           reason: `Super Admin memperbarui hak akses akun admin ${formFullName} (${formRole})`,
           actor: session.adminName,
-          dpd: formDpdAccess,
+          dpd: isGlobalRole ? 'DPW Sulawesi Utara' : formDpdAccess,
         });
 
         setFormSuccess('Akun admin berhasil diperbarui.');
@@ -236,10 +245,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           password: formPassword.trim(),
           fullName: formFullName.trim(),
           role: formRole,
-          dpdAccess: formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' ? 'ALL' : formDpdAccess,
+          dpdAccess: isGlobalRole ? 'ALL' : formDpdAccess,
           dpcAccess: formRole === 'ADMIN_DPC' || formRole === 'ADMIN_DPRT' ? formDpcAccess : 'ALL',
           dprtAccess: formRole === 'ADMIN_DPRT' ? formDprtAccess : 'ALL',
-          jabatan: formJabatan.trim() || `Admin ${formRole}`,
+          jabatan: formJabatan.trim() || defaultJabatanForRole,
           isActive: true,
         });
 
@@ -247,9 +256,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           memberNik: formNik || formUsername,
           memberName: formFullName,
           action: 'CREATE',
-          reason: `Super Admin membuat akun admin baru untuk ${formFullName} (Role: ${formRole}, Wilayah: ${formDpdAccess})`,
+          reason: `Super Admin membuat akun admin baru untuk ${formFullName} (Role: ${formRole}, Wilayah: ${isGlobalRole ? 'DPW Sulawesi Utara' : formDpdAccess})`,
           actor: session.adminName,
-          dpd: formDpdAccess,
+          dpd: isGlobalRole ? 'DPW Sulawesi Utara' : formDpdAccess,
         });
 
         setFormSuccess('Akun admin baru berhasil dibuat dan disimpan ke database.');
@@ -366,6 +375,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       dpd: users.filter((u) => u.role === 'ADMIN_DPD').length,
       dpc: users.filter((u) => u.role === 'ADMIN_DPC').length,
       dprt: users.filter((u) => u.role === 'ADMIN_DPRT').length,
+      inventory: users.filter((u) => u.role === 'ADMIN_INVENTORY').length,
     };
   }, [users]);
 

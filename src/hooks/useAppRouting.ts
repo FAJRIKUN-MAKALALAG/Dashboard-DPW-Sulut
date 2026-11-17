@@ -5,7 +5,9 @@ import {
   canAccessDashboard,
   canAccessAnalytics,
   canAccessStructureTab,
+  canAccessInventory,
   getDefaultActiveTab,
+  resolveSessionTerritoryLocks,
 } from '../utils/permissionUtils';
 
 export const VALID_MAIN_TABS: MainNavTab[] = [
@@ -85,6 +87,9 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
   if (session.role === 'ANGGOTA') {
     return tab === 'portal';
   }
+  if (session.role === 'ADMIN_INVENTORY') {
+    return tab === 'inventory';
+  }
   switch (tab) {
     case 'dashboard':
       return canAccessDashboard(session);
@@ -105,7 +110,7 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
     case 'ekta_dpp':
       return true;
     case 'inventory':
-      return session.role === 'SUPER_ADMIN';
+      return canAccessInventory(session);
     default:
       return true;
   }
@@ -320,12 +325,17 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
   // 5. Territory change inside TerritorialStructurePage (dropdown select)
   const handleTerritoryChange = useCallback(
     (dpd: string, dpc?: string, dprt?: string) => {
-      setMatrixInitialDpd((prev) => (prev !== dpd ? dpd : prev));
-      if (dpc !== undefined) {
-        setMatrixInitialDpc((prev) => (prev !== dpc ? dpc : prev));
+      const locks = resolveSessionTerritoryLocks(sessionRef.current);
+      const lockedDpd = locks.lockedDpd ?? dpd;
+      const lockedDpc = locks.lockedDpc ?? dpc;
+      const lockedDprt = locks.lockedDprt ?? dprt;
+
+      setMatrixInitialDpd((prev) => (prev !== lockedDpd ? lockedDpd : prev));
+      if (lockedDpc !== undefined) {
+        setMatrixInitialDpc((prev) => (prev !== lockedDpc ? lockedDpc : prev));
       }
-      if (dprt !== undefined) {
-        setMatrixInitialDprt((prev) => (prev !== dprt ? dprt : prev));
+      if (lockedDprt !== undefined) {
+        setMatrixInitialDprt((prev) => (prev !== lockedDprt ? lockedDprt : prev));
       }
     },
     []
@@ -412,10 +422,11 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
       prevTabRef.current = nextTab;
       setActiveTabState(nextTab);
 
-      setMatrixInitialDpd(parsed.dpd);
-      setNavDpdFilter(parsed.dpd);
-      setMatrixInitialDpc(parsed.dpc);
-      setMatrixInitialDprt(parsed.dprt);
+      const locks = resolveSessionTerritoryLocks(currentSession);
+      setMatrixInitialDpd(locks.lockedDpd ?? parsed.dpd);
+      setNavDpdFilter(locks.lockedDpd ?? parsed.dpd);
+      setMatrixInitialDpc(locks.lockedDpc ?? parsed.dpc);
+      setMatrixInitialDprt(locks.lockedDprt ?? parsed.dprt);
       setNavStatusFilter(parsed.statusFilter);
       setNavMembershipFilter(parsed.membershipFilter || 'ALL');
     };

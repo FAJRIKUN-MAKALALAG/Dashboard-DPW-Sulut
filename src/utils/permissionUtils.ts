@@ -43,6 +43,15 @@ export function canManageUsers(session?: UserSession): boolean {
 }
 
 /**
+ * Hak Akses Modul Inventaris Kantor DPW Sulut (5 Lantai):
+ * HANYA untuk SUPER_ADMIN dan ADMIN_INVENTORY.
+ */
+export function canAccessInventory(session?: UserSession): boolean {
+  if (!session) return false;
+  return session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_INVENTORY';
+}
+
+/**
  * Hak Akses Pusat Visualisasi & Analisis Monitoring (Command Center Multi-Layar):
  * HANYA untuk SUPER_ADMIN dan KETUA DPW (role ADMIN_DPW + Jabatan Ketua).
  */
@@ -56,12 +65,17 @@ export function canAccessAnalytics(session?: UserSession): boolean {
 /**
  * Aturan Kode Referral:
  * - Super Admin: TIDAK memakai kode referral (karena Super Admin adalah administrator teknis).
+ * - Admin Inventory: TIDAK memakai kode referral.
  * - Anggota Biasa (role ANGGOTA): TIDAK memakai kode referral (hanya mengelola profil diri & e-KTA).
  * - Semua pengurus & ketua lapangan (DPW, DPD, DPC, DPRt): memakai kode referral.
  */
 export function isReferralApplicable(session?: UserSession): boolean {
   if (!session) return false;
-  return session.role !== 'SUPER_ADMIN' && session.role !== 'ANGGOTA';
+  return (
+    session.role !== 'SUPER_ADMIN' &&
+    session.role !== 'ADMIN_INVENTORY' &&
+    session.role !== 'ANGGOTA'
+  );
 }
 
 /**
@@ -70,7 +84,7 @@ export function isReferralApplicable(session?: UserSession): boolean {
  * dan TIDAK BISA mengakses pencarian atau daftar anggota lain.
  */
 export function canAccessMemberDatabase(session?: UserSession): boolean {
-  return session?.role !== 'ANGGOTA';
+  return session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY';
 }
 
 /**
@@ -82,10 +96,12 @@ export function isAnggotaBiasa(session?: UserSession): boolean {
 
 /**
  * Menentukan Tab Awal Default saat Pengguna Login:
- * Jika memiliki hak akses Dashboard -> 'dashboard'
- * Jika pengurus biasa / ketua DPRt (tidak ada dashboard) -> langsung ke 'portal'
+ * - Jika role ADMIN_INVENTORY -> langsung ke 'inventory'
+ * - Jika memiliki hak akses Dashboard -> 'dashboard'
+ * - Jika pengurus biasa / ketua DPRt -> langsung ke 'portal'
  */
-export function getDefaultActiveTab(session?: UserSession): 'dashboard' | 'portal' {
+export function getDefaultActiveTab(session?: UserSession): 'dashboard' | 'portal' | 'inventory' {
+  if (session?.role === 'ADMIN_INVENTORY') return 'inventory';
   return canAccessDashboard(session) ? 'dashboard' : 'portal';
 }
 
@@ -136,7 +152,7 @@ export function canAccessStructureTab(
  */
 export function canAddMembers(session?: UserSession): boolean {
   if (!session) return false;
-  if (session.role === 'ANGGOTA') return false;
+  if (session.role === 'ANGGOTA' || session.role === 'ADMIN_INVENTORY') return false;
   if (session.canAddMembers !== undefined) return Boolean(session.canAddMembers);
   return true;
 }
@@ -147,6 +163,7 @@ export function canAddMembers(session?: UserSession): boolean {
 export function getUserTerritoryLabel(session?: UserSession): string {
   if (!session) return '';
   if (session.role === 'SUPER_ADMIN') return 'Seluruh Sulawesi Utara (Super Admin)';
+  if (session.role === 'ADMIN_INVENTORY') return 'Gedung Kantor DPW Sulut (Admin Inventaris)';
   if (session.role === 'ADMIN_DPW') return 'Tingkat DPW Sulawesi Utara';
   if (session.role === 'ADMIN_DPD') return `DPD ${session.dpdAccess}`;
   if (session.role === 'ADMIN_DPC') return `DPC Kec. ${session.dpcAccess} (${session.dpdAccess})`;
@@ -166,7 +183,7 @@ export function getUserTerritoryLabel(session?: UserSession): string {
 export function canEditMember(session?: UserSession, member?: Member | null): boolean {
   if (!session || !member) return false;
   if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') return true;
-  if (session.role === 'ANGGOTA') return false;
+  if (session.role === 'ANGGOTA' || session.role === 'ADMIN_INVENTORY') return false;
 
   if (session.role === 'ADMIN_DPD') {
     return isDpdMatch(member.dpd, session.dpdAccess);
@@ -217,4 +234,46 @@ export function canRequestDeleteMember(session?: UserSession, member?: Member | 
   if (!session || !member) return false;
   if (canDirectDeleteMember(session)) return false;
   return canEditMember(session, member);
+}
+
+/**
+ * Mengembalikan penguncian wilayah (DPD/DPC/DPRt) secara terpusat berdasarkan role akun.
+ * Memudahkan debugging dan menghindari duplikasi aturan teritorial di banyak file UI & routing.
+ */
+export function resolveSessionTerritoryLocks(session?: UserSession) {
+  const role = session?.role;
+  const isGlobal = !session || role === 'SUPER_ADMIN' || role === 'ADMIN_DPW';
+  const rawDpd = (session?.dpdAccess || '').trim();
+  const rawDpc = (session?.dpcAccess || '').trim();
+  const rawDprt = (session?.dprtAccess || '').trim();
+
+  const lockedDpd =
+    !isGlobal && rawDpd && rawDpd !== 'ALL' && rawDpd !== '-' && rawDpd !== 'Sulawesi Utara'
+      ? rawDpd
+      : undefined;
+
+  const lockedDpc =
+    (role === 'ADMIN_DPC' || role === 'ADMIN_DPRT') &&
+    rawDpc &&
+    rawDpc !== 'ALL' &&
+    rawDpc !== 'Umum (DPD)' &&
+    rawDpc !== '-'
+      ? rawDpc
+      : undefined;
+
+  const lockedDprt =
+    role === 'ADMIN_DPRT' &&
+    rawDprt &&
+    rawDprt !== 'ALL' &&
+    rawDprt !== 'Pusat/Umum' &&
+    rawDprt !== '-'
+      ? rawDprt
+      : undefined;
+
+  return {
+    isGlobal,
+    lockedDpd,
+    lockedDpc,
+    lockedDprt,
+  };
 }
