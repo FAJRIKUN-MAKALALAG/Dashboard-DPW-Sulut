@@ -1,5 +1,6 @@
 import { Member } from '../types';
-import { TerritoryContext, ParsedTerritoryRow, ParseTerritoryExcelResult, generateUniqueTerritoryNik } from './territorialExcelTemplateUtils';
+import { TerritoryContext, ParsedTerritoryRow, ParseTerritoryExcelResult } from './territorialExcelTemplateUtils';
+import { validateRequiredImportColumns } from './generatedIds';
 import { getStructureTemplate } from '../data/structureTemplates';
 import { isJobTitleMatch, normalizeSubOrgName } from './jobMatchingUtils';
 import { SULUT_REGIONS } from '../data/sulutRegions';
@@ -201,7 +202,7 @@ export function parseSqlInsertQuery(
   const slots = getStructureTemplate(ctx.level);
   const parsedRows: ParsedTerritoryRow[] = [];
   const membersToSave: Member[] = [];
-  const occupiedNiks = new Set<string>(currentMembers.map((m) => m.nik));
+  const rejectedList: Array<{ no: number; namaLengkap: string; jabatan: string; reason: string }> = [];
 
   let filledCount = 0;
   let matchedPositions = 0;
@@ -259,63 +260,78 @@ export function parseSqlInsertQuery(
 
     const isFilled = rawNama.trim().length > 0;
     let nikVal = rawNik.trim();
+    let isAcceptedFilled = false;
+    let isRejectedIncomplete = false;
+    let aiNote: string | undefined;
 
     if (isFilled) {
-      filledCount++;
-
-      // Simpan NIK apa adanya bila berupa 8-20 digit angka; gunakan ID sementara hanya jika kosong/placeholder
-      if (!nikVal || !/^\d{8,20}$/.test(nikVal) || /^0{6,}/.test(nikVal)) {
-        nikVal = generateUniqueTerritoryNik(rawDpd, normalizedSubOrg, idx + 1, occupiedNiks);
-      }
-
-      occupiedNiks.add(nikVal);
-
-      const cleanT = (rawTingkat || ctx.level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-      const cleanD = (rawDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-      const cleanS = normalizedSubOrg.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-      const memberId = `${nikVal}_${cleanT}_${cleanD}_${cleanS}`;
-
-      const existingMember = currentMembers.find(
-        (m) =>
-          m.id === memberId ||
-          (m.nik === nikVal && m.tingkatKepengurusan === (rawTingkat || ctx.level)) ||
-          (rawEkta && m.nomorEKTA === rawEkta) ||
-          (isDpdMatch(m.dpd, rawDpd) &&
-            normalizeSubOrgName(m.wilayahPenugasan, rawTingkat) === normalizedSubOrg &&
-            isJobTitleMatch(m.jabatan, rawJabatan))
-      );
-
-      const memberObj: Member = {
-        ...(existingMember || {}),
-        id: memberId,
+      const requiredCheck = validateRequiredImportColumns({
         nik: nikVal,
-        nomorEKTA: rawEkta || existingMember?.nomorEKTA || nikVal,
-        namaLengkap: rawNama,
-        email: rawEmail || existingMember?.email || undefined,
-        nomorHP: rawHp && rawHp !== '-' ? rawHp : existingMember?.nomorHP || '-',
-        sosmed: rawSosmed || existingMember?.sosmed || undefined,
-        dpd: rawDpd,
-        dpc: rawDpc || 'Wilayah DPD',
-        dprt: rawDprt || 'Pusat/Umum',
-        isPengurus: true,
-        tingkatKepengurusan: rawTingkat || ctx.level,
-        wilayahPenugasan: normalizedSubOrg,
-        nomorSK: rawNomorSk || existingMember?.nomorSK || undefined,
-        tanggalSK: rawTanggalSk || existingMember?.tanggalSK || undefined,
-        jabatan: rawJabatan || matchedSlot?.jabatan || 'Pengurus',
-        urutan: idx + 1,
-        status: (rawStatus as any) || 'Aktif',
-        statusKtpVerified: true,
-        tanggalBergabung:
-          rawTanggalBergabung ||
-          existingMember?.tanggalBergabung ||
-          new Date().toISOString().substring(0, 10),
-        catatanMutasi: rawCatatanMutasi || existingMember?.catatanMutasi || undefined,
-        terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        diubahOleh: `${adminName} (Import SQL Editor)`,
-      };
+        nomorEKTA: rawEkta,
+        nomorHP: rawHp,
+      });
 
-      membersToSave.push(memberObj);
+      if (!requiredCheck.isValid) {
+        isRejectedIncomplete = true;
+        aiNote = `⛔ ${requiredCheck.reason}`;
+        rejectedList.push({
+          no: idx + 1,
+          namaLengkap: rawNama,
+          jabatan: rawJabatan || matchedSlot?.jabatan || 'Pengurus',
+          reason: requiredCheck.reason || 'Data wajib belum lengkap',
+        });
+      } else {
+        isAcceptedFilled = true;
+        filledCount++;
+        nikVal = requiredCheck.cleanNik;
+
+        const cleanT = (rawTingkat || ctx.level || 'DPD').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+        const cleanD = (rawDpc || 'UMUM').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+        const cleanS = normalizedSubOrg.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+        const memberId = `${nikVal}_${cleanT}_${cleanD}_${cleanS}`;
+
+        const existingMember = currentMembers.find(
+          (m) =>
+            m.id === memberId ||
+            (m.nik === nikVal && m.tingkatKepengurusan === (rawTingkat || ctx.level)) ||
+            (requiredCheck.cleanEkta && m.nomorEKTA === requiredCheck.cleanEkta) ||
+            (isDpdMatch(m.dpd, rawDpd) &&
+              normalizeSubOrgName(m.wilayahPenugasan, rawTingkat) === normalizedSubOrg &&
+              isJobTitleMatch(m.jabatan, rawJabatan))
+        );
+
+        const memberObj: Member = {
+          ...(existingMember || {}),
+          id: memberId,
+          nik: nikVal,
+          nomorEKTA: requiredCheck.cleanEkta,
+          namaLengkap: rawNama,
+          email: rawEmail || existingMember?.email || undefined,
+          nomorHP: requiredCheck.cleanHp,
+          sosmed: rawSosmed || existingMember?.sosmed || undefined,
+          dpd: rawDpd,
+          dpc: rawDpc || 'Wilayah DPD',
+          dprt: rawDprt || 'Pusat/Umum',
+          isPengurus: true,
+          tingkatKepengurusan: rawTingkat || ctx.level,
+          wilayahPenugasan: normalizedSubOrg,
+          nomorSK: rawNomorSk || existingMember?.nomorSK || undefined,
+          tanggalSK: rawTanggalSk || existingMember?.tanggalSK || undefined,
+          jabatan: rawJabatan || matchedSlot?.jabatan || 'Pengurus',
+          urutan: idx + 1,
+          status: (rawStatus as any) || 'Aktif',
+          statusKtpVerified: true,
+          tanggalBergabung:
+            rawTanggalBergabung ||
+            existingMember?.tanggalBergabung ||
+            new Date().toISOString().substring(0, 10),
+          catatanMutasi: rawCatatanMutasi || existingMember?.catatanMutasi || undefined,
+          terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          diubahOleh: `${adminName} (Import SQL Editor)`,
+        };
+
+        membersToSave.push(memberObj);
+      }
     }
 
     parsedRows.push({
@@ -332,8 +348,14 @@ export function parseSqlInsertQuery(
       nomorHP: rawHp,
       email: rawEmail,
       alamat: '',
-      status: rawStatus,
-      isFilled,
+      status: isAcceptedFilled
+        ? rawStatus
+        : isRejectedIncomplete
+        ? 'Ditolak (Kurang Data)'
+        : 'Lowong',
+      isFilled: isAcceptedFilled,
+      isRejectedIncomplete,
+      aiNote,
     });
   });
 
@@ -351,7 +373,9 @@ export function parseSqlInsertQuery(
       emptyRows: parsedRows.length - filledCount,
       matchedPositions,
       customPositions,
+      rejectedRows: rejectedList.length,
     },
+    rejectedList,
     filename: `Import_SQL_Editor_${new Date().toISOString().substring(0, 10)}.sql`,
   };
 }

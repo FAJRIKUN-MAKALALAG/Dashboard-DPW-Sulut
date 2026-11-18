@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { Member, MemberStatus } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import { validateRequiredImportColumns } from './generatedIds';
 
 export interface ValidationResult {
   rowNumber: number;
@@ -203,14 +204,17 @@ export async function parseUploadedFile(
     const rawSosmed = (sosmedCol !== -1 ? String(row[sosmedCol] || '') : '').trim();
     const rawStatus = (statusCol !== -1 ? String(row[statusCol] || '') : '').trim();
 
-    // 1. NIK validation (izinkan 8-20 digit tetap tersimpan apa adanya tanpa tambah angka 0 palsu)
-    let cleanNik = rawNik;
-    if (!cleanNik || cleanNik.length < 8) {
-      errors.push('NIK wajib berisi minimal 8 digit angka');
-    } else if (cleanNik.length > 20) {
-      cleanNik = cleanNik.substring(0, 20);
-    } else if (cleanNik.length !== 16) {
-      warning = `NIK "${cleanNik}" baru ${cleanNik.length} digit (tetap disimpan, disarankan koreksi ke 16 digit KTP).`;
+    // 1. Validasi ketat 3 kolom wajib: NIK (16 digit), Nomor e-KTA asli, No. Telepon/HP (minimal 8 digit)
+    const requiredCheck = validateRequiredImportColumns({
+      nik: rawNik,
+      nomorEKTA: rawEkta,
+      nomorHP: rawHp,
+    });
+    const cleanNik = requiredCheck.cleanNik;
+    if (!requiredCheck.isValid) {
+      requiredCheck.missingFields.forEach((field) => {
+        errors.push(`${field} wajib diisi lengkap (tidak boleh kosong / placeholder)`);
+      });
     }
 
     if (cleanNik && existingNiks.has(cleanNik)) {
@@ -249,14 +253,14 @@ export async function parseUploadedFile(
       statusVal = 'Non-Aktif (Pindah Domisili)';
     }
 
-    // 5. e-KTA fallback (gunakan nomor e-KTA riil asli apa adanya)
-    const finalEkta = rawEkta || cleanNik || '-';
+    // 5. e-KTA & Nomor HP wajib asli tanpa auto-fallback
+    const finalEkta = requiredCheck.cleanEkta;
 
     const memberData: Partial<Member> = {
       nik: cleanNik,
       nomorEKTA: finalEkta,
       namaLengkap: rawNama,
-      nomorHP: rawHp || '-',
+      nomorHP: requiredCheck.cleanHp,
       email: rawSosmed.includes('@') ? rawSosmed : undefined,
       sosmed: !rawSosmed.includes('@') && rawSosmed !== '-' ? rawSosmed : undefined,
       dpd: matchedDpd,

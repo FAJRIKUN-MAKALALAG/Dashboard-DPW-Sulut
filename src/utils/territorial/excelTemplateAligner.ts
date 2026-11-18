@@ -1,8 +1,6 @@
 import { Member } from '../../types';
 import { getStructureTemplate } from '../../data/structureTemplates';
 import {
-  isDpdMatch,
-  getExpandedStructuralMembers,
   getMemberSubOrgCategory,
   getSlotSubOrgCategory,
 } from '../structureReadinessUtils';
@@ -10,22 +8,17 @@ import {
   normalizeSubOrgName,
   assignItemsToTemplateSlots,
   isJobTitleMatch,
-  cleanPersonName,
 } from '../jobMatchingUtils';
-import {
-  makeGeneratedEkta,
-  isGeneratedNik,
-  isAcceptableImportNik,
-} from '../generatedIds';
+import { validateRequiredImportColumns } from '../generatedIds';
 import {
   ParsedTerritoryRow,
+  RejectedImportRowSummary,
   DpdImportComplianceInfo,
   ParseTerritoryExcelResult,
   AiTemplateCheckResult,
 } from './excelTypes';
-import { generateUniqueTerritoryNik } from './excelTemplateGenerators';
-import { buildTerritorialPositionId, getTerritoryScopeKey } from './excelCellParsers';
-import { findSameTerritorySlotMember, stripMemberPositions } from './excelSlotMatcher';
+import { buildTerritorialPositionId } from './excelCellParsers';
+import { stripMemberPositions } from './excelSlotMatcher';
 
 export function alignAndCheckWithTemplate(
   currentResult: ParseTerritoryExcelResult,
@@ -46,7 +39,6 @@ export function alignAndCheckWithTemplate(
   const pertimbanganSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PERTIMBANGAN');
   const pakarSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PAKAR');
   const pimpinanSlots = allSlots.filter((s) => getSlotSubOrgCategory(s) === 'PIMPINAN');
-  const expandedCurrentMembers = getExpandedStructuralMembers(currentMembers);
 
   const pertimbanganRows: ParsedTerritoryRow[] = [];
   const pakarRows: ParsedTerritoryRow[] = [];
@@ -287,98 +279,38 @@ export function alignAndCheckWithTemplate(
     ...alignedPimpinanRows,
   ];
 
-  const allExistingNiksHelper = new Set<string>(currentMembers.map((m) => m.nik));
-  const batchAssignedNiksHelper = new Set<string>();
-  const batchNameToNikHelper = new Map<string, string>();
-  const batchNikToNameHelper = new Map<string, string>();
   const newMembersToSave: Member[] = [];
-
-  const isValidNikHelper = (nik?: string): boolean => isAcceptableImportNik(nik);
+  const rejectedList: RejectedImportRowSummary[] = [...(currentResult.rejectedList || [])];
 
   for (const r of finalRows) {
-    if (!r.isFilled || !r.namaLengkap || r.namaLengkap === '-' || r.isVacantSlot) {
+    if (!r.isFilled || !r.namaLengkap || r.namaLengkap === '-' || r.isVacantSlot || r.isRejectedIncomplete) {
       continue;
     }
 
-    let nikVal = r.nik;
-    const rowDpdTarget = r.dpd || territoryDpd;
-    const normNama = cleanPersonName(r.namaLengkap).toLowerCase();
-    const personScopeKey = `${rowDpdTarget.toLowerCase().trim()}|${normNama}`;
+    const requiredCheck = validateRequiredImportColumns({
+      nik: r.nik,
+      nomorEKTA: r.nomorEKTA,
+      nomorHP: r.nomorHP,
+    });
 
-    const existingSlotMember = findSameTerritorySlotMember(
-      expandedCurrentMembers,
-      ctx.level,
-      rowDpdTarget,
-      territoryDpc,
-      territoryDprt,
-      r.subOrg,
-      r.jabatanExcel,
-      r.namaLengkap
-    );
+    const finalJabatan = r.jabatanExcel || r.jabatanMatched || 'Pengurus';
 
-    const existingSamePersonInTerritory = normNama
-      ? currentMembers.find(
-          (m) =>
-            cleanPersonName(m.namaLengkap).toLowerCase() === normNama &&
-            isDpdMatch(m.dpd, rowDpdTarget)
-        )
-      : undefined;
-
-    const isSamePersonNikReuse =
-      isValidNikHelper(nikVal) &&
-      batchAssignedNiksHelper.has(nikVal) &&
-      normNama !== '' &&
-      batchNikToNameHelper.get(nikVal) === normNama;
-
-    const hasValidExcelNik =
-      isValidNikHelper(nikVal) && (!batchAssignedNiksHelper.has(nikVal) || isSamePersonNikReuse);
-
-    if (hasValidExcelNik) {
-      batchAssignedNiksHelper.add(nikVal);
-      allExistingNiksHelper.add(nikVal);
-      if (normNama) {
-        batchNameToNikHelper.set(personScopeKey, nikVal);
-        batchNikToNameHelper.set(nikVal, normNama);
-      }
-    } else {
-      if (normNama && batchNameToNikHelper.has(personScopeKey)) {
-        nikVal = batchNameToNikHelper.get(personScopeKey)!;
-      } else if (
-        existingSlotMember &&
-        isValidNikHelper(existingSlotMember.nik) &&
-        !isGeneratedNik(existingSlotMember.nik) &&
-        (!batchAssignedNiksHelper.has(existingSlotMember.nik) ||
-          batchNikToNameHelper.get(existingSlotMember.nik) === normNama)
-      ) {
-        nikVal = existingSlotMember.nik;
-        batchAssignedNiksHelper.add(nikVal);
-      } else if (
-        existingSamePersonInTerritory &&
-        isValidNikHelper(existingSamePersonInTerritory.nik) &&
-        (!batchAssignedNiksHelper.has(existingSamePersonInTerritory.nik) ||
-          batchNikToNameHelper.get(existingSamePersonInTerritory.nik) === normNama)
-      ) {
-        nikVal = existingSamePersonInTerritory.nik;
-        batchAssignedNiksHelper.add(nikVal);
-      } else {
-        nikVal = generateUniqueTerritoryNik(
-          rowDpdTarget,
-          r.subOrg,
-          r.no,
-          allExistingNiksHelper,
-          getTerritoryScopeKey(ctx.level, rowDpdTarget, territoryDpc, territoryDprt)
-        );
-        batchAssignedNiksHelper.add(nikVal);
-      }
-
-      if (normNama && nikVal) {
-        batchNameToNikHelper.set(personScopeKey, nikVal);
-        batchNikToNameHelper.set(nikVal, normNama);
-      }
+    if (!requiredCheck.isValid) {
+      r.isFilled = false;
+      r.isRejectedIncomplete = true;
+      r.status = 'Ditolak (Kurang Data)';
+      r.aiNote = `⛔ ${requiredCheck.reason}`;
+      rejectedList.push({
+        no: r.no,
+        namaLengkap: r.namaLengkap,
+        jabatan: finalJabatan,
+        reason: requiredCheck.reason || 'Data wajib belum lengkap',
+      });
+      continue;
     }
 
+    const nikVal = requiredCheck.cleanNik;
     r.nik = nikVal;
-    const finalJabatan = r.jabatanExcel || r.jabatanMatched || 'Pengurus';
 
     const memberId = buildTerritorialPositionId(
       nikVal,
@@ -395,10 +327,10 @@ export function alignAndCheckWithTemplate(
       ...stripMemberPositions(existingMember),
       id: memberId,
       nik: nikVal,
-      nomorEKTA: r.nomorEKTA || existingMember?.nomorEKTA || makeGeneratedEkta(nikVal),
+      nomorEKTA: requiredCheck.cleanEkta,
       namaLengkap: r.namaLengkap,
       email: r.email || existingMember?.email || undefined,
-      nomorHP: r.nomorHP && r.nomorHP !== '-' ? r.nomorHP : existingMember?.nomorHP || '-',
+      nomorHP: requiredCheck.cleanHp,
       alamatLengkap: r.alamat || existingMember?.alamatLengkap || undefined,
       jenisKelamin:
         r.jenisKelamin?.toUpperCase().startsWith('L') ||
@@ -416,7 +348,7 @@ export function alignAndCheckWithTemplate(
       wilayahPenugasan: r.subOrg,
       urutan: r.no,
       nomorSK:
-        existingSlotMember?.nomorSK ||
+        existingMember?.nomorSK ||
         (ctx.level === 'DPRt'
           ? `SK-DPRT-${(territoryDprt || 'DESA').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`
           : `SK-${ctx.level}-${territoryDpd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}/${new Date().getFullYear()}`),
@@ -486,8 +418,10 @@ export function alignAndCheckWithTemplate(
       pakarCount: alignedPakarRows.length,
       pimpinanCount: alignedPimpinanRows.length,
       matchedCount: matchedPositions,
+      rejectedRows: rejectedList.length,
     },
-    message: `Format berhasil diperiksa & dirapikan: ${filledStandardCount}/${pimpinanSlots.length} jabatan baku terisi, ${vacantSlotsCount} slot kosong ditetapkan, ${extraRowsCount} jabatan tambahan dirapikan.`,
+    rejectedList,
+    message: `Format berhasil diperiksa & dirapikan: ${filledStandardCount}/${pimpinanSlots.length} jabatan baku terisi, ${vacantSlotsCount} slot kosong ditetapkan, ${extraRowsCount} jabatan tambahan dirapikan${rejectedList.length > 0 ? `, ${rejectedList.length} baris ditolak (data wajib kurang)` : ''}.`,
     dpdPimpinanCompliance,
   };
 }

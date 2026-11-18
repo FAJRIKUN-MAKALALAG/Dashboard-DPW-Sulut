@@ -224,7 +224,9 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
           emptyRows: checkRes.stats.vacantSlotsCount,
           matchedPositions: checkRes.stats.matchedCount,
           customPositions: checkRes.stats.extraRowsCount,
+          rejectedRows: checkRes.stats.rejectedRows,
         },
+        rejectedList: checkRes.rejectedList,
         dpdPimpinanCompliance: checkRes.dpdPimpinanCompliance,
       });
 
@@ -490,6 +492,40 @@ export const TerritorialImportExportModal: React.FC<TerritorialImportExportModal
               <ImportComplianceCard
                 dpdPimpinanCompliance={parseResult.dpdPimpinanCompliance}
               />
+
+              {/* Peringatan Baris Ditolak karena 3 Kolom Wajib Belum Lengkap */}
+              {parseResult.rejectedList && parseResult.rejectedList.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/35 border border-rose-200 dark:border-rose-800/60 space-y-2 text-xs">
+                  <div className="flex items-start gap-2 text-rose-800 dark:text-rose-200 font-bold">
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p>
+                        {parseResult.rejectedList.length} baris dilewati &amp; TIDAK akan masuk ke database
+                      </p>
+                      <p className="font-normal text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
+                        Aturan import mewajibkan <strong>NIK (16 digit)</strong>, <strong>Nomor e-KTA</strong>, dan <strong>No. Telepon/HP</strong> terisi lengkap semua (kurang 1 kolom saja data otomatis ditolak).
+                      </p>
+                    </div>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto rounded-lg bg-white/80 dark:bg-slate-900/70 border border-rose-200/70 dark:border-rose-900/50 divide-y divide-rose-100 dark:divide-rose-900/40">
+                    {parseResult.rejectedList.slice(0, 20).map((rej, idx) => (
+                      <div key={idx} className="px-2.5 py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          #{rej.no} {rej.namaLengkap} <span className="font-normal text-slate-500">({rej.jabatan})</span>
+                        </span>
+                        <span className="text-rose-600 dark:text-rose-400 font-medium">
+                          {rej.reason}
+                        </span>
+                      </div>
+                    ))}
+                    {parseResult.rejectedList.length > 20 && (
+                      <div className="px-2.5 py-1.5 text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                        ...dan {parseResult.rejectedList.length - 20} baris tidak lengkap lainnya.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* AI Smart Clean & Cluster Action Banner */}
               <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
