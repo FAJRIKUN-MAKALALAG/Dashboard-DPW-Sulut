@@ -42,3 +42,70 @@ export const isGeneratedEkta = (ekta?: string | null): boolean =>
 /** E-KTA sementara yang diturunkan dari NIK (selalu unik karena NIK unik). */
 export const makeGeneratedEkta = (nik: string): string =>
   `${GENERATED_EKTA_PREFIX}${String(nik).replace(/[^0-9]/g, '').slice(-10)}`;
+
+const PLACEHOLDER_VALUES = new Set(['', '-', '--', '---', '—', 'null', 'none', 'n/a', '0']);
+
+export const isImportPlaceholder = (val?: string | null): boolean =>
+  PLACEHOLDER_VALUES.has(String(val || '').trim().toLowerCase());
+
+export interface RequiredImportCheckResult {
+  isValid: boolean;
+  missingFields: string[];
+  reason?: string;
+  cleanNik: string;
+  cleanEkta: string;
+  cleanHp: string;
+}
+
+/**
+ * Validasi 3 kolom wajib saat import Excel/SQL:
+ * 1. NIK: tepat 16 digit angka valid (bukan template/generate sistem)
+ * 2. e-KTA: nomor e-KTA asli terisi (bukan kosong / '-' / KTA-GEN-...)
+ * 3. No. Telepon / HP: nomor aktif terisi minimal 8 digit angka (bukan kosong / '-')
+ * Jika salah satu saja tidak lengkap, baris wajib ditolak.
+ */
+export const validateRequiredImportColumns = (fields: {
+  nik?: string | null;
+  nomorEKTA?: string | null;
+  nomorHP?: string | null;
+}): RequiredImportCheckResult => {
+  const cleanNik = String(fields.nik || '').replace(/[^0-9]/g, '').trim();
+  const cleanEkta = String(fields.nomorEKTA || '').trim();
+  const cleanHp = String(fields.nomorHP || '').trim();
+  const hpDigits = cleanHp.replace(/[^0-9]/g, '');
+
+  const missingFields: string[] = [];
+
+  if (
+    !/^\d{16}$/.test(cleanNik) ||
+    /^0{6,}/.test(cleanNik) ||
+    isGeneratedNik(cleanNik)
+  ) {
+    missingFields.push('NIK (wajib 16 digit)');
+  }
+
+  if (
+    isImportPlaceholder(cleanEkta) ||
+    isGeneratedEkta(cleanEkta) ||
+    cleanEkta.length < 5 ||
+    !/\d/.test(cleanEkta)
+  ) {
+    missingFields.push('Nomor e-KTA');
+  }
+
+  if (isImportPlaceholder(cleanHp) || hpDigits.length < 8) {
+    missingFields.push('No. Telepon/HP');
+  }
+
+  return {
+    isValid: missingFields.length === 0,
+    missingFields,
+    reason:
+      missingFields.length > 0
+        ? `Data tidak masuk — kolom wajib belum lengkap: ${missingFields.join(', ')}`
+        : undefined,
+    cleanNik,
+    cleanEkta,
+    cleanHp,
+  };
+};

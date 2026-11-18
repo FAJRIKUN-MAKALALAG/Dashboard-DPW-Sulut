@@ -25,6 +25,14 @@ export interface ParsedTerritoryRow {
   isFilled: boolean;
   aiNote?: string;
   isVacantSlot?: boolean;
+  isRejectedIncomplete?: boolean;
+}
+
+export interface RejectedImportRowSummary {
+  no: number;
+  namaLengkap: string;
+  jabatan: string;
+  reason: string;
 }
 
 export interface DpdImportComplianceInfo {
@@ -46,7 +54,9 @@ export interface ParseTerritoryExcelResult {
     emptyRows: number;
     matchedPositions: number;
     customPositions: number;
+    rejectedRows?: number;
   };
+  rejectedList?: RejectedImportRowSummary[];
   filename: string;
   dpdPimpinanCompliance?: DpdImportComplianceInfo;
 }
@@ -61,6 +71,7 @@ export interface AiTemplateCheckStats {
   pakarCount: number;
   pimpinanCount: number;
   matchedCount: number;
+  rejectedRows?: number;
 }
 
 export interface AiTemplateCheckResult {
@@ -69,5 +80,6 @@ export interface AiTemplateCheckResult {
   membersToSave: Member[];
   stats: AiTemplateCheckStats;
   message: string;
+  rejectedList?: RejectedImportRowSummary[];
   dpdPimpinanCompliance?: DpdImportComplianceInfo;
 }
