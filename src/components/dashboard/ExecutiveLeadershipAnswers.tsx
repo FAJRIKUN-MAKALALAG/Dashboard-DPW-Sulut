@@ -401,7 +401,7 @@ export const ExecutiveLeadershipAnswers: React.FC<ExecutiveLeadershipAnswersProp
                             {pos}
                           </span>
                           <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0 ml-1">
-                            ⚡ Lowong
+                            ⚡ Belum Terisi
                           </span>
                         </div>
                       ))}

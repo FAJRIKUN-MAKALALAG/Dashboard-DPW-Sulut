@@ -44,11 +44,24 @@ export function canManageUsers(session?: UserSession): boolean {
 
 /**
  * Hak Akses Modul Inventaris Kantor DPW Sulut (5 Lantai):
- * HANYA untuk SUPER_ADMIN dan ADMIN_INVENTORY.
+ * HANYA untuk SUPER_ADMIN, ADMIN_INVENTORY, dan WAKIL_BENDAHARA.
  */
 export function canAccessInventory(session?: UserSession): boolean {
   if (!session) return false;
-  return session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_INVENTORY';
+  return (
+    session.role === 'SUPER_ADMIN' ||
+    session.role === 'ADMIN_INVENTORY' ||
+    session.role === 'WAKIL_BENDAHARA'
+  );
+}
+
+/**
+ * Hak Akses Modul Keuangan DPW (Iuran Fraksi, DPP, Kas Bank & Operasional):
+ * HANYA untuk SUPER_ADMIN dan WAKIL_BENDAHARA.
+ */
+export function canAccessFinance(session?: UserSession): boolean {
+  if (!session) return false;
+  return session.role === 'SUPER_ADMIN' || session.role === 'WAKIL_BENDAHARA';
 }
 
 /**
@@ -74,17 +87,21 @@ export function isReferralApplicable(session?: UserSession): boolean {
   return (
     session.role !== 'SUPER_ADMIN' &&
     session.role !== 'ADMIN_INVENTORY' &&
+    session.role !== 'WAKIL_BENDAHARA' &&
     session.role !== 'ANGGOTA'
   );
 }
 
 /**
  * Menentukan apakah pengguna boleh melihat / mengakses database seluruh anggota:
- * Anggota biasa tanpa SK (role ANGGOTA) HANYA boleh melihat profilnya sendiri,
- * dan TIDAK BISA mengakses pencarian atau daftar anggota lain.
+ * Anggota biasa tanpa SK (role ANGGOTA), Admin Inventory, dan Wakil Bendahara TIDAK mengakses pencarian seluruh kader.
  */
 export function canAccessMemberDatabase(session?: UserSession): boolean {
-  return session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY';
+  return (
+    session?.role !== 'ANGGOTA' &&
+    session?.role !== 'ADMIN_INVENTORY' &&
+    session?.role !== 'WAKIL_BENDAHARA'
+  );
 }
 
 /**
@@ -97,11 +114,15 @@ export function isAnggotaBiasa(session?: UserSession): boolean {
 /**
  * Menentukan Tab Awal Default saat Pengguna Login:
  * - Jika role ADMIN_INVENTORY -> langsung ke 'inventory'
+ * - Jika role WAKIL_BENDAHARA -> langsung ke 'finance'
  * - Jika memiliki hak akses Dashboard -> 'dashboard'
  * - Jika pengurus biasa / ketua DPRt -> langsung ke 'portal'
  */
-export function getDefaultActiveTab(session?: UserSession): 'dashboard' | 'portal' | 'inventory' {
+export function getDefaultActiveTab(
+  session?: UserSession
+): 'dashboard' | 'portal' | 'inventory' | 'finance' {
   if (session?.role === 'ADMIN_INVENTORY') return 'inventory';
+  if (session?.role === 'WAKIL_BENDAHARA') return 'finance';
   return canAccessDashboard(session) ? 'dashboard' : 'portal';
 }
 
@@ -152,7 +173,13 @@ export function canAccessStructureTab(
  */
 export function canAddMembers(session?: UserSession): boolean {
   if (!session) return false;
-  if (session.role === 'ANGGOTA' || session.role === 'ADMIN_INVENTORY') return false;
+  if (
+    session.role === 'ANGGOTA' ||
+    session.role === 'ADMIN_INVENTORY' ||
+    session.role === 'WAKIL_BENDAHARA'
+  ) {
+    return false;
+  }
   if (session.canAddMembers !== undefined) return Boolean(session.canAddMembers);
   return true;
 }
@@ -164,6 +191,7 @@ export function getUserTerritoryLabel(session?: UserSession): string {
   if (!session) return '';
   if (session.role === 'SUPER_ADMIN') return 'Seluruh Sulawesi Utara (Super Admin)';
   if (session.role === 'ADMIN_INVENTORY') return 'Gedung Kantor DPW Sulut (Admin Inventaris)';
+  if (session.role === 'WAKIL_BENDAHARA') return 'Keuangan DPW & Inventaris Kantor Sulut';
   if (session.role === 'ADMIN_DPW') return 'Tingkat DPW Sulawesi Utara';
   if (session.role === 'ADMIN_DPD') return `DPD ${session.dpdAccess}`;
   if (session.role === 'ADMIN_DPC') return `DPC Kec. ${session.dpcAccess} (${session.dpdAccess})`;
@@ -183,7 +211,13 @@ export function getUserTerritoryLabel(session?: UserSession): string {
 export function canEditMember(session?: UserSession, member?: Member | null): boolean {
   if (!session || !member) return false;
   if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') return true;
-  if (session.role === 'ANGGOTA' || session.role === 'ADMIN_INVENTORY') return false;
+  if (
+    session.role === 'ANGGOTA' ||
+    session.role === 'ADMIN_INVENTORY' ||
+    session.role === 'WAKIL_BENDAHARA'
+  ) {
+    return false;
+  }
 
   if (session.role === 'ADMIN_DPD') {
     return isDpdMatch(member.dpd, session.dpdAccess);

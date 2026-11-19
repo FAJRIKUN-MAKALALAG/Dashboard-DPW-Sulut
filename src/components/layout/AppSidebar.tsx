@@ -7,6 +7,8 @@ import {
   isReferralApplicable,
   canAccessStructureTab,
   canAccessAnalytics,
+  canAccessInventory,
+  canAccessFinance,
 } from '../../utils/permissionUtils';
 import { REQUIRED_POSITIONS } from '../../utils/structureReadinessUtils';
 import {
@@ -36,6 +38,7 @@ import {
   Download,
   MessageSquare,
   Package,
+  Wallet,
 } from 'lucide-react';
 
 export type MainNavTab =
@@ -49,7 +52,8 @@ export type MainNavTab =
   | 'dpc'
   | 'dprt'
   | 'members'
-  | 'inventory';
+  | 'inventory'
+  | 'finance';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -123,6 +127,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const canAccessDpd = canAccessStructureTab('dpd', session);
   const canAccessDpc = canAccessStructureTab('dpc', session);
   const canAccessDprt = canAccessStructureTab('dprt', session);
+  const showFinance = canAccessFinance(session);
+  const showInventory = canAccessInventory(session);
+  const isOperationalOnlyRole =
+    session?.role === 'ADMIN_INVENTORY' || session?.role === 'WAKIL_BENDAHARA';
 
   // Label Menu Pencarian Sesuai Tingkat Kewenangan Wilayah
   let membersNavTitle = 'Database Kader';
@@ -240,8 +248,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
           {/* Navigation Links Scrollable Area */}
           <div className="px-2.5 py-3 space-y-5 overflow-y-auto max-h-[calc(100vh-170px)]">
-            {/* Section 1: Dashboard & Struktur Organisasi (Disembunyikan untuk Admin Inventory) */}
-            {session?.role !== 'ADMIN_INVENTORY' && (
+            {/* Section 1: Dashboard & Struktur Organisasi (Disembunyikan untuk role operasional non-kader) */}
+            {!isOperationalOnlyRole && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Struktur & Tata Kelola'}
@@ -505,7 +513,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             )}
 
             {/* Section: Pendaftaran Mandiri & e-KTA DPP (Hanya Pengurus & Admin) */}
-            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
+            {session?.role !== 'ANGGOTA' && !isOperationalOnlyRole && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   Pendaftaran &amp; e-KTA
@@ -583,7 +591,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             )}
 
             {/* Section 2: Database & Pencarian Anggota (Hanya Pengurus Ber-SK & Admin) */}
-            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
+            {session?.role !== 'ANGGOTA' && !isOperationalOnlyRole && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   Pencarian &amp; Data Anggota
@@ -633,8 +641,44 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   Alat Operasional
                 </span>
                 <div className="space-y-1">
-                  {/* Inventaris Kantor DPW (5 Lantai): SUPER ADMIN & ADMIN INVENTORY */}
-                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_INVENTORY') && (
+                  {/* Keuangan DPW: SUPER ADMIN & WAKIL BENDAHARA */}
+                  {showFinance && (
+                    <button
+                      onClick={() => handleNavClick('finance')}
+                      className={navItemClass(activeTab === 'finance')}
+                      title="Keuangan DPW: Iuran Fraksi, Setoran DPP, & Kas Operasional"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={iconContainerClass(activeTab === 'finance')}>
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed}`}>
+                          <span className="block leading-none">Keuangan DPW</span>
+                          <span
+                            className={`text-[10px] block mt-0.5 leading-none ${
+                              activeTab === 'finance'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            Fraksi, DPP &amp; Kas Kantor
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                          activeTab === 'finance'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
+                        }`}
+                      >
+                        KAS
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Inventaris Kantor DPW (5 Lantai): SUPER ADMIN, ADMIN INVENTORY & WAKIL BENDAHARA */}
+                  {showInventory && (
                     <button
                       onClick={() => handleNavClick('inventory')}
                       className={navItemClass(activeTab === 'inventory')}
@@ -719,7 +763,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   )}
 
                   {/* Persetujuan Hapus */}
-                  {session?.role !== 'ADMIN_INVENTORY' && (
+                  {!isOperationalOnlyRole && (
                     <button
                       onClick={() => {
                         onOpenDeletionApproval();
