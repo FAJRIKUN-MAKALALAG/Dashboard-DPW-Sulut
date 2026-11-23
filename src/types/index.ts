@@ -80,6 +80,7 @@ export type UserRole =
   | 'ADMIN_DPC'
   | 'ADMIN_DPRT'
   | 'ADMIN_INVENTORY'
+  | 'WAKIL_BENDAHARA'
   | 'ANGGOTA';
 
 export interface UserSession {

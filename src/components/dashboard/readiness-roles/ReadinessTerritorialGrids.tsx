@@ -95,7 +95,7 @@ interface ReadinessTerritorialGridsProps {
   regionStats: DpdRegionStatItem[];
   filteredRegionStats: DpdRegionStatItem[];
   regionsCount: number;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
   onSelectDrawer: (regionName: string, initialTab: 'dpd' | 'dpc' | 'dprt', initialDpc: string | null) => void;
 }
 
@@ -411,7 +411,7 @@ export const ReadinessTerritorialGrids: React.FC<ReadinessTerritorialGridsProps>
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenTerritorialMatrix(currentRegionName, currentDpcName, 'DPRt');
+                      onOpenTerritorialMatrix(currentRegionName, currentDpcName, 'DPRt', village.name);
                     }}
                     className="px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
                     title="Buka matriks DPRt & import Excel"

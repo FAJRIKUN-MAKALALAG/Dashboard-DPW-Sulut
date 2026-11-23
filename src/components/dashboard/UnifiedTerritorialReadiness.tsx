@@ -33,7 +33,7 @@ interface UnifiedTerritorialReadinessProps {
   members: Member[];
   session?: UserSession;
   selectedDpdFilter?: string;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 

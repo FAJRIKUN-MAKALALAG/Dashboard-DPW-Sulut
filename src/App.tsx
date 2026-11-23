@@ -28,12 +28,15 @@ import { SulutAnalyticsPage } from './components/analytics/SulutAnalyticsPage';
 import { PendaftaranKeanggotaanPage } from './components/PendaftaranKeanggotaanPage';
 import { PendaftaranEktaDppPage } from './components/PendaftaranEktaDppPage';
 import { InventoryPage } from './components/inventory';
+import { FinancePage } from './components/finance';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
   getDefaultActiveTab,
   canAccessStructureTab,
   canAccessAnalytics,
+  canAccessInventory,
+  canAccessFinance,
 } from './utils/permissionUtils';
 import { LoginPage } from './components/LoginPage';
 import { useAppModals } from './hooks/useAppModals';
@@ -233,6 +236,12 @@ export default function App() {
       setActiveTab('portal');
     } else if (session?.role === 'ADMIN_INVENTORY' && activeTab !== 'inventory') {
       setActiveTab('inventory');
+    } else if (
+      session?.role === 'WAKIL_BENDAHARA' &&
+      activeTab !== 'finance' &&
+      activeTab !== 'inventory'
+    ) {
+      setActiveTab('finance');
     }
   }, [session?.role, activeTab]);
 
@@ -379,7 +388,7 @@ export default function App() {
     if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
       return members;
     }
-    if (session.role === 'ADMIN_INVENTORY') {
+    if (session.role === 'ADMIN_INVENTORY' || session.role === 'WAKIL_BENDAHARA') {
       return [];
     }
     if (session.role === 'ANGGOTA') {
@@ -428,6 +437,12 @@ export default function App() {
       }
       return;
     }
+    if (session?.role === 'WAKIL_BENDAHARA') {
+      if (activeTab !== 'finance' && activeTab !== 'inventory') {
+        setActiveTab('finance');
+      }
+      return;
+    }
     if (!canAccessDashboard(session) && activeTab === 'dashboard') {
       setActiveTab('portal');
       return;
@@ -456,7 +471,11 @@ export default function App() {
       setActiveTab('portal');
       return;
     }
-    if (activeTab === 'inventory' && session?.role !== 'SUPER_ADMIN') {
+    if (activeTab === 'inventory' && !canAccessInventory(session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
+    if (activeTab === 'finance' && !canAccessFinance(session)) {
       setActiveTab(getDefaultActiveTab(session));
       return;
     }
@@ -578,6 +597,8 @@ export default function App() {
                     ? 'Susunan Pengurus DPRt Ranting Desa'
                     : activeTab === 'inventory'
                     ? 'Inventaris & Aset Kantor DPW Sulut (5 Lantai)'
+                    : activeTab === 'finance'
+                    ? 'Keuangan DPW Sulut: Iuran Fraksi, DPP & Kas Kantor'
                     : 'Database Seluruh Kader Daerah'
                 }
               >
@@ -591,6 +612,7 @@ export default function App() {
                 {activeTab === 'dpc' && 'Susunan Pengurus DPC Kecamatan'}
                 {activeTab === 'dprt' && 'Susunan Pengurus DPRt Desa'}
                 {activeTab === 'inventory' && 'Inventaris Kantor DPW Sulut (5 Lantai)'}
+                {activeTab === 'finance' && 'Keuangan DPW Sulut'}
                 {activeTab === 'members' && (
                   session?.role === 'ADMIN_DPRT'
                     ? `Pencarian DPRt (${session.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting'})`
@@ -619,7 +641,9 @@ export default function App() {
               )}
             </button>
 
-            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
+            {session?.role !== 'ANGGOTA' &&
+              session?.role !== 'ADMIN_INVENTORY' &&
+              session?.role !== 'WAKIL_BENDAHARA' && (
               <button
                 onClick={() => modals.setIsTemplateHubOpen(true)}
                 className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -631,7 +655,9 @@ export default function App() {
               </button>
             )}
 
-            {session?.role !== 'ANGGOTA' && session?.role !== 'ADMIN_INVENTORY' && (
+            {session?.role !== 'ANGGOTA' &&
+              session?.role !== 'ADMIN_INVENTORY' &&
+              session?.role !== 'WAKIL_BENDAHARA' && (
               <button
                 onClick={modals.openPrintReport}
                 className="btn-white flex items-center gap-1.5 p-2 md:px-3 md:py-1.5 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -840,11 +866,15 @@ export default function App() {
             />
           )}
 
-          {/* Tab 7: Inventaris Kantor DPW Sulut (5 Lantai) - SUPER ADMIN & ADMIN INVENTORY */}
-          {activeTab === 'inventory' &&
-            (session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_INVENTORY') && (
-              <InventoryPage session={session} showToast={showToast} />
-            )}
+          {/* Tab 7: Inventaris Kantor DPW Sulut (5 Lantai) - SUPER ADMIN, ADMIN INVENTORY & WAKIL BENDAHARA */}
+          {activeTab === 'inventory' && canAccessInventory(session) && (
+            <InventoryPage session={session} showToast={showToast} />
+          )}
+
+          {/* Tab 8: Modul Keuangan DPW (Iuran Fraksi, DPP & Kas) - SUPER ADMIN & WAKIL BENDAHARA */}
+          {activeTab === 'finance' && canAccessFinance(session) && (
+            <FinancePage session={session} showToast={showToast} />
+          )}
           </div>
         </main>
 

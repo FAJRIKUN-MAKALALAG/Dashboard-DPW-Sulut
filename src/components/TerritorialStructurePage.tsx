@@ -177,7 +177,11 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
         if (selectedDpc !== targetDpc) setSelectedDpc(targetDpc);
       }
       if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') {
-        const matchedDprt = currentSubdistrict?.villages?.find((v) => isDprtMatch(v, initialDprt));
+        const exactV = currentSubdistrict?.villages?.find(
+          (v) => v.toLowerCase().trim() === initialDprt.toLowerCase().trim()
+        );
+        const matchedDprt =
+          exactV || currentSubdistrict?.villages?.find((v) => isDprtMatch(v, initialDprt));
         const targetDprt = matchedDprt || initialDprt;
         if (selectedDprt !== targetDprt) setSelectedDprt(targetDprt);
       }

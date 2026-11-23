@@ -13,6 +13,7 @@ interface UserMobileCardsProps {
 
 const roleBadgeColor: Record<string, string> = {
   SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+  WAKIL_BENDAHARA: 'bg-sky-100 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-700',
   ADMIN_INVENTORY: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
   ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
   ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
@@ -104,6 +105,10 @@ export const UserMobileCards: React.FC<UserMobileCardsProps> = ({
                       {user.role === 'ADMIN_INVENTORY' ? (
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
                           Gedung Kantor DPW Sulut (5 Lantai)
+                        </span>
+                      ) : user.role === 'WAKIL_BENDAHARA' ? (
+                        <span className="font-bold text-sky-600 dark:text-sky-400">
+                          Keuangan DPW &amp; Inventaris Kantor
                         </span>
                       ) : user.dpdAccess === 'ALL' ? (
                         <span className="font-bold text-blue-600 dark:text-blue-400">

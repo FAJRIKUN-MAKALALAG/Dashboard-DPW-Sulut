@@ -6,6 +6,7 @@ import {
   canAccessAnalytics,
   canAccessStructureTab,
   canAccessInventory,
+  canAccessFinance,
   getDefaultActiveTab,
   resolveSessionTerritoryLocks,
 } from '../utils/permissionUtils';
@@ -22,6 +23,7 @@ export const VALID_MAIN_TABS: MainNavTab[] = [
   'dprt',
   'members',
   'inventory',
+  'finance',
 ];
 
 export interface ParsedRouteParams {
@@ -90,6 +92,9 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
   if (session.role === 'ADMIN_INVENTORY') {
     return tab === 'inventory';
   }
+  if (session.role === 'WAKIL_BENDAHARA') {
+    return tab === 'finance' || tab === 'inventory';
+  }
   switch (tab) {
     case 'dashboard':
       return canAccessDashboard(session);
@@ -111,6 +116,8 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
       return true;
     case 'inventory':
       return canAccessInventory(session);
+    case 'finance':
+      return canAccessFinance(session);
     default:
       return true;
   }
@@ -301,12 +308,13 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
 
   // 4. Territory Navigation Handler
   const handleNavigateToTerritory = useCallback(
-    (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => {
+    (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => {
       if (level === 'DPW') {
         setActiveTabState('dpw');
       } else if (level === 'DPRt') {
         if (dpd) setMatrixInitialDpd(dpd);
         if (dpc) setMatrixInitialDpc(dpc);
+        if (dprt) setMatrixInitialDprt(dprt);
         setActiveTabState('dprt');
       } else if (level === 'DPC' || dpc) {
         if (dpd) setMatrixInitialDpd(dpd);

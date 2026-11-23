@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Check,
   Package,
+  Wallet,
 } from 'lucide-react';
 
 interface UserFormModalProps {
@@ -115,7 +116,23 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
             {editingUserId ? 'Perbarui Hak Akses Akun Admin' : 'Penerbitan Akun Admin & Hak Akses Baru'}
           </h3>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setFormRole('WAKIL_BENDAHARA');
+              if (!formJabatan.trim()) setFormJabatan('Wakil Bendahara DPW Sulut');
+              if (!formFullName.trim()) setFormFullName('Wakil Bendahara DPW');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border ${
+              formRole === 'WAKIL_BENDAHARA'
+                ? 'bg-[#1A3282] text-white border-[#1A3282]'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5 text-sky-400" />
+            <span>Set Role: Wakil Bendahara</span>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -156,17 +173,27 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         </div>
       )}
 
-      {formRole === 'ADMIN_INVENTORY' && (
+      {(formRole === 'ADMIN_INVENTORY' || formRole === 'WAKIL_BENDAHARA') && (
         <div className="p-3 mb-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-[#1A3282] text-white flex items-center justify-center shrink-0">
-            <Package className="w-4 h-4 text-amber-300" />
+            {formRole === 'WAKIL_BENDAHARA' ? (
+              <Wallet className="w-4 h-4 text-sky-300" />
+            ) : (
+              <Package className="w-4 h-4 text-amber-300" />
+            )}
           </div>
           <div>
             <span className="font-bold text-slate-900 dark:text-white block">
-              Mode Akun Admin Inventory (Gedung Kantor DPW 5 Lantai)
+              {formRole === 'WAKIL_BENDAHARA'
+                ? 'Mode Akun Wakil Bendahara (Keuangan DPW & Inventaris Kantor)'
+                : 'Mode Akun Admin Inventory (Gedung Kantor DPW 5 Lantai)'}
             </span>
             <span className="text-[11px] text-slate-500">
-              Cukup isi <strong>Nama Lengkap</strong>, <strong>Username Login</strong> bebas (contoh: <code className="font-mono text-blue-600">admin_inventory</code>), dan <strong>Password</strong>. Kolom NIK &amp; E-KTA bersifat opsional.
+              Cukup isi <strong>Nama Lengkap</strong>, <strong>Username Login</strong> bebas (contoh:{' '}
+              <code className="font-mono text-blue-600">
+                {formRole === 'WAKIL_BENDAHARA' ? 'wakil_bendahara' : 'admin_inventory'}
+              </code>
+              ), dan <strong>Password</strong>. Kolom NIK &amp; E-KTA bersifat opsional.
             </span>
           </div>
         </div>
@@ -177,8 +204,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         <div className="relative">
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
             Cari Kader dari Database (Nama Lengkap / NIK / E-KTA){' '}
-            {formRole === 'ADMIN_INVENTORY' && (
-              <span className="font-normal text-slate-400">(Opsional untuk Admin Inventory)</span>
+            {(formRole === 'ADMIN_INVENTORY' || formRole === 'WAKIL_BENDAHARA') && (
+              <span className="font-normal text-slate-400">
+                (Opsional untuk {formRole === 'WAKIL_BENDAHARA' ? 'Wakil Bendahara' : 'Admin Inventory'})
+              </span>
             )}
           </label>
           <div className="relative">
@@ -345,11 +374,14 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                   setFormRole(nextRole);
                   if (nextRole === 'ADMIN_INVENTORY' && !formJabatan.trim()) {
                     setFormJabatan('Admin Inventaris Kantor DPW Sulut');
+                  } else if (nextRole === 'WAKIL_BENDAHARA' && !formJabatan.trim()) {
+                    setFormJabatan('Wakil Bendahara DPW Sulut');
                   }
                 }}
                 className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 outline-none font-bold text-amber-600 dark:text-amber-400"
               >
                 <option value="SUPER_ADMIN">★ SUPER ADMINISTRATOR (Akses Tertinggi)</option>
+                <option value="WAKIL_BENDAHARA">💰 WAKIL BENDAHARA (Keuangan DPW &amp; Inventaris)</option>
                 <option value="ADMIN_INVENTORY">📦 ADMIN INVENTORY (Inventaris Kantor DPW 5 Lantai)</option>
                 <option value="ADMIN_DPW">ADMIN DPW (Tingkat Provinsi)</option>
                 <option value="ADMIN_DPD">ADMIN DPD (Tingkat Kab/Kota)</option>
@@ -363,13 +395,18 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
                 Cakupan DPD (Kabupaten/Kota)
               </label>
-              {formRole === 'ADMIN_DPW' || formRole === 'SUPER_ADMIN' || formRole === 'ADMIN_INVENTORY' ? (
+              {formRole === 'ADMIN_DPW' ||
+              formRole === 'SUPER_ADMIN' ||
+              formRole === 'ADMIN_INVENTORY' ||
+              formRole === 'WAKIL_BENDAHARA' ? (
                 <input
                   type="text"
                   disabled
                   value={
                     formRole === 'ADMIN_INVENTORY'
                       ? 'GEDUNG KANTOR DPW SULUT (5 LANTAI)'
+                      : formRole === 'WAKIL_BENDAHARA'
+                      ? 'KEUANGAN DPW & INVENTARIS KANTOR'
                       : 'SEMUA KAB/KOTA SE-SULUT (ALL)'
                   }
                   className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-slate-400 font-bold"

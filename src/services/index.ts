@@ -8,4 +8,5 @@ export * from './realtimeService';
 export * from './userService';
 export * from './referralService';
 export * from './structureSlotService';
+export * from './financeService';
 
