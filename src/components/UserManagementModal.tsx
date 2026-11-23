@@ -204,10 +204,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       const isGlobalRole =
         formRole === 'ADMIN_DPW' ||
         formRole === 'SUPER_ADMIN' ||
-        formRole === 'ADMIN_INVENTORY';
+        formRole === 'ADMIN_INVENTORY' ||
+        formRole === 'WAKIL_BENDAHARA';
       const defaultJabatanForRole =
         formRole === 'ADMIN_INVENTORY'
           ? 'Admin Inventaris Kantor DPW Sulut'
+          : formRole === 'WAKIL_BENDAHARA'
+          ? 'Wakil Bendahara DPW Sulut'
           : `Admin ${formRole}`;
 
       if (editingUserId) {

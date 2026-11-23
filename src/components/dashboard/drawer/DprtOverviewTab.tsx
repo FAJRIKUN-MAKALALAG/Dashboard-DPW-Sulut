@@ -12,7 +12,7 @@ interface DprtOverviewTabProps {
   subdistrictDetails: SubdistrictDetail[];
   dprtSearchTerm: string;
   setDprtSearchTerm: (term: string) => void;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
   onClose: () => void;
 }
 
@@ -252,7 +252,7 @@ export const DprtOverviewTab: React.FC<DprtOverviewTabProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onOpenTerritorialMatrix(regionName, village.dpcName, 'DPRt');
+                  onOpenTerritorialMatrix(regionName, village.dpcName, 'DPRt', village.name);
                   onClose();
                 }}
                 className="w-full mt-2 py-1.5 px-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-semibold text-xs border border-emerald-200 dark:border-emerald-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

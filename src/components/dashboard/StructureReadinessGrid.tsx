@@ -310,7 +310,7 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                     <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-200">
                       <span className="flex items-center gap-1.5">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                        <span>DPD Bagian A: {countPim}/36 ({vacantPositions.length} Lowong):</span>
+                        <span>DPD Bagian A: {countPim}/36 ({vacantPositions.length} Belum Terisi):</span>
                       </span>
                       <button
                         onClick={() => onOpenStructureModal(region.name)}
@@ -332,7 +332,7 @@ export const StructureReadinessGrid: React.FC<StructureReadinessGridProps> = ({
                             {pos}
                           </span>
                           <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 shrink-0 ml-1">
-                            ⚡ Lowong
+                            ⚡ Belum Terisi
                           </span>
                         </div>
                       ))}

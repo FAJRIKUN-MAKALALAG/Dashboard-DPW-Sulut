@@ -32,7 +32,7 @@ interface DprtReadinessViewProps {
   showGuidelines: boolean;
   setShowGuidelines: (v: boolean) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
 }
 
 export const DprtReadinessView: React.FC<DprtReadinessViewProps> = ({

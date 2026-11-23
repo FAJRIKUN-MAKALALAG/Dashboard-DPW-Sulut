@@ -28,7 +28,7 @@ interface TerritoryDetailDrawerProps {
   session?: UserSession;
   initialTab?: 'dpd' | 'dpc' | 'dprt';
   initialDpcName?: string | null;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
   onOpenStructureModal?: (dpd?: string, level?: 'ALL' | 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
 }
 

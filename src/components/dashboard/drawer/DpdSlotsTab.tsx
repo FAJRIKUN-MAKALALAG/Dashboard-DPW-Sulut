@@ -148,7 +148,7 @@ export const DpdSlotsTab: React.FC<DpdSlotsTabProps> = ({
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                      <span>Lowong</span>
+                      <span>Belum Terisi</span>
                     </span>
                     {onOpenTerritorialMatrix && (
                       <button

@@ -29,7 +29,7 @@ interface ExecutiveDashboardProps {
   ) => void;
   onOpenCardModal?: (member: Member) => void;
   onAddMembers?: (newMembers: Member[]) => void;
-  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt') => void;
+  onOpenTerritorialMatrix?: (dpd?: string, dpc?: string, level?: 'DPW' | 'DPD' | 'DPC' | 'DPRt', dprt?: string) => void;
   onOpenUserManagement?: () => void;
   onOpenDownloadTemplate?: () => void;
   onRefreshCloud?: () => Promise<void> | void;

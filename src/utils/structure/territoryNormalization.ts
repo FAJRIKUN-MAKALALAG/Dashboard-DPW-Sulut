@@ -86,19 +86,24 @@ export function isDpcMatch(memberDpc?: string, targetDpc?: string): boolean {
   return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
 }
 
-/**
- * Membersihkan dan menstandarkan nama DPRt (Desa/Kelurahan)
- */
-export function normalizeDprtName(raw?: string): string {
-  if (!raw) return '';
-  const cached = dprtNormCache.get(raw);
-  if (cached !== undefined) return cached;
+const AMBIGUOUS_DPRT_BASES = new Set(['rumoong bawah']);
 
+function parseDprtKindAndBase(raw?: string): { kind: 'desa' | 'kel' | ''; base: string } {
+  if (!raw) return { kind: '', base: '' };
   let str = raw
     .toLowerCase()
     .trim()
-    .replace(/^(desa|kelurahan|kel\.|kel|des)\s+/gi, '')
+    .replace(/^dprt\s+/i, '')
     .trim();
+
+  let kind: 'desa' | 'kel' | '' = '';
+  if (/^(kelurahan|kel\.|kel)\s+/i.test(str)) {
+    kind = 'kel';
+    str = str.replace(/^(kelurahan|kel\.|kel)\s+/i, '').trim();
+  } else if (/^(desa|des\.|des)\s+/i.test(str)) {
+    kind = 'desa';
+    str = str.replace(/^(desa|des\.|des)\s+/i, '').trim();
+  }
 
   // Normalize roman numerals and digits to Indonesian words for uniform matching
   str = str
@@ -108,24 +113,50 @@ export function normalizeDprtName(raw?: string): string {
     .replace(/\b(iv|4)\b/g, 'empat')
     .replace(/\b(v|5)\b/g, 'lima');
 
-  const res = str
+  const base = str
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  return { kind, base };
+}
+
+/**
+ * Membersihkan dan menstandarkan nama DPRt (Desa/Kelurahan).
+ * Mempertahankan pembeda administratif `desa` vs `kel` agar Desa Rumoong Bawah
+ * dan Kel. Rumoong Bawah (Amurang Barat) tidak pernah tertukar.
+ */
+export function normalizeDprtName(raw?: string): string {
+  if (!raw) return '';
+  const cached = dprtNormCache.get(raw);
+  if (cached !== undefined) return cached;
+
+  const { kind, base } = parseDprtKindAndBase(raw);
+  const res = kind && base ? `${kind} ${base}` : base;
   dprtNormCache.set(raw, res);
   return res;
 }
 
 /**
- * Robust matching for DPRt names (handles 'Desa', 'Kelurahan', 'Kel.', case-insensitive, exact match)
+ * Robust matching for DPRt names:
+ * Memisahkan tegas antara `Desa X` dan `Kel. X` / `Kelurahan X`.
  */
 export function isDprtMatch(memberDprt?: string, targetDprt?: string): boolean {
   if (!memberDprt || !targetDprt) return false;
   if (memberDprt === targetDprt) return true;
-  const norm1 = normalizeDprtName(memberDprt);
-  const norm2 = normalizeDprtName(targetDprt);
-  if (norm1 === norm2) return true;
-  return norm1.replace(/\s+/g, '') === norm2.replace(/\s+/g, '');
+  const p1 = parseDprtKindAndBase(memberDprt);
+  const p2 = parseDprtKindAndBase(targetDprt);
+  if (!p1.base || !p2.base) return false;
+  if (p1.base.replace(/\s+/g, '') !== p2.base.replace(/\s+/g, '')) return false;
+
+  if (p1.kind && p2.kind) {
+    return p1.kind === p2.kind;
+  }
+  if (!p1.kind && !p2.kind) {
+    return true;
+  }
+  // Cegah pencocokan ambigu bila satu sisi tanpa awalan pada desa/kelurahan bernama kembar
+  return !AMBIGUOUS_DPRT_BASES.has(p1.base);
 }
 
 /**
