@@ -21,79 +21,60 @@ export function downloadEmptyTemplate(): void {
     'Email',
     'No Telepon',
     'Sosial Media',
+    'DPD (Kabupaten/Kota)',
     'DPC Kecamatan',
+    'DPRt (Desa/Kelurahan)',
   ];
 
-  // Include sample instruction rows from real Minsel structure
+  // Include sample instruction rows with all required import columns filled
   const sampleRows = [
     [
       '1',
-      'Ketua',
-      'PAULMAN STEVANUS RUNTUWENE, S.T., MBA.',
+      'Anggota Biasa',
+      'CONTOH KADER MINAHASA SELATAN',
       '7105172908850001',
       '1966795504182866',
-      'dpd.minsel@nasdem.id',
+      'kader.minsel@nasdem.id',
       '081234567890',
-      '@paulman_runtuwene',
-      'Umum (DPD)',
-    ],
-    [
-      '2',
-      'Ketua',
-      'SEYFI SARAYAR',
-      '7105173009800001',
-      '2133352341474362',
-      '',
-      '081298765432',
-      '@seyfi_sarayar',
-      'Amurang Barat',
-    ],
-    [
-      '3',
-      'Ketua',
-      'JOINS FRANKY RORIMPANDEY',
-      '7105181109740001',
-      '2079175003426472',
-      '',
-      '081345678901',
-      '',
-      'Amurang Timur',
+      '@kader_nasdem',
+      'Kabupaten Minahasa Selatan',
+      'Amurang',
+      'Buyungon',
     ],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-  
+
   // Column widths
   ws['!cols'] = [
     { wch: 6 },  // No
-    { wch: 32 }, // Jabatan Pengurus
-    { wch: 36 }, // Nama Lengkap
-    { wch: 22 }, // No. NIK
-    { wch: 24 }, // E-KTA NasDem
+    { wch: 24 }, // Jabatan Pengurus
+    { wch: 34 }, // Nama Lengkap
+    { wch: 20 }, // No. NIK
+    { wch: 22 }, // E-KTA NasDem
     { wch: 24 }, // Email
-    { wch: 20 }, // No Telepon
-    { wch: 22 }, // Sosial Media
+    { wch: 18 }, // No Telepon
+    { wch: 20 }, // Sosial Media
+    { wch: 28 }, // DPD (Kabupaten/Kota)
     { wch: 22 }, // DPC Kecamatan
+    { wch: 24 }, // DPRt (Desa/Kelurahan)
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Template Kepengurusan NasDem');
-  XLSX.writeFile(wb, 'TEMPLATE_PENGURUS_NASDEM_MINSEL.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Template Kader NasDem');
+  XLSX.writeFile(wb, 'TEMPLATE_IMPORT_KADER_NASDEM_SULUT.xlsx');
 }
 
 export function downloadSampleDataCsv(): void {
-  const sampleCsvContent = `No,Jabatan Pengurus,Nama Lengkap (Sesuai KTP),No. NIK,E-KTA NasDem,Email,No Telepon,Sosial Media,DPC Kecamatan
-1,Ketua,PAULMAN STEVANUS RUNTUWENE,7105172908850001,1966795504182866,dpd.minsel@nasdem.id,081234567890,@paulman_runtuwene,Umum (DPD)
-2,Ketua,SEYFI SARAYAR,7105173009800001,2133352341474362,,081298765432,,Amurang Barat
-3,Ketua,JOINS FRANKY RORIMPANDEY,7105181109740001,2079175003426472,,081345678901,,Amurang Timur
-4,Ketua,DJEMMY PONTOLAENG,7105100106720001,2002857419635446,,081211223344,,Amurang
-5,Ketua,JOYKE MAXI KESEK,7105150603760001,1970028573356984,,081299887766,,Kumelembuai`;
+  const sampleCsvContent = `No,Jabatan Pengurus,Nama Lengkap (Sesuai KTP),No. NIK,E-KTA NasDem,Email,No Telepon,Sosial Media,DPD (Kabupaten/Kota),DPC Kecamatan,DPRt (Desa/Kelurahan)
+1,Anggota Biasa,CONTOH KADER AMURANG BARAT,7105173009800001,2133352341474362,,081298765432,,Kabupaten Minahasa Selatan,Amurang Barat,Rumoong Bawah
+2,Anggota Biasa,CONTOH KADER AMURANG TIMUR,7105181109740001,2079175003426472,,081345678901,,Kabupaten Minahasa Selatan,Amurang Timur,Ranomea`;
 
   const blob = new Blob([sampleCsvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', 'CONTOH_SUSUNAN_PENGURUS_MINSEL.csv');
+  link.setAttribute('download', 'CONTOH_IMPORT_KADER_SULUT.csv');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -1,6 +1,7 @@
 import React from 'react';
+import { Lock } from 'lucide-react';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
-import { isDpdMatch, isDpcMatch } from '../../utils/structureReadinessUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
 import { DPP_SAYAP_OPTIONS } from '../dppEktaService';
 
 interface DppEktaDomicileSectionProps {
@@ -25,6 +26,9 @@ interface DppEktaDomicileSectionProps {
   cleanNik: string;
   availableSubdistricts: { name: string; villages: string[] }[];
   availableVillages: string[];
+  isDpdLocked?: boolean;
+  isDpcLocked?: boolean;
+  isDprtLocked?: boolean;
 }
 
 export const DppEktaDomicileSection: React.FC<DppEktaDomicileSectionProps> = ({
@@ -49,21 +53,45 @@ export const DppEktaDomicileSection: React.FC<DppEktaDomicileSectionProps> = ({
   cleanNik,
   availableSubdistricts,
   availableVillages,
+  isDpdLocked = false,
+  isDpcLocked = false,
+  isDprtLocked = false,
 }) => {
+  const isAnyLocked = isDpdLocked || isDpcLocked || isDprtLocked;
+  const hasLockedDpcInList = availableSubdistricts.some((s) => isDpcMatch(s.name, dpc));
+  const hasLockedDprtInList = availableVillages.some((v) => isDprtMatch(v, dprt));
+
   return (
     <div className="xl:col-span-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3.5">
-      <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-        3. Wilayah Domisili Sulawesi Utara &amp; Kontak
-      </h4>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+          3. Wilayah Domisili Sulawesi Utara &amp; Kontak
+        </h4>
+        {isAnyLocked && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/90 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300/70 dark:border-amber-800 text-[10px] font-bold">
+            <Lock className="w-3 h-3" />
+            <span>Wilayah Dibatasi Sesuai Tingkatan Akun</span>
+          </span>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3 gap-3">
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-            Kabupaten / Kota (DPD) *
-          </label>
+          <div className="flex items-center justify-between gap-1">
+            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              Kabupaten / Kota (DPD) *
+            </label>
+            {isDpdLocked && (
+              <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                Terkunci
+              </span>
+            )}
+          </div>
           <select
             value={dpd}
+            disabled={isDpdLocked}
             onChange={(e) => {
+              if (isDpdLocked) return;
               const val = e.target.value;
               setDpd(val);
               const reg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, val));
@@ -72,7 +100,7 @@ export const DppEktaDomicileSection: React.FC<DppEktaDomicileSectionProps> = ({
                 setDprt(reg.subdistricts[0].villages[0] || '');
               }
             }}
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800/80 disabled:text-slate-600 dark:disabled:text-slate-400 disabled:cursor-not-allowed"
           >
             {SULUT_REGIONS.map((r) => (
               <option key={r.name} value={r.name}>
@@ -83,19 +111,31 @@ export const DppEktaDomicileSection: React.FC<DppEktaDomicileSectionProps> = ({
         </div>
 
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-            Kecamatan (DPC) *
-          </label>
+          <div className="flex items-center justify-between gap-1">
+            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              Kecamatan (DPC) *
+            </label>
+            {isDpcLocked && (
+              <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                Terkunci
+              </span>
+            )}
+          </div>
           <select
             value={dpc}
+            disabled={isDpcLocked}
             onChange={(e) => {
+              if (isDpcLocked) return;
               const val = e.target.value;
               setDpc(val);
               const sub = availableSubdistricts.find((s) => isDpcMatch(s.name, val));
               if (sub && sub.villages[0]) setDprt(sub.villages[0]);
             }}
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800/80 disabled:text-slate-600 dark:disabled:text-slate-400 disabled:cursor-not-allowed"
           >
+            {dpc && !hasLockedDpcInList && (
+              <option value={dpc}>{dpc}</option>
+            )}
             {availableSubdistricts.map((s) => (
               <option key={s.name} value={s.name}>
                 {s.name}
@@ -105,15 +145,29 @@ export const DppEktaDomicileSection: React.FC<DppEktaDomicileSectionProps> = ({
         </div>
 
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-            Kelurahan / Desa (DPRt) *
-          </label>
+          <div className="flex items-center justify-between gap-1">
+            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              Kelurahan / Desa (DPRt) *
+            </label>
+            {isDprtLocked && (
+              <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                Terkunci
+              </span>
+            )}
+          </div>
           <select
             value={dprt}
-            onChange={(e) => setDprt(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+            disabled={isDprtLocked}
+            onChange={(e) => {
+              if (isDprtLocked) return;
+              setDprt(e.target.value);
+            }}
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800/80 disabled:text-slate-600 dark:disabled:text-slate-400 disabled:cursor-not-allowed"
           >
             <option value="">-- Pilih Kelurahan / Desa --</option>
+            {dprt && !hasLockedDprtInList && (
+              <option value={dprt}>{dprt}</option>
+            )}
             {availableVillages.map((v) => (
               <option key={v} value={v}>
                 {v}

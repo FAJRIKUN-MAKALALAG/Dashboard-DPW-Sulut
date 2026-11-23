@@ -42,7 +42,7 @@ export const DownloadTemplateCard: React.FC<DownloadTemplateCardProps> = ({
           <span>Template Lengkap (Semua Posisi)</span>
         </button>
 
-        {(territoryContext.level === 'DPW' || territoryContext.level === 'DPD') && (
+        {territoryContext.level !== 'DPRt' && (
           <>
             <button
               onClick={() => downloadAdvisoryOnlyExcelTemplate(territoryContext, currentRows)}

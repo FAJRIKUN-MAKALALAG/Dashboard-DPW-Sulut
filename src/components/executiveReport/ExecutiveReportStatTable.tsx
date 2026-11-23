@@ -45,7 +45,7 @@ export const ExecutiveReportStatTable: React.FC<ExecutiveReportStatTableProps> =
       </div>
 
       <div className="overflow-x-auto print:overflow-visible border border-slate-300">
-        <table className="w-full text-left text-xs border-collapse">
+        <table className="w-full min-w-[640px] print:min-w-0 text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-300 text-[11px]">
               <th className="no-print p-2 border-r border-slate-300 text-center w-8">✓</th>

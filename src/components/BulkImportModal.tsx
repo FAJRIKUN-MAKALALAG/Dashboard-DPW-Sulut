@@ -183,7 +183,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 <span>Format Kolom Baku NasDem Sulut</span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                Format kolom resmi: <strong>No, Jabatan Pengurus, Nama Lengkap (Sesuai KTP), No. NIK, E-KTA NasDem, Email, No Telepon, Sosial Media, DPC Kecamatan</strong>.
+                Format kolom resmi: <strong>No, Jabatan Pengurus, Nama Lengkap (Sesuai KTP), No. NIK (16 Digit), E-KTA NasDem, Email, No Telepon, Sosial Media, DPD (Kabupaten/Kota), DPC Kecamatan, DPRt (Desa/Kelurahan)</strong>.
               </p>
             </div>
 

@@ -73,8 +73,8 @@ export const TerritorialPrintDocument: React.FC<TerritorialPrintDocumentProps> =
   setKetuaKta,
 }) => {
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-3 sm:p-6 print:p-0 print:bg-white print:overflow-visible">
-      <div className="max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 shadow-sm rounded-xl p-5 sm:p-10 print:border-none print:shadow-none print:rounded-none print:p-0 print:max-w-none">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-2 sm:p-6 print:p-0 print:bg-white print:overflow-visible">
+      <div className="max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 shadow-sm rounded-xl p-3 sm:p-10 print:border-none print:shadow-none print:rounded-none print:p-0 print:max-w-none">
         {/* CLEAN FORMAL LETTERHEAD */}
         <div className="border-b-2 border-slate-900 pb-4 mb-5 flex flex-col sm:flex-row print:flex-row items-center justify-between gap-4 text-center sm:text-left print:text-left">
           <div className="flex flex-col sm:flex-row print:flex-row items-center gap-3.5">
@@ -152,7 +152,7 @@ export const TerritorialPrintDocument: React.FC<TerritorialPrintDocumentProps> =
                   </span>
                 </div>
 
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[600px] print:min-w-0 text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-800 font-bold text-[11px] border-b border-slate-300">
                       <th className="no-print p-2 border-r border-slate-300 text-center w-8">

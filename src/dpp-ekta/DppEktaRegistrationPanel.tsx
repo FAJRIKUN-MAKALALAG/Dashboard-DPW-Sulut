@@ -7,9 +7,14 @@ import {
   UserCheck,
   Sparkles,
 } from 'lucide-react';
-import { Member } from '../types';
+import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
-import { isDpdMatch, isDpcMatch } from '../utils/structureReadinessUtils';
+import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import {
+  isDpcScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
 import { compressImageFile } from '../utils/imageUtils';
 import { MemberService } from '../services/memberService';
 import {
@@ -28,6 +33,7 @@ import { DppEktaCardViewerTab } from './DppEktaCardViewerTab';
 
 interface DppEktaRegistrationPanelProps {
   members: Member[];
+  session?: UserSession;
   initialMember?: Member | null;
   onMemberEktaUpdated?: (nik: string, nokta: string, updatedMember?: Member) => void;
   onClose?: () => void;
@@ -35,9 +41,62 @@ interface DppEktaRegistrationPanelProps {
 
 export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> = ({
   members,
+  session,
   initialMember,
   onMemberEktaUpdated,
 }) => {
+  // Pembatasan wilayah sesuai tingkatan akun (DPW = bebas, DPD = kunci DPD, DPC = kunci DPD+DPC, DPRt = kunci DPD+DPC+DPRt)
+  const isGlobal = !session || isGlobalTerritoryRole(session.role);
+
+  const rawUserDpd =
+    session?.dpdAccess && session.dpdAccess !== 'ALL' ? session.dpdAccess : '';
+  const matchedSessionDpdRegion = useMemo(() => {
+    if (!rawUserDpd) return null;
+    return SULUT_REGIONS.find((r) => isDpdMatch(r.name, rawUserDpd)) || null;
+  }, [rawUserDpd]);
+  const isDpdLocked = !isGlobal && Boolean(rawUserDpd);
+  const lockedDpdName = isDpdLocked
+    ? matchedSessionDpdRegion?.name || rawUserDpd
+    : '';
+
+  const rawUserDpc =
+    session?.dpcAccess &&
+    session.dpcAccess !== 'ALL' &&
+    session.dpcAccess !== 'Umum (DPD)' &&
+    session.dpcAccess !== '-'
+      ? session.dpcAccess
+      : '';
+  const isDpcLocked =
+    !isGlobal &&
+    Boolean(session && (isDpcScopedRole(session.role) || isDprtScopedRole(session.role))) &&
+    Boolean(rawUserDpc);
+  const matchedSessionSubdistrict = useMemo(() => {
+    if (!rawUserDpc || !matchedSessionDpdRegion) return null;
+    return matchedSessionDpdRegion.subdistricts.find((s) => isDpcMatch(s.name, rawUserDpc)) || null;
+  }, [rawUserDpc, matchedSessionDpdRegion]);
+  const lockedDpcName = isDpcLocked
+    ? matchedSessionSubdistrict?.name || rawUserDpc
+    : '';
+
+  const rawUserDprt =
+    session?.dprtAccess &&
+    session.dprtAccess !== 'ALL' &&
+    session.dprtAccess !== 'Pusat/Umum' &&
+    session.dprtAccess !== '-'
+      ? session.dprtAccess
+      : '';
+  const isDprtLocked =
+    !isGlobal &&
+    Boolean(session && isDprtScopedRole(session.role)) &&
+    Boolean(rawUserDprt);
+  const matchedSessionVillage = useMemo(() => {
+    if (!rawUserDprt || !matchedSessionSubdistrict) return null;
+    return matchedSessionSubdistrict.villages.find((v) => isDprtMatch(v, rawUserDprt)) || null;
+  }, [rawUserDprt, matchedSessionSubdistrict]);
+  const lockedDprtName = isDprtLocked
+    ? matchedSessionVillage || rawUserDprt
+    : '';
+
   const [activeSubTab, setActiveSubTab] = useState<'form' | 'pick_member' | 'card_viewer'>(
     initialMember ? 'form' : 'pick_member'
   );
@@ -65,9 +124,33 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
   const [pekerjaan, setPekerjaan] = useState('Wiraswasta');
   const [sayap, setSayap] = useState('');
 
-  const [dpd, setDpd] = useState(SULUT_REGIONS[0].name);
-  const [dpc, setDpc] = useState(SULUT_REGIONS[0].subdistricts[0]?.name || '');
-  const [dprt, setDprt] = useState('');
+  const [dpd, setDpd] = useState(
+    isDpdLocked ? lockedDpdName : SULUT_REGIONS[0].name
+  );
+  const [dpc, setDpc] = useState(
+    isDpcLocked
+      ? lockedDpcName
+      : (matchedSessionDpdRegion || SULUT_REGIONS[0]).subdistricts[0]?.name || ''
+  );
+  const [dprt, setDprt] = useState(isDprtLocked ? lockedDprtName : '');
+
+  useEffect(() => {
+    if (isDpdLocked && lockedDpdName) {
+      setDpd(lockedDpdName);
+    }
+  }, [isDpdLocked, lockedDpdName]);
+
+  useEffect(() => {
+    if (isDpcLocked && lockedDpcName) {
+      setDpc(lockedDpcName);
+    }
+  }, [isDpcLocked, lockedDpcName]);
+
+  useEffect(() => {
+    if (isDprtLocked && lockedDprtName) {
+      setDprt(lockedDprtName);
+    }
+  }, [isDprtLocked, lockedDprtName]);
   const [rtNumber, setRtNumber] = useState('1');
   const [rwNumber, setRwNumber] = useState('1');
   const [alamatLengkap, setAlamatLengkap] = useState('');
@@ -149,9 +232,15 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
     );
     setAgama(fullMember.agama || 'Kristen Protestan');
     setPekerjaan(fullMember.pekerjaan || 'Wiraswasta');
-    setDpd(fullMember.dpd || SULUT_REGIONS[0].name);
-    setDpc(fullMember.dpc && fullMember.dpc !== '-' ? fullMember.dpc : '');
-    setDprt(fullMember.dprt && fullMember.dprt !== '-' ? fullMember.dprt : '');
+    if (!isDpdLocked) {
+      setDpd(fullMember.dpd || SULUT_REGIONS[0].name);
+    }
+    if (!isDpcLocked) {
+      setDpc(fullMember.dpc && fullMember.dpc !== '-' ? fullMember.dpc : '');
+    }
+    if (!isDprtLocked) {
+      setDprt(fullMember.dprt && fullMember.dprt !== '-' ? fullMember.dprt : '');
+    }
     setAlamatLengkap(
       fullMember.alamatLengkap ||
         `Kel/Desa ${fullMember.dprt || 'Umum'}, Kec. ${fullMember.dpc || 'Umum'}, ${fullMember.dpd}`
@@ -180,7 +269,7 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
         if (!tanggalLahir && dec.tanggalLahir) setTanggalLahir(dec.tanggalLahir);
         if (dec.jenisKelamin) setJenisKelamin(dec.jenisKelamin);
         if (!tempatLahir && dec.tempatLahirSuggestion) setTempatLahir(dec.tempatLahirSuggestion);
-        if (dec.dpdName) {
+        if (!isDpdLocked && dec.dpdName) {
           const matchedReg = SULUT_REGIONS.find((r) => isDpdMatch(r.name, dec.dpdName));
           if (matchedReg) setDpd(matchedReg.name);
         }
@@ -283,14 +372,30 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
       setErrorMessage('Silakan ketik nomor e-KTA resmi 16 digit Anda (contoh: 2574055961675481).');
       return;
     }
+    const effectiveDpd = isDpdLocked ? lockedDpdName : dpd;
+    const effectiveDpc = isDpcLocked ? lockedDpcName : dpc;
+    const effectiveDprt = isDprtLocked ? lockedDprtName : dprt;
+    if (isDpdLocked && !isDpdMatch(effectiveDpd, lockedDpdName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang untuk wilayah ${lockedDpdName}.`);
+      return;
+    }
+    if (isDpcLocked && !isDpcMatch(effectiveDpc, lockedDpcName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang untuk kecamatan ${lockedDpcName}.`);
+      return;
+    }
+    if (isDprtLocked && !isDprtMatch(effectiveDprt, lockedDprtName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang untuk kelurahan/desa ${lockedDprtName}.`);
+      return;
+    }
+
     setIsSyncingExisting(true);
     setErrorMessage(null);
     try {
       const { result, mappedMember } = await dppEktaService.syncExistingKta(cleanNik, ektaToSync, {
         namaLengkap: namaLengkap.trim() || undefined,
-        dpd,
-        dpc,
-        dprt,
+        dpd: effectiveDpd,
+        dpc: effectiveDpc,
+        dprt: effectiveDprt,
       });
 
       setCreatedResult(result);
@@ -332,9 +437,9 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
     if (ext.agama) setAgama(ext.agama);
     if (ext.pekerjaan) setPekerjaan(ext.pekerjaan);
     if (ext.alamatLengkap) setAlamatLengkap(ext.alamatLengkap);
-    if (ext.matchedDpd || ext.dpd) setDpd(ext.matchedDpd || ext.dpd);
-    if (ext.matchedDpc || ext.dpc) setDpc(ext.matchedDpc || ext.dpc);
-    if (ext.matchedDprt || ext.dprt) setDprt(ext.matchedDprt || ext.dprt);
+    if (!isDpdLocked && (ext.matchedDpd || ext.dpd)) setDpd(ext.matchedDpd || ext.dpd);
+    if (!isDpcLocked && (ext.matchedDpc || ext.dpc)) setDpc(ext.matchedDpc || ext.dpc);
+    if (!isDprtLocked && (ext.matchedDprt || ext.dprt)) setDprt(ext.matchedDprt || ext.dprt);
     setShowKtpScanner(false);
   };
 
@@ -380,6 +485,23 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
       return;
     }
 
+    const effectiveDpd = isDpdLocked ? lockedDpdName : dpd;
+    const effectiveDpc = isDpcLocked ? lockedDpcName : dpc || currentSubdistrict?.name || 'Umum';
+    const effectiveDprt = isDprtLocked ? lockedDprtName : dprt || availableVillages[0] || 'Umum';
+
+    if (isDpdLocked && !isDpdMatch(effectiveDpd, lockedDpdName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang mendaftarkan kader di ${lockedDpdName}.`);
+      return;
+    }
+    if (isDpcLocked && !isDpcMatch(effectiveDpc, lockedDpcName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang mendaftarkan kader di kecamatan ${lockedDpcName}.`);
+      return;
+    }
+    if (isDprtLocked && !isDprtMatch(effectiveDprt, lockedDprtName)) {
+      setErrorMessage(`Hak Akses Dibatasi: Akun Anda hanya berwenang mendaftarkan kader di kelurahan/desa ${lockedDprtName}.`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { result, mappedMember } = await dppEktaService.createKta({
@@ -394,14 +516,14 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
         pendidikan,
         pekerjaan: pekerjaan.trim() || 'Wiraswasta',
         sayap,
-        dpd,
-        dpc: dpc || currentSubdistrict?.name || 'Umum',
-        dprt: dprt || availableVillages[0] || 'Umum',
+        dpd: effectiveDpd,
+        dpc: effectiveDpc,
+        dprt: effectiveDprt,
         rtNumber: rtNumber || '1',
         rwNumber: rwNumber || '1',
         alamatLengkap:
           alamatLengkap.trim() ||
-          `Kel. ${dprt || 'Umum'}, Kec. ${dpc || 'Umum'}, ${dpd}`,
+          `Kel. ${effectiveDprt || 'Umum'}, Kec. ${effectiveDpc || 'Umum'}, ${effectiveDpd}`,
         nomorHP: nomorHP.trim() || '081234567890',
         email: email.trim() || undefined,
         fotoKtpUrl: fotoKtpUrl || undefined,
@@ -607,6 +729,9 @@ export const DppEktaRegistrationPanel: React.FC<DppEktaRegistrationPanelProps> =
           setManualEktaInput={setManualEktaInput}
           availableSubdistricts={availableSubdistricts}
           availableVillages={availableVillages}
+          isDpdLocked={isDpdLocked}
+          isDpcLocked={isDpcLocked}
+          isDprtLocked={isDprtLocked}
           isSubmitting={isSubmitting}
           onSubmit={handleSubmitToDpp}
         />

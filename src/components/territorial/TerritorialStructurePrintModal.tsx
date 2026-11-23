@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
+import { PenTool, FileSpreadsheet } from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import {
@@ -57,6 +58,9 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
   const [filterMode, setFilterMode] = useState<'all' | 'filled'>('filled');
   const [selectedSubOrg, setSelectedSubOrg] = useState<string>('ALL');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [showControlsPanel, setShowControlsPanel] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showStamp, setShowStamp] = useState<boolean>(false);
   const [pageBreakPerGroup, setPageBreakPerGroup] = useState<boolean>(false);
@@ -64,6 +68,8 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
   // Sync when modal opens
   useEffect(() => {
     if (isOpen) {
+      setShowControlsPanel(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+      setShowSettings(false);
       setActiveLevel(initialLevel);
       setActiveDpd(initialDpd || 'ALL');
       setActiveDpc(initialDpc || 'ALL');
@@ -383,9 +389,9 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
       </style>
 
       {/* 1. TOP BAR WITH CONTROLS */}
-      <div className="no-print shrink-0 bg-white border-b border-slate-200 px-4 py-2.5 shadow-xs z-20">
+      <div className="no-print shrink-0 bg-white border-b border-slate-200 px-2.5 sm:px-4 py-2 shadow-xs z-20">
         <div className="max-w-6xl mx-auto flex flex-col gap-2">
-          {/* Row 1: Toolbar */}
+          {/* Row 1: Compact Toolbar */}
           <TerritorialPrintToolbar
             activeLevel={activeLevel}
             setActiveLevel={(lvl) => {
@@ -399,6 +405,8 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
             totalSlotsCount={totalSlots}
             showSettings={showSettings}
             setShowSettings={setShowSettings}
+            showControlsPanel={showControlsPanel}
+            setShowControlsPanel={setShowControlsPanel}
             orientation={orientation}
             setOrientation={setOrientation}
             onExportExcel={handleExportExcel}
@@ -407,50 +415,153 @@ export const TerritorialStructurePrintModal: React.FC<TerritorialStructurePrintM
             selectedPrintCount={selectedPrintCount}
           />
 
-          {/* Row 2: Territorial Filter Bar */}
-          <TerritorialPrintFilterBar
-            activeLevel={activeLevel}
-            activeDpd={activeDpd}
-            setActiveDpd={setActiveDpd}
-            activeDpc={activeDpc}
-            setActiveDpc={setActiveDpc}
-            activeDprt={activeDprt}
-            setActiveDprt={setActiveDprt}
-            setSelectedSubOrg={setSelectedSubOrg}
-            dpdOptionsWithCount={dpdOptionsWithCount}
-            dpcOptionsWithCount={dpcOptionsWithCount}
-            dprtOptionsWithCount={dprtOptionsWithCount}
-            pageBreakPerGroup={pageBreakPerGroup}
-            setPageBreakPerGroup={setPageBreakPerGroup}
-            hasMultipleGroups={groupedRows.length > 1}
-          />
+          {/* Collapsible Filter & Settings Drawer */}
+          {showControlsPanel && (
+            <div className="max-h-[65vh] overflow-y-auto lg:max-h-none lg:overflow-visible pt-2 border-t border-slate-100 space-y-2.5">
+              {/* Mobile Quick Controls */}
+              <div className="flex lg:hidden flex-wrap items-center gap-1.5">
+                <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                  {(['DPW', 'DPD', 'DPC', 'DPRt'] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => {
+                        setActiveLevel(lvl);
+                        setSelectedSubOrg('ALL');
+                      }}
+                      className={`px-2 py-1 rounded-md font-semibold cursor-pointer ${
+                        activeLevel === lvl
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
 
-          {/* Signatures & SK Settings */}
-          <TerritorialPrintSignSettings
-            showSettings={showSettings}
-            showStamp={showStamp}
-            setShowStamp={setShowStamp}
-            onResetSettings={handleResetSettings}
-            skNumber={skNumber}
-            setSkNumber={setSkNumber}
-            signCity={signCity}
-            setSignCity={setSignCity}
-            signDate={signDate}
-            setSignDate={setSignDate}
-            filledRows={filledRows}
-            leftJabatan={leftJabatan}
-            setLeftJabatan={setLeftJabatan}
-            sekretarisName={sekretarisName}
-            setSekretarisName={setSekretarisName}
-            sekretarisKta={sekretarisKta}
-            setSekretarisKta={setSekretarisKta}
-            rightJabatan={rightJabatan}
-            setRightJabatan={setRightJabatan}
-            ketuaName={ketuaName}
-            setKetuaName={setKetuaName}
-            ketuaKta={ketuaKta}
-            setKetuaKta={setKetuaKta}
-          />
+                {isSameAsInitialContext && (
+                  <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setFilterMode('filled')}
+                      className={`px-2 py-1 rounded-md font-semibold cursor-pointer ${
+                        filterMode === 'filled' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                      }`}
+                    >
+                      Terisi ({filledRows.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterMode('all')}
+                      className={`px-2 py-1 rounded-md font-semibold cursor-pointer ${
+                        filterMode === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                      }`}
+                    >
+                      Semua ({totalSlots})
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowSettings((prev) => !prev)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border cursor-pointer ${
+                    showSettings
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Tanda Tangan</span>
+                </button>
+
+                <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setOrientation('portrait')}
+                    className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
+                      orientation === 'portrait' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                    }`}
+                  >
+                    Tegak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrientation('landscape')}
+                    className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
+                      orientation === 'landscape' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                    }`}
+                  >
+                    Mendatar
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="px-2.5 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Excel</span>
+                </button>
+              </div>
+
+              {/* Row 2: Territorial Filter Bar */}
+              <TerritorialPrintFilterBar
+                activeLevel={activeLevel}
+                activeDpd={activeDpd}
+                setActiveDpd={setActiveDpd}
+                activeDpc={activeDpc}
+                setActiveDpc={setActiveDpc}
+                activeDprt={activeDprt}
+                setActiveDprt={setActiveDprt}
+                setSelectedSubOrg={setSelectedSubOrg}
+                dpdOptionsWithCount={dpdOptionsWithCount}
+                dpcOptionsWithCount={dpcOptionsWithCount}
+                dprtOptionsWithCount={dprtOptionsWithCount}
+                pageBreakPerGroup={pageBreakPerGroup}
+                setPageBreakPerGroup={setPageBreakPerGroup}
+                hasMultipleGroups={groupedRows.length > 1}
+              />
+
+              {/* Signatures & SK Settings */}
+              <TerritorialPrintSignSettings
+                showSettings={showSettings}
+                showStamp={showStamp}
+                setShowStamp={setShowStamp}
+                onResetSettings={handleResetSettings}
+                skNumber={skNumber}
+                setSkNumber={setSkNumber}
+                signCity={signCity}
+                setSignCity={setSignCity}
+                signDate={signDate}
+                setSignDate={setSignDate}
+                filledRows={filledRows}
+                leftJabatan={leftJabatan}
+                setLeftJabatan={setLeftJabatan}
+                sekretarisName={sekretarisName}
+                setSekretarisName={setSekretarisName}
+                sekretarisKta={sekretarisKta}
+                setSekretarisKta={setSekretarisKta}
+                rightJabatan={rightJabatan}
+                setRightJabatan={setRightJabatan}
+                ketuaName={ketuaName}
+                setKetuaName={setKetuaName}
+                ketuaKta={ketuaKta}
+                setKetuaKta={setKetuaKta}
+              />
+
+              {/* Mobile Done Button */}
+              <button
+                type="button"
+                onClick={() => setShowControlsPanel(false)}
+                className="lg:hidden w-full py-2 rounded-lg bg-[#1A3282] text-white text-xs font-bold text-center cursor-pointer"
+              >
+                Lihat Dokumen Penuh (Tutup Pengaturan)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
