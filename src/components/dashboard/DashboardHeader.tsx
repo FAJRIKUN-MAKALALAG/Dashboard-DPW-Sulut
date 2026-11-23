@@ -3,6 +3,12 @@ import { UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import { isDpdMatch, isDpcMatch } from '../../utils/structureReadinessUtils';
 import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isDpwScopedRole,
+} from '../../utils/permissionUtils';
+import {
   FileSpreadsheet,
   Printer,
   KeyRound,
@@ -31,10 +37,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const [showActions, setShowActions] = useState<boolean>(false);
 
   const isSuperAdmin = session?.role === 'SUPER_ADMIN';
-  const isDpc = session?.role === 'ADMIN_DPC';
-  const isDpd = session?.role === 'ADMIN_DPD';
-  const isDpwAdmin = session?.role === 'ADMIN_DPW';
-  const isDprt = session?.role === 'ADMIN_DPRT';
+  const isDpc = isDpcScopedRole(session?.role);
+  const isDpd = isDpdScopedRole(session?.role);
+  const isDpwAdmin = isDpwScopedRole(session?.role);
+  const isDprt = isDprtScopedRole(session?.role);
 
   // Hitung jumlah DPC dan DPRt kontekstual sesuai wilayah akun
   const currentRegion = useMemo(() => {
@@ -57,17 +63,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   let dashboardSubtitle =
     'Pusat komando eksekutif DPW Partai NasDem Sulut: memantau kekuatan kader aktif riil dan kelengkapan struktur.';
 
-  if (isDpc && session.dpcAccess && session.dpcAccess !== 'ALL') {
+  if (isDpc && session?.dpcAccess && session.dpcAccess !== 'ALL') {
     dashboardTitle = `Dashboard Teritorial DPC Kec. ${session.dpcAccess}`;
     dashboardSubtitle = `Memantau kader aktif dan kelengkapan struktur pengurus DPC & DPRt di wilayah Kec. ${session.dpcAccess} (${session.dpdAccess}).`;
-  } else if (isDpd && session.dpdAccess && session.dpdAccess !== 'ALL') {
+  } else if (isDpd && session?.dpdAccess && session.dpdAccess !== 'ALL') {
     dashboardTitle = `Dashboard Keanggotaan DPD ${session.dpdAccess}`;
     dashboardSubtitle = `Memantau kekuatan kader aktif riil, sebaran anggota per kecamatan (DPC), dan kelengkapan pengurus di wilayah ${session.dpdAccess}.`;
-  } else if (isDprt && session.dprtAccess && session.dprtAccess !== 'ALL') {
-    dashboardTitle = `Dashboard Teritorial DPRt ${session.dprtAccess}`;
-    dashboardSubtitle = `Memantau kader aktif dan kelengkapan struktur pengurus DPRt di wilayah ${session.dprtAccess} (Kec. ${session.dpcAccess}).`;
+  } else if (isDprt && session?.dprtAccess && session.dprtAccess !== 'ALL') {
+    dashboardTitle = `Mini Dashboard DPRt ${session.dprtAccess}`;
+    dashboardSubtitle = `Pemantauan ringkas kader aktif dan formasi pengurus DPRt ${session.dprtAccess} (Kec. ${session.dpcAccess}).`;
   } else if (isDpwAdmin) {
-    dashboardTitle = 'Dashboard Eksekutif Ketua DPW Partai NasDem Sulut';
+    dashboardTitle = 'Dashboard Eksekutif DPW Partai NasDem Sulut';
     dashboardSubtitle =
       'Memantau seluruh pergerakan kader dan struktur organisasi dari tingkat DPD, DPC, hingga DPRt se-Sulawesi Utara.';
   }

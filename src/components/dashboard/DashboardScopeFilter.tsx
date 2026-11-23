@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserSession } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
+import { isGlobalTerritoryRole } from '../../utils/permissionUtils';
 import { Filter } from 'lucide-react';
 
 interface DashboardScopeFilterProps {
@@ -16,7 +17,7 @@ export const DashboardScopeFilter: React.FC<DashboardScopeFilterProps> = ({
   onSelectDpdFilter,
   onReset,
 }) => {
-  const canFilterAllSulut = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+  const canFilterAllSulut = !session || isGlobalTerritoryRole(session.role);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-xl shadow-2xs transition-colors">

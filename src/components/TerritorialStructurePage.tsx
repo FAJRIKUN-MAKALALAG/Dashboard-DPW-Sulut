@@ -2,6 +2,11 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS } from '../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
+import {
+  isDpcScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
 import { MatrixTableSheet, RawSourceStructureTable, StructureComparisonTable } from './matrix';
 import {
   downloadTerritorialExcelTemplate,
@@ -50,11 +55,11 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   onRefreshCloud,
   isRefreshingCloud = false,
 }) => {
-  const canAccessDpw = session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW';
+  const canAccessDpw = isGlobalTerritoryRole(session?.role);
 
   // Available regions strictly scoped to session role & territory (Fail-Closed)
   const availableRegions = useMemo(() => {
-    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (!session || isGlobalTerritoryRole(session.role)) {
       return SULUT_REGIONS;
     }
     if (session.dpdAccess && session.dpdAccess !== 'ALL' && session.dpdAccess !== '-') {
@@ -65,7 +70,7 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   // Territory Selector State
   const [selectedDpd, setSelectedDpd] = useState<string>(() => {
-    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+    if (session && !isGlobalTerritoryRole(session.role)) {
       if (session.dpdAccess && session.dpdAccess !== 'ALL') return session.dpdAccess;
     }
     if (initialDpd && initialDpd !== 'ALL' && initialDpd !== 'Sulawesi Utara') return initialDpd;
@@ -101,8 +106,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   // Subdistricts strictly scoped to session role & territory (Fail-Closed)
   const availableSubdistricts = useMemo(() => {
     const subs = currentRegion?.subdistricts || [];
-    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
-      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' && session.dpcAccess !== '-') {
+    if (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) {
+      if (session?.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' && session.dpcAccess !== '-') {
         return subs.filter((s) => isDpcMatch(s.name, session.dpcAccess));
       }
       return [];
@@ -111,8 +116,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   }, [currentRegion, session]);
 
   const [selectedDpc, setSelectedDpc] = useState<string>(() => {
-    if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
-      if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)')
+    if (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) {
+      if (session?.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)')
         return session.dpcAccess;
     }
     if (initialDpc && initialDpc !== 'ALL' && initialDpc !== 'Umum (DPD)') return initialDpc;
@@ -130,8 +135,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   // Villages strictly scoped to session role & territory (Fail-Closed)
   const availableVillages = useMemo(() => {
     const vils = currentSubdistrict?.villages || [];
-    if (session?.role === 'ADMIN_DPRT') {
-      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' && session.dprtAccess !== '-') {
+    if (isDprtScopedRole(session?.role)) {
+      if (session?.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' && session.dprtAccess !== '-') {
         return vils.filter((v) => isDprtMatch(v, session.dprtAccess));
       }
       return [];
@@ -140,8 +145,8 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
   }, [currentSubdistrict, session]);
 
   const [selectedDprt, setSelectedDprt] = useState<string>(() => {
-    if (session?.role === 'ADMIN_DPRT') {
-      if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum')
+    if (isDprtScopedRole(session?.role)) {
+      if (session?.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum')
         return session.dprtAccess;
     }
     if (initialDprt && initialDprt !== 'ALL' && initialDprt !== 'Pusat/Umum') return initialDprt;
@@ -150,17 +155,17 @@ export const TerritorialStructurePage: React.FC<TerritorialStructurePageProps> =
 
   // Keep territory in sync if initial props change or session territory updates
   useEffect(() => {
-    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+    if (session && !isGlobalTerritoryRole(session.role)) {
       if (session.dpdAccess && session.dpdAccess !== 'ALL') {
         const matched = availableRegions.find((r) => isDpdMatch(r.name, session.dpdAccess));
         if (matched && selectedDpd !== matched.name) setSelectedDpd(matched.name);
       }
-      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+      if (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) {
         if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
           if (selectedDpc !== session.dpcAccess) setSelectedDpc(session.dpcAccess);
         }
       }
-      if (session.role === 'ADMIN_DPRT') {
+      if (isDprtScopedRole(session.role)) {
         if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
           if (selectedDprt !== session.dprtAccess) setSelectedDprt(session.dprtAccess);
         }

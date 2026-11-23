@@ -11,6 +11,7 @@ import {
 } from '../utils/structureReadinessUtils';
 import { sortMembersByHierarchy, isDefinitiveLeader } from '../utils/jobMatchingUtils';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
+import { isDpdScopedRole } from '../utils/permissionUtils';
 import {
   X,
   Building,
@@ -144,7 +145,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
       if (m.status !== 'Aktif') return false;
       if (selectedLevel !== 'ALL' && m.tingkatKepengurusan !== selectedLevel) return false;
       if (selectedDpd !== 'ALL' && !isDpdMatch(m.dpd, selectedDpd)) return false;
-      if (session.role === 'ADMIN_DPD' && !isDpdMatch(m.dpd, session.dpdAccess)) return false;
+      if (isDpdScopedRole(session.role) && !isDpdMatch(m.dpd, session.dpdAccess)) return false;
       return true;
     });
   }, [members, selectedLevel, selectedDpd, session]);

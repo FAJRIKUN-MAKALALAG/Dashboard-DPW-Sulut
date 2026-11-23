@@ -36,6 +36,13 @@ interface RegistrationStep3AddressContactProps {
 
   // Optional Admin Kepengurusan & Referral fields
   showAdminPartyFields?: boolean;
+  allowStructuralAssignment?: boolean;
+  isDelegatedAdmin?: boolean;
+  delegatedKetua?: { nik: string; nama: string; jabatan: string; tingkat: string; kodeReferral?: string } | null;
+  myReferralCode?: string;
+  myRecruiterName?: string;
+  myRecruiterJabatan?: string;
+  onSelectRecruiterPreset?: (mode: 'SELF' | 'KETUA') => void;
   isPengurus?: boolean;
   onChangeIsPengurus?: (val: boolean) => void;
   tingkatKepengurusan?: 'DPW' | 'DPD' | 'DPC' | 'DPRt' | 'Bukan Pengurus';
@@ -81,6 +88,12 @@ export const RegistrationStep3AddressContact: React.FC<RegistrationStep3AddressC
   sosmed,
   onChangeSosmed,
   showAdminPartyFields = false,
+  allowStructuralAssignment = true,
+  isDelegatedAdmin = false,
+  delegatedKetua = null,
+  myReferralCode = '',
+  myRecruiterName = '',
+  onSelectRecruiterPreset,
   isPengurus = false,
   onChangeIsPengurus,
   tingkatKepengurusan = 'DPW',
@@ -285,7 +298,8 @@ export const RegistrationStep3AddressContact: React.FC<RegistrationStep3AddressC
       {/* Optional Admin Kepengurusan & Referral Attribution (Clean Neutral Style) */}
       {showAdminPartyFields && (
         <div className="space-y-3.5 pt-1">
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+          {allowStructuralAssignment && (
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-slate-500" />
@@ -369,13 +383,37 @@ export const RegistrationStep3AddressContact: React.FC<RegistrationStep3AddressC
               </div>
             )}
           </div>
+          )}
 
           <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                <span>Atribusi Kader Perekrut (Opsional)</span>
+                <span>Atribusi Kader Perekrut {allowStructuralAssignment ? '(Opsional)' : '(Otomatis)'}</span>
               </span>
+
+              {isDelegatedAdmin && onSelectRecruiterPreset && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {myReferralCode && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectRecruiterPreset('SELF')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
+                    >
+                      Pakai Kode Saya ({myRecruiterName || myReferralCode})
+                    </button>
+                  )}
+                  {delegatedKetua?.kodeReferral && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectRecruiterPreset('KETUA')}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-100 cursor-pointer"
+                    >
+                      Atas Nama Ketua ({delegatedKetua.kodeReferral})
+                    </button>
+                  )}
+                </div>
+              )}
 
               {refValidation?.loading && (
                 <span className="text-[11px] text-slate-500 flex items-center gap-1">

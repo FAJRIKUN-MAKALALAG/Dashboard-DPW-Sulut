@@ -12,7 +12,6 @@ import {
   RoleSwitcherModal,
   AuditTrailModal,
   ExecutiveReportPrintModal,
-  UserManagementModal,
   InstallPwaModal,
 } from './index';
 import { TemplateDownloadHubModal } from '../territorial/TemplateDownloadHubModal';
@@ -207,14 +206,6 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         session={session}
         onApprove={onApproveDeletionRequest}
         onReject={onRejectDeletionRequest}
-      />
-
-      <UserManagementModal
-        isOpen={modals.isUserManagementOpen}
-        onClose={() => modals.setIsUserManagementOpen(false)}
-        members={members}
-        session={session}
-        onRecordAudit={onRecordAuditLog}
       />
 
       <ReferralHubModal

@@ -40,10 +40,24 @@ export const UserFilterToolbar: React.FC<UserFilterToolbarProps> = ({
           <option value="SUPER_ADMIN">Super Admin</option>
           <option value="WAKIL_BENDAHARA">Wakil Bendahara</option>
           <option value="ADMIN_INVENTORY">Admin Inventory</option>
-          <option value="ADMIN_DPW">Admin DPW</option>
-          <option value="ADMIN_DPD">Admin DPD</option>
-          <option value="ADMIN_DPC">Admin DPC</option>
-          <option value="ADMIN_DPRT">Admin DPRt</option>
+          <optgroup label="Ketua Wilayah">
+            <option value="KETUA_DPW">Ketua DPW</option>
+            <option value="KETUA_DPD">Ketua DPD</option>
+            <option value="KETUA_DPC">Ketua DPC</option>
+            <option value="KETUA_DPRT">Ketua DPRt</option>
+          </optgroup>
+          <optgroup label="Admin Delegasi Ketua">
+            <option value="ADMIN_DPW">Admin Delegasi DPW</option>
+            <option value="ADMIN_DPD">Admin Delegasi DPD</option>
+            <option value="ADMIN_DPC">Admin Delegasi DPC</option>
+            <option value="ADMIN_DPRT">Admin Delegasi DPRt</option>
+          </optgroup>
+          <optgroup label="Pengurus Struktural">
+            <option value="PENGURUS_DPW">Pengurus DPW</option>
+            <option value="PENGURUS_DPD">Pengurus DPD</option>
+            <option value="PENGURUS_DPC">Pengurus DPC</option>
+            <option value="PENGURUS_DPRT">Pengurus DPRt</option>
+          </optgroup>
         </select>
       </div>
 

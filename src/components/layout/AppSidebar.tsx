@@ -4,11 +4,16 @@ import nasdemLogo from '../../assets/logo/logo_nasdem.png';
 import {
   canAccessDashboard,
   canManageUsers,
-  isReferralApplicable,
   canAccessStructureTab,
   canAccessAnalytics,
   canAccessInventory,
   canAccessFinance,
+  canApproveDeletionRequest,
+  canViewDeletionQueue,
+  isDpdScopedRole,
+  isDpcScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
 } from '../../utils/permissionUtils';
 import { REQUIRED_POSITIONS } from '../../utils/structureReadinessUtils';
 import {
@@ -24,7 +29,6 @@ import {
   ShieldCheck,
   LogOut,
   X,
-  Sparkles,
   KeyRound,
   UserCheck,
   BarChart3,
@@ -53,7 +57,8 @@ export type MainNavTab =
   | 'dprt'
   | 'members'
   | 'inventory'
-  | 'finance';
+  | 'finance'
+  | 'users';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -97,7 +102,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenAuditModal,
   onOpenDeletionApproval,
   onOpenUserManagement,
-  onOpenReferralHub,
   onOpenInstallPwa,
   onOpenSuperAdminInbox,
   onOpenPengurusChat,
@@ -116,11 +120,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   // Hak Akses Berdasarkan Peran & Posisi Jabatan
   const hasDashboard = canAccessDashboard(session);
   const showAnalytics = canAccessAnalytics(session);
-  const showReferral =
-    isReferralApplicable(session) &&
-    session?.role !== 'ADMIN_DPD' &&
-    session?.role !== 'ADMIN_DPC' &&
-    session?.role !== 'ADMIN_DPRT';
   const showUserMgmt = canManageUsers(session);
 
   const canAccessDpw = canAccessStructureTab('dpw', session);
@@ -132,27 +131,32 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const showInventory = canAccessInventory(session);
   const isOperationalOnlyRole =
     session?.role === 'ADMIN_INVENTORY' || session?.role === 'WAKIL_BENDAHARA';
+  const showAuditHistory = isGlobalTerritoryRole(session?.role) && session?.role !== 'PENGURUS_DPW';
+  const showDeletionQueue = canViewDeletionQueue(session) && !isOperationalOnlyRole;
+  const isDeletionApprover = canApproveDeletionRequest(session);
+  const hasOperationalTools =
+    showFinance || showInventory || showAuditHistory || showDeletionQueue || showUserMgmt;
 
   // Label Menu Pencarian Sesuai Tingkat Kewenangan Wilayah
   let membersNavTitle = 'Database Kader';
   let membersNavSubtitle = 'Semua Anggota & e-KTA';
 
-  if (session?.role === 'ADMIN_DPRT') {
+  if (isDprtScopedRole(session?.role)) {
     membersNavTitle = 'Pencarian Anggota DPRt';
-    membersNavSubtitle = session.dprtAccess && session.dprtAccess !== 'ALL'
+    membersNavSubtitle = session?.dprtAccess && session.dprtAccess !== 'ALL'
       ? `Desa ${session.dprtAccess}`
       : 'Ranting Desa Saya';
-  } else if (session?.role === 'ADMIN_DPC') {
+  } else if (isDpcScopedRole(session?.role)) {
     membersNavTitle = 'Pencarian Anggota DPC';
-    membersNavSubtitle = session.dpcAccess && session.dpcAccess !== 'ALL'
+    membersNavSubtitle = session?.dpcAccess && session.dpcAccess !== 'ALL'
       ? `Kec. ${session.dpcAccess}`
       : 'Tiap DPRt Kecamatan Saya';
-  } else if (session?.role === 'ADMIN_DPD') {
+  } else if (isDpdScopedRole(session?.role)) {
     membersNavTitle = 'Pencarian Anggota DPD';
-    membersNavSubtitle = session.dpdAccess && session.dpdAccess !== 'ALL'
+    membersNavSubtitle = session?.dpdAccess && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : 'Semua DPC & DPRt Daerah';
-  } else if (session?.role === 'ADMIN_DPW') {
+  } else if (isGlobalTerritoryRole(session?.role) && session?.role !== 'SUPER_ADMIN') {
     membersNavTitle = 'Pencarian Anggota Wilayah';
     membersNavSubtitle = 'Seluruh DPD, DPC & DPRt Sulut';
   }
@@ -276,12 +280,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                               : 'text-slate-400 dark:text-slate-500'
                           }`}
                         >
-                          {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                          {isGlobalTerritoryRole(session?.role)
                             ? 'Ringkasan Eksekutif'
-                            : session?.role === 'ADMIN_DPC'
-                            ? `Kec. ${session.dpcAccess || ''}`
-                            : session?.role === 'ADMIN_DPRT'
-                            ? `DPRt ${session.dprtAccess || ''}`
+                            : isDpcScopedRole(session?.role)
+                            ? `Kec. ${session?.dpcAccess || ''}`
+                            : isDprtScopedRole(session?.role)
+                            ? `Mini Dashboard ${session?.dprtAccess || 'DPRt'}`
                             : `Wilayah ${session?.dpdAccess || ''}`}
                         </span>
                       </div>
@@ -418,7 +422,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                               : 'text-slate-400 dark:text-slate-500'
                           }`}
                         >
-                          {session?.role === 'ADMIN_DPD' ? session.dpdAccess : '15 Kab / Kota'}
+                          {isDpdScopedRole(session?.role) ? session?.dpdAccess : '15 Kab / Kota'}
                         </span>
                       </div>
                     </div>
@@ -454,8 +458,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                               : 'text-slate-400 dark:text-slate-500'
                           }`}
                         >
-                          {session?.role === 'ADMIN_DPC'
-                            ? `Kec. ${session.dpcAccess}`
+                          {isDpcScopedRole(session?.role)
+                            ? `Kec. ${session?.dpcAccess}`
                             : 'Tingkat Kecamatan'}
                         </span>
                       </div>
@@ -492,8 +496,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                               : 'text-slate-400 dark:text-slate-500'
                           }`}
                         >
-                          {session?.role === 'ADMIN_DPRT'
-                            ? `Desa ${session.dprtAccess}`
+                          {isDprtScopedRole(session?.role)
+                            ? `Desa ${session?.dprtAccess}`
                             : 'Ranting Desa / Kelurahan'}
                         </span>
                       </div>
@@ -635,8 +639,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </div>
             )}
 
-            {/* Section 3: Alat Operasional (Hanya Pengurus & Admin) */}
-            {session?.role !== 'ANGGOTA' && (
+            {/* Section 3: Alat Operasional (Hanya tampil jika ada item operasional yang boleh diakses) */}
+            {session?.role !== 'ANGGOTA' && hasOperationalTools && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
                   Alat Operasional
@@ -714,35 +718,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
 
-                  {/* Kode Referral Saya */}
-                  {showReferral && onOpenReferralHub && (
-                    <button
-                      onClick={() => {
-                        onOpenReferralHub();
-                        onCloseMobile();
-                      }}
-                      title="Kode Referral Saya"
-                      className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'} w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-[#FDB813]/15 dark:bg-slate-800 text-[#9E6706] dark:text-[#FDB813] flex items-center justify-center font-bold border border-[#FDB813]/30">
-                          <Sparkles className="w-4 h-4 text-[#9E6706] dark:text-[#FDB813]" />
-                        </div>
-                        <div className={`text-left ${textHiddenIfCollapsed}`}>
-                          <span className="block leading-none font-semibold">Kode Referral Saya</span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
-                            Rekrutmen &amp; Ketua Langsung
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`text-[9px] font-mono font-bold text-[#9E6706] dark:text-[#FDB813] bg-[#FDB813]/15 dark:bg-slate-800 border border-[#FDB813]/30 px-1.5 py-0.5 rounded ${textHiddenIfCollapsed}`}>
-                        KODE
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Riwayat Audit (SUPER ADMIN & DPW) */}
-                  {(session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
+                  {/* Riwayat Audit (SUPER ADMIN, KETUA DPW & ADMIN DPW) */}
+                  {showAuditHistory && (
                     <button
                       onClick={() => {
                         onOpenAuditModal();
@@ -763,15 +740,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
 
-                  {/* Persetujuan Hapus */}
-                  {!isOperationalOnlyRole && (
+                  {/* Persetujuan Hapus (Tersembunyi untuk PENGURUS_* termasuk PENGURUS_DPW) */}
+                  {showDeletionQueue && (
                     <button
                       onClick={() => {
                         onOpenDeletionApproval();
                         onCloseMobile();
                       }}
                       title={
-                        session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                        isDeletionApprover
                           ? 'Persetujuan Hapus'
                           : 'Status Pengajuan Hapus'
                       }
@@ -782,7 +759,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                           <ShieldCheck className="w-4 h-4" />
                         </div>
                         <span className={textHiddenIfCollapsed}>
-                          {session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW'
+                          {isDeletionApprover
                             ? 'Persetujuan Hapus'
                             : 'Status Pengajuan Hapus'}
                         </span>
@@ -795,33 +772,41 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
 
-                  {/* Manajemen Akun Admin: HANYA SUPER ADMIN */}
-                  {showUserMgmt && onOpenUserManagement && (
+                  {/* Manajemen Akun Admin: HANYA SUPER ADMIN (1 Halaman Penuh) */}
+                  {showUserMgmt && (
                     <button
                       onClick={() => {
-                        onOpenUserManagement();
-                        onCloseMobile();
+                        handleNavClick('users');
+                        if (onOpenUserManagement) onOpenUserManagement();
                       }}
                       title="Manajemen Akun & Hak Akses Pengguna"
-                      className={`group flex items-center ${
-                        isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-                      } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer mt-1`}
+                      className={`${navItemClass(activeTab === 'users')} mt-1`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1A3282] dark:text-blue-400 flex items-center justify-center font-bold border border-blue-200/60 dark:border-blue-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                        <div className={iconContainerClass(activeTab === 'users')}>
                           <KeyRound className="w-4 h-4" />
                         </div>
                         <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
-                          <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                          <span className="block leading-none font-semibold">
                             Manajemen Akun
                           </span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
+                          <span
+                            className={`text-[10px] font-normal mt-0.5 block leading-none ${
+                              activeTab === 'users'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
                             Kelola Akses Admin
                           </span>
                         </div>
                       </div>
                       <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-blue-100/80 dark:bg-blue-950/80 text-[#1A3282] dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase shrink-0 ${textHiddenIfCollapsed} ${
+                          activeTab === 'users'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-blue-100/80 dark:bg-blue-950/80 text-[#1A3282] dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50'
+                        }`}
                       >
                         SUPER
                       </span>

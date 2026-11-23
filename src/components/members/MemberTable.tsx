@@ -4,7 +4,12 @@ import { STATUS_BADGE_CONFIG } from '../../data/sulutRegions';
 import { getInitials, getAvatarColor, resolveImageUrl, markImageUrlFailed } from '../../utils/imageUtils';
 import { getDewanWilayahInfo } from '../../utils/structureReadinessUtils';
 import { exportMembersToExcel, exportMembersToCsv } from '../../utils/excelUtils';
-import { canEditMember, canDirectDeleteMember } from '../../utils/permissionUtils';
+import {
+  canDirectDeleteMember,
+  canEditMember,
+  canRequestDeleteMember,
+  isTerritoryManagerRole,
+} from '../../utils/permissionUtils';
 import {
   Search,
   Eye,
@@ -263,6 +268,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                   const isSelected = selectedNiks.has(member.nik);
                   const canEdit = canEditMember(session, member);
                   const canDirectDelete = canDirectDeleteMember(session);
+                  const canRequestDelete = canRequestDeleteMember(session, member);
 
                   return (
                     <tr
@@ -487,23 +493,27 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                           {canDirectDelete ? (
                             <button
                               onClick={() => onDirectDelete(member)}
-                              title="Hapus Data Kader Permanen (Super Admin / Admin DPW)"
+                              title="Hapus Data Kader Permanen (Super Admin / Ketua DPW)"
                               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer shadow-2xs"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>Hapus</span>
                             </button>
-                          ) : (
+                          ) : canRequestDelete || isTerritoryManagerRole(session.role) ? (
                             <button
-                              disabled={!canEdit}
+                              disabled={!canRequestDelete}
                               onClick={() => onOpenDeletionRequest(member)}
-                              title={canEdit ? "Ajukan Permohonan Hapus Data ke DPW" : "Di luar wilayah wewenang"}
+                              title={
+                                canRequestDelete
+                                  ? 'Ajukan Permohonan Hapus Data ke Ketua DPW / Super Admin'
+                                  : 'Di luar wilayah wewenang'
+                              }
                               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-2xs"
                             >
                               <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                               <span>Ajukan Hapus</span>
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>

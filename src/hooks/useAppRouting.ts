@@ -7,7 +7,10 @@ import {
   canAccessStructureTab,
   canAccessInventory,
   canAccessFinance,
+  canManageUsers,
   getDefaultActiveTab,
+  isDpcScopedRole,
+  isDprtScopedRole,
   resolveSessionTerritoryLocks,
 } from '../utils/permissionUtils';
 
@@ -24,6 +27,7 @@ export const VALID_MAIN_TABS: MainNavTab[] = [
   'members',
   'inventory',
   'finance',
+  'users',
 ];
 
 export interface ParsedRouteParams {
@@ -118,6 +122,8 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
       return canAccessInventory(session);
     case 'finance':
       return canAccessFinance(session);
+    case 'users':
+      return canManageUsers(session);
     default:
       return true;
   }
@@ -216,6 +222,8 @@ export function formatDocumentTitle(
       return `${dpd ? `Kader ${dpd}` : 'Database Kader'} — ${baseSuffix}`;
     case 'inventory':
       return `Inventaris Kantor (5 Lantai) — ${baseSuffix}`;
+    case 'users':
+      return `Manajemen Akun Admin & Hak Akses — ${baseSuffix}`;
     default:
       return baseSuffix;
   }
@@ -244,7 +252,7 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
 
   const [matrixInitialDpc, setMatrixInitialDpc] = useState<string | undefined>(() => {
     if (
-      (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') &&
+      (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) &&
       session?.dpcAccess &&
       session?.dpcAccess !== 'ALL' &&
       session?.dpcAccess !== 'Umum (DPD)'
@@ -256,7 +264,7 @@ export function useAppRouting({ session, isAuthenticated }: UseAppRoutingProps) 
 
   const [matrixInitialDprt, setMatrixInitialDprt] = useState<string | undefined>(() => {
     if (
-      session?.role === 'ADMIN_DPRT' &&
+      isDprtScopedRole(session?.role) &&
       session?.dprtAccess &&
       session?.dprtAccess !== 'ALL' &&
       session?.dprtAccess !== 'Pusat/Umum'

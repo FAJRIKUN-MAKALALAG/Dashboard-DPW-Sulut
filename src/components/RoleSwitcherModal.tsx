@@ -78,7 +78,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
 
   const handleSelectKetuaDpw = () => {
     onSelectSession({
-      role: 'ADMIN_DPW',
+      role: 'KETUA_DPW',
       dpdAccess: 'ALL',
       dpcAccess: 'ALL',
       dprtAccess: 'ALL',
@@ -88,9 +88,22 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     onClose();
   };
 
-  const handleSelectPengurusDpw = () => {
+  const handleSelectAdminDelegasiDpw = () => {
     onSelectSession({
       role: 'ADMIN_DPW',
+      dpdAccess: 'ALL',
+      dpcAccess: 'ALL',
+      dprtAccess: 'ALL',
+      adminName: 'Admin Delegasi Ketua DPW',
+      jabatan: 'Sekretaris / Kepercayaan Ketua DPW Sulut',
+      isDelegatedAdmin: true,
+    });
+    onClose();
+  };
+
+  const handleSelectPengurusDpw = () => {
+    onSelectSession({
+      role: 'PENGURUS_DPW',
       dpdAccess: 'ALL',
       dpcAccess: 'ALL',
       dprtAccess: 'ALL',
@@ -104,7 +117,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
   const handleSelectKetuaDpd = (dpdName: string) => {
     const cleanName = dpdName.replace(/^(Kabupaten|Kota)\s+/, '');
     onSelectSession({
-      role: 'ADMIN_DPD',
+      role: 'KETUA_DPD',
       dpdAccess: dpdName,
       adminName: `Ketua DPD NasDem ${cleanName}`,
       jabatan: `Ketua DPD Partai NasDem ${dpdName}`,
@@ -112,10 +125,22 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     onClose();
   };
 
-  const handleSelectPengurusDpd = (dpdName: string) => {
+  const handleSelectAdminDelegasiDpd = (dpdName: string) => {
     const cleanName = dpdName.replace(/^(Kabupaten|Kota)\s+/, '');
     onSelectSession({
       role: 'ADMIN_DPD',
+      dpdAccess: dpdName,
+      adminName: `Admin Delegasi DPD ${cleanName}`,
+      jabatan: `Admin Kepercayaan Ketua DPD ${dpdName}`,
+      isDelegatedAdmin: true,
+    });
+    onClose();
+  };
+
+  const handleSelectPengurusDpd = (dpdName: string) => {
+    const cleanName = dpdName.replace(/^(Kabupaten|Kota)\s+/, '');
+    onSelectSession({
+      role: 'PENGURUS_DPD',
       dpdAccess: dpdName,
       adminName: `Pengurus DPD NasDem ${cleanName}`,
       jabatan: `Sekretaris DPD Partai NasDem ${dpdName}`,
@@ -127,7 +152,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
   const handleSelectKetuaDpc = () => {
     const cleanDpd = selectedDpdForDpc.replace(/^(Kabupaten|Kota)\s+/, '');
     onSelectSession({
-      role: 'ADMIN_DPC',
+      role: 'KETUA_DPC',
       dpdAccess: selectedDpdForDpc,
       dpcAccess: selectedDpc,
       adminName: `Ketua DPC Kec. ${selectedDpc}`,
@@ -136,10 +161,23 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     onClose();
   };
 
-  const handleSelectPengurusDpc = () => {
+  const handleSelectAdminDelegasiDpc = () => {
     const cleanDpd = selectedDpdForDpc.replace(/^(Kabupaten|Kota)\s+/, '');
     onSelectSession({
       role: 'ADMIN_DPC',
+      dpdAccess: selectedDpdForDpc,
+      dpcAccess: selectedDpc,
+      adminName: `Admin Delegasi DPC Kec. ${selectedDpc}`,
+      jabatan: `Admin Kepercayaan Ketua DPC Kec. ${selectedDpc} (${cleanDpd})`,
+      isDelegatedAdmin: true,
+    });
+    onClose();
+  };
+
+  const handleSelectPengurusDpc = () => {
+    const cleanDpd = selectedDpdForDpc.replace(/^(Kabupaten|Kota)\s+/, '');
+    onSelectSession({
+      role: 'PENGURUS_DPC',
       dpdAccess: selectedDpdForDpc,
       dpcAccess: selectedDpc,
       adminName: `Pengurus DPC Kec. ${selectedDpc}`,
@@ -151,7 +189,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
   // 4. DPRt Level Handlers
   const handleSelectKetuaDprt = () => {
     onSelectSession({
-      role: 'ADMIN_DPRT',
+      role: 'KETUA_DPRT',
       dpdAccess: selectedDpdForDprt,
       dpcAccess: selectedDpcForDprt,
       dprtAccess: selectedDprt,
@@ -161,9 +199,22 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     onClose();
   };
 
-  const handleSelectPengurusDprt = () => {
+  const handleSelectAdminDelegasiDprt = () => {
     onSelectSession({
       role: 'ADMIN_DPRT',
+      dpdAccess: selectedDpdForDprt,
+      dpcAccess: selectedDpcForDprt,
+      dprtAccess: selectedDprt,
+      adminName: `Admin Delegasi DPRt ${selectedDprt}`,
+      jabatan: `Admin Kepercayaan Ketua DPRt ${selectedDprt} (Kec. ${selectedDpcForDprt})`,
+      isDelegatedAdmin: true,
+    });
+    onClose();
+  };
+
+  const handleSelectPengurusDprt = () => {
+    onSelectSession({
+      role: 'PENGURUS_DPRT',
       dpdAccess: selectedDpdForDprt,
       dpcAccess: selectedDpcForDprt,
       dprtAccess: selectedDprt,
@@ -328,6 +379,13 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Aktifkan Peran Ketua DPW Sulut</span>
                   </button>
+                  <button
+                    onClick={handleSelectAdminDelegasiDpw}
+                    className="w-full py-2 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-amber-300 dark:border-amber-800"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Aktifkan Admin Delegasi Ketua DPW (Referral Terpisah)</span>
+                  </button>
                 </div>
 
                 {/* 3. Pengurus DPW */}
@@ -405,6 +463,13 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Masuk sebagai Ketua DPD {selectedDpdOnly} (Ada Dashboard)</span>
+                  </button>
+                  <button
+                    onClick={() => handleSelectAdminDelegasiDpd(selectedDpdOnly)}
+                    className="w-full py-2 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-amber-300 dark:border-amber-800"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Admin Delegasi DPD {selectedDpdOnly}</span>
                   </button>
                 </div>
 
@@ -503,6 +568,13 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Masuk sebagai Ketua DPC Kec. {selectedDpc} (Ada Dashboard)</span>
+                  </button>
+                  <button
+                    onClick={handleSelectAdminDelegasiDpc}
+                    className="w-full py-2 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-amber-300 dark:border-amber-800"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Admin Delegasi DPC Kec. {selectedDpc}</span>
                   </button>
                 </div>
 
@@ -611,8 +683,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                       <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                         Ketua Ranting Desa / Kelurahan
                       </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
-                        DASHBOARD DIHAPUS
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold">
+                        MINI DASHBOARD DPRT
                       </span>
                     </div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-1.5">
@@ -620,8 +692,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                       <span>Ketua DPRt {selectedDprt}</span>
                     </h4>
                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                      • <strong>Dashboard dihapus</strong> (tidak memiliki dashboard)<br />
-                      • Hanya bisa mengakses: <strong>Profil, Keanggotaan, dan Pengurus DPRt-nya</strong><br />
+                      • Memiliki <strong>Mini Dashboard DPRt</strong> untuk memantau data &amp; struktur rantingnya<br />
+                      • Mengakses Matriks DPRt, Portal, dan Data Anggota DPRt ({selectedDprt})<br />
                       • Memiliki Kode Referral dan formulir rekrutmen anggota
                     </p>
                   </div>
@@ -630,7 +702,14 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                     className="w-full py-2.5 px-4 rounded-xl bg-blue-700 hover:bg-blue-600 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Masuk sebagai Ketua DPRt {selectedDprt}</span>
+                    <span>Masuk sebagai Ketua DPRt {selectedDprt} (Mini Dashboard)</span>
+                  </button>
+                  <button
+                    onClick={handleSelectAdminDelegasiDprt}
+                    className="w-full py-2 px-4 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-amber-300 dark:border-amber-800"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Admin Delegasi DPRt {selectedDprt}</span>
                   </button>
                 </div>
 

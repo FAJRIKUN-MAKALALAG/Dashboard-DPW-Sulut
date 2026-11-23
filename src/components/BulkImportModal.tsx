@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Member, UserSession } from '../types';
+import { isGlobalTerritoryRole } from '../utils/permissionUtils';
 import {
   downloadEmptyTemplate,
   downloadSampleDataCsv,
@@ -70,8 +71,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         existingMembers
       );
 
-      // If user is Admin DPD, enforce their DPD restriction
-      if (session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL') {
+      // Jika user dibatasi wilayah (bukan tingkat DPW / Super Admin), paksa sesuai dpdAccess
+      if (!isGlobalTerritoryRole(session.role) && session.dpdAccess !== 'ALL') {
         results.forEach((res) => {
           if (res.data.dpd && res.data.dpd !== session.dpdAccess) {
             res.isValid = false;

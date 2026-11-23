@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Member, UserSession } from '../../types';
 import { resolveImageUrl } from '../../utils/imageUtils';
+import { getRoleDisplayLabel } from '../../utils/permissionUtils';
 
 interface KetuaLangsungInfo {
   nik: string;
@@ -250,7 +251,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
     ? `Pengurus ${activePengurusMember.tingkatKepengurusan}`
     : isSuperAdminSelf
     ? 'Super Admin DPW Sulut'
-    : `Pengurus ${session.role.replace('ADMIN_', '')}`;
+    : getRoleDisplayLabel(session.role);
   const displayJabatan =
     session.jabatan ||
     activePengurusMember?.jabatan ||
@@ -263,8 +264,15 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
     ? 'Provinsi Sulawesi Utara (Seluruh Wilayah)'
     : session.dpdAccess;
 
+  const hasReferralPanel = Boolean(myReferralCode && myReferralCode.trim());
+  const gridColsClass = hasReferralPanel
+    ? ketuaLangsung
+      ? 'lg:grid-cols-3'
+      : 'lg:grid-cols-2'
+    : 'lg:grid-cols-1';
+
   return (
-    <div className={`grid grid-cols-1 ${ketuaLangsung ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
+    <div className={`grid grid-cols-1 ${gridColsClass} gap-6`}>
       {/* Kolom Kiri: Profil & Status SK */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
         <div>
@@ -361,7 +369,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
       </div>
 
       {/* Kolom Kanan: Dua Kartu (jika ada ketua langsung) ATAU Kartu Registrasi Tunggal (jika Super Admin) */}
-      {ketuaLangsung ? (
+      {hasReferralPanel && (ketuaLangsung ? (
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* KARTU 1: KODE REFERRAL SAYA */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between space-y-3">
@@ -587,7 +595,7 @@ export const PengurusHierarchyCard: React.FC<PengurusHierarchyCardProps> = ({
             </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 };
