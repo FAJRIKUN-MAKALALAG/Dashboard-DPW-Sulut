@@ -30,6 +30,7 @@ interface PengurusPortalPageProps {
   onMemberEktaUpdated?: (nik: string, nokta: string) => void;
   onNavigateToEktaDpp?: () => void;
   onNavigateToPendaftaran?: () => void;
+  onSessionUpdated?: (session: UserSession) => void;
 }
 
 export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
@@ -37,6 +38,7 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
   session,
   onRefreshCloud,
   onOpenCardModal,
+  onSessionUpdated,
 }) => {
   const isAnggota = session.role === 'ANGGOTA';
   const showReferralAndRecruits =
@@ -350,15 +352,15 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/10 text-blue-100 border border-white/15 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
             <UserCheck className="w-3.5 h-3.5 text-[#FFDD00]" />
-            <span>{isAnggota ? 'PROFIL KADER RESMI' : 'PORTAL IDENTITAS AKUN'}</span>
+            <span>PROFIL SAYA</span>
           </div>
           <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-white">
-            Profil &amp; Identitas Akun Saya
+            Profil Saya
           </h1>
           <p className="hidden sm:block text-xs text-slate-300 max-w-3xl leading-relaxed">
             {isAnggota
-              ? 'Identitas resmi keanggotaan Anda di Partai NasDem Sulawesi Utara, pembaruan biodata pribadi, dan pengaturan kata sandi akun.'
-              : 'Identitas resmi pemilik akun, pengaturan kata sandi pribadi, kode referral Anda, serta daftar kader hasil rekrutmen Anda.'}
+              ? 'Identitas resmi keanggotaan Anda di Partai NasDem Sulawesi Utara, pengaturan username login, pembaruan biodata pribadi, dan kata sandi akun.'
+              : 'Identitas resmi pemilik akun, pengaturan username login & kata sandi pribadi, kode referral Anda, serta daftar kader hasil rekrutmen Anda.'}
           </p>
         </div>
       </div>
@@ -381,8 +383,8 @@ export const PengurusPortalPage: React.FC<PengurusPortalPageProps> = ({
         onOpenCardModal={onOpenCardModal}
       />
 
-      {/* 3. Ubah Kata Sandi Pribadi */}
-      <ChangePasswordCard />
+      {/* 3. Username Login & Ubah Kata Sandi Pribadi */}
+      <ChangePasswordCard session={session} onSessionUpdated={onSessionUpdated} />
 
       {/* 4. Daftar Kader Hasil Rekrutmen Sendiri */}
       {showReferralAndRecruits && (

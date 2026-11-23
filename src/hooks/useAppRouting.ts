@@ -209,7 +209,7 @@ export function formatDocumentTitle(
     case 'analytics':
       return `Executive Analytics — ${baseSuffix}`;
     case 'portal':
-      return `Portal Mandiri Pengurus — ${baseSuffix}`;
+      return `Profil Saya — ${baseSuffix}`;
     case 'dpw':
       return `Struktur DPW Sulawesi Utara — ${baseSuffix}`;
     case 'dpd':

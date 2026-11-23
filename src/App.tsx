@@ -596,7 +596,7 @@ export default function App() {
                     : activeTab === 'analytics'
                     ? 'Pusat Analisis & Visualisasi Data Teritorial'
                     : activeTab === 'portal'
-                    ? (session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Kerja Mandiri Pengurus & Rekrutmen')
+                    ? 'Profil Saya'
                     : activeTab === 'dpw'
                     ? 'Susunan Pengurus DPW Sulut'
                     : activeTab === 'dpd'
@@ -616,7 +616,7 @@ export default function App() {
               >
                 {activeTab === 'dashboard' && 'Dashboard Eksekutif'}
                 {activeTab === 'analytics' && 'Pusat Analisis & Visualisasi Data (Command Center)'}
-                {activeTab === 'portal' && (session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Kerja Mandiri Pengurus')}
+                {activeTab === 'portal' && 'Profil Saya'}
                 {activeTab === 'rekrutmen' && 'Pendaftaran Anggota Baru (Kader DPW Sulut)'}
                 {activeTab === 'ekta_dpp' && 'Pusat Pendaftaran & Penerbitan e-KTA Pusat (DPP)'}
                 {activeTab === 'dpw' && 'Susunan Pengurus DPW Sulut'}
@@ -737,6 +737,10 @@ export default function App() {
               onMemberEktaUpdated={handleMemberEktaUpdated}
               onNavigateToEktaDpp={() => handleNavigateToDppEkta()}
               onNavigateToPendaftaran={() => setActiveTab('rekrutmen')}
+              onSessionUpdated={(nextSession) => {
+                setSession(nextSession);
+                saveSession(nextSession);
+              }}
             />
           )}
 
