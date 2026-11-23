@@ -330,11 +330,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   </button>
                 )}
 
-                {/* 2. Portal Mandiri Pengurus (atau Profil Saya untuk Anggota Biasa) */}
+                {/* 2. Profil Saya */}
                 <button
                   onClick={() => handleNavClick('portal')}
                   className={navItemClass(activeTab === 'portal')}
-                  title={session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Pengurus'}
+                  title="Profil Saya"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={iconContainerClass(activeTab === 'portal')}>
@@ -342,7 +342,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </div>
                     <div className={`text-left ${textHiddenIfCollapsed}`}>
                       <span className="block leading-none">
-                        {session?.role === 'ANGGOTA' ? 'Profil Saya' : 'Portal Pengurus'}
+                        Profil Saya
                       </span>
                       <span
                         className={`text-[10px] block mt-0.5 leading-none ${
@@ -351,7 +351,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                             : 'text-slate-400 dark:text-slate-500'
                         }`}
                       >
-                        {session?.role === 'ANGGOTA' ? 'Data Identitas & Profil' : 'Profil & Rekrutmen'}
+                        {session?.role === 'ANGGOTA' ? 'Data Identitas & Profil' : 'Identitas, Sandi & Rekrutmen'}
                       </span>
                     </div>
                   </div>
@@ -362,7 +362,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
-                    {session?.role === 'ANGGOTA' ? 'KADER' : 'SK/KTA'}
+                    {session?.role === 'ANGGOTA' ? 'KADER' : 'AKUN'}
                   </span>
                 </button>
 

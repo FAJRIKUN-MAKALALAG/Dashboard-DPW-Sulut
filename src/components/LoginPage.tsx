@@ -14,6 +14,7 @@ import {
   Lock,
   IdCard,
   ChevronLeft,
+  AtSign,
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -50,6 +51,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   } | null>(null);
   const [actNewPassword, setActNewPassword] = useState('');
   const [actConfirmPassword, setActConfirmPassword] = useState('');
+  const [actUsername, setActUsername] = useState('');
   const [actShowPassword, setActShowPassword] = useState(false);
   const [actIsChecking, setActIsChecking] = useState(false);
   const [actIsSubmitting, setActIsSubmitting] = useState(false);
@@ -99,6 +101,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       setActError('Masukkan Nomor Induk Kependudukan (NIK) KTP Anda dengan benar.');
       return;
     }
+    setActUsername('');
 
     setActIsChecking(true);
     try {
@@ -124,6 +127,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setActError(null);
 
     if (!actCheckedMember) return;
+    const cleanCustomUser = actUsername.trim();
+    if (
+      cleanCustomUser &&
+      !/^[A-Za-z0-9][A-Za-z0-9._-]{2,28}[A-Za-z0-9]$/.test(cleanCustomUser)
+    ) {
+      setActError(
+        'Username harus 4–30 karakter dan hanya boleh huruf, angka, titik (.), garis bawah (_), atau tanda hubung (-) tanpa spasi.'
+      );
+      return;
+    }
     if (actNewPassword.length < 6) {
       setActError('Kata sandi baru minimal terdiri dari 6 karakter.');
       return;
@@ -135,7 +148,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     setActIsSubmitting(true);
     try {
-      const res = await UserService.activatePengurus(actCheckedMember.nik, actNewPassword);
+      const res = await UserService.activatePengurus(
+        actCheckedMember.nik,
+        actNewPassword,
+        cleanCustomUser || undefined
+      );
       if (res.success && res.session) {
         setActSuccessMsg('Aktivasi berhasil. Mengalihkan ke portal...');
         setTimeout(() => {
@@ -223,7 +240,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     Portal Internal Pengurus
                   </h2>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Masuk menggunakan NIK KTP atau Nomor e-KTA terdaftar Anda.
+                    Masuk menggunakan Username, NIK KTP, atau Nomor e-KTA terdaftar Anda.
                   </p>
                 </div>
 
@@ -498,6 +515,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         type="button"
                         onClick={() => {
                           setActCheckedMember(null);
+                          setActUsername('');
                           setActNewPassword('');
                           setActConfirmPassword('');
                           setActError(null);
@@ -535,6 +553,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           type="button"
                           onClick={() => {
                             setActCheckedMember(null);
+                            setActUsername('');
                             setActNewPassword('');
                             setActConfirmPassword('');
                             setActError(null);
@@ -568,6 +587,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           </p>
                         )}
                       </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label
+                          htmlFor="act-username"
+                          className="block text-xs font-semibold text-slate-700"
+                        >
+                          Username Login (Opsional)
+                        </label>
+                        <span className="text-[10px] font-medium text-slate-400">
+                          Pengganti NIK saat masuk
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <AtSign className="w-4 h-4" />
+                        </div>
+                        <input
+                          id="act-username"
+                          type="text"
+                          autoComplete="off"
+                          value={actUsername}
+                          onChange={(e) => setActUsername(e.target.value)}
+                          placeholder="Contoh: budi.santoso"
+                          maxLength={30}
+                          className="w-full h-11 pl-10 pr-4 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#1A3282] focus:ring-3 focus:ring-[#1A3282]/10 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Buat username singkat agar Anda tidak perlu mengetik 16 digit NIK setiap login (kosongkan jika tetap ingin memakai NIK).
+                      </p>
                     </div>
 
                     <div>
@@ -634,6 +685,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         type="button"
                         onClick={() => {
                           setActCheckedMember(null);
+                          setActUsername('');
                           setActNewPassword('');
                           setActConfirmPassword('');
                           setActError(null);

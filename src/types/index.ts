@@ -98,6 +98,7 @@ export interface UserSession {
   dprtAccess?: string; // specific DPRt (Kelurahan/Desa) name or undefined
   adminName: string;
   adminNik?: string;
+  username?: string;
   jabatan: string;
   canAddMembers?: boolean;
   hasSk?: boolean;

@@ -112,18 +112,26 @@ export const UserService = {
     });
   },
 
-  /** Aktivasi akun atau buat kata sandi baru untuk pengurus */
+  /** Aktivasi akun atau buat kata sandi baru (dan opsional username kustom) untuk pengurus */
   async activatePengurus(
     nik: string,
-    newPassword: string
+    newPassword: string,
+    username?: string
   ): Promise<{ success: boolean; session?: UserSession; message?: string }> {
     try {
+      const body: Record<string, string> = {
+        nik: nik.trim(),
+        newPassword: newPassword.trim(),
+      };
+      if (username && username.trim()) {
+        body.username = username.trim();
+      }
       const res = await apiFetch<{ token: string; session: UserSession; message: string }>(
         '/auth/activate-pengurus',
         {
           method: 'POST',
           auth: false,
-          body: { nik: nik.trim(), newPassword: newPassword.trim() },
+          body,
         }
       );
       setToken(res.token);
@@ -131,6 +139,32 @@ export const UserService = {
     } catch (err: any) {
       if (err instanceof ApiError) return { success: false, message: err.message };
       return { success: false, message: err.message || 'Gagal mengaktivasi akun pengurus.' };
+    }
+  },
+
+  /** Ubah username login akun sendiri agar tidak perlu mengetik NIK setiap login. */
+  async changeUsername(
+    username: string
+  ): Promise<{ success: boolean; session?: UserSession; message: string }> {
+    try {
+      const res = await apiFetch<{ token: string; session: UserSession; message?: string }>(
+        '/auth/change-username',
+        {
+          method: 'POST',
+          body: { username: username.trim() },
+        }
+      );
+      if (res.token) {
+        setToken(res.token);
+      }
+      return {
+        success: true,
+        session: res.session,
+        message: res.message || 'Username login berhasil diperbarui.',
+      };
+    } catch (err: any) {
+      if (err instanceof ApiError) return { success: false, message: err.message };
+      return { success: false, message: err.message || 'Gagal memperbarui username.' };
     }
   },
 
