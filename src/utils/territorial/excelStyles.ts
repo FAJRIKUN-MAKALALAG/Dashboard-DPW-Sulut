@@ -1,9 +1,10 @@
 import XLSX, { Range } from 'xlsx-js-style';
 
 /**
- * Helper untuk memberikan styling visual tingkat tinggi pada lembar kerja Excel (XLSX)
- * Dilengkapi warna tematik NasDem (Navy, Emerald, Gold, Indigo), penanda sel kosong/wajib isi (Kuning Cerah),
- * border rapi, text wrapping, dan banner instruksi agar admin tidak bingung saat input manual.
+ * Helper untuk memberikan styling visual pada lembar kerja Excel (XLSX) 11-kolom:
+ * 0: No | 1: Sub Organisasi | 2: Jabatan | 3: Nama (Wajib) | 4: NIK (Wajib)
+ * 5: E-KTA (Wajib) | 6: No. HP (Wajib) | 7: Jenis Kelamin | 8: Email | 9: Alamat | 10: Status Formasi
+ * Kolom 4, 5, 6 diformat sebagai Teks ('@') agar angka 16 digit NIK/E-KTA dan angka 0 di awal No. HP tidak hilang di Excel.
  */
 export function applyExcelTemplateStyling(options: {
   ws: XLSX.WorkSheet;
@@ -12,40 +13,38 @@ export function applyExcelTemplateStyling(options: {
   guideText?: string;
   totalDataRows: number;
 }): void {
-  const {
-    ws,
-    totalDataRows,
-  } = options;
+  const { ws, totalDataRows } = options;
+  const lastCol = 10;
 
   // 1. Lebar Kolom yang Nyaman & Proporsional
   ws['!cols'] = [
-    { wch: 7 },  // No
-    { wch: 32 }, // Sub Organisasi
-    { wch: 40 }, // Jabatan Pengurus
-    { wch: 44 }, // * NAMA LENGKAP (WAJIB DIISI) *
-    { wch: 28 }, // * NOMOR NIK (KTP 16 DIGIT) *
-    { wch: 24 }, // Nomor E-KTA NasDem
-    { wch: 22 }, // No. WhatsApp / HP
-    { wch: 28 }, // Email
-    { wch: 36 }, // Alamat Lengkap Domisili
-    { wch: 26 }, // STATUS FORMASI
+    { wch: 7 },  // 0: No
+    { wch: 30 }, // 1: Sub Organisasi
+    { wch: 42 }, // 2: Jabatan Pengurus
+    { wch: 38 }, // 3: * NAMA LENGKAP (WAJIB) *
+    { wch: 26 }, // 4: * NOMOR NIK 16 DIGIT (WAJIB) *
+    { wch: 26 }, // 5: * NOMOR E-KTA NASDEM (WAJIB) *
+    { wch: 22 }, // 6: * NO. WHATSAPP / HP (WAJIB) *
+    { wch: 18 }, // 7: Jenis Kelamin (L/P)
+    { wch: 26 }, // 8: Email
+    { wch: 34 }, // 9: Alamat Lengkap Domisili
+    { wch: 24 }, // 10: STATUS FORMASI
   ];
 
   // 2. Merges untuk Banner Judul & Legend Bawah
   const merges: Range[] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, // Row 1 Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, // Row 2 Subtitle
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }, // Row 3 Guide
+    { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }, // Row 1 Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } }, // Row 2 Subtitle
+    { s: { r: 2, c: 0 }, e: { r: 2, c: lastCol } }, // Row 3 Guide
   ];
 
   const legendStartRow = 5 + totalDataRows + 1;
-  merges.push(
-    { s: { r: legendStartRow, c: 0 }, e: { r: legendStartRow, c: 9 } },
-    { s: { r: legendStartRow + 1, c: 0 }, e: { r: legendStartRow + 1, c: 9 } },
-    { s: { r: legendStartRow + 2, c: 0 }, e: { r: legendStartRow + 2, c: 9 } },
-    { s: { r: legendStartRow + 3, c: 0 }, e: { r: legendStartRow + 3, c: 9 } },
-    { s: { r: legendStartRow + 4, c: 0 }, e: { r: legendStartRow + 4, c: 9 } }
-  );
+  for (let offset = 0; offset < 5; offset++) {
+    merges.push({
+      s: { r: legendStartRow + offset, c: 0 },
+      e: { r: legendStartRow + offset, c: lastCol },
+    });
+  }
 
   ws['!merges'] = merges;
 
@@ -53,19 +52,19 @@ export function applyExcelTemplateStyling(options: {
   const rowHeights: { hpt: number }[] = [
     { hpt: 34 }, // Row 1 Judul Utama
     { hpt: 26 }, // Row 2 Sub Judul Wilayah
-    { hpt: 26 }, // Row 3 Petunjuk
+    { hpt: 28 }, // Row 3 Petunjuk
     { hpt: 12 }, // Row 4 Pemisah
-    { hpt: 32 }, // Row 5 Table Column Headers
+    { hpt: 34 }, // Row 5 Table Column Headers
   ];
   for (let i = 0; i < totalDataRows; i++) {
-    rowHeights.push({ hpt: 24 }); // Baris Data
+    rowHeights.push({ hpt: 24 });
   }
-  rowHeights.push({ hpt: 14 }); // Pemisah Legend
-  rowHeights.push({ hpt: 24 }); // Legend Header
-  rowHeights.push({ hpt: 20 }); // Legend 1
-  rowHeights.push({ hpt: 20 }); // Legend 2
-  rowHeights.push({ hpt: 20 }); // Legend 3
-  rowHeights.push({ hpt: 20 }); // Legend 4
+  rowHeights.push({ hpt: 14 });
+  rowHeights.push({ hpt: 24 });
+  rowHeights.push({ hpt: 20 });
+  rowHeights.push({ hpt: 20 });
+  rowHeights.push({ hpt: 20 });
+  rowHeights.push({ hpt: 20 });
 
   ws['!rows'] = rowHeights;
 
@@ -83,8 +82,15 @@ export function applyExcelTemplateStyling(options: {
     right: { style: 'thin', color: { rgb: 'F59E0B' } },
   };
 
+  const borderGreen = {
+    top: { style: 'thin', color: { rgb: '86EFAC' } },
+    bottom: { style: 'thin', color: { rgb: '86EFAC' } },
+    left: { style: 'thin', color: { rgb: '86EFAC' } },
+    right: { style: 'thin', color: { rgb: '86EFAC' } },
+  };
+
   // 4. Style Banner Atas (Rows 0..2)
-  for (let c = 0; c <= 9; c++) {
+  for (let c = 0; c <= lastCol; c++) {
     const r0Ref = XLSX.utils.encode_cell({ r: 0, c });
     if (!ws[r0Ref]) ws[r0Ref] = { t: 's', v: '' };
     ws[r0Ref].s = {
@@ -106,7 +112,7 @@ export function applyExcelTemplateStyling(options: {
     ws[r2Ref].s = {
       fill: { fgColor: { rgb: 'FEF3C7' } },
       font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
-      alignment: { horizontal: 'center', vertical: 'center' },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border: {
         top: { style: 'thin', color: { rgb: 'FCD34D' } },
         bottom: { style: 'thin', color: { rgb: 'FCD34D' } },
@@ -117,23 +123,19 @@ export function applyExcelTemplateStyling(options: {
   }
 
   // 5. Style Header Tabel (Row 4 / Baris ke-5 di Excel)
-  for (let c = 0; c <= 9; c++) {
+  for (let c = 0; c <= lastCol; c++) {
     const ref = XLSX.utils.encode_cell({ r: 4, c });
     if (!ws[ref]) continue;
 
-    const isNama = c === 3;
-    const isNik = c === 4;
-    const isStatus = c === 9;
-
     let bgColor = '0F172A';
-    if (isNama) bgColor = '047857';
-    else if (isNik) bgColor = '059669';
-    else if (isStatus) bgColor = '1E1B4B';
-    else if (c >= 5) bgColor = '334155';
+    if (c === 3) bgColor = '047857';
+    else if (c === 4 || c === 5 || c === 6) bgColor = '059669';
+    else if (c === 10) bgColor = '1E1B4B';
+    else if (c >= 7) bgColor = '334155';
 
     ws[ref].s = {
       fill: { fgColor: { rgb: bgColor } },
-      font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+      font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border: {
         top: { style: 'thin', color: { rgb: '1E293B' } },
@@ -180,12 +182,23 @@ export function applyExcelTemplateStyling(options: {
       jabatanVal.includes('sekretaris') ||
       jabatanVal.includes('bendahara');
 
-    for (let c = 0; c <= 9; c++) {
+    for (let c = 0; c <= lastCol; c++) {
       const ref = XLSX.utils.encode_cell({ r, c });
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
 
+      // Format Teks (@) untuk NIK (4), E-KTA (5), dan No. HP (6)
+      const isTextIdCol = c === 4 || c === 5 || c === 6;
+      if (isTextIdCol) {
+        ws[ref].t = 's';
+        ws[ref].z = '@';
+        if (ws[ref].v !== undefined && ws[ref].v !== null) {
+          ws[ref].v = String(ws[ref].v);
+        }
+      }
+
+      const cellHasValue = String(ws[ref].v || '').trim().length > 0;
+
       if (c === 0) {
-        // No
         ws[ref].s = {
           fill: { fgColor: { rgb: 'F8FAFC' } },
           font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '475569' } },
@@ -193,7 +206,6 @@ export function applyExcelTemplateStyling(options: {
           border: borderThin,
         };
       } else if (c === 1) {
-        // Sub Organisasi
         ws[ref].s = {
           fill: { fgColor: { rgb: subBg } },
           font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: subColor } },
@@ -201,7 +213,6 @@ export function applyExcelTemplateStyling(options: {
           border: borderThin,
         };
       } else if (c === 2) {
-        // Jabatan
         ws[ref].s = {
           fill: { fgColor: { rgb: isTopLeader ? 'FEFCE8' : 'FFFFFF' } },
           font: {
@@ -214,76 +225,57 @@ export function applyExcelTemplateStyling(options: {
           border: borderThin,
         };
       } else if (c === 3) {
-        // NAMA LENGKAP
-        if (isFilled) {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'F0FDF4' } },
-            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '166534' } },
-            alignment: { horizontal: 'left', vertical: 'center' },
-            border: {
-              top: { style: 'thin', color: { rgb: '86EFAC' } },
-              bottom: { style: 'thin', color: { rgb: '86EFAC' } },
-              left: { style: 'thin', color: { rgb: '86EFAC' } },
-              right: { style: 'thin', color: { rgb: '86EFAC' } },
-            },
-          };
-        } else {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'FEF08A' } },
-            font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '713F12' } },
-            alignment: { horizontal: 'left', vertical: 'center' },
-            border: borderAmber,
-          };
-        }
-      } else if (c === 4) {
-        // NOMOR NIK
-        if (isFilled) {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'F8FAFC' } },
-            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '0F172A' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: borderThin,
-          };
-        } else {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'FEFCE8' } },
-            font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '854D0E' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: borderAmber,
-          };
-        }
-      } else if (c === 9) {
+        // NAMA LENGKAP (WAJIB)
+        ws[ref].s = isFilled
+          ? {
+              fill: { fgColor: { rgb: 'F0FDF4' } },
+              font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '166534' } },
+              alignment: { horizontal: 'left', vertical: 'center' },
+              border: borderGreen,
+            }
+          : {
+              fill: { fgColor: { rgb: 'FEF08A' } },
+              font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '713F12' } },
+              alignment: { horizontal: 'left', vertical: 'center' },
+              border: borderAmber,
+            };
+      } else if (isTextIdCol) {
+        // NIK (4), E-KTA (5), NO. HP (6) - WAJIB
+        ws[ref].s = cellHasValue
+          ? {
+              numFmt: '@',
+              fill: { fgColor: { rgb: 'F8FAFC' } },
+              font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '0F172A' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: borderThin,
+            }
+          : {
+              numFmt: '@',
+              fill: { fgColor: { rgb: 'FEF9C3' } },
+              font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '854D0E' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: borderAmber,
+            };
+      } else if (c === 10) {
         // STATUS FORMASI
-        if (isFilled) {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'DCFCE7' } },
-            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '166534' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: {
-              top: { style: 'thin', color: { rgb: '86EFAC' } },
-              bottom: { style: 'thin', color: { rgb: '86EFAC' } },
-              left: { style: 'thin', color: { rgb: '86EFAC' } },
-              right: { style: 'thin', color: { rgb: '86EFAC' } },
-            },
-          };
-        } else {
-          ws[ref].s = {
-            fill: { fgColor: { rgb: 'FEF3C7' } },
-            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: {
-              top: { style: 'thin', color: { rgb: 'FCD34D' } },
-              bottom: { style: 'thin', color: { rgb: 'FCD34D' } },
-              left: { style: 'thin', color: { rgb: 'FCD34D' } },
-              right: { style: 'thin', color: { rgb: 'FCD34D' } },
-            },
-          };
-        }
+        ws[ref].s = isFilled
+          ? {
+              fill: { fgColor: { rgb: 'DCFCE7' } },
+              font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '166534' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: borderGreen,
+            }
+          : {
+              fill: { fgColor: { rgb: 'FEF3C7' } },
+              font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: borderAmber,
+            };
       } else {
         ws[ref].s = {
           fill: { fgColor: { rgb: 'FFFFFF' } },
           font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '334155' } },
-          alignment: { horizontal: 'left', vertical: 'center' },
+          alignment: { horizontal: c === 7 ? 'center' : 'left', vertical: 'center' },
           border: borderThin,
         };
       }
@@ -300,19 +292,14 @@ export function applyExcelTemplateStyling(options: {
   ];
 
   legendRows.forEach(({ rowIdx, bg, fg, bold, sz }) => {
-    for (let c = 0; c <= 9; c++) {
+    for (let c = 0; c <= lastCol; c++) {
       const ref = XLSX.utils.encode_cell({ r: rowIdx, c });
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
       ws[ref].s = {
         fill: { fgColor: { rgb: bg } },
         font: { name: 'Calibri', sz, bold, color: { rgb: fg } },
         alignment: { horizontal: 'left', vertical: 'center' },
-        border: {
-          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
-          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
-        },
+        border: borderThin,
       };
     }
   });
@@ -322,7 +309,7 @@ export function applyExcelTemplateStyling(options: {
  * Styling untuk Sheet 2 (Panduan & Informasi Wilayah)
  */
 export function applyInfoSheetStyling(ws: XLSX.WorkSheet, totalRows: number): void {
-  ws['!cols'] = [{ wch: 34 }, { wch: 60 }];
+  ws['!cols'] = [{ wch: 36 }, { wch: 68 }];
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },

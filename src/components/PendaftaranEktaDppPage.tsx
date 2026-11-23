@@ -1,9 +1,10 @@
 import React from 'react';
-import { Member } from '../types';
+import { Member, UserSession } from '../types';
 import { DppEktaRegistrationPanel } from '../dpp-ekta';
 
 interface PendaftaranEktaDppPageProps {
   members: Member[];
+  session?: UserSession;
   initialMember?: Member | null;
   onMemberEktaUpdated?: (nik: string, nokta: string, updatedMember?: Member) => void;
   onBackToDashboard?: () => void;
@@ -13,6 +14,7 @@ interface PendaftaranEktaDppPageProps {
 
 export const PendaftaranEktaDppPage: React.FC<PendaftaranEktaDppPageProps> = ({
   members,
+  session,
   initialMember,
   onMemberEktaUpdated,
 }) => {
@@ -23,6 +25,7 @@ export const PendaftaranEktaDppPage: React.FC<PendaftaranEktaDppPageProps> = ({
         <div className="p-3 sm:p-5 lg:p-6">
           <DppEktaRegistrationPanel
             members={members}
+            session={session}
             initialMember={initialMember}
             onMemberEktaUpdated={onMemberEktaUpdated}
           />

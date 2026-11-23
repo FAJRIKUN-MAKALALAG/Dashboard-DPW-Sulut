@@ -760,6 +760,7 @@ export default function App() {
           {activeTab === 'ekta_dpp' && session?.role !== 'ANGGOTA' && (
             <PendaftaranEktaDppPage
               members={accessibleMembers}
+              session={session}
               initialMember={dppInitialMember}
               onMemberEktaUpdated={handleMemberEktaUpdated}
               onBackToDashboard={() => setActiveTab('dashboard')}

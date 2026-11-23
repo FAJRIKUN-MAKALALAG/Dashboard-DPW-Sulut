@@ -78,6 +78,9 @@ interface DppEktaFormTabProps {
   setManualEktaInput?: (v: string) => void;
   availableSubdistricts: { name: string; villages: string[] }[];
   availableVillages: string[];
+  isDpdLocked?: boolean;
+  isDpcLocked?: boolean;
+  isDprtLocked?: boolean;
   isSubmitting: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -154,6 +157,9 @@ export const DppEktaFormTab: React.FC<DppEktaFormTabProps> = (props) => {
           cleanNik={props.cleanNik}
           availableSubdistricts={props.availableSubdistricts}
           availableVillages={props.availableVillages}
+          isDpdLocked={props.isDpdLocked}
+          isDpcLocked={props.isDpcLocked}
+          isDprtLocked={props.isDprtLocked}
         />
       </div>
 

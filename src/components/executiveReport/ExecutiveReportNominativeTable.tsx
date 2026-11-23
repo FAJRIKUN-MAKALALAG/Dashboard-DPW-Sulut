@@ -100,7 +100,7 @@ export const ExecutiveReportNominativeTable: React.FC<ExecutiveReportNominativeT
                 </div>
               )}
 
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full min-w-[640px] print:min-w-0 text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-800 font-bold text-[11px] border-b border-slate-300">
                     <th className="no-print border-r border-slate-300 p-2 text-center w-8">

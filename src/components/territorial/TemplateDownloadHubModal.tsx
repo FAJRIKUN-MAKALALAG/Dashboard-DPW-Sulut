@@ -132,53 +132,53 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
               <button
                 type="button"
                 onClick={() => setActiveLevel('DPW')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   activeLevel === 'DPW'
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400'
                 }`}
               >
-                <Building2 className="w-4 h-4" />
-                <span>DPW Provinsi</span>
+                <Building2 className="w-4 h-4 shrink-0" />
+                <span>DPW (70)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveLevel('DPD')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   activeLevel === 'DPD'
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400'
                 }`}
               >
-                <Building className="w-4 h-4" />
-                <span>DPD Kab/Kota</span>
+                <Building className="w-4 h-4 shrink-0" />
+                <span>DPD (44)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveLevel('DPC')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   activeLevel === 'DPC'
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400'
                 }`}
               >
-                <MapPin className="w-4 h-4" />
-                <span>DPC Kecamatan</span>
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span>DPC (25)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveLevel('DPRt')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   activeLevel === 'DPRt'
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400'
                 }`}
               >
-                <Home className="w-4 h-4" />
-                <span>DPRt Ranting</span>
+                <Home className="w-4 h-4 shrink-0" />
+                <span>DPRt (11)</span>
               </button>
             </div>
           </div>
@@ -303,8 +303,8 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                 </button>
               </div>
 
-              {/* Option 2: Dewan Pertimbangan (Khusus DPW & DPD) */}
-              {(activeLevel === 'DPW' || activeLevel === 'DPD') ? (
+              {/* Option 2: Dewan Pertimbangan (DPW, DPD, DPC) */}
+              {activeLevel !== 'DPRt' ? (
                 <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl flex flex-col justify-between gap-3 shadow-2xs">
                   <div>
                     <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
@@ -312,7 +312,7 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                       <span>Khusus Dewan Pertimbangan</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
-                      Format khusus terisolasi nomor 1..N murni untuk <strong>Dewan Pertimbangan {activeLevel}</strong> (Ketua, Wakil, Sekretaris, Anggota).
+                      Format khusus murni untuk <strong>Dewan Pertimbangan {activeLevel}</strong> (Ketua, Wakil, Sekretaris, Anggota).
                     </p>
                   </div>
                   <button
@@ -334,10 +334,10 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                   <div>
                     <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold text-sm">
                       <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>Alur Cepat Input Massal</span>
+                      <span>Alur Cepat Input Massal DPRt</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
-                      Cukup unduh template, isi nama kader pada kolom <strong>Nama Lengkap</strong>, lalu gunakan tombol Import untuk memasukkan langsung ke matriks.
+                      Template DPRt berisi 11 jabatan baku Dewan Pimpinan Ranting. Isi 4 kolom wajib lalu unggah langsung ke matriks DPRt desa/kelurahan.
                     </p>
                   </div>
                   <button
@@ -351,8 +351,8 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                 </div>
               )}
 
-              {/* Option 3: Dewan Pakar (Khusus DPW & DPD) */}
-              {(activeLevel === 'DPW' || activeLevel === 'DPD') && (
+              {/* Option 3: Dewan Pakar (DPW, DPD, DPC) */}
+              {activeLevel !== 'DPRt' && (
                 <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-xl flex flex-col justify-between gap-3 shadow-2xs">
                   <div>
                     <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold text-sm">
@@ -360,7 +360,7 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                       <span>Khusus Dewan Pakar</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
-                      Format khusus terisolasi nomor 1..N murni untuk <strong>Dewan Pakar {activeLevel}</strong> agar salin tempel data tidak tertukar.
+                      Format khusus murni untuk <strong>Dewan Pakar {activeLevel}</strong> agar salin tempel data tidak tertukar.
                     </p>
                   </div>
                   <button
@@ -379,13 +379,13 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
                 </div>
               )}
 
-              {/* Option 4: 2 Sheet Terpisah */}
-              {(activeLevel === 'DPW' || activeLevel === 'DPD') && (
+              {/* Option 4: 2 Sheet Terpisah (DPW, DPD, DPC) */}
+              {activeLevel !== 'DPRt' && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-between gap-3 shadow-2xs">
                   <div>
                     <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold text-sm">
                       <span className="text-base">📑</span>
-                      <span>Format 2 Sheet (Pertimbangan & Pakar)</span>
+                      <span>Format 2 Sheet (Pertimbangan &amp; Pakar)</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                       Satu file berisi 2 lembar kerja terpisah (Sheet 1: Dewan Pertimbangan | Sheet 2: Dewan Pakar).
@@ -416,9 +416,9 @@ export const TemplateDownloadHubModal: React.FC<TemplateDownloadHubModalProps> =
               <div className="text-xs text-blue-950 dark:text-blue-200 space-y-1">
                 <p className="font-bold">Panduan Pengisian & Import Teritorial Struktur:</p>
                 <ol className="list-decimal pl-4 space-y-0.5 text-blue-900 dark:text-blue-300 text-[11px]">
-                  <li>Unduh template Excel sesuai tingkatan di atas.</li>
-                  <li>Buka file di Microsoft Excel, cukup isi kolom <strong>Nama Lengkap</strong> dan <strong>NIK</strong>. Baris posisi resmi sudah disiapkan otomatis.</li>
-                  <li>Jika NIK dikosongkan, sistem akan meng-generate nomor registrasi otomatis sehingga tidak ada data yang hilang.</li>
+                  <li>Unduh template Excel sesuai tingkatan (<strong>DPW 70</strong>, <strong>DPD 44</strong>, <strong>DPC 25</strong>, atau <strong>DPRt 11</strong> posisi).</li>
+                  <li>Isi lengkap <strong>4 Kolom Wajib</strong> agar lolos import: <strong>Nama Lengkap</strong>, <strong>NIK 16 Digit</strong>, <strong>Nomor e-KTA NasDem</strong>, dan <strong>No. WhatsApp/HP</strong> (min. 8 digit).</li>
+                  <li>Lengkapi kolom <strong>Jenis Kelamin (L/P)</strong> untuk perhitungan keterwakilan 30% perempuan pada struktur.</li>
                   <li>Setelah selesai diisi, buka halaman matriks terkait dan klik tombol <strong>Import Excel</strong> untuk menyimpan ke database.</li>
                 </ol>
               </div>

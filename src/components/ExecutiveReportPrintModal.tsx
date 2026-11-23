@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { RefreshCw, PenTool, FileSpreadsheet, FileDown } from 'lucide-react';
 import { Member } from '../types';
 import { getExpandedStructuralMembers } from '../utils/structureReadinessUtils';
 import {
@@ -70,7 +71,10 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   const [groupByTerritory, setGroupByTerritory] = useState<boolean>(true);
   const [pageBreakPerGroup, setPageBreakPerGroup] = useState<boolean>(false);
 
-  // Signature Panel Toggle
+  // Controls & Signature Panel Toggles (hide controls by default on mobile so full document fits screen)
+  const [showControlsPanel, setShowControlsPanel] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
   const [showSignaturePanel, setShowSignaturePanel] = useState<boolean>(false);
 
   const todayFormatted = useMemo(
@@ -130,6 +134,8 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
   // Initialize scope & territory when modal opens
   useEffect(() => {
     if (isOpen) {
+      setShowControlsPanel(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+      setShowSignaturePanel(false);
       if (customSelectedMembers && customSelectedMembers.length > 0) {
         setExportScope('ALL_KADER');
         setUseCustomSelectionOnly(true);
@@ -340,14 +346,21 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
       </style>
 
       {/* 1. TOP BAR WITH CONTROLS */}
-      <div className="no-print shrink-0 bg-white border-b border-slate-200 px-4 py-2.5 shadow-xs z-20">
-        <div className="max-w-6xl mx-auto flex flex-col gap-2.5">
-          {/* Row 1: Actions */}
+      <div className="no-print shrink-0 bg-white border-b border-slate-200 px-2.5 sm:px-4 py-2 shadow-xs z-20">
+        <div className="max-w-6xl mx-auto flex flex-col gap-2">
+          {/* Row 1: Compact Actions */}
           <ExecutiveReportToolbar
             onRefresh={refreshFromDatabase}
             isRefreshing={isRefreshing}
             showSignaturePanel={showSignaturePanel}
             setShowSignaturePanel={setShowSignaturePanel}
+            showControlsPanel={showControlsPanel}
+            setShowControlsPanel={setShowControlsPanel}
+            activeScopeLabel={
+              exportScope === 'STATISTICS'
+                ? `Rekap ${printedDpdStats.length} DPD`
+                : `${exportScope} • ${printedNominativeMembers.length}`
+            }
             orientation={orientation}
             setOrientation={setOrientation}
             onExportExcel={handleExportExcel}
@@ -361,98 +374,181 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
             }
           />
 
-          {/* Row 2: Scope Tabs */}
-          <ExecutiveReportScopeTabs
-            exportScope={exportScope}
-            onSelectScope={(scope) => {
-              setUseCustomSelectionOnly(false);
-              setExportScope(scope);
-              if (scope === 'DPW') {
-                setFilterDpd('ALL');
-                setFilterDpc('ALL');
-                setFilterDprt('ALL');
-              } else if (scope === 'DPD') {
-                setFilterDpc('ALL');
-                setFilterDprt('ALL');
-              } else if (scope === 'DPC') {
-                setFilterDprt('ALL');
-              }
-            }}
-            levelCounts={levelCounts}
-            useCustomSelectionOnly={useCustomSelectionOnly}
-            onToggleCustomSelectionOnly={() => {
-              setExportScope('ALL_KADER');
-              setUseCustomSelectionOnly((prev) => !prev);
-            }}
-            customSelectedMembers={customSelectedMembers}
-          />
+          {/* Collapsible Settings Drawer (Hidden on mobile by default so PDF preview fills 1 screen) */}
+          {showControlsPanel && (
+            <div className="max-h-[65vh] overflow-y-auto lg:max-h-none lg:overflow-visible pt-2 border-t border-slate-100 space-y-2.5">
+              {/* Mobile Quick Action Row */}
+              <div className="flex lg:hidden flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={refreshFromDatabase}
+                  disabled={isRefreshing}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>Sinkron</span>
+                </button>
 
-          {/* Row 3: Cascading Territory Filter Bar */}
-          <ExecutiveReportFilterBar
-            exportScope={exportScope}
-            useCustomSelectionOnly={useCustomSelectionOnly}
-            filterDpd={filterDpd}
-            setFilterDpd={setFilterDpd}
-            setFilterDpc={setFilterDpc}
-            setFilterDprt={setFilterDprt}
-            dpdOptionsWithCount={dpdOptionsWithCount}
-            filterDpc={filterDpc}
-            dpcOptionsWithCount={dpcOptionsWithCount}
-            filterDprt={filterDprt}
-            dprtOptionsWithCount={dprtOptionsWithCount}
-            filterSubCouncil={filterSubCouncil}
-            setFilterSubCouncil={setFilterSubCouncil}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            groupByTerritory={groupByTerritory}
-            setGroupByTerritory={setGroupByTerritory}
-            pageBreakPerGroup={pageBreakPerGroup}
-            setPageBreakPerGroup={setPageBreakPerGroup}
-            hasMultipleSections={groupedTerritorySections.length > 1}
-          />
+                <button
+                  type="button"
+                  onClick={() => setShowSignaturePanel((prev) => !prev)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border cursor-pointer ${
+                    showSignaturePanel
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Tanda Tangan</span>
+                </button>
 
-          {/* Signature Settings Panel */}
-          <ExecutiveReportSignatureSettings
-            showSignaturePanel={showSignaturePanel}
-            showStampBox={showStampBox}
-            setShowStampBox={setShowStampBox}
-            onAutoDetectSignatories={autoDetectSignatories}
-            docCustomTitle={docCustomTitle}
-            setDocCustomTitle={setDocCustomTitle}
-            computedDocTitle={computedDocTitle}
-            signCity={signCity}
-            setSignCity={setSignCity}
-            signDate={signDate}
-            setSignDate={setSignDate}
-            signLayout={signLayout}
-            setSignLayout={setSignLayout}
-            setIsSignManuallyEdited={setIsSignManuallyEdited}
-            pengurusQuickPickList={pengurusQuickPickList}
-            leftTitle={leftTitle}
-            setLeftTitle={setLeftTitle}
-            leftName={leftName}
-            setLeftName={setLeftName}
-            leftId={leftId}
-            setLeftId={setLeftId}
-            rightTitle={rightTitle}
-            setRightTitle={setRightTitle}
-            rightName={rightName}
-            setRightName={setRightName}
-            rightId={rightId}
-            setRightId={setRightId}
-            centerTitle={centerTitle}
-            setCenterTitle={setCenterTitle}
-            centerName={centerName}
-            setCenterName={setCenterName}
-            centerId={centerId}
-            setCenterId={setCenterId}
-          />
+                <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setOrientation('portrait')}
+                    className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
+                      orientation === 'portrait'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600'
+                    }`}
+                  >
+                    Tegak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrientation('landscape')}
+                    className={`px-2 py-1 rounded-md font-medium cursor-pointer ${
+                      orientation === 'landscape'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600'
+                    }`}
+                  >
+                    Mendatar
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="px-2.5 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="px-2.5 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  <FileDown className="w-3.5 h-3.5 text-blue-600" />
+                  <span>CSV</span>
+                </button>
+              </div>
+
+              {/* Row 2: Scope Tabs */}
+              <ExecutiveReportScopeTabs
+                exportScope={exportScope}
+                onSelectScope={(scope) => {
+                  setUseCustomSelectionOnly(false);
+                  setExportScope(scope);
+                  if (scope === 'DPW') {
+                    setFilterDpd('ALL');
+                    setFilterDpc('ALL');
+                    setFilterDprt('ALL');
+                  } else if (scope === 'DPD') {
+                    setFilterDpc('ALL');
+                    setFilterDprt('ALL');
+                  } else if (scope === 'DPC') {
+                    setFilterDprt('ALL');
+                  }
+                }}
+                levelCounts={levelCounts}
+                useCustomSelectionOnly={useCustomSelectionOnly}
+                onToggleCustomSelectionOnly={() => {
+                  setExportScope('ALL_KADER');
+                  setUseCustomSelectionOnly((prev) => !prev);
+                }}
+                customSelectedMembers={customSelectedMembers}
+              />
+
+              {/* Row 3: Cascading Territory Filter Bar */}
+              <ExecutiveReportFilterBar
+                exportScope={exportScope}
+                useCustomSelectionOnly={useCustomSelectionOnly}
+                filterDpd={filterDpd}
+                setFilterDpd={setFilterDpd}
+                setFilterDpc={setFilterDpc}
+                setFilterDprt={setFilterDprt}
+                dpdOptionsWithCount={dpdOptionsWithCount}
+                filterDpc={filterDpc}
+                dpcOptionsWithCount={dpcOptionsWithCount}
+                filterDprt={filterDprt}
+                dprtOptionsWithCount={dprtOptionsWithCount}
+                filterSubCouncil={filterSubCouncil}
+                setFilterSubCouncil={setFilterSubCouncil}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                groupByTerritory={groupByTerritory}
+                setGroupByTerritory={setGroupByTerritory}
+                pageBreakPerGroup={pageBreakPerGroup}
+                setPageBreakPerGroup={setPageBreakPerGroup}
+                hasMultipleSections={groupedTerritorySections.length > 1}
+              />
+
+              {/* Signature Settings Panel */}
+              <ExecutiveReportSignatureSettings
+                showSignaturePanel={showSignaturePanel}
+                showStampBox={showStampBox}
+                setShowStampBox={setShowStampBox}
+                onAutoDetectSignatories={autoDetectSignatories}
+                docCustomTitle={docCustomTitle}
+                setDocCustomTitle={setDocCustomTitle}
+                computedDocTitle={computedDocTitle}
+                signCity={signCity}
+                setSignCity={setSignCity}
+                signDate={signDate}
+                setSignDate={setSignDate}
+                signLayout={signLayout}
+                setSignLayout={setSignLayout}
+                setIsSignManuallyEdited={setIsSignManuallyEdited}
+                pengurusQuickPickList={pengurusQuickPickList}
+                leftTitle={leftTitle}
+                setLeftTitle={setLeftTitle}
+                leftName={leftName}
+                setLeftName={setLeftName}
+                leftId={leftId}
+                setLeftId={setLeftId}
+                rightTitle={rightTitle}
+                setRightTitle={setRightTitle}
+                rightName={rightName}
+                setRightName={setRightName}
+                rightId={rightId}
+                setRightId={setRightId}
+                centerTitle={centerTitle}
+                setCenterTitle={setCenterTitle}
+                centerName={centerName}
+                setCenterName={setCenterName}
+                centerId={centerId}
+                setCenterId={setCenterId}
+              />
+
+              {/* Mobile Done / Collapse Button */}
+              <button
+                type="button"
+                onClick={() => setShowControlsPanel(false)}
+                className="lg:hidden w-full py-2 rounded-lg bg-[#1A3282] text-white text-xs font-bold text-center cursor-pointer"
+              >
+                Lihat Dokumen Penuh (Tutup Pengaturan)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 2. SCROLLABLE PRINTABLE DOCUMENT */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-3 sm:p-6 print:p-0 print:bg-white print:overflow-visible">
-        <div className="max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 shadow-sm rounded-xl p-5 sm:p-10 print:border-none print:shadow-none print:rounded-none print:p-0 print:max-w-none">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-2 sm:p-6 print:p-0 print:bg-white print:overflow-visible">
+        <div className="max-w-5xl mx-auto bg-white text-slate-900 border border-slate-200 shadow-sm rounded-xl p-3 sm:p-10 print:border-none print:shadow-none print:rounded-none print:p-0 print:max-w-none">
           {/* Formal Letterhead */}
           <div className="border-b-2 border-slate-900 pb-4 mb-5 flex flex-col sm:flex-row print:flex-row items-center justify-between gap-4 text-center sm:text-left print:text-left">
             <div className="flex flex-col sm:flex-row print:flex-row items-center gap-3.5">
