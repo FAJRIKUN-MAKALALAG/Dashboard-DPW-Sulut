@@ -2,6 +2,12 @@ import React from 'react';
 import { UserSession } from '../../types';
 import { UserCheck, TrendingUp, Building2, ChevronRight } from 'lucide-react';
 import { StructureKpiStats, isDpdMatch } from '../../utils/structureReadinessUtils';
+import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../../utils/permissionUtils';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 
 interface ExecutiveKpiCardsProps {
@@ -31,10 +37,10 @@ export const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
   onOpenStructureModal,
   onOpenTerritorialMatrix,
 }) => {
-  const isSuperAdminOrDpw = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
-  const isDpdScoped = session?.role === 'ADMIN_DPD';
-  const isDpcScoped = session?.role === 'ADMIN_DPC';
-  const isDprtScoped = session?.role === 'ADMIN_DPRT';
+  const isSuperAdminOrDpw = !session || isGlobalTerritoryRole(session.role);
+  const isDpdScoped = isDpdScopedRole(session?.role);
+  const isDpcScoped = isDpcScopedRole(session?.role);
+  const isDprtScoped = isDprtScopedRole(session?.role);
   const isRegionalScoped = !isSuperAdminOrDpw;
 
   const currentRegion = React.useMemo(() => {

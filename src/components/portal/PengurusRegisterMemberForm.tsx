@@ -12,6 +12,11 @@ import { Member, UserSession, DirectLeaderInfo } from '../../types';
 import { SULUT_REGIONS } from '../../data/sulutRegions';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../../utils/structureReadinessUtils';
 import {
+  isDpcScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../../utils/permissionUtils';
+import {
   KtpCameraScannerBox,
   KtpImageQualityReport,
   ExtractedKtpData,
@@ -32,6 +37,7 @@ interface PengurusRegisterMemberFormProps {
   activePengurusMember: Member | null;
   myReferralCode: string;
   ketuaLangsung: DirectLeaderInfo | null;
+  delegatedKetua?: DirectLeaderInfo | null;
   onAddMember: (newMember: Member) => void | Promise<any>;
   perekrutNama: string;
   perekrutJabatan: string;
@@ -44,11 +50,13 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
   activePengurusMember,
   myReferralCode,
   ketuaLangsung,
+  delegatedKetua,
   onAddMember,
   perekrutNama,
   perekrutJabatan,
   perekrutNik,
 }) => {
+  const [referralOwnerMode, setReferralOwnerMode] = useState<'SELF' | 'KETUA'>('SELF');
   // 1. DPD Locking & Resolution
   const rawUserDpd =
     (session.dpdAccess && session.dpdAccess !== 'ALL' ? session.dpdAccess : null) ||
@@ -64,8 +72,7 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     : rawUserDpd || SULUT_REGIONS[0].name;
 
   const isDpdLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
+    !isGlobalTerritoryRole(session.role) &&
     Boolean(rawUserDpd);
 
   const lockedDpdName = isDpdLocked ? canonicalDpdName : '';
@@ -81,14 +88,13 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     (activePengurusMember?.dpc && activePengurusMember.dpc !== '-' ? activePengurusMember.dpc : '');
 
   const isDpcRoleOrLevel =
-    session.role === 'ADMIN_DPC' ||
-    session.role === 'ADMIN_DPRT' ||
+    isDpcScopedRole(session.role) ||
+    isDprtScopedRole(session.role) ||
     activePengurusMember?.tingkatKepengurusan === 'DPC' ||
     activePengurusMember?.tingkatKepengurusan === 'DPRt';
 
   const isDpcLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
+    !isGlobalTerritoryRole(session.role) &&
     isDpcRoleOrLevel &&
     Boolean(rawUserDpc);
 
@@ -113,11 +119,10 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       : '');
 
   const isDprtRoleOrLevel =
-    session.role === 'ADMIN_DPRT' || activePengurusMember?.tingkatKepengurusan === 'DPRt';
+    isDprtScopedRole(session.role) || activePengurusMember?.tingkatKepengurusan === 'DPRt';
 
   const isDprtLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
+    !isGlobalTerritoryRole(session.role) &&
     isDprtRoleOrLevel &&
     Boolean(rawUserDprt);
 
@@ -375,6 +380,12 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
     setIsSubmitting(true);
     setFormError(null);
 
+    const useKetuaRef = Boolean(referralOwnerMode === 'KETUA' && delegatedKetua?.kodeReferral);
+    const activeRefCode = useKetuaRef ? delegatedKetua!.kodeReferral! : myReferralCode;
+    const activeRecruiterName = useKetuaRef ? delegatedKetua!.nama : perekrutNama;
+    const activeRecruiterJabatan = useKetuaRef ? delegatedKetua!.jabatan : perekrutJabatan;
+    const activeRecruiterNik = useKetuaRef ? delegatedKetua!.nik : perekrutNik;
+
     const newMember: Member = {
       nik: cleanNik,
       nomorEKTA: cleanNik,
@@ -401,13 +412,15 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
       jabatan: 'Anggota Biasa',
       status: 'Aktif',
       tanggalBergabung: new Date().toISOString().split('T')[0],
-      catatanMutasi: `Perekrutan mandiri via Scan e-KTP oleh ${perekrutNama} (${perekrutJabatan})`,
+      catatanMutasi: useKetuaRef
+        ? `Diinput oleh ${session.adminName} atas nama Ketua (${delegatedKetua?.nama})`
+        : `Perekrutan mandiri via Scan e-KTP oleh ${perekrutNama} (${perekrutJabatan})`,
       terakhirDiubah: new Date().toISOString().replace('T', ' ').substring(0, 16),
       diubahOleh: session.adminName,
-      kaderPerekrutKodeReferral: myReferralCode,
-      kaderPerekrutNama: perekrutNama,
-      kaderPerekrutJabatan: perekrutJabatan,
-      kaderPerekrutNik: perekrutNik,
+      kaderPerekrutKodeReferral: activeRefCode,
+      kaderPerekrutNama: activeRecruiterName,
+      kaderPerekrutJabatan: activeRecruiterJabatan,
+      kaderPerekrutNik: activeRecruiterNik,
       kaderPerekrutDpd: finalDpd,
       ketuaLangsungNik: ketuaLangsung?.nik || undefined,
       ketuaLangsungNama: ketuaLangsung?.nama || undefined,
@@ -666,6 +679,49 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
 
       {currentStep === 4 && (
         <form onSubmit={handleFinalSubmit} className="space-y-4 animate-in fade-in duration-150">
+          {delegatedKetua?.kodeReferral && (
+            <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300/80 dark:border-amber-800 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                  <span>Pilih Atribusi Kode Referral Pendaftaran</span>
+                </span>
+                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                  Kode referral tetap terpisah antara Anda &amp; Ketua
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReferralOwnerMode('SELF')}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    referralOwnerMode === 'SELF'
+                      ? 'bg-[#1A3282] text-white border-[#1A3282] shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span className="text-[11px] font-bold block">Gunakan Kode Referral Saya</span>
+                  <span className={`text-[10px] font-mono ${referralOwnerMode === 'SELF' ? 'text-amber-300' : 'text-slate-500'}`}>
+                    {myReferralCode} ({perekrutNama})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReferralOwnerMode('KETUA')}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    referralOwnerMode === 'KETUA'
+                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span className="text-[11px] font-bold block">Atas Nama Ketua Wilayah</span>
+                  <span className={`text-[10px] font-mono ${referralOwnerMode === 'KETUA' ? 'text-slate-900 font-bold' : 'text-slate-500'}`}>
+                    {delegatedKetua.kodeReferral} ({delegatedKetua.nama})
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
           <RegistrationStep4Summary
             cleanNik={cleanNik}
             namaLengkap={inputNama}
@@ -686,7 +742,11 @@ export const PengurusRegisterMemberForm: React.FC<PengurusRegisterMemberFormProp
             fotoKtpUrl={fotoKtpUrl}
             ktpQualityReport={ktpQualityReport}
             roleBadgeText="Anggota / Kader Biasa"
-            recruiterLabel={`${perekrutNama} (${myReferralCode || 'Pengurus'})`}
+            recruiterLabel={
+              referralOwnerMode === 'KETUA' && delegatedKetua?.kodeReferral
+                ? `${delegatedKetua.nama} (${delegatedKetua.kodeReferral}) — Diinput oleh ${session.adminName}`
+                : `${perekrutNama} (${myReferralCode || 'Pengurus'})`
+            }
             onEditStep2={() => setCurrentStep(2)}
             onEditStep3={() => setCurrentStep(3)}
           />

@@ -33,6 +33,7 @@ function toApiUserPayload(user: Partial<AppUser>): Record<string, any> {
   if (user.dpcAccess !== undefined) payload.dpcAccess = user.dpcAccess;
   if (user.dprtAccess !== undefined) payload.dprtAccess = user.dprtAccess;
   if (user.jabatan !== undefined) payload.jabatan = user.jabatan;
+  if (user.delegatedForKetuaNik !== undefined) payload.delegatedForKetuaNik = user.delegatedForKetuaNik;
   if (user.isActive !== undefined) payload.isActive = user.isActive;
   return payload;
 }
@@ -130,6 +131,28 @@ export const UserService = {
     } catch (err: any) {
       if (err instanceof ApiError) return { success: false, message: err.message };
       return { success: false, message: err.message || 'Gagal mengaktivasi akun pengurus.' };
+    }
+  },
+
+  /** Ubah kata sandi akun sendiri dengan verifikasi kata sandi lama. */
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await apiFetch<{ message?: string }>('/auth/change-password', {
+        method: 'POST',
+        body: {
+          oldPassword: oldPassword.trim(),
+          newPassword: newPassword.trim(),
+          confirmPassword: confirmPassword.trim(),
+        },
+      });
+      return { success: true, message: res.message || 'Kata sandi berhasil diperbarui.' };
+    } catch (err: any) {
+      if (err instanceof ApiError) return { success: false, message: err.message };
+      return { success: false, message: err.message || 'Gagal memperbarui kata sandi.' };
     }
   },
 

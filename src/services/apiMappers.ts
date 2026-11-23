@@ -116,6 +116,7 @@ export function mapApiUser(item: any): AppUser {
     dpcAccess: item.dpcAccess || 'ALL',
     dprtAccess: item.dprtAccess || 'ALL',
     jabatan: item.jabatan || '',
+    delegatedForKetuaNik: item.delegatedForKetuaNik || undefined,
     isActive: item.isActive ?? true,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,

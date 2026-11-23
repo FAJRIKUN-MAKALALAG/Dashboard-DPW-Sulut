@@ -13,6 +13,12 @@ import {
 import { referralService } from '../services/referralService';
 import { EditMemberPhotoKtpSection } from './edit-member/EditMemberPhotoKtpSection';
 import { EditMemberPartyReferralSection } from './edit-member/EditMemberPartyReferralSection';
+import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -53,20 +59,19 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   const [dprt, setDprt] = useState<string>(member?.dprt || '');
 
   const isDpdLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
+    !isGlobalTerritoryRole(session.role) &&
     Boolean(session.dpdAccess && session.dpdAccess !== 'ALL');
 
   const isDpcLocked =
-    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') &&
+    (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) &&
     Boolean(session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)');
 
   const isDprtLocked =
-    session.role === 'ADMIN_DPRT' &&
+    isDprtScopedRole(session.role) &&
     Boolean(session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum');
 
   const allowedTingkatOptions = useMemo(() => {
-    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (isGlobalTerritoryRole(session.role)) {
       return [
         { value: 'DPW', label: 'DPW (Tingkat Provinsi)' },
         { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
@@ -74,14 +79,14 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
       ];
     }
-    if (session.role === 'ADMIN_DPD') {
+    if (isDpdScopedRole(session.role)) {
       return [
         { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
         { value: 'DPC', label: 'DPC (Kecamatan)' },
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
       ];
     }
-    if (session.role === 'ADMIN_DPC') {
+    if (isDpcScopedRole(session.role)) {
       return [
         { value: 'DPC', label: 'DPC (Kecamatan)' },
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },

@@ -13,6 +13,14 @@ import {
 import { referralService } from '../services/referralService';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 import {
+  canAssignStructuralPosition,
+  isDelegatedAdminRole,
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
+import {
   KtpCameraScannerBox,
   ExtractedKtpData,
   KtpImageQualityReport,
@@ -47,39 +55,39 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const canonicalDpd = matchedDpd ? matchedDpd.name : (session.dpdAccess || SULUT_REGIONS[0].name);
 
   const defaultDpd =
-    session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess && session.dpdAccess !== 'ALL'
+    !isGlobalTerritoryRole(session.role) && session.dpdAccess && session.dpdAccess !== 'ALL'
       ? canonicalDpd
       : SULUT_REGIONS[0].name;
 
   const defaultDpc =
-    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess
+    (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) && session.dpcAccess
       ? session.dpcAccess
       : '';
 
   const defaultDprt =
-    session.role === 'ADMIN_DPRT' && session.dprtAccess
+    isDprtScopedRole(session.role) && session.dprtAccess
       ? session.dprtAccess
       : '';
 
   const isDpdLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
+    !isGlobalTerritoryRole(session.role) &&
     Boolean(session.dpdAccess && session.dpdAccess !== 'ALL');
 
   const isDpcLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
-    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') &&
+    !isGlobalTerritoryRole(session.role) &&
+    (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) &&
     Boolean(session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)');
 
   const isDprtLocked =
-    session.role !== 'SUPER_ADMIN' &&
-    session.role !== 'ADMIN_DPW' &&
-    session.role === 'ADMIN_DPRT' &&
+    !isGlobalTerritoryRole(session.role) &&
+    isDprtScopedRole(session.role) &&
     Boolean(session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum');
 
+  const allowStructuralAssignment = canAssignStructuralPosition(session);
+  const isDelegatedAdmin = isDelegatedAdminRole(session.role);
+
   const allowedTingkatOptions = useMemo(() => {
-    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (isGlobalTerritoryRole(session.role)) {
       return [
         { value: 'DPW', label: 'DPW (Tingkat Provinsi)' },
         { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
@@ -87,14 +95,14 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
       ];
     }
-    if (session.role === 'ADMIN_DPD') {
+    if (isDpdScopedRole(session.role)) {
       return [
         { value: 'DPD', label: 'DPD (Kabupaten / Kota)' },
         { value: 'DPC', label: 'DPC (Kecamatan)' },
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
       ];
     }
-    if (session.role === 'ADMIN_DPC') {
+    if (isDpcScopedRole(session.role)) {
       return [
         { value: 'DPC', label: 'DPC (Kecamatan)' },
         { value: 'DPRt', label: 'DPRt (Kelurahan / Desa)' },
@@ -104,20 +112,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   }, [session.role]);
 
   const defaultTingkat: 'DPW' | 'DPD' | 'DPC' | 'DPRt' =
-    session.role === 'ADMIN_DPRT'
+    isDprtScopedRole(session.role)
       ? 'DPRt'
-      : session.role === 'ADMIN_DPC'
+      : isDpcScopedRole(session.role)
       ? 'DPC'
-      : session.role === 'ADMIN_DPD'
+      : isDpdScopedRole(session.role)
       ? 'DPD'
       : 'DPW';
 
   const defaultWilayahPenugasan =
-    session.role === 'ADMIN_DPRT'
+    isDprtScopedRole(session.role)
       ? `DPRt ${session.dprtAccess || ''}`
-      : session.role === 'ADMIN_DPC'
+      : isDpcScopedRole(session.role)
       ? `DPC Kec. ${session.dpcAccess || ''}`
-      : session.role === 'ADMIN_DPD'
+      : isDpdScopedRole(session.role)
       ? `DPD ${session.dpdAccess || ''}`
       : 'DPW Sulawesi Utara';
 
@@ -165,6 +173,37 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [autoRegisterDpp, setAutoRegisterDpp] = useState<boolean>(true);
+  const [myReferralProfile, setMyReferralProfile] = useState<{
+    kodeReferral: string;
+    namaLengkap: string;
+    jabatan: string;
+    nik: string;
+    delegatedKetua?: { nik: string; nama: string; jabatan: string; tingkat: string; kodeReferral?: string } | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    referralService
+      .getMyReferralProfile()
+      .then((res) => {
+        if (res) {
+          setMyReferralProfile({
+            kodeReferral: res.kodeReferral,
+            namaLengkap: res.namaLengkap,
+            jabatan: res.jabatan,
+            nik: res.nik,
+            delegatedKetua: res.delegatedKetua || null,
+          });
+          if (!allowStructuralAssignment && res.kodeReferral) {
+            setKaderPerekrutKodeReferral(res.kodeReferral);
+            setKaderPerekrutNama(res.namaLengkap);
+            setKaderPerekrutJabatan(res.jabatan);
+            setKaderPerekrutNik(res.nik);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, allowStructuralAssignment]);
 
   // Live validation for referral code
   useEffect(() => {
@@ -641,7 +680,26 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 sosmed={sosmed}
                 onChangeSosmed={setSosmed}
                 showAdminPartyFields={true}
-                isPengurus={isPengurus}
+                allowStructuralAssignment={allowStructuralAssignment}
+                isDelegatedAdmin={isDelegatedAdmin}
+                delegatedKetua={myReferralProfile?.delegatedKetua || null}
+                myReferralCode={myReferralProfile?.kodeReferral || ''}
+                myRecruiterName={myReferralProfile?.namaLengkap || session.adminName}
+                onSelectRecruiterPreset={(mode) => {
+                  if (mode === 'KETUA' && myReferralProfile?.delegatedKetua?.kodeReferral) {
+                    const dk = myReferralProfile.delegatedKetua;
+                    setKaderPerekrutKodeReferral(dk.kodeReferral || '');
+                    setKaderPerekrutNama(dk.nama);
+                    setKaderPerekrutJabatan(dk.jabatan);
+                    setKaderPerekrutNik(dk.nik);
+                  } else if (mode === 'SELF' && myReferralProfile?.kodeReferral) {
+                    setKaderPerekrutKodeReferral(myReferralProfile.kodeReferral);
+                    setKaderPerekrutNama(myReferralProfile.namaLengkap);
+                    setKaderPerekrutJabatan(myReferralProfile.jabatan);
+                    setKaderPerekrutNik(myReferralProfile.nik);
+                  }
+                }}
+                isPengurus={allowStructuralAssignment ? isPengurus : false}
                 onChangeIsPengurus={(checked) => {
                   setIsPengurus(checked);
                   setJabatan(checked ? 'Pengurus DPW NasDem' : 'Anggota / Kader Biasa');

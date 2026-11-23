@@ -31,7 +31,7 @@ export const UserStatsRibbon: React.FC<UserStatsRibbonProps> = ({ stats }) => {
         <span className="text-sm sm:text-base font-extrabold text-teal-600 dark:text-teal-400 font-mono">{stats.inventory ?? 0}</span>
       </div>
       <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-        <span className="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase truncate">Admin DPW</span>
+        <span className="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 block font-semibold uppercase truncate">Tingkat DPW</span>
         <span className="text-sm sm:text-base font-extrabold text-blue-600 dark:text-blue-400 font-mono">{stats.dpw}</span>
       </div>
       <div className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

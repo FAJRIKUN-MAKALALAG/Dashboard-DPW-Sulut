@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom';
 import { Member } from '../types';
 import { getExpandedStructuralMembers } from '../utils/structureReadinessUtils';
 import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+} from '../utils/permissionUtils';
+import {
   getMembersFromApi as getMembersFromSupabase,
   isBackendConfigured as isSupabaseConfigured,
 } from '../utils/backendClient';
@@ -131,9 +136,9 @@ export const ExecutiveReportPrintModal: React.FC<ExecutiveReportPrintModalProps>
       } else {
         setUseCustomSelectionOnly(false);
         if (initialReportType === 'STATISTICS') {
-          if (session?.role === 'ADMIN_DPRT') setExportScope('DPRt');
-          else if (session?.role === 'ADMIN_DPC') setExportScope('DPC');
-          else if (session?.role === 'ADMIN_DPD') setExportScope('DPD');
+          if (isDprtScopedRole(session?.role)) setExportScope('DPRt');
+          else if (isDpcScopedRole(session?.role)) setExportScope('DPC');
+          else if (isDpdScopedRole(session?.role)) setExportScope('DPD');
           else setExportScope('DPD');
         } else {
           setExportScope('ALL_KADER');

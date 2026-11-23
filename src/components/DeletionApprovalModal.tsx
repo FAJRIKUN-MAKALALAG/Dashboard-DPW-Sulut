@@ -1,6 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { DeletionRequest, UserSession } from '../types';
-import { canApproveDeletionRequest } from '../utils/permissionUtils';
+import {
+  canApproveDeletionRequest,
+  canViewDeletionQueue,
+  getRoleDisplayLabel,
+  isDpcScopedRole,
+  isDprtScopedRole,
+} from '../utils/permissionUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from '../utils/structureReadinessUtils';
 import { useDialog } from './ui/AppDialogProvider';
 import {
@@ -40,19 +46,19 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
   // Hanya SUPER_ADMIN dan ADMIN_DPW yang berwenang menyetujui atau menolak permohonan hapus
   const canApprove = canApproveDeletionRequest(session);
 
-  // Filter daftar pengajuan sesuai wilayah untuk Admin DPD, DPC, atau DPRt
+  // Filter daftar pengajuan sesuai wilayah untuk Ketua/Admin DPD, DPC, atau DPRt
   const scopedRequests = useMemo(() => {
     if (canApprove) return requests;
     return requests.filter((r) => {
       if (session?.dpdAccess && session.dpdAccess !== 'ALL') {
         if (!isDpdMatch(r.dpd, session.dpdAccess)) return false;
       }
-      if (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') {
+      if (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) {
         if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
           if (!isDpcMatch(r.dpc, session.dpcAccess)) return false;
         }
       }
-      if (session?.role === 'ADMIN_DPRT') {
+      if (isDprtScopedRole(session?.role)) {
         if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
           if (!isDprtMatch(r.dprt, session.dprtAccess)) return false;
         }
@@ -61,7 +67,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
     });
   }, [requests, session, canApprove]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !canViewDeletionQueue(session)) return null;
 
   const pendingRequests = scopedRequests.filter((r) => r.status === 'PENDING');
   const historyRequests = scopedRequests.filter((r) => r.status !== 'PENDING');
@@ -219,13 +225,7 @@ export const DeletionApprovalModal: React.FC<DeletionApprovalModalProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                        {req.requestedByRole === 'ADMIN_DPD'
-                          ? 'Pengajuan DPD'
-                          : req.requestedByRole === 'ADMIN_DPC'
-                          ? 'Pengajuan DPC'
-                          : req.requestedByRole === 'ADMIN_DPRT'
-                          ? 'Pengajuan DPRt'
-                          : 'Pengajuan Daerah'}
+                        Pengajuan {getRoleDisplayLabel(req.requestedByRole)}
                       </span>
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                         {req.requestedByName}

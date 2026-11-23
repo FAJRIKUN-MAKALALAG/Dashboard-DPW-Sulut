@@ -17,6 +17,11 @@ import {
   sortMembersByHierarchy,
   isDefinitiveLeader,
 } from '../../utils/jobMatchingUtils';
+import {
+  isDpcScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../../utils/permissionUtils';
 import { TerritoryDetailDrawer } from './TerritoryDetailDrawer';
 import {
   DpwReadinessView,
@@ -53,9 +58,9 @@ export const UnifiedTerritorialReadiness: React.FC<UnifiedTerritorialReadinessPr
   const [selectedDrawerInitialTab, setSelectedDrawerInitialTab] = useState<'dpd' | 'dpc' | 'dprt'>('dpd');
   const [selectedDrawerInitialDpc, setSelectedDrawerInitialDpc] = useState<string | null>(null);
 
-  const isSuperAdminOrDpw = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
-  const isDpcScoped = session?.role === 'ADMIN_DPC';
-  const isDprtScoped = session?.role === 'ADMIN_DPRT';
+  const isSuperAdminOrDpw = !session || isGlobalTerritoryRole(session.role);
+  const isDpcScoped = isDpcScopedRole(session?.role);
+  const isDprtScoped = isDprtScopedRole(session?.role);
   const isRegionalScoped = !isSuperAdminOrDpw;
 
   // Active DPD scope (either from role access or Super Admin selection)

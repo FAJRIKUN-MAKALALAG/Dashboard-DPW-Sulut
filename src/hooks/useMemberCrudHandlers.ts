@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Member, MemberStatus, UserSession, AuditLog, DeletionRequest } from '../types';
 import { useDialog } from '../components/ui/AppDialogProvider';
+import { canApproveDeletionRequest, canDirectDeleteMember } from '../utils/permissionUtils';
 import {
   getExpandedStructuralMembers,
   getMemberSubOrgCategory,
@@ -425,14 +426,14 @@ export function useMemberCrudHandlers({
 
 
 
-  // 7. HAPUS ANGGOTA SECARA LANGSUNG (SUPER ADMIN & ADMIN DPW)
+  // 7. HAPUS ANGGOTA SECARA LANGSUNG (HANYA SUPER ADMIN & KETUA DPW)
   const handleDirectDeleteMember = async (member: Member) => {
-    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
+    if (!canDirectDeleteMember(session)) {
       await showAlert({
         variant: 'warning',
         title: 'Akses Terbatas',
         message:
-          'Hanya Super Admin dan Admin DPW yang memiliki hak menghapus data kader secara langsung.',
+          'Hanya Super Admin dan Ketua DPW yang memiliki hak menghapus data kader secara langsung.',
       });
       return;
     }
@@ -526,10 +527,10 @@ export function useMemberCrudHandlers({
     showToast(`Permohonan penghapusan kader ${member.namaLengkap} berhasil dikirim ke DPW.`);
   };
 
-  // 9. APPROVAL PERMOHONAN HAPUS (HANYA SUPER ADMIN & ADMIN DPW YANG BERWENANG MENYETUJUI)
+  // 9. APPROVAL PERMOHONAN HAPUS (HANYA SUPER ADMIN & KETUA DPW YANG BERWENANG MENYETUJUI)
   const handleApproveDeletionRequest = async (requestId: string, notes?: string) => {
-    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
-      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Admin DPW yang berwenang menyetujui penghapusan data.');
+    if (!canApproveDeletionRequest(session)) {
+      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Ketua DPW yang berwenang menyetujui penghapusan data.');
       return;
     }
 
@@ -574,10 +575,10 @@ export function useMemberCrudHandlers({
     showToast(`Permohonan disetujui. Data kader ${target.memberName} telah dihapus permanen.`);
   };
 
-  // 10. REJECT PERMOHONAN HAPUS (HANYA SUPER ADMIN & ADMIN DPW YANG BERWENANG MENOLAK)
+  // 10. REJECT PERMOHONAN HAPUS (HANYA SUPER ADMIN & KETUA DPW YANG BERWENANG MENOLAK)
   const handleRejectDeletionRequest = async (requestId: string, notes: string) => {
-    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
-      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Admin DPW yang berwenang menolak permohonan penghapusan.');
+    if (!canApproveDeletionRequest(session)) {
+      showToast('⚠️ Akses Ditolak: Hanya Super Admin dan Ketua DPW yang berwenang menolak permohonan penghapusan.');
       return;
     }
 

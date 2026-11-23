@@ -3,3 +3,4 @@ export * from './PengurusRegisterMemberForm';
 export * from './PengurusRecruitsList';
 export * from './PengurusTerritorySearchTab';
 export * from './EditProfileModal';
+export * from './ChangePasswordCard';

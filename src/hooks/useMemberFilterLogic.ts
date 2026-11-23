@@ -12,6 +12,12 @@ import {
   isDprtMatch,
   getMemberSubOrgCategory,
 } from '../utils/structureReadinessUtils';
+import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
 
 export type SearchCategory = 'ALL' | 'NIK' | 'NAMA' | 'DPC';
 
@@ -37,17 +43,17 @@ export function useMemberFilterLogic({
   const [searchCategory, setSearchCategory] = useState<SearchCategory>('ALL');
 
   const [selectedDpd, setSelectedDpd] = useState<string>(
-    session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
+    !isGlobalTerritoryRole(session.role) && session.dpdAccess !== 'ALL'
       ? session.dpdAccess
       : initialDpdFilter || 'ALL'
   );
   const [selectedDpcFilter, setSelectedDpcFilter] = useState<string>(
-    (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && session.dpcAccess && session.dpcAccess !== 'ALL'
+    (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) && session.dpcAccess && session.dpcAccess !== 'ALL'
       ? session.dpcAccess
       : 'ALL'
   );
   const [selectedDprtFilter, setSelectedDprtFilter] = useState<string>(
-    session.role === 'ADMIN_DPRT' && session.dprtAccess && session.dprtAccess !== 'ALL'
+    isDprtScopedRole(session.role) && session.dprtAccess && session.dprtAccess !== 'ALL'
       ? session.dprtAccess
       : 'ALL'
   );
@@ -86,7 +92,7 @@ export function useMemberFilterLogic({
   // Daftar DPD beserta hitungan data
   const dpdOptionsWithCount = useMemo(() => {
     const baseRegions =
-      session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW' && session.dpdAccess !== 'ALL'
+      !isGlobalTerritoryRole(session.role) && session.dpdAccess !== 'ALL'
         ? SULUT_REGIONS.filter((r) => isDpdMatch(r.name, session.dpdAccess))
         : SULUT_REGIONS;
 
@@ -103,7 +109,7 @@ export function useMemberFilterLogic({
   // DPD aktif yang terpilih
   const activeRegion = useMemo(() => {
     const effectiveDpd =
-      session.role === 'ADMIN_DPD' && session.dpdAccess !== 'ALL'
+      isDpdScopedRole(session.role) && session.dpdAccess !== 'ALL'
         ? session.dpdAccess
         : selectedDpd;
     if (!effectiveDpd || effectiveDpd === 'ALL') return null;
@@ -222,15 +228,15 @@ export function useMemberFilterLogic({
   // Hitung jumlah personil per jabatan riil
   const availableRolesWithCount = useMemo(() => {
     const scopedMembers = members.filter((member) => {
-      if (session.role === 'ADMIN_DPD') {
+      if (isDpdScopedRole(session.role)) {
         if (session.dpdAccess !== 'ALL' && !isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPC') {
+      } else if (isDpcScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPRT') {
+      } else if (isDprtScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (session.dprtAccess && !isDprtMatch(member.dprt, session.dprtAccess)) return false;
@@ -268,7 +274,7 @@ export function useMemberFilterLogic({
 
     if (sortedDbRoles.length === 0) {
       const fallbackRoles =
-        session.role === 'ADMIN_DPRT' || (selectedDprtFilter && selectedDprtFilter !== 'ALL')
+        isDprtScopedRole(session.role) || (selectedDprtFilter && selectedDprtFilter !== 'ALL')
           ? LEVEL_PARTY_ROLES.DPRt
           : selectedDpcFilter && selectedDpcFilter !== 'ALL' && selectedDpcFilter !== 'Wilayah DPD'
           ? LEVEL_PARTY_ROLES.DPC
@@ -295,15 +301,15 @@ export function useMemberFilterLogic({
   // Hitung jumlah pengurus vs anggota biasa dalam cakupan
   const territoryScopedMembers = useMemo(() => {
     return members.filter((member) => {
-      if (session.role === 'ADMIN_DPD') {
+      if (isDpdScopedRole(session.role)) {
         if (session.dpdAccess !== 'ALL' && !isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPC') {
+      } else if (isDpcScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPRT') {
+      } else if (isDprtScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (session.dprtAccess && !isDprtMatch(member.dprt, session.dprtAccess)) return false;
@@ -346,15 +352,15 @@ export function useMemberFilterLogic({
   // Filter pipeline utama
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
-      if (session.role === 'ADMIN_DPD') {
+      if (isDpdScopedRole(session.role)) {
         if (session.dpdAccess !== 'ALL' && !isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (selectedDpcFilter !== 'ALL' && !isDpcMatch(member.dpc, selectedDpcFilter)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPC') {
+      } else if (isDpcScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (selectedDprtFilter !== 'ALL' && !isDprtMatch(member.dprt, selectedDprtFilter)) return false;
-      } else if (session.role === 'ADMIN_DPRT') {
+      } else if (isDprtScopedRole(session.role)) {
         if (!isDpdMatch(member.dpd, session.dpdAccess)) return false;
         if (session.dpcAccess && !isDpcMatch(member.dpc, session.dpcAccess)) return false;
         if (session.dprtAccess && !isDprtMatch(member.dprt, session.dprtAccess)) return false;

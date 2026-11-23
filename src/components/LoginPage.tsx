@@ -471,7 +471,59 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 )}
 
                 {/* TAHAP 2: ATUR KATA SANDI */}
-                {actCheckedMember && (
+                {actCheckedMember && actCheckedMember.hasCustomPassword && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
+                      <p className="font-bold text-sm text-slate-900">
+                        {actCheckedMember.namaLengkap}
+                      </p>
+                      <p className="text-xs font-medium text-[#1A3282]">
+                        {actCheckedMember.jabatan} &middot; Tingkat {actCheckedMember.tingkatKepengurusan}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        NIK: {actCheckedMember.nik}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+                      <strong className="block font-bold mb-1">Akun Sudah Aktif</strong>
+                      <span>
+                        Akun ini sudah aktif dan memiliki kata sandi pribadi. Silakan masuk melalui tab{' '}
+                        <strong>Masuk Akun</strong>. Jika lupa kata sandi, hubungi Super Admin DPW untuk reset.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActCheckedMember(null);
+                          setActNewPassword('');
+                          setActConfirmPassword('');
+                          setActError(null);
+                        }}
+                        className="h-11 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 cursor-pointer transition-all"
+                      >
+                        Cek NIK Lain
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUsername(actCheckedMember.nik);
+                          setPassword('');
+                          setActCheckedMember(null);
+                          switchMode('login');
+                        }}
+                        className="flex-1 h-11 px-4 rounded-xl bg-[#1A3282] hover:bg-[#152868] text-white font-semibold text-sm shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+                      >
+                        <span>Lanjut ke Halaman Masuk</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {actCheckedMember && !actCheckedMember.hasCustomPassword && (
                   <form onSubmit={handleSubmitAktivasi} className="space-y-4">
                     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                       <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-200/80">

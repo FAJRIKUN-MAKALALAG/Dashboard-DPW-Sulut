@@ -2,6 +2,7 @@ import React from 'react';
 import { AppUser } from '../../types';
 import { MASTER_SUPER_ADMIN } from '../../services/userService';
 import { MapPin, Edit3, Trash2, RefreshCw } from 'lucide-react';
+import { getRoleDisplayLabel } from '../../utils/permissionUtils';
 
 interface UserDesktopTableProps {
   isLoading: boolean;
@@ -15,10 +16,18 @@ const roleBadgeColor: Record<string, string> = {
   SUPER_ADMIN: 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
   WAKIL_BENDAHARA: 'bg-sky-100 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-700',
   ADMIN_INVENTORY: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
+  KETUA_DPW: 'bg-blue-700 text-white border-blue-800',
+  KETUA_DPD: 'bg-indigo-700 text-white border-indigo-800',
+  KETUA_DPC: 'bg-teal-700 text-white border-teal-800',
+  KETUA_DPRT: 'bg-purple-700 text-white border-purple-800',
   ADMIN_DPW: 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700',
   ADMIN_DPD: 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
   ADMIN_DPC: 'bg-teal-100 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700',
   ADMIN_DPRT: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+  PENGURUS_DPW: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+  PENGURUS_DPD: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+  PENGURUS_DPC: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+  PENGURUS_DPRT: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
   ANGGOTA: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
 };
 
@@ -46,8 +55,8 @@ export const UserDesktopTable: React.FC<UserDesktopTableProps> = ({
           {isLoading ? (
             <tr>
               <td colSpan={6} className="py-12 text-center text-slate-400">
-                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                <span>Memuat daftar akun admin dari Supabase...</span>
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1A3282] dark:text-blue-400" />
+                <span>Memuat daftar akun dari server...</span>
               </td>
             </tr>
           ) : users.length === 0 ? (
@@ -70,10 +79,10 @@ export const UserDesktopTable: React.FC<UserDesktopTableProps> = ({
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
                           user.role === 'SUPER_ADMIN'
-                            ? 'bg-amber-500 text-slate-950 shadow-xs'
-                            : 'bg-blue-600 text-white'
+                            ? 'bg-[#1A3282] text-[#FFDD00] border border-[#FDB813]/40 shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
@@ -109,8 +118,13 @@ export const UserDesktopTable: React.FC<UserDesktopTableProps> = ({
                     <span
                       className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${userBadge}`}
                     >
-                      {user.role}
+                      {getRoleDisplayLabel(user.role)}
                     </span>
+                    {user.delegatedForKetuaNik && (
+                      <div className="text-[10px] font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                        Delegasi Ketua: {user.delegatedForKetuaNik}
+                      </div>
+                    )}
                   </td>
 
                   {/* Scope Territory */}

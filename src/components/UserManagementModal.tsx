@@ -2,6 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppUser, Member, UserRole, UserSession } from '../types';
 import { UserService, MASTER_SUPER_ADMIN } from '../services/userService';
 import { SULUT_REGIONS } from '../data/sulutRegions';
+import {
+  isDelegatedAdminRole,
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isDpwScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
 import { useDialog } from './ui/AppDialogProvider';
 import { ShieldCheck, X, RefreshCw, Lock } from 'lucide-react';
 import { UserStatsRibbon } from './userManagement/UserStatsRibbon';
@@ -59,6 +67,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [formDpdAccess, setFormDpdAccess] = useState<string>(SULUT_REGIONS[0]?.name || 'Kabupaten Minahasa Selatan');
   const [formDpcAccess, setFormDpcAccess] = useState<string>('ALL');
   const [formDprtAccess, setFormDprtAccess] = useState<string>('ALL');
+  const [formDelegatedForKetuaNik, setFormDelegatedForKetuaNik] = useState<string>('');
   const [formIsActive, setFormIsActive] = useState<boolean>(true);
 
   // Load users when opened
@@ -140,6 +149,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setFormDpdAccess(SULUT_REGIONS[0]?.name || 'Kabupaten Minahasa Selatan');
     setFormDpcAccess('ALL');
     setFormDprtAccess('ALL');
+    setFormDelegatedForKetuaNik('');
     setFormIsActive(true);
     setFormError(null);
     setFormSuccess(null);
@@ -159,6 +169,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setFormDpdAccess(user.dpdAccess);
     setFormDpcAccess(user.dpcAccess || 'ALL');
     setFormDprtAccess(user.dprtAccess || 'ALL');
+    setFormDelegatedForKetuaNik(user.delegatedForKetuaNik || '');
     setFormIsActive(user.isActive);
     setFormError(null);
     setFormSuccess(null);
@@ -183,18 +194,18 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       return;
     }
 
-    if (formRole === 'ADMIN_DPC' && (formDpcAccess === 'ALL' || !formDpcAccess.trim())) {
-      setFormError('Untuk Akun Role Admin DPC, wajib memilih wilayah Kecamatan (DPC) spesifik.');
+    if (isDpcScopedRole(formRole) && (formDpcAccess === 'ALL' || !formDpcAccess.trim())) {
+      setFormError(`Untuk Akun Role ${formRole}, wajib memilih wilayah Kecamatan (DPC) spesifik.`);
       return;
     }
 
-    if (formRole === 'ADMIN_DPRT') {
+    if (isDprtScopedRole(formRole)) {
       if (formDpcAccess === 'ALL' || !formDpcAccess.trim()) {
-        setFormError('Untuk Akun Role Admin DPRt, wajib memilih wilayah Kecamatan (DPC).');
+        setFormError(`Untuk Akun Role ${formRole}, wajib memilih wilayah Kecamatan (DPC).`);
         return;
       }
       if (formDprtAccess === 'ALL' || !formDprtAccess.trim()) {
-        setFormError('Untuk Akun Role Admin DPRt, wajib memilih desa/kelurahan (DPRt) spesifik.');
+        setFormError(`Untuk Akun Role ${formRole}, wajib memilih desa/kelurahan (DPRt) spesifik.`);
         return;
       }
     }
@@ -202,8 +213,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setIsSaving(true);
     try {
       const isGlobalRole =
-        formRole === 'ADMIN_DPW' ||
-        formRole === 'SUPER_ADMIN' ||
+        isGlobalTerritoryRole(formRole) ||
         formRole === 'ADMIN_INVENTORY' ||
         formRole === 'WAKIL_BENDAHARA';
       const defaultJabatanForRole =
@@ -211,7 +221,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           ? 'Admin Inventaris Kantor DPW Sulut'
           : formRole === 'WAKIL_BENDAHARA'
           ? 'Wakil Bendahara DPW Sulut'
-          : `Admin ${formRole}`;
+          : `Pengurus ${formRole}`;
+      const cleanDelegatedNik = isDelegatedAdminRole(formRole)
+        ? formDelegatedForKetuaNik.trim() || undefined
+        : undefined;
 
       if (editingUserId) {
         // Edit Existing User
@@ -223,9 +236,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           fullName: formFullName.trim(),
           role: formRole,
           dpdAccess: isGlobalRole ? 'ALL' : formDpdAccess,
-          dpcAccess: formRole === 'ADMIN_DPC' || formRole === 'ADMIN_DPRT' ? formDpcAccess : 'ALL',
-          dprtAccess: formRole === 'ADMIN_DPRT' ? formDprtAccess : 'ALL',
+          dpcAccess: isDpcScopedRole(formRole) || isDprtScopedRole(formRole) ? formDpcAccess : 'ALL',
+          dprtAccess: isDprtScopedRole(formRole) ? formDprtAccess : 'ALL',
           jabatan: formJabatan.trim() || defaultJabatanForRole,
+          delegatedForKetuaNik: cleanDelegatedNik ?? '',
           isActive: formIsActive,
         });
 
@@ -249,9 +263,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           fullName: formFullName.trim(),
           role: formRole,
           dpdAccess: isGlobalRole ? 'ALL' : formDpdAccess,
-          dpcAccess: formRole === 'ADMIN_DPC' || formRole === 'ADMIN_DPRT' ? formDpcAccess : 'ALL',
-          dprtAccess: formRole === 'ADMIN_DPRT' ? formDprtAccess : 'ALL',
+          dpcAccess: isDpcScopedRole(formRole) || isDprtScopedRole(formRole) ? formDpcAccess : 'ALL',
+          dprtAccess: isDprtScopedRole(formRole) ? formDprtAccess : 'ALL',
           jabatan: formJabatan.trim() || defaultJabatanForRole,
+          delegatedForKetuaNik: cleanDelegatedNik,
           isActive: true,
         });
 
@@ -374,10 +389,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       total: users.length,
       active: users.filter((u) => u.isActive).length,
       superAdmin: users.filter((u) => u.role === 'SUPER_ADMIN').length,
-      dpw: users.filter((u) => u.role === 'ADMIN_DPW').length,
-      dpd: users.filter((u) => u.role === 'ADMIN_DPD').length,
-      dpc: users.filter((u) => u.role === 'ADMIN_DPC').length,
-      dprt: users.filter((u) => u.role === 'ADMIN_DPRT').length,
+      dpw: users.filter((u) => isDpwScopedRole(u.role)).length,
+      dpd: users.filter((u) => isDpdScopedRole(u.role)).length,
+      dpc: users.filter((u) => isDpcScopedRole(u.role)).length,
+      dprt: users.filter((u) => isDprtScopedRole(u.role)).length,
       inventory: users.filter((u) => u.role === 'ADMIN_INVENTORY').length,
     };
   }, [users]);
@@ -476,6 +491,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
             setFormDpcAccess={setFormDpcAccess}
             formDprtAccess={formDprtAccess}
             setFormDprtAccess={setFormDprtAccess}
+            formDelegatedForKetuaNik={formDelegatedForKetuaNik}
+            setFormDelegatedForKetuaNik={setFormDelegatedForKetuaNik}
             availableSubdistricts={availableSubdistricts}
             availableVillages={availableVillages}
           />

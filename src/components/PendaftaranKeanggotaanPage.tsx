@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Member, UserSession, DirectLeaderInfo } from '../types';
 import { PengurusRegisterMemberForm } from './portal/PengurusRegisterMemberForm';
+import { referralService } from '../services/referralService';
+import { getRoleTerritoryLevel, isDelegatedAdminRole } from '../utils/permissionUtils';
 
 interface PendaftaranKeanggotaanPageProps {
   members: Member[];
@@ -31,6 +33,27 @@ export const PendaftaranKeanggotaanPage: React.FC<PendaftaranKeanggotaanPageProp
 
   const isSuperAdmin = session.role === 'SUPER_ADMIN';
   const isSuperAdminActingAsSelf = isSuperAdmin && !activePengurusMember;
+  const isDelegatedAdmin = isDelegatedAdminRole(session.role);
+  const [delegatedKetuaFromApi, setDelegatedKetuaFromApi] = useState<DirectLeaderInfo | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!isDelegatedAdmin) {
+      setDelegatedKetuaFromApi(null);
+      return;
+    }
+    referralService
+      .getMyReferralProfile()
+      .then((res) => {
+        if (active && res?.delegatedKetua) {
+          setDelegatedKetuaFromApi(res.delegatedKetua);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isDelegatedAdmin, session.adminNik, session.role]);
 
   // 2. Kode Referral Perekrut
   const myReferralCode = useMemo(() => {
@@ -42,7 +65,7 @@ export const PendaftaranKeanggotaanPage: React.FC<PendaftaranKeanggotaanPageProp
     }
     const tingkat = (
       activePengurusMember?.tingkatKepengurusan ||
-      (session.role === 'ADMIN_DPW' ? 'DPW' : session.role.replace('ADMIN_', '')) ||
+      getRoleTerritoryLevel(session.role) ||
       'DPW'
     ).toUpperCase();
     return `NSD-${tingkat.substring(0, 3)}-${activePengurusMember?.nik ? activePengurusMember.nik.slice(-4) : '0001'}`;
@@ -157,6 +180,7 @@ export const PendaftaranKeanggotaanPage: React.FC<PendaftaranKeanggotaanPageProp
             activePengurusMember={activePengurusMember}
             myReferralCode={myReferralCode}
             ketuaLangsung={ketuaLangsung}
+            delegatedKetua={delegatedKetuaFromApi || (isDelegatedAdmin ? ketuaLangsung : null)}
             onAddMember={onAddMember}
             perekrutNama={perekrutNama}
             perekrutJabatan={perekrutJabatan}

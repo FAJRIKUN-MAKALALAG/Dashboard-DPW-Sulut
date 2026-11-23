@@ -75,10 +75,18 @@ export interface MemberPosition {
 
 export type UserRole =
   | 'SUPER_ADMIN'
+  | 'KETUA_DPW'
+  | 'KETUA_DPD'
+  | 'KETUA_DPC'
+  | 'KETUA_DPRT'
   | 'ADMIN_DPW'
   | 'ADMIN_DPD'
   | 'ADMIN_DPC'
   | 'ADMIN_DPRT'
+  | 'PENGURUS_DPW'
+  | 'PENGURUS_DPD'
+  | 'PENGURUS_DPC'
+  | 'PENGURUS_DPRT'
   | 'ADMIN_INVENTORY'
   | 'WAKIL_BENDAHARA'
   | 'ANGGOTA';
@@ -93,6 +101,8 @@ export interface UserSession {
   jabatan: string;
   canAddMembers?: boolean;
   hasSk?: boolean;
+  isDelegatedAdmin?: boolean;
+  delegatedForKetuaNik?: string | null;
 }
 
 export interface AppUser {
@@ -107,6 +117,7 @@ export interface AppUser {
   dpcAccess?: string; // 'ALL' atau nama DPC
   dprtAccess?: string; // 'ALL' atau nama DPRt
   jabatan?: string;
+  delegatedForKetuaNik?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -195,6 +206,8 @@ export interface MyReferralProfile {
   dpc: string;
   dprt: string;
   ketuaLangsung: DirectLeaderInfo | null;
+  isDelegatedAdmin?: boolean;
+  delegatedKetua?: DirectLeaderInfo | null;
   totalRecruits: number;
 }
 
@@ -213,6 +226,7 @@ export interface ReferralTrackingData {
     totalTeam: number;
     isLeader: boolean;
   };
+  delegatedKetua?: DirectLeaderInfo | null;
   myRecruits: Member[];
   teamRecruits: Member[];
   leaderboard: ReferralLeaderboardEntry[];

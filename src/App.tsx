@@ -29,6 +29,7 @@ import { PendaftaranKeanggotaanPage } from './components/PendaftaranKeanggotaanP
 import { PendaftaranEktaDppPage } from './components/PendaftaranEktaDppPage';
 import { InventoryPage } from './components/inventory';
 import { FinancePage } from './components/finance';
+import { UserManagementPage } from './components/UserManagementPage';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
@@ -37,6 +38,11 @@ import {
   canAccessAnalytics,
   canAccessInventory,
   canAccessFinance,
+  canManageUsers,
+  canApproveDeletionRequest,
+  isGlobalTerritoryRole,
+  isDpcScopedRole,
+  isDprtScopedRole,
 } from './utils/permissionUtils';
 import { LoginPage } from './components/LoginPage';
 import { useAppModals } from './hooks/useAppModals';
@@ -320,19 +326,19 @@ export default function App() {
 
   const pendingDeletionCount = useMemo(() => {
     const pending = deletionRequests.filter((r) => r.status === 'PENDING');
-    if (!session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (!session || canApproveDeletionRequest(session) || session.role === 'ADMIN_DPW') {
       return pending.length;
     }
     return pending.filter((r) => {
       if (session.dpdAccess && session.dpdAccess !== 'ALL') {
         if (!isDpdMatch(r.dpd, session.dpdAccess)) return false;
       }
-      if (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') {
+      if (isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) {
         if (session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)') {
           if (!isDpcMatch(r.dpc, session.dpcAccess)) return false;
         }
       }
-      if (session.role === 'ADMIN_DPRT') {
+      if (isDprtScopedRole(session.role)) {
         if (session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum') {
           if (!isDprtMatch(r.dprt, session.dprtAccess)) return false;
         }
@@ -341,9 +347,9 @@ export default function App() {
     }).length;
   }, [deletionRequests, session]);
 
-  // Auto-repair & sanitize DPC/DPRt access for ADMIN_DPC and ADMIN_DPRT if cached as 'ALL' or 'Umum'
+  // Auto-repair & sanitize DPC/DPRt access for DPC and DPRt roles if cached as 'ALL' or 'Umum'
   useEffect(() => {
-    if (session && session.role === 'ADMIN_DPC' && (!session.dpcAccess || session.dpcAccess === 'ALL' || session.dpcAccess === 'Umum (DPD)')) {
+    if (session && isDpcScopedRole(session.role) && (!session.dpcAccess || session.dpcAccess === 'ALL' || session.dpcAccess === 'Umum (DPD)')) {
       const myMember = members.find((m) => m.nik === session.adminNik);
       if (myMember) {
         const dpcPos = myMember.positions?.find(
@@ -360,7 +366,7 @@ export default function App() {
           saveSession(updatedSession);
         }
       }
-    } else if (session && session.role === 'ADMIN_DPRT' && (!session.dprtAccess || session.dprtAccess === 'ALL' || session.dprtAccess === 'Pusat/Umum')) {
+    } else if (session && isDprtScopedRole(session.role) && (!session.dprtAccess || session.dprtAccess === 'ALL' || session.dprtAccess === 'Pusat/Umum')) {
       const myMember = members.find((m) => m.nik === session.adminNik);
       if (myMember) {
         const dprtPos = myMember.positions?.find(
@@ -385,7 +391,7 @@ export default function App() {
   // Isolasi Data: Hak Akses Teritorial & Peran (Super Admin, DPW, DPD, DPC, DPRt, Inventory, Anggota)
   const accessibleMembers = useMemo(() => {
     if (!session) return [];
-    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW') {
+    if (isGlobalTerritoryRole(session.role)) {
       return members;
     }
     if (session.role === 'ADMIN_INVENTORY' || session.role === 'WAKIL_BENDAHARA') {
@@ -405,7 +411,7 @@ export default function App() {
       session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' && session.dpcAccess !== '-'
         ? session.dpcAccess.trim()
         : '';
-    if ((session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && !dpcWant) {
+    if ((isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) && !dpcWant) {
       return [];
     }
 
@@ -413,16 +419,16 @@ export default function App() {
       session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' && session.dprtAccess !== '-'
         ? session.dprtAccess.trim()
         : '';
-    if (session.role === 'ADMIN_DPRT' && !dprtWant) {
+    if (isDprtScopedRole(session.role) && !dprtWant) {
       return [];
     }
 
     return members.filter((m) => {
       if (!isDpdMatch(m.dpd, dpdWant)) return false;
-      if ((session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT') && !isDpcMatch(m.dpc, dpcWant)) {
+      if ((isDpcScopedRole(session.role) || isDprtScopedRole(session.role)) && !isDpcMatch(m.dpc, dpcWant)) {
         return false;
       }
-      if (session.role === 'ADMIN_DPRT' && !isDprtMatch(m.dprt, dprtWant)) {
+      if (isDprtScopedRole(session.role) && !isDprtMatch(m.dprt, dprtWant)) {
         return false;
       }
       return true;
@@ -476,6 +482,10 @@ export default function App() {
       return;
     }
     if (activeTab === 'finance' && !canAccessFinance(session)) {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
+    if (activeTab === 'users' && !canManageUsers(session)) {
       setActiveTab(getDefaultActiveTab(session));
       return;
     }
@@ -533,7 +543,7 @@ export default function App() {
         onOpenRoleModal={() => modals.setIsRoleModalOpen(true)}
         onOpenAuditModal={() => modals.setIsAuditModalOpen(true)}
         onOpenDeletionApproval={() => modals.setIsDeletionApprovalOpen(true)}
-        onOpenUserManagement={() => modals.setIsUserManagementOpen(true)}
+        onOpenUserManagement={() => setActiveTab('users')}
         onOpenReferralHub={() => modals.setIsReferralHubOpen(true)}
         onOpenInstallPwa={pwa.openInstallModal}
         onOpenSuperAdminInbox={() => setIsSuperAdminInboxOpen(true)}
@@ -599,6 +609,8 @@ export default function App() {
                     ? 'Inventaris & Aset Kantor DPW Sulut (5 Lantai)'
                     : activeTab === 'finance'
                     ? 'Keuangan DPW Sulut: Iuran Fraksi, DPP & Kas Kantor'
+                    : activeTab === 'users'
+                    ? 'Manajemen Akun Admin & Hak Akses'
                     : 'Database Seluruh Kader Daerah'
                 }
               >
@@ -613,14 +625,15 @@ export default function App() {
                 {activeTab === 'dprt' && 'Susunan Pengurus DPRt Desa'}
                 {activeTab === 'inventory' && 'Inventaris Kantor DPW Sulut (5 Lantai)'}
                 {activeTab === 'finance' && 'Keuangan DPW Sulut'}
+                {activeTab === 'users' && 'Manajemen Akun Admin & Hak Akses'}
                 {activeTab === 'members' && (
-                  session?.role === 'ADMIN_DPRT'
-                    ? `Pencarian DPRt (${session.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting'})`
-                    : session?.role === 'ADMIN_DPC'
-                    ? `Pencarian DPC (${session.dpcAccess || ''})`
-                    : session?.role === 'ADMIN_DPD'
-                    ? `Pencarian DPD (${session.dpdAccess || ''})`
-                    : session?.role === 'ADMIN_DPW'
+                  isDprtScopedRole(session?.role)
+                    ? `Pencarian DPRt (${session?.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting'})`
+                    : isDpcScopedRole(session?.role)
+                    ? `Pencarian DPC (${session?.dpcAccess || ''})`
+                    : session?.dpdAccess && session.dpdAccess !== 'ALL'
+                    ? `Pencarian DPD (${session.dpdAccess})`
+                    : isGlobalTerritoryRole(session?.role)
                     ? 'Pencarian Anggota Wilayah Sulut'
                     : 'Database Kader Daerah'
                 )}
@@ -686,7 +699,7 @@ export default function App() {
               members={accessibleMembers}
               session={session}
               onOpenPrintReport={modals.openPrintReport}
-              onOpenUserManagement={() => modals.setIsUserManagementOpen(true)}
+              onOpenUserManagement={() => setActiveTab('users')}
               onOpenDownloadTemplate={() => modals.setIsTemplateHubOpen(true)}
               onOpenReferralHub={() => modals.setIsReferralHubOpen(true)}
               onRefreshCloud={handleRefreshFromSupabase}
@@ -752,7 +765,7 @@ export default function App() {
           )}
 
           {/* Tab 2: Pengurus DPW */}
-          {activeTab === 'dpw' && (session?.role === 'SUPER_ADMIN' || session?.role === 'ADMIN_DPW') && (
+          {activeTab === 'dpw' && canAccessStructureTab('dpw', session) && (
             <TerritorialStructurePage
               level="DPW"
               members={accessibleMembers}
@@ -793,7 +806,7 @@ export default function App() {
               session={session}
               initialDpd={session?.dpdAccess && session?.dpdAccess !== 'ALL' ? session.dpdAccess : matrixInitialDpd}
               initialDpc={
-                (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') &&
+                (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) &&
                 session?.dpcAccess &&
                 session?.dpcAccess !== 'ALL' &&
                 session?.dpcAccess !== 'Umum (DPD)'
@@ -819,7 +832,7 @@ export default function App() {
               session={session}
               initialDpd={session?.dpdAccess && session?.dpdAccess !== 'ALL' ? session.dpdAccess : matrixInitialDpd}
               initialDpc={
-                (session?.role === 'ADMIN_DPC' || session?.role === 'ADMIN_DPRT') &&
+                (isDpcScopedRole(session?.role) || isDprtScopedRole(session?.role)) &&
                 session?.dpcAccess &&
                 session?.dpcAccess !== 'ALL' &&
                 session?.dpcAccess !== 'Umum (DPD)'
@@ -827,7 +840,7 @@ export default function App() {
                   : matrixInitialDpc
               }
               initialDprt={
-                session?.role === 'ADMIN_DPRT' &&
+                isDprtScopedRole(session?.role) &&
                 session?.dprtAccess &&
                 session?.dprtAccess !== 'ALL' &&
                 session?.dprtAccess !== 'Pusat/Umum'
@@ -874,6 +887,16 @@ export default function App() {
           {/* Tab 8: Modul Keuangan DPW (Iuran Fraksi, DPP & Kas) - SUPER ADMIN & WAKIL BENDAHARA */}
           {activeTab === 'finance' && canAccessFinance(session) && (
             <FinancePage session={session} showToast={showToast} />
+          )}
+
+          {/* Tab 9: Manajemen Akun Admin & Hak Akses (1 Halaman Penuh - SUPER ADMIN) */}
+          {activeTab === 'users' && canManageUsers(session) && (
+            <UserManagementPage
+              members={members}
+              session={session}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+              onRecordAudit={crud.recordAuditLog}
+            />
           )}
           </div>
         </main>

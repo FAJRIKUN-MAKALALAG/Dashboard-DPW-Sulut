@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Member, UserSession } from '../types';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
 import { compressImageFile, generateSimulatedKtp } from '../utils/imageUtils';
+import { canEditMember } from '../utils/permissionUtils';
 import { useDialog } from './ui/AppDialogProvider';
 import {
   X,
@@ -54,10 +55,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
 
   if (!isOpen || !member) return null;
 
-  const canEdit =
-    session.role === 'SUPER_ADMIN' ||
-    session.dpdAccess === 'ALL' ||
-    session.dpdAccess === member.dpd;
+  const canEdit = canEditMember(session, member);
 
   // Handle Photo Profile Upload
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

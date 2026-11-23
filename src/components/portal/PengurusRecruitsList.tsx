@@ -50,7 +50,7 @@ export const PengurusRecruitsList: React.FC<PengurusRecruitsListProps> = ({
             Belum Ada Anggota yang Terdaftar Melalui Kode Ini
           </p>
           <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-            Gunakan formulir di atas untuk mendaftarkan kader baru atau bagikan kode referral Anda ({myReferralCode}) ke calon kader.
+            Daftarkan kader baru melalui menu Daftar Anggota Baru di sidebar atau bagikan kode referral Anda ({myReferralCode}) ke calon kader.
           </p>
         </div>
       ) : (

@@ -25,6 +25,7 @@ import { UserSession, Member, MyReferralProfile, ReferralTrackingData } from '..
 import { referralService } from '../../services/referralService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../../utils/imageUtils';
+import { canViewTeamReferral } from '../../utils/permissionUtils';
 
 interface ReferralHubModalProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
   const [tracking, setTracking] = useState<ReferralTrackingData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedKetua, setCopiedKetua] = useState<boolean>(false);
   const [showQr, setShowQr] = useState<boolean>(false);
   const [searchRecruit, setSearchRecruit] = useState<string>('');
   const debouncedSearchRecruit = useDebounce(searchRecruit, 250);
@@ -78,6 +80,27 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const delegatedKetua = profile?.delegatedKetua || tracking?.delegatedKetua || null;
+
+  const handleCopyKetuaCode = () => {
+    if (!delegatedKetua?.kodeReferral) return;
+    navigator.clipboard.writeText(delegatedKetua.kodeReferral);
+    setCopiedKetua(true);
+    setTimeout(() => setCopiedKetua(false), 2500);
+  };
+
+  const handleShareKetuaWa = () => {
+    if (!delegatedKetua?.kodeReferral) return;
+    const text = encodeURIComponent(
+      `Halo! Mari bergabung dalam perjuangan Gerakan Perubahan bersama PARTAI NASDEM SULAWESI UTARA 💙🧡\n\n` +
+      `Gunakan kode referral resmi Ketua Wilayah saat pendaftaran:\n\n` +
+      `👉 KODE REFERRAL: *${delegatedKetua.kodeReferral}*\n` +
+      `👑 Atas Nama: ${delegatedKetua.nama} (${delegatedKetua.jabatan})\n\n` +
+      `Bersatu, Berjuang, Menang! 🇮🇩`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
+
   const shareText = useMemo(() => {
     return encodeURIComponent(
       `Halo! Mari bergabung dalam perjuangan Gerakan Perubahan bersama PARTAI NASDEM SULAWESI UTARA 💙🧡\n\n` +
@@ -92,7 +115,7 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
     window.open(`https://wa.me/?text=${shareText}`, '_blank');
   };
 
-  const isLeader = tracking?.myStats.isLeader || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW' || session.role === 'ADMIN_DPD';
+  const isLeader = canViewTeamReferral(session) || Boolean(tracking?.myStats.isLeader);
 
   const filteredMyRecruits = useMemo(() => {
     if (!tracking?.myRecruits) return [];
@@ -320,6 +343,49 @@ export const ReferralHubModal: React.FC<ReferralHubModalProps> = ({
                       </div>
                     )}
                   </div>
+
+                  {/* Kartu Khusus Delegasi Ketua Wilayah (untuk ADMIN_DPW/DPD/DPC/DPRT) */}
+                  {delegatedKetua && (
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/60 dark:from-amber-950/30 dark:to-slate-900 border-2 border-amber-300/80 dark:border-amber-700/60 p-5 shadow-sm space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-400/40 text-[11px] font-bold uppercase tracking-wider">
+                            <Shield className="w-3 h-3" />
+                            <span>Mode Admin Kepercayaan Ketua — Referral Terpisah</span>
+                          </div>
+                          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                            Kode Referral Ketua Wilayah: {delegatedKetua.nama}
+                          </h3>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">
+                            {delegatedKetua.jabatan} · Kode referral pribadi Anda tetap terpisah di kartu atas, sementara kode ini tetap milik Ketua Wilayah.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                          <div className="bg-white dark:bg-slate-950 border border-amber-400 rounded-xl px-4 py-1.5 font-mono text-lg font-extrabold text-amber-700 dark:text-amber-300">
+                            {delegatedKetua.kodeReferral || '-'}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleCopyKetuaCode}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              {copiedKetua ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedKetua ? 'Tersalin' : 'Salin Kode Ketua'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleShareKetuaWa}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                              <span>Bagikan WA</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Hierarchical Attribution Card (Ketua Langsung) */}
                   <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">

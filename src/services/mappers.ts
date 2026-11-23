@@ -256,6 +256,7 @@ export function mapDbRowToAppUser(row: any): AppUser {
     dpcAccess: row.dpc_access || 'ALL',
     dprtAccess: row.dprt_access || 'ALL',
     jabatan: row.jabatan || '',
+    delegatedForKetuaNik: row.delegated_for_ketua_nik || undefined,
     isActive: row.is_active ?? true,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -274,6 +275,7 @@ export function mapAppUserToDbPayload(user: Partial<AppUser>): any {
   if (user.dpcAccess !== undefined) payload.dpc_access = user.dpcAccess;
   if (user.dprtAccess !== undefined) payload.dprt_access = user.dprtAccess;
   if (user.jabatan !== undefined) payload.jabatan = user.jabatan;
+  if (user.delegatedForKetuaNik !== undefined) payload.delegated_for_ketua_nik = user.delegatedForKetuaNik;
   if (user.isActive !== undefined) payload.is_active = user.isActive;
   payload.updated_at = new Date().toISOString();
   return payload;

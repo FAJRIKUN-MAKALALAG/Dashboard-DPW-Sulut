@@ -10,6 +10,12 @@ import {
 } from '../utils/growthUtils';
 import { isDpdMatch, isDpcMatch, isDprtMatch, computeStructureKpiStats } from '../utils/structureReadinessUtils';
 import {
+  isDpcScopedRole,
+  isDpdScopedRole,
+  isDprtScopedRole,
+  isGlobalTerritoryRole,
+} from '../utils/permissionUtils';
+import {
   DashboardHeader,
   DashboardScopeFilter,
   ExecutiveKpiCards,
@@ -92,19 +98,21 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   };
 
   // Filtered members by region if selected or scoped by role with robust matching
+  const isDprtMiniMode = isDprtScopedRole(session?.role);
+
   const scopedMembers = useMemo(() => {
     let list = members;
-    if (session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW') {
-      if (session.role === 'ADMIN_DPD') {
+    if (session && !isGlobalTerritoryRole(session.role)) {
+      if (isDpdScopedRole(session.role)) {
         list = list.filter((m) => isDpdMatch(m.dpd, session.dpdAccess));
-      } else if (session.role === 'ADMIN_DPC') {
+      } else if (isDpcScopedRole(session.role)) {
         const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' ? session.dpcAccess : '';
         list = list.filter(
           (m) =>
             isDpdMatch(m.dpd, session.dpdAccess) &&
             (targetDpc ? isDpcMatch(m.dpc, targetDpc) : true)
         );
-      } else if (session.role === 'ADMIN_DPRT') {
+      } else if (isDprtScopedRole(session.role)) {
         const targetDpc = session.dpcAccess && session.dpcAccess !== 'ALL' && session.dpcAccess !== 'Umum (DPD)' ? session.dpcAccess : '';
         const targetDprt = session.dprtAccess && session.dprtAccess !== 'ALL' && session.dprtAccess !== 'Pusat/Umum' ? session.dprtAccess : '';
         list = list.filter(
@@ -133,20 +141,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Compute Real Structural Completeness KPI (DPW, DPD, DPC, DPRt templates)
   const structureKpi = useMemo(() => {
-    const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+    const isRegionalScoped = session && !isGlobalTerritoryRole(session.role);
     const activeDpd = isRegionalScoped ? session.dpdAccess : selectedDpdFilter;
     const activeDpc =
-      isRegionalScoped && (session.role === 'ADMIN_DPC' || session.role === 'ADMIN_DPRT')
+      isRegionalScoped && (isDpcScopedRole(session.role) || isDprtScopedRole(session.role))
         ? session.dpcAccess
         : undefined;
-    const activeDprt = isRegionalScoped && session.role === 'ADMIN_DPRT' ? session.dprtAccess : undefined;
+    const activeDprt = isRegionalScoped && isDprtScopedRole(session.role) ? session.dprtAccess : undefined;
 
     return computeStructureKpiStats(members, activeDpd, activeDpc, activeDprt);
   }, [members, selectedDpdFilter, session]);
 
   // Calculate Cadre Growth & Recruiter Analytics
   const growthAnalytics = useMemo(() => {
-    const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+    const isRegionalScoped = session && !isGlobalTerritoryRole(session.role);
     // If regional scoped (DPD, DPC, DPRt), data is strictly restricted to their own territory (scopedMembers)
     const targetSource = isRegionalScoped ? scopedMembers : members;
     const activeDpd = isRegionalScoped ? session.dpdAccess : growthDpdFilter;
@@ -191,7 +199,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     setIsStructureModalOpen(true);
   };
 
-  const canViewRecruitmentAnalytics = !session || session.role === 'SUPER_ADMIN' || session.role === 'ADMIN_DPW';
+  const canViewRecruitmentAnalytics = !session || isGlobalTerritoryRole(session.role);
 
   return (
     <div className="space-y-6">
@@ -206,21 +214,23 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenDownloadTemplate={onOpenDownloadTemplate}
       />
 
-      {/* 2. Scope & Territory Filter */}
-      <DashboardScopeFilter
-        session={session}
-        selectedDpdFilter={selectedDpdFilter}
-        onSelectDpdFilter={(dpd: string) => {
-          setSelectedDpdFilter(dpd);
-          setPinnedDate(undefined);
-          setFilterRecruiter(undefined);
-        }}
-        onReset={() => {
-          setSelectedDpdFilter('ALL');
-          setPinnedDate(undefined);
-          setFilterRecruiter(undefined);
-        }}
-      />
+      {/* 2. Scope & Territory Filter (disembunyikan pada Mini Dashboard DPRt) */}
+      {!isDprtMiniMode && (
+        <DashboardScopeFilter
+          session={session}
+          selectedDpdFilter={selectedDpdFilter}
+          onSelectDpdFilter={(dpd: string) => {
+            setSelectedDpdFilter(dpd);
+            setPinnedDate(undefined);
+            setFilterRecruiter(undefined);
+          }}
+          onReset={() => {
+            setSelectedDpdFilter('ALL');
+            setPinnedDate(undefined);
+            setFilterRecruiter(undefined);
+          }}
+        />
+      )}
 
       {/* 3. Executive KPI Cards */}
       <ExecutiveKpiCards
@@ -234,7 +244,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         selectedDpdFilter={selectedDpdFilter}
         structureKpi={structureKpi}
         onNavigateToMembers={(membership) => {
-          const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+          const isRegionalScoped = session && !isGlobalTerritoryRole(session.role);
           const navDpd = isRegionalScoped ? session.dpdAccess : (selectedDpdFilter === 'ALL' ? undefined : selectedDpdFilter);
           onNavigateToMembers(
             navDpd,
@@ -243,14 +253,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           );
         }}
         onOpenStructureModal={(level) => {
-          const isRegionalScoped = session && session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN_DPW';
+          const isRegionalScoped = session && !isGlobalTerritoryRole(session.role);
           const modalDpd = isRegionalScoped ? session.dpdAccess : selectedDpdFilter;
           handleOpenStructureModal(modalDpd, level);
         }}
         onOpenTerritorialMatrix={onOpenTerritorialMatrix}
       />
 
-      {/* 4. Kesiapan Struktur & Teritorial Organisasi 15 Kab/Kota (Terpadu & Micro-Page Detail) */}
+      {/* 4. Kesiapan Struktur & Teritorial Organisasi */}
       <UnifiedTerritorialReadiness
         members={members}
         session={session}
@@ -259,8 +269,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         onOpenStructureModal={handleOpenStructureModal}
       />
 
-      {/* 6. Cadre-Driven Recruitment Analytics (Hanya tampil pada role SUPER_ADMIN dan ADMIN_DPW) */}
-      {canViewRecruitmentAnalytics && (
+      {/* 6. Cadre-Driven Recruitment Analytics (Hanya tampil pada role SUPER_ADMIN, KETUA_DPW, & ADMIN_DPW) */}
+      {!isDprtMiniMode && canViewRecruitmentAnalytics && (
         <RecruitmentAnalyticsSection
           growthAnalytics={growthAnalytics}
           growthPeriod={growthPeriod}
@@ -286,8 +296,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         />
       )}
 
-      {/* 7. Operational Notes */}
-      <ExecutiveOperationalNote />
+      {/* 7. Operational Notes (disembunyikan pada Mini Dashboard DPRt agar ringkas) */}
+      {!isDprtMiniMode && <ExecutiveOperationalNote />}
 
       {/* 8. Modals */}
       <TerritorialGrowthModal
