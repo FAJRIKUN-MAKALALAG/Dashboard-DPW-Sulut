@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Member, UserSession } from '../types';
 import { SULUT_REGIONS, LEVEL_PARTY_ROLES, PARTY_ROLES } from '../data/sulutRegions';
@@ -20,6 +20,7 @@ import {
   Clock,
   MapPin,
   FileText,
+  ChevronLeft,
   ChevronRight,
   Shield,
   Search,
@@ -61,6 +62,9 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
   const [selectedJabatan, setSelectedJabatan] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showVacantOnly, setShowVacantOnly] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Sinkronisasi state saat initialFilter atau modal dibuka kembali
   useEffect(() => {
@@ -73,8 +77,14 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
       setSelectedJabatan('ALL');
       setSearchTerm('');
       setShowVacantOnly(false);
+      setCurrentPage(1);
     }
   }, [isOpen, initialFilter, session]);
+
+  // Reset ke halaman 1 setiap kali filter atau ukuran halaman berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLevel, selectedDpd, selectedSubOrg, selectedJabatan, searchTerm, showVacantOnly, pageSize]);
 
   // Dropdown jabatan dinamis berdasarkan level struktur & data riil di database
   const availableJabatanOptionsWithCount = useMemo(() => {
@@ -151,9 +161,18 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
   }, [members, selectedLevel, selectedDpd, session]);
 
   const countOrganAll = baseScopeMembers.length;
-  const countPimpinan = baseScopeMembers.filter((m) => getMemberSubOrgCategory(m) === 'PIMPINAN').length;
-  const countPertimbangan = baseScopeMembers.filter((m) => getMemberSubOrgCategory(m) === 'PERTIMBANGAN').length;
-  const countPakar = baseScopeMembers.filter((m) => getMemberSubOrgCategory(m) === 'PAKAR').length;
+  const { countPimpinan, countPertimbangan, countPakar } = useMemo(() => {
+    let pimpinan = 0;
+    let pertimbangan = 0;
+    let pakar = 0;
+    baseScopeMembers.forEach((m) => {
+      const cat = getMemberSubOrgCategory(m);
+      if (cat === 'PIMPINAN') pimpinan++;
+      else if (cat === 'PERTIMBANGAN') pertimbangan++;
+      else if (cat === 'PAKAR') pakar++;
+    });
+    return { countPimpinan: pimpinan, countPertimbangan: pertimbangan, countPakar: pakar };
+  }, [baseScopeMembers]);
 
   // Filter members based on structural positions, sub-organ & query
   const filteredList = useMemo(() => {
@@ -187,6 +206,38 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     return sortMembersByHierarchy(list);
   }, [baseScopeMembers, selectedSubOrg, selectedJabatan, searchTerm]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredList.length);
+
+  const paginatedList = useMemo(
+    () => filteredList.slice(startIndex, endIndex),
+    [filteredList, startIndex, endIndex]
+  );
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const items: Array<number | 'ellipsis'> = [1];
+    const windowStart = Math.max(2, safePage - 1);
+    const windowEnd = Math.min(totalPages - 1, safePage + 1);
+    if (windowStart > 2) items.push('ellipsis');
+    for (let p = windowStart; p <= windowEnd; p++) items.push(p);
+    if (windowEnd < totalPages - 1) items.push('ellipsis');
+    items.push(totalPages);
+    return items;
+  }, [totalPages, safePage]);
+
+  const goToPage = (nextPage: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, nextPage));
+    setCurrentPage(clamped);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Anggota ber-SK yang tersaring berdasarkan wilayah yang sedang dipilih
   const dpdScopedMembers = useMemo(() => {
     return members.filter((m) => {
@@ -196,10 +247,19 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
     });
   }, [members, selectedDpd]);
 
-  const countDpw = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPW').length;
-  const countDpd = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPD').length;
-  const countDpc = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPC').length;
-  const countDprt = dpdScopedMembers.filter((m) => m.tingkatKepengurusan === 'DPRt').length;
+  const { countDpw, countDpd, countDpc, countDprt } = useMemo(() => {
+    let dpw = 0;
+    let dpd = 0;
+    let dpc = 0;
+    let dprt = 0;
+    dpdScopedMembers.forEach((m) => {
+      if (m.tingkatKepengurusan === 'DPW') dpw++;
+      else if (m.tingkatKepengurusan === 'DPD') dpd++;
+      else if (m.tingkatKepengurusan === 'DPC') dpc++;
+      else if (m.tingkatKepengurusan === 'DPRt') dprt++;
+    });
+    return { countDpw: dpw, countDpd: dpd, countDpc: dpc, countDprt: dprt };
+  }, [dpdScopedMembers]);
 
   // Kepatuhan formasi 36 jabatan DPD Bagian A (Dewan Pimpinan Daerah)
   const dpdCompliance = useMemo(() => {
@@ -486,8 +546,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
         </div>
 
         {/* Table Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div key={`${selectedLevel}-${selectedDpd}-${selectedSubOrg}-${showVacantOnly}`} className="animate-tab-enter">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
+          <div key={`${selectedLevel}-${selectedDpd}-${selectedSubOrg}-${showVacantOnly}-${safePage}`} className="animate-tab-enter">
             {showVacantOnly && dpdCompliance ? (
             <div className="space-y-3">
               <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-950 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -609,8 +669,9 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredList.map((m, idx) => {
+                  {paginatedList.map((m, idx) => {
                     const isKetua = isDefinitiveLeader(m.jabatan);
+                    const globalIndex = startIndex + idx + 1;
                     return (
                       <tr
                         key={m.nik}
@@ -630,7 +691,7 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                             </span>
                           ) : (
                             <span className="font-mono text-xs font-semibold text-slate-400">
-                              #{idx + 1}
+                              #{globalIndex}
                             </span>
                           )}
                         </td>
@@ -641,6 +702,8 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
                                 <img
                                   src={resolveImageUrl(m.fotoProfilUrl)}
                                   alt={m.namaLengkap}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -751,6 +814,83 @@ export const StructureDrilldownModal: React.FC<StructureDrilldownModalProps> = (
           )}
           </div>
         </div>
+
+        {/* Pagination Controls Bar */}
+        {!showVacantOnly && filteredList.length > 0 && (
+          <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-2.5 text-xs shrink-0">
+            <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
+              <span className="font-mono text-[11px]" data-tabular="true">
+                Menampilkan{' '}
+                <strong className="text-slate-800 dark:text-slate-200">
+                  {startIndex + 1}–{endIndex}
+                </strong>{' '}
+                dari{' '}
+                <strong className="text-slate-800 dark:text-slate-200">
+                  {filteredList.length.toLocaleString('id-ID')}
+                </strong>{' '}
+                pengurus
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                aria-label="Jumlah baris per halaman"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#1A3282] cursor-pointer"
+              >
+                <option value={25}>25 / hal</option>
+                <option value={50}>50 / hal</option>
+                <option value={100}>100 / hal</option>
+              </select>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => goToPage(safePage - 1)}
+                  disabled={safePage <= 1}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {pageNumbers.map((item, idx) =>
+                  item === 'ellipsis' ? (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-1.5 text-[11px] text-slate-400 font-mono select-none"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => goToPage(item)}
+                      className={`min-w-[28px] h-7 px-2 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer ${
+                        safePage === item
+                          ? 'bg-[#1A3282] text-white shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => goToPage(safePage + 1)}
+                  disabled={safePage >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 shrink-0">
