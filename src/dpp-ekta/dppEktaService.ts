@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/api';
-import { apiFetch } from '../services/http';
+import { apiFetch, getToken } from '../services/http';
 import { mapApiMember } from '../services/apiMappers';
 import { Member } from '../types';
 
@@ -160,6 +160,58 @@ export const dppEktaService = {
   getKtaCardUrl(nokta: string, download = false): string {
     const clean = (nokta || '').replace(/[^0-9]/g, '');
     return `${API_BASE_URL}/dpp/kta-card/${encodeURIComponent(clean)}${download ? '?download=1' : ''}`;
+  },
+
+  async fetchKtaCardBlobUrl(nokta: string): Promise<string> {
+    const clean = (nokta || '').replace(/[^0-9]/g, '');
+    if (!clean) throw new Error('Nomor e-KTA tidak valid.');
+    const token = getToken();
+    const res = await fetch(this.getKtaCardUrl(clean, false), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      let msg = `Gagal memuat kartu e-KTA (HTTP ${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.error) msg = body.error;
+      } catch {
+        /* abaikan */
+      }
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
+  async downloadKtaCard(nokta: string): Promise<void> {
+    const clean = (nokta || '').replace(/[^0-9]/g, '');
+    if (!clean) throw new Error('Nomor e-KTA tidak valid.');
+    const token = getToken();
+    const res = await fetch(this.getKtaCardUrl(clean, true), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      let msg = `Gagal mengunduh kartu e-KTA (HTTP ${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.error) msg = body.error;
+      } catch {
+        /* abaikan */
+      }
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `eKTA_NasDem_${clean}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    }
   },
 
   /**

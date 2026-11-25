@@ -95,13 +95,15 @@ export const UserService = {
     found: boolean;
     nik: string;
     nikAutoCorrectedFrom?: string | null;
-    nomorEkta: string;
+    nomorEkta?: string;
     namaLengkap: string;
     jabatan: string;
     tingkatKepengurusan: string;
     dpd: string;
-    dpc: string;
-    dprt: string;
+    dpc?: string;
+    dprt?: string;
+    verificationMethod?: 'PHONE_LAST4' | 'FULL_NAME';
+    verificationPrompt?: string;
     hasCustomPassword: boolean;
     defaultPasswordHint: string;
   }> {
@@ -112,11 +114,12 @@ export const UserService = {
     });
   },
 
-  /** Aktivasi akun atau buat kata sandi baru (dan opsional username kustom) untuk pengurus */
+  /** Aktivasi akun atau buat kata sandi baru (wajib verifikasi identitas + opsional username kustom) */
   async activatePengurus(
     nik: string,
     newPassword: string,
-    username?: string
+    username?: string,
+    verificationValue?: string
   ): Promise<{ success: boolean; session?: UserSession; message?: string }> {
     try {
       const body: Record<string, string> = {
@@ -125,6 +128,9 @@ export const UserService = {
       };
       if (username && username.trim()) {
         body.username = username.trim();
+      }
+      if (verificationValue && verificationValue.trim()) {
+        body.verificationValue = verificationValue.trim();
       }
       const res = await apiFetch<{ token: string; session: UserSession; message: string }>(
         '/auth/activate-pengurus',
@@ -175,7 +181,7 @@ export const UserService = {
     confirmPassword: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await apiFetch<{ message?: string }>('/auth/change-password', {
+      const res = await apiFetch<{ token?: string; message?: string }>('/auth/change-password', {
         method: 'POST',
         body: {
           oldPassword: oldPassword.trim(),
@@ -183,6 +189,9 @@ export const UserService = {
           confirmPassword: confirmPassword.trim(),
         },
       });
+      if (res.token) {
+        setToken(res.token);
+      }
       return { success: true, message: res.message || 'Kata sandi berhasil diperbarui.' };
     } catch (err: any) {
       if (err instanceof ApiError) return { success: false, message: err.message };

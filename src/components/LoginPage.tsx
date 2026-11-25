@@ -39,16 +39,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     found: boolean;
     nik: string;
     nikAutoCorrectedFrom?: string | null;
-    nomorEkta: string;
+    nomorEkta?: string;
     namaLengkap: string;
     jabatan: string;
     tingkatKepengurusan: string;
     dpd: string;
-    dpc: string;
-    dprt: string;
+    dpc?: string;
+    dprt?: string;
+    verificationMethod?: 'PHONE_LAST4' | 'FULL_NAME';
+    verificationPrompt?: string;
     hasCustomPassword: boolean;
     defaultPasswordHint: string;
   } | null>(null);
+  const [actVerificationValue, setActVerificationValue] = useState('');
   const [actNewPassword, setActNewPassword] = useState('');
   const [actConfirmPassword, setActConfirmPassword] = useState('');
   const [actUsername, setActUsername] = useState('');
@@ -102,6 +105,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       return;
     }
     setActUsername('');
+    setActVerificationValue('');
 
     setActIsChecking(true);
     try {
@@ -127,6 +131,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setActError(null);
 
     if (!actCheckedMember) return;
+    const cleanVerif = actVerificationValue.trim();
+    if (!cleanVerif) {
+      setActError(
+        actCheckedMember.verificationMethod === 'PHONE_LAST4'
+          ? 'Masukkan 4 digit terakhir Nomor HP terdaftar Anda untuk verifikasi.'
+          : 'Masukkan Nama Lengkap sesuai data SK kepengurusan untuk verifikasi.'
+      );
+      return;
+    }
+    if (
+      actCheckedMember.verificationMethod === 'PHONE_LAST4' &&
+      cleanVerif.replace(/[^0-9]/g, '').length !== 4
+    ) {
+      setActError('Verifikasi Nomor HP harus tepat 4 digit angka terakhir.');
+      return;
+    }
+
     const cleanCustomUser = actUsername.trim();
     if (
       cleanCustomUser &&
@@ -151,7 +172,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const res = await UserService.activatePengurus(
         actCheckedMember.nik,
         actNewPassword,
-        cleanCustomUser || undefined
+        cleanCustomUser || undefined,
+        cleanVerif
       );
       if (res.success && res.session) {
         setActSuccessMsg('Aktivasi berhasil. Mengalihkan ke portal...');
@@ -515,6 +537,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         type="button"
                         onClick={() => {
                           setActCheckedMember(null);
+                          setActVerificationValue('');
                           setActUsername('');
                           setActNewPassword('');
                           setActConfirmPassword('');
@@ -587,6 +610,41 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                           </p>
                         )}
                       </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="act-verification"
+                        className="block text-xs font-semibold text-slate-700 mb-1.5"
+                      >
+                        Verifikasi Identitas Pemilik Akun *
+                      </label>
+                      <input
+                        id="act-verification"
+                        type="text"
+                        inputMode={actCheckedMember.verificationMethod === 'PHONE_LAST4' ? 'numeric' : 'text'}
+                        maxLength={actCheckedMember.verificationMethod === 'PHONE_LAST4' ? 4 : 80}
+                        autoComplete="off"
+                        value={actVerificationValue}
+                        onChange={(e) =>
+                          setActVerificationValue(
+                            actCheckedMember.verificationMethod === 'PHONE_LAST4'
+                              ? e.target.value.replace(/[^0-9]/g, '')
+                              : e.target.value
+                          )
+                        }
+                        placeholder={
+                          actCheckedMember.verificationMethod === 'PHONE_LAST4'
+                            ? 'Contoh: 5678 (4 digit terakhir No. HP)'
+                            : 'Ketik Nama Lengkap Anda sesuai SK...'
+                        }
+                        className="w-full h-11 px-3.5 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#1A3282] focus:ring-3 focus:ring-[#1A3282]/10 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all font-mono"
+                        required
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        {actCheckedMember.verificationPrompt ||
+                          'Masukkan 4 digit terakhir Nomor HP atau Nama Lengkap terdaftar untuk memastikan akun ini milik Anda.'}
+                      </p>
                     </div>
 
                     <div>
@@ -685,6 +743,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         type="button"
                         onClick={() => {
                           setActCheckedMember(null);
+                          setActVerificationValue('');
                           setActUsername('');
                           setActNewPassword('');
                           setActConfirmPassword('');

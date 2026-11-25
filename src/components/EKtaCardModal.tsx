@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Member } from '../types';
 import { STATUS_BADGE_CONFIG } from '../data/sulutRegions';
 import nasdemLogo from '../assets/logo/logo_nasdem.png';
 import { getInitials, getAvatarColor, resolveImageUrl } from '../utils/imageUtils';
-import { isOfficialDppEkta, getDppKtaCardUrl } from '../dpp-ekta';
-import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, Download, Globe, Sparkles } from 'lucide-react';
+import { isOfficialDppEkta, dppEktaService } from '../dpp-ekta';
+import { X, Printer, Shield, QrCode, CheckCircle2, AlertTriangle, Download, Globe, Sparkles, Loader2 } from 'lucide-react';
 
 interface EKtaCardModalProps {
   isOpen?: boolean;
@@ -19,14 +19,60 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
   onClose,
   onOpenDppEktaModal,
 }) => {
+  const [dppCardBlobUrl, setDppCardBlobUrl] = useState<string>('');
+  const [isLoadingDppCard, setIsLoadingDppCard] = useState<boolean>(false);
+  const [isDownloadingDpp, setIsDownloadingDpp] = useState<boolean>(false);
+
+  const hasOfficialDpp = Boolean(member && isOfficialDppEkta(member.nomorEKTA));
+  const officialEktaNumber = hasOfficialDpp ? member?.nomorEKTA || '' : '';
+
+  useEffect(() => {
+    if (!isOpen || !hasOfficialDpp || !officialEktaNumber) {
+      setDppCardBlobUrl('');
+      return;
+    }
+    let cancelled = false;
+    let objUrl = '';
+    setIsLoadingDppCard(true);
+    dppEktaService
+      .fetchKtaCardBlobUrl(officialEktaNumber)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objUrl = url;
+        setDppCardBlobUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setDppCardBlobUrl('');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDppCard(false);
+      });
+    return () => {
+      cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [isOpen, hasOfficialDpp, officialEktaNumber]);
+
   if (!isOpen || !member) return null;
 
   const statusConfig = STATUS_BADGE_CONFIG[member.status];
   const avatarColor = getAvatarColor(member.namaLengkap);
-  const hasOfficialDpp = isOfficialDppEkta(member.nomorEKTA);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadDppCard = async () => {
+    if (!officialEktaNumber || isDownloadingDpp) return;
+    setIsDownloadingDpp(true);
+    try {
+      await dppEktaService.downloadKtaCard(officialEktaNumber);
+    } finally {
+      setIsDownloadingDpp(false);
+    }
   };
 
   return (
@@ -176,22 +222,35 @@ export const EKtaCardModal: React.FC<EKtaCardModalProps> = ({
                     <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     Kartu Resmi Digital NasDem Pusat (DPP)
                   </span>
-                  <a
-                    href={getDppKtaCardUrl(member.nomorEKTA, true)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs"
+                  <button
+                    type="button"
+                    onClick={handleDownloadDppCard}
+                    disabled={isDownloadingDpp}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[11px] font-bold shadow-2xs cursor-pointer"
                   >
-                    <Download className="w-3 h-3" />
-                    <span>Unduh PNG DPP</span>
-                  </a>
+                    {isDownloadingDpp ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                    <span>{isDownloadingDpp ? 'Mengunduh...' : 'Unduh PNG DPP'}</span>
+                  </button>
                 </div>
                 <div className="rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-950">
-                  <img
-                    src={getDppKtaCardUrl(member.nomorEKTA)}
-                    alt={`e-KTA DPP ${member.namaLengkap}`}
-                    className="w-full h-auto object-contain block"
-                  />
+                  {dppCardBlobUrl ? (
+                    <img
+                      src={dppCardBlobUrl}
+                      alt={`e-KTA DPP ${member.namaLengkap}`}
+                      className="w-full h-auto object-contain block"
+                    />
+                  ) : (
+                    <div className="py-8 flex items-center justify-center gap-2 text-xs text-slate-500">
+                      {isLoadingDppCard ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Memuat kartu e-KTA resmi DPP...</span>
+                        </>
+                      ) : (
+                        <span>Kartu e-KTA DPP siap diunduh dengan tombol di atas.</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
