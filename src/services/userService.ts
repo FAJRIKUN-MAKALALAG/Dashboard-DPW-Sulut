@@ -1,6 +1,6 @@
 import { AppUser, UserSession } from '../types';
 import { mapApiUser } from './apiMappers';
-import { apiFetch, ApiError, setToken, clearToken } from './http';
+import { apiFetch, ApiError, setToken, clearToken, getToken } from './http';
 
 // Identitas Super Admin utama (hanya untuk menandai akun yang tidak boleh dihapus/dinonaktifkan di UI).
 // Kredensial tidak lagi disimpan di frontend; autentikasi dilakukan oleh backend.
@@ -199,8 +199,13 @@ export const UserService = {
     }
   },
 
-  /** Keluar: hapus token sesi. */
+  /** Keluar: tandai offline di backend lalu hapus token sesi. */
   logout(): void {
+    if (getToken()) {
+      apiFetch('/auth/logout', { method: 'POST' }).catch(() => {
+        /* abaikan bila sesi sudah expired atau jaringan offline */
+      });
+    }
     clearToken();
   },
 };

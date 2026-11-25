@@ -30,6 +30,8 @@ import { PendaftaranEktaDppPage } from './components/PendaftaranEktaDppPage';
 import { InventoryPage } from './components/inventory';
 import { FinancePage } from './components/finance';
 import { UserManagementPage } from './components/UserManagementPage';
+import { AdminPanelPage } from './components/AdminPanelPage';
+import { UserService } from './services/userService';
 import { isDpdMatch, isDpcMatch, isDprtMatch } from './utils/structureReadinessUtils';
 import {
   canAccessDashboard,
@@ -300,7 +302,7 @@ export default function App() {
     setIsPengurusChatOpen(false);
     setIsAuthenticated(false);
     localStorage.removeItem('nasdem_sulut_authenticated');
-    clearToken();
+    UserService.logout();
   };
 
   // Theme state
@@ -489,6 +491,10 @@ export default function App() {
       setActiveTab(getDefaultActiveTab(session));
       return;
     }
+    if (activeTab === 'admin_panel' && session?.role !== 'SUPER_ADMIN') {
+      setActiveTab(getDefaultActiveTab(session));
+      return;
+    }
   }, [session, activeTab]);
 
   const handleSelectSession = (newSession: UserSession) => {
@@ -611,6 +617,8 @@ export default function App() {
                     ? 'Keuangan DPW Sulut: Iuran Fraksi, DPP & Kas Kantor'
                     : activeTab === 'users'
                     ? 'Manajemen Akun Admin & Hak Akses'
+                    : activeTab === 'admin_panel'
+                    ? 'Panel Admin — Pemantauan Angka Data Real-Time'
                     : 'Database Seluruh Kader Daerah'
                 }
               >
@@ -626,6 +634,7 @@ export default function App() {
                 {activeTab === 'inventory' && 'Inventaris Kantor DPW Sulut (5 Lantai)'}
                 {activeTab === 'finance' && 'Keuangan DPW Sulut'}
                 {activeTab === 'users' && 'Manajemen Akun Admin & Hak Akses'}
+                {activeTab === 'admin_panel' && 'Panel Admin (Real-Time)'}
                 {activeTab === 'members' && (
                   isDprtScopedRole(session?.role)
                     ? `Pencarian DPRt (${session?.dprtAccess && session.dprtAccess !== 'ALL' ? session.dprtAccess : 'Ranting'})`
@@ -902,6 +911,11 @@ export default function App() {
               onBackToDashboard={() => setActiveTab('dashboard')}
               onRecordAudit={crud.recordAuditLog}
             />
+          )}
+
+          {/* Tab 10: Panel Admin Real-Time Numbers Telemetry (HANYA SUPER ADMIN) */}
+          {activeTab === 'admin_panel' && session?.role === 'SUPER_ADMIN' && (
+            <AdminPanelPage />
           )}
           </div>
         </main>

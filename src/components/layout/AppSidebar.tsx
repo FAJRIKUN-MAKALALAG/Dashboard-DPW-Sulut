@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserSession } from '../../types';
 import nasdemLogo from '../../assets/logo/logo_nasdem.png';
 import {
@@ -43,6 +43,8 @@ import {
   MessageSquare,
   Package,
   Wallet,
+  Activity,
+  ChevronDown,
 } from 'lucide-react';
 
 export type MainNavTab =
@@ -58,7 +60,8 @@ export type MainNavTab =
   | 'members'
   | 'inventory'
   | 'finance'
-  | 'users';
+  | 'users'
+  | 'admin_panel';
 
 interface AppSidebarProps {
   activeTab: MainNavTab;
@@ -121,6 +124,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const hasDashboard = canAccessDashboard(session);
   const showAnalytics = canAccessAnalytics(session);
   const showUserMgmt = canManageUsers(session);
+  const showAdminPanel = session?.role === 'SUPER_ADMIN';
 
   const canAccessDpw = canAccessStructureTab('dpw', session);
   const canAccessDpd = canAccessStructureTab('dpd', session);
@@ -135,7 +139,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const showDeletionQueue = canViewDeletionQueue(session) && !isOperationalOnlyRole;
   const isDeletionApprover = canApproveDeletionRequest(session);
   const hasOperationalTools =
-    showFinance || showInventory || showAuditHistory || showDeletionQueue || showUserMgmt;
+    showFinance || showInventory || showAuditHistory || showDeletionQueue || showUserMgmt || showAdminPanel;
 
   // Label Menu Pencarian Sesuai Tingkat Kewenangan Wilayah
   let membersNavTitle = 'Database Kader';
@@ -177,6 +181,97 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     }`;
 
   const textHiddenIfCollapsed = isCollapsed ? 'lg:hidden' : '';
+  const hasStructureMenu = canAccessDpw || canAccessDpd || canAccessDpc || canAccessDprt;
+
+  type SidebarGroupKey = 'struktur' | 'pendaftaran' | 'operasional' | 'bantuan';
+  const [openGroups, setOpenGroups] = useState<Record<SidebarGroupKey, boolean>>(() => {
+    const defaults: Record<SidebarGroupKey, boolean> = {
+      struktur: false,
+      pendaftaran: true,
+      operasional: isOperationalOnlyRole,
+      bantuan: false,
+    };
+    try {
+      const saved = localStorage.getItem('nasdem_sidebar_groups_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          struktur: typeof parsed.struktur === 'boolean' ? parsed.struktur : defaults.struktur,
+          pendaftaran: typeof parsed.pendaftaran === 'boolean' ? parsed.pendaftaran : defaults.pendaftaran,
+          operasional: isOperationalOnlyRole
+            ? true
+            : typeof parsed.operasional === 'boolean'
+            ? parsed.operasional
+            : defaults.operasional,
+          bantuan: typeof parsed.bantuan === 'boolean' ? parsed.bantuan : defaults.bantuan,
+        };
+      }
+    } catch {
+      /* abaikan error storage */
+    }
+    return defaults;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('nasdem_sidebar_groups_v1', JSON.stringify(openGroups));
+    } catch {
+      /* abaikan error storage */
+    }
+  }, [openGroups]);
+
+  // Pastikan grup yang sedang memiliki halaman aktif otomatis terbuka
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      if (activeTab === 'dpw' || activeTab === 'dpd' || activeTab === 'dpc' || activeTab === 'dprt') {
+        return prev.struktur ? prev : { ...prev, struktur: true };
+      }
+      if (activeTab === 'rekrutmen' || activeTab === 'ekta_dpp' || activeTab === 'members') {
+        return prev.pendaftaran ? prev : { ...prev, pendaftaran: true };
+      }
+      if (
+        activeTab === 'admin_panel' ||
+        activeTab === 'users' ||
+        activeTab === 'inventory' ||
+        activeTab === 'finance'
+      ) {
+        return prev.operasional ? prev : { ...prev, operasional: true };
+      }
+      return prev;
+    });
+  }, [activeTab]);
+
+  const toggleGroup = (key: SidebarGroupKey) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderGroupHeader = (
+    key: SidebarGroupKey,
+    label: string,
+    badge?: React.ReactNode
+  ) => {
+    const isOpen = openGroups[key];
+    return (
+      <button
+        type="button"
+        onClick={() => toggleGroup(key)}
+        aria-expanded={isOpen}
+        className={`flex items-center justify-between w-full px-3 py-1.5 rounded-lg hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer mb-1 ${textHiddenIfCollapsed}`}
+      >
+        <span className="text-[10px] font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase truncate">
+          {label}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!isOpen && badge}
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+              isOpen ? 'rotate-0' : '-rotate-90'
+            }`}
+          />
+        </div>
+      </button>
+    );
+  };
 
   return (
     <>
@@ -252,15 +347,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           )}
 
           {/* Navigation Links Scrollable Area */}
-          <div className="px-2.5 py-3 space-y-5 overflow-y-auto max-h-[calc(100vh-170px)]">
-            {/* Section 1: Dashboard & Struktur Organisasi (Disembunyikan untuk role operasional non-kader) */}
+          <div className="px-2.5 py-3 space-y-3 overflow-y-auto max-h-[calc(100vh-170px)]">
+            {/* Section 1: Menu Utama (Selalu tampil ringkas) */}
             {!isOperationalOnlyRole && (
               <div>
                 <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
-                  {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Struktur & Tata Kelola'}
+                  {session?.role === 'ANGGOTA' ? 'Profil Keanggotaan' : 'Menu Utama'}
                 </span>
                 <div className="space-y-1">
-                {/* 1. Dashboard Utama (HANYA untuk Super Admin, Ketua DPW, Ketua DPD, Ketua DPC) */}
+                {/* 1. Dashboard Utama */}
                 {hasDashboard && (
                   <button
                     onClick={() => handleNavClick('dashboard')}
@@ -293,7 +388,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   </button>
                 )}
 
-                {/* 1.5 Pusat Visualisasi & Monitoring (HANYA SUPER ADMIN & KETUA DPW) */}
+                {/* 1.5 Pusat Visualisasi & Monitoring */}
                 {showAnalytics && (
                   <button
                     onClick={() => handleNavClick('analytics')}
@@ -365,286 +460,295 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     {session?.role === 'ANGGOTA' ? 'KADER' : 'AKUN'}
                   </span>
                 </button>
+                </div>
+              </div>
+            )}
 
-                {/* 3. Pengurus DPW (HANYA SUPER_ADMIN & ADMIN_DPW) */}
-                {canAccessDpw && (
-                  <button
-                    onClick={() => handleNavClick('dpw')}
-                    className={navItemClass(activeTab === 'dpw')}
-                    title="Pengurus DPW (Tingkat Provinsi Sulut)"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'dpw')}>
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">Pengurus DPW</span>
+            {/* Section 2: Struktur Pengurus (Bisa dibuka & ditutup) */}
+            {!isOperationalOnlyRole && hasStructureMenu && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                {renderGroupHeader('struktur', 'Struktur Pengurus')}
+                {(openGroups.struktur || isCollapsed) && (
+                  <div className={`space-y-1 ${isCollapsed ? '' : 'lg:pl-0'}`}>
+                    {canAccessDpw && (
+                      <button
+                        onClick={() => handleNavClick('dpw')}
+                        className={navItemClass(activeTab === 'dpw')}
+                        title="Pengurus DPW (Tingkat Provinsi Sulut)"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={iconContainerClass(activeTab === 'dpw')}>
+                            <Building2 className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed}`}>
+                            <span className="block leading-none">Pengurus DPW</span>
+                            <span
+                              className={`text-[10px] block mt-0.5 leading-none ${
+                                activeTab === 'dpw'
+                                  ? 'text-white/75'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              Tingkat Provinsi Sulut
+                            </span>
+                          </div>
+                        </div>
                         <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
                             activeTab === 'dpw'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                           }`}
                         >
-                          Tingkat Provinsi Sulut
+                          70 Kuota
                         </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
-                        activeTab === 'dpw'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      70 Kuota
-                    </span>
-                  </button>
-                )}
+                      </button>
+                    )}
 
-                {/* 4. Pengurus DPD (SUPER_ADMIN, ADMIN_DPW, ADMIN_DPD) */}
-                {canAccessDpd && (
-                  <button
-                    onClick={() => handleNavClick('dpd')}
-                    className={navItemClass(activeTab === 'dpd')}
-                    title="Pengurus DPD (15 Kab/Kota)"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'dpd')}>
-                        <Building className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">Pengurus DPD</span>
+                    {canAccessDpd && (
+                      <button
+                        onClick={() => handleNavClick('dpd')}
+                        className={navItemClass(activeTab === 'dpd')}
+                        title="Pengurus DPD (15 Kab/Kota)"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={iconContainerClass(activeTab === 'dpd')}>
+                            <Building className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed}`}>
+                            <span className="block leading-none">Pengurus DPD</span>
+                            <span
+                              className={`text-[10px] block mt-0.5 leading-none ${
+                                activeTab === 'dpd'
+                                  ? 'text-white/75'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              {isDpdScopedRole(session?.role) ? session?.dpdAccess : '15 Kab / Kota'}
+                            </span>
+                          </div>
+                        </div>
                         <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
                             activeTab === 'dpd'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                           }`}
                         >
-                          {isDpdScopedRole(session?.role) ? session?.dpdAccess : '15 Kab / Kota'}
+                          44 / DPD
                         </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
-                        activeTab === 'dpd'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      44 / DPD
-                    </span>
-                  </button>
-                )}
+                      </button>
+                    )}
 
-                {/* 5. Pengurus DPC (SUPER_ADMIN, ADMIN_DPW, ADMIN_DPD, ADMIN_DPC) */}
-                {canAccessDpc && (
-                  <button
-                    onClick={() => handleNavClick('dpc')}
-                    className={navItemClass(activeTab === 'dpc')}
-                    title="Pengurus DPC (Tingkat Kecamatan)"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'dpc')}>
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">Pengurus DPC</span>
+                    {canAccessDpc && (
+                      <button
+                        onClick={() => handleNavClick('dpc')}
+                        className={navItemClass(activeTab === 'dpc')}
+                        title="Pengurus DPC (Tingkat Kecamatan)"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={iconContainerClass(activeTab === 'dpc')}>
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed}`}>
+                            <span className="block leading-none">Pengurus DPC</span>
+                            <span
+                              className={`text-[10px] block mt-0.5 leading-none ${
+                                activeTab === 'dpc'
+                                  ? 'text-white/75'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              {isDpcScopedRole(session?.role)
+                                ? `Kec. ${session?.dpcAccess}`
+                                : 'Tingkat Kecamatan'}
+                            </span>
+                          </div>
+                        </div>
                         <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
                             activeTab === 'dpc'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                           }`}
                         >
-                          {isDpcScopedRole(session?.role)
-                            ? `Kec. ${session?.dpcAccess}`
-                            : 'Tingkat Kecamatan'}
+                          25 / DPC
                         </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
-                        activeTab === 'dpc'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      25 / DPC
-                    </span>
-                  </button>
-                )}
+                      </button>
+                    )}
 
-                {/* 6. Pengurus DPRt (Semua Role dapat akses ranting wilayahnya) */}
-                {canAccessDprt && (
-                  <button
-                    onClick={() => handleNavClick('dprt')}
-                    className={navItemClass(activeTab === 'dprt')}
-                    title="Pengurus DPRt (Ranting Desa / Kelurahan)"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'dprt')}>
-                        <Home className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">Pengurus DPRt</span>
+                    {canAccessDprt && (
+                      <button
+                        onClick={() => handleNavClick('dprt')}
+                        className={navItemClass(activeTab === 'dprt')}
+                        title="Pengurus DPRt (Ranting Desa / Kelurahan)"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={iconContainerClass(activeTab === 'dprt')}>
+                            <Home className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed}`}>
+                            <span className="block leading-none">Pengurus DPRt</span>
+                            <span
+                              className={`text-[10px] block mt-0.5 leading-none ${
+                                activeTab === 'dprt'
+                                  ? 'text-white/75'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              {isDprtScopedRole(session?.role)
+                                ? `Desa ${session?.dprtAccess}`
+                                : 'Ranting Desa / Kelurahan'}
+                            </span>
+                          </div>
+                        </div>
                         <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
                             activeTab === 'dprt'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                           }`}
                         >
-                          {isDprtScopedRole(session?.role)
-                            ? `Desa ${session?.dprtAccess}`
-                            : 'Ranting Desa / Kelurahan'}
+                          {REQUIRED_POSITIONS.DPRt} / Ranting
                         </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${textHiddenIfCollapsed} ${
-                        activeTab === 'dprt'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      {REQUIRED_POSITIONS.DPRt} / Ranting
-                    </span>
-                  </button>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
             )}
 
-            {/* Section: Pendaftaran Mandiri & e-KTA DPP (Hanya Pengurus & Admin) */}
+            {/* Section 3: Pendaftaran, e-KTA & Database Kader (Bisa dibuka & ditutup) */}
             {session?.role !== 'ANGGOTA' && !isOperationalOnlyRole && (
-              <div>
-                <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
-                  Pendaftaran &amp; e-KTA
-                </span>
-                <div className="space-y-1">
-                  {/* 1. Pendaftaran Anggota Baru (Kader DPW Sulut) */}
-                  <button
-                    onClick={() => handleNavClick('rekrutmen')}
-                    className={navItemClass(activeTab === 'rekrutmen')}
-                    title="Pendaftaran Anggota Baru & Rekrutmen Kader"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'rekrutmen')}>
-                        <UserPlus className="w-4 h-4 text-emerald-500" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">Daftar Anggota Baru</span>
-                        <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
-                            activeTab === 'rekrutmen'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
-                          }`}
-                        >
-                          Scan KTP &amp; Rekrutmen
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
-                        activeTab === 'rekrutmen'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      }`}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                {renderGroupHeader(
+                  'pendaftaran',
+                  'Pendaftaran & Data',
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+                    {totalMembersCount}
+                  </span>
+                )}
+                {(openGroups.pendaftaran || isCollapsed) && (
+                  <div className="space-y-1">
+                    {/* 1. Pendaftaran Anggota Baru */}
+                    <button
+                      onClick={() => handleNavClick('rekrutmen')}
+                      className={navItemClass(activeTab === 'rekrutmen')}
+                      title="Pendaftaran Anggota Baru & Rekrutmen Kader"
                     >
-                      FORM
-                    </span>
-                  </button>
+                      <div className="flex items-center gap-2.5">
+                        <div className={iconContainerClass(activeTab === 'rekrutmen')}>
+                          <UserPlus className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed}`}>
+                          <span className="block leading-none">Daftar Anggota Baru</span>
+                          <span
+                            className={`text-[10px] block mt-0.5 leading-none ${
+                              activeTab === 'rekrutmen'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            Scan KTP &amp; Rekrutmen
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                          activeTab === 'rekrutmen'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                        }`}
+                      >
+                        FORM
+                      </span>
+                    </button>
 
-                  {/* 2. Pendaftaran & Penerbitan e-KTA Pusat (DPP) */}
-                  <button
-                    onClick={() => handleNavClick('ekta_dpp')}
-                    className={navItemClass(activeTab === 'ekta_dpp')}
-                    title="Pusat Pendaftaran & Penerbitan e-KTA Resmi DPP"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'ekta_dpp')}>
-                        <Globe className="w-4 h-4 text-[#FFDD00]" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">e-KTA Pusat (DPP)</span>
-                        <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
-                            activeTab === 'ekta_dpp'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
-                          }`}
-                        >
-                          digital.partainasdem.id
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
-                        activeTab === 'ekta_dpp'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-[#1A3282]/20 dark:bg-blue-900/40 text-[#21409A] dark:text-blue-300 border border-blue-500/30'
-                      }`}
+                    {/* 2. Pendaftaran & Penerbitan e-KTA Pusat (DPP) */}
+                    <button
+                      onClick={() => handleNavClick('ekta_dpp')}
+                      className={navItemClass(activeTab === 'ekta_dpp')}
+                      title="Pusat Pendaftaran & Penerbitan e-KTA Resmi DPP"
                     >
-                      PUSAT
-                    </span>
-                  </button>
-                </div>
+                      <div className="flex items-center gap-2.5">
+                        <div className={iconContainerClass(activeTab === 'ekta_dpp')}>
+                          <Globe className="w-4 h-4 text-[#FFDD00]" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed}`}>
+                          <span className="block leading-none">e-KTA Pusat (DPP)</span>
+                          <span
+                            className={`text-[10px] block mt-0.5 leading-none ${
+                              activeTab === 'ekta_dpp'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            digital.partainasdem.id
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${textHiddenIfCollapsed} ${
+                          activeTab === 'ekta_dpp'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-[#1A3282]/20 dark:bg-blue-900/40 text-[#21409A] dark:text-blue-300 border border-blue-500/30'
+                        }`}
+                      >
+                        PUSAT
+                      </span>
+                    </button>
+
+                    {/* 3. Pencarian Anggota / Database Kader */}
+                    <button
+                      onClick={() => handleNavClick('members')}
+                      className={navItemClass(activeTab === 'members')}
+                      title={membersNavTitle}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={iconContainerClass(activeTab === 'members')}>
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed}`}>
+                          <span className="block leading-none">{membersNavTitle}</span>
+                          <span
+                            className={`text-[10px] block mt-0.5 leading-none ${
+                              activeTab === 'members'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            {membersNavSubtitle}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${textHiddenIfCollapsed} ${
+                          activeTab === 'members'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {totalMembersCount}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Section 2: Database & Pencarian Anggota (Hanya Pengurus Ber-SK & Admin) */}
-            {session?.role !== 'ANGGOTA' && !isOperationalOnlyRole && (
-              <div>
-                <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
-                  Pencarian &amp; Data Anggota
-                </span>
-                <div className="space-y-1">
-                  {/* Pencarian Anggota / Database Kader */}
-                  <button
-                    onClick={() => handleNavClick('members')}
-                    className={navItemClass(activeTab === 'members')}
-                    title={membersNavTitle}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className={iconContainerClass(activeTab === 'members')}>
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed}`}>
-                        <span className="block leading-none">{membersNavTitle}</span>
-                        <span
-                          className={`text-[10px] block mt-0.5 leading-none ${
-                            activeTab === 'members'
-                              ? 'text-white/75'
-                              : 'text-slate-400 dark:text-slate-500'
-                          }`}
-                        >
-                          {membersNavSubtitle}
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${textHiddenIfCollapsed} ${
-                        activeTab === 'members'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      {totalMembersCount}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Section 3: Alat Operasional (Hanya tampil jika ada item operasional yang boleh diakses) */}
+            {/* Section 4: Alat Operasional (Bisa dibuka & ditutup) */}
             {session?.role !== 'ANGGOTA' && hasOperationalTools && (
-              <div>
-                <span className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}>
-                  Alat Operasional
-                </span>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                {renderGroupHeader(
+                  'operasional',
+                  'Alat Operasional',
+                  pendingDeletionCount > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 dark:bg-blue-600 text-white font-mono">
+                      {pendingDeletionCount}
+                    </span>
+                  ) : undefined
+                )}
+                {(openGroups.operasional || isCollapsed) && (
                 <div className="space-y-1">
                   {/* Keuangan DPW: SUPER ADMIN & WAKIL BENDAHARA */}
                   {showFinance && (
@@ -772,6 +876,49 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
 
+                  {/* Panel Admin Telemetry Real-Time: HANYA SUPER ADMIN */}
+                  {showAdminPanel && (
+                    <button
+                      onClick={() => handleNavClick('admin_panel')}
+                      title="Panel Admin: Angka Data Real-Time Seluruh Sistem"
+                      className={`${navItemClass(activeTab === 'admin_panel')} mt-1`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={iconContainerClass(activeTab === 'admin_panel')}>
+                          <Activity className="w-4 h-4" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                          <span className="block leading-none font-semibold">
+                            Panel Admin
+                          </span>
+                          <span
+                            className={`text-[10px] font-normal mt-0.5 block leading-none ${
+                              activeTab === 'admin_panel'
+                                ? 'text-white/75'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            Data Real-Time
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase shrink-0 ${textHiddenIfCollapsed} ${
+                          activeTab === 'admin_panel'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            activeTab === 'admin_panel' ? 'bg-[#FFDD00]' : 'bg-emerald-500 animate-pulse'
+                          }`}
+                        />
+                        LIVE
+                      </span>
+                    </button>
+                  )}
+
                   {/* Manajemen Akun Admin: HANYA SUPER ADMIN (1 Halaman Penuh) */}
                   {showUserMgmt && (
                     <button
@@ -813,130 +960,136 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     </button>
                   )}
                 </div>
+                )}
               </div>
             )}
 
-            {/* Menu Chat Helpdesk Super Admin: Tampil untuk SEMUA peran (Super Admin, Pengurus DPW/DPD/DPC/DPRt, & Anggota) */}
+            {/* Section 5: Bantuan, Pengaduan & Aplikasi (Dibungkus jadi satu grup bisa dibuka & ditutup) */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-              <span
-                className={`px-3 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase block mb-1.5 ${textHiddenIfCollapsed}`}
-              >
-                Bantuan &amp; Pengaduan
-              </span>
+              {renderGroupHeader(
+                'bantuan',
+                'Bantuan & Pengaduan',
+                unreadChatCount && unreadChatCount > 0 ? (
+                  <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-pulse shadow-2xs">
+                    {unreadChatCount}
+                  </span>
+                ) : undefined
+              )}
 
-              {session?.role === 'SUPER_ADMIN' ? (
-                onOpenSuperAdminInbox && (
-                  <button
-                    onClick={() => {
-                      onOpenSuperAdminInbox();
-                      onCloseMobile();
-                    }}
-                    title="Pusat Pesan & Laporan Pengurus (Helpdesk)"
-                    className={`group flex items-center ${
-                      isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-                    } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
-                        <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
-                          Pesan Pengurus
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
-                          Pusat Laporan &amp; Keluhan
-                        </span>
-                      </div>
-                    </div>
-                    {unreadChatCount && unreadChatCount > 0 ? (
-                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
-                        {unreadChatCount}
-                      </span>
-                    ) : (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+              {(openGroups.bantuan || isCollapsed) && (
+                <div className="space-y-1">
+                  {session?.role === 'SUPER_ADMIN' ? (
+                    onOpenSuperAdminInbox && (
+                      <button
+                        onClick={() => {
+                          onOpenSuperAdminInbox();
+                          onCloseMobile();
+                        }}
+                        title="Pusat Pesan & Laporan Pengurus (Helpdesk)"
+                        className={`group flex items-center ${
+                          isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                        } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
                       >
-                        HELPDESK
-                      </span>
-                    )}
-                  </button>
-                )
-              ) : (
-                onOpenPengurusChat && (
-                  <button
-                    onClick={() => {
-                      onOpenPengurusChat();
-                      onCloseMobile();
-                    }}
-                    title="Hubungi & Laporkan Masalah ke Admin DPW"
-                    className={`group flex items-center ${
-                      isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-                    } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
-                        <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
-                          Chat Admin DPW
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
-                          Bantuan &amp; Lapor Kendala
-                        </span>
-                      </div>
-                    </div>
-                    {unreadChatCount && unreadChatCount > 0 ? (
-                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
-                        {unreadChatCount}
-                      </span>
-                    ) : (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                            <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                              Pesan Pengurus
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
+                              Pusat Laporan &amp; Keluhan
+                            </span>
+                          </div>
+                        </div>
+                        {unreadChatCount && unreadChatCount > 0 ? (
+                          <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
+                            {unreadChatCount}
+                          </span>
+                        ) : (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                          >
+                            HELPDESK
+                          </span>
+                        )}
+                      </button>
+                    )
+                  ) : (
+                    onOpenPengurusChat && (
+                      <button
+                        onClick={() => {
+                          onOpenPengurusChat();
+                          onCloseMobile();
+                        }}
+                        title="Hubungi & Laporkan Masalah ke Admin DPW"
+                        className={`group flex items-center ${
+                          isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                        } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer`}
                       >
-                        CHAT
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-[#9E6706] dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200/70 dark:border-amber-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                            <span className="block leading-none font-bold text-slate-900 dark:text-slate-100">
+                              Chat Admin DPW
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none">
+                              Bantuan &amp; Lapor Kendala
+                            </span>
+                          </div>
+                        </div>
+                        {unreadChatCount && unreadChatCount > 0 ? (
+                          <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-bounce shadow-2xs">
+                            {unreadChatCount}
+                          </span>
+                        ) : (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100/80 dark:bg-amber-950/80 text-[#9E6706] dark:text-amber-300 font-bold border border-amber-200/60 dark:border-amber-900/50 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                          >
+                            CHAT
+                          </span>
+                        )}
+                      </button>
+                    )
+                  )}
+
+                  {onOpenInstallPwa && (
+                    <button
+                      onClick={() => {
+                        onOpenInstallPwa();
+                        onCloseMobile();
+                      }}
+                      className={`group flex items-center ${
+                        isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
+                      } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all duration-150 cursor-pointer`}
+                      title="Pasang Shortcut Aplikasi NasDem Sulut di HP (Android & iPhone) atau Komputer / Laptop"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1A3282] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-900/50 shadow-2xs group-hover:scale-105 transition-transform">
+                          <Smartphone className="w-4 h-4" />
+                        </div>
+                        <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
+                          <span className="block leading-none truncate text-slate-900 dark:text-slate-100 font-bold">
+                            Pasang Aplikasi
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none truncate">
+                            Shortcut HP &amp; Desktop
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-700 uppercase shrink-0 ${textHiddenIfCollapsed}`}
+                      >
+                        PWA
                       </span>
-                    )}
-                  </button>
-                )
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-
-            {/* Download / Pasang Shortcut Aplikasi HP & Desktop */}
-            {onOpenInstallPwa && (
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => {
-                    onOpenInstallPwa();
-                    onCloseMobile();
-                  }}
-                  className={`group flex items-center ${
-                    isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-                  } w-full py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-all duration-150 cursor-pointer`}
-                  title="Pasang Shortcut Aplikasi NasDem Sulut di HP (Android & iPhone) atau Komputer / Laptop"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1A3282] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-900/50 shadow-2xs group-hover:scale-105 transition-transform">
-                      <Smartphone className="w-4 h-4" />
-                    </div>
-                    <div className={`text-left ${textHiddenIfCollapsed} min-w-0`}>
-                      <span className="block leading-none truncate text-slate-900 dark:text-slate-100 font-bold">
-                        Pasang Aplikasi di HP / Desktop
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 block leading-none truncate">
-                        Android, iPhone &amp; Laptop (Shortcut)
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-700 uppercase shrink-0 ${textHiddenIfCollapsed}`}
-                  >
-                    PWA
-                  </span>
-                </button>
-              </div>
-            )}
 
             {/* Section 3: Sesi Akun (Tombol Logout Tunggal Selaras Tema Dasar) */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">

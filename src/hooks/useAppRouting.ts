@@ -28,6 +28,7 @@ export const VALID_MAIN_TABS: MainNavTab[] = [
   'inventory',
   'finance',
   'users',
+  'admin_panel',
 ];
 
 export interface ParsedRouteParams {
@@ -124,6 +125,8 @@ export function isTabPermitted(tab: MainNavTab, session?: UserSession): boolean 
       return canAccessFinance(session);
     case 'users':
       return canManageUsers(session);
+    case 'admin_panel':
+      return session.role === 'SUPER_ADMIN';
     default:
       return true;
   }
@@ -224,6 +227,8 @@ export function formatDocumentTitle(
       return `Inventaris Kantor (5 Lantai) — ${baseSuffix}`;
     case 'users':
       return `Manajemen Akun Admin & Hak Akses — ${baseSuffix}`;
+    case 'admin_panel':
+      return `Panel Admin Real-Time — ${baseSuffix}`;
     default:
       return baseSuffix;
   }
