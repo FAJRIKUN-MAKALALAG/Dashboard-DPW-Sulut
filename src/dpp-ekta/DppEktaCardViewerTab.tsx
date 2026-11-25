@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShieldCheck, Check, Copy, Download, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Check, Copy, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { dppEktaService, DppCreateKtaResult } from './dppEktaService';
 
 interface DppEktaCardViewerTabProps {
@@ -19,6 +19,67 @@ export const DppEktaCardViewerTab: React.FC<DppEktaCardViewerTabProps> = ({
   copiedEkta,
   onCopyEkta,
 }) => {
+  const [cardBlobUrl, setCardBlobUrl] = useState<string>('');
+  const [isLoadingCard, setIsLoadingCard] = useState<boolean>(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  const inlineCardBase64 =
+    createdResult?.nomor_ekta === viewingNokta && createdResult?.kta_card_base64
+      ? createdResult.kta_card_base64
+      : '';
+
+  useEffect(() => {
+    if (inlineCardBase64 || viewingNokta.length < 12) {
+      setCardBlobUrl('');
+      setCardError(null);
+      return;
+    }
+
+    let cancelled = false;
+    let createdObjUrl = '';
+    setIsLoadingCard(true);
+    setCardError(null);
+
+    dppEktaService
+      .fetchKtaCardBlobUrl(viewingNokta)
+      .then((objUrl) => {
+        if (cancelled) {
+          URL.revokeObjectURL(objUrl);
+          return;
+        }
+        createdObjUrl = objUrl;
+        setCardBlobUrl(objUrl);
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          setCardBlobUrl('');
+          setCardError(err?.message || 'Kartu e-KTA belum tersedia.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingCard(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (createdObjUrl) URL.revokeObjectURL(createdObjUrl);
+    };
+  }, [viewingNokta, inlineCardBase64]);
+
+  const handleDownloadCard = async () => {
+    if (isDownloading || viewingNokta.length < 12) return;
+    setIsDownloading(true);
+    setCardError(null);
+    try {
+      await dppEktaService.downloadKtaCard(viewingNokta);
+    } catch (err: any) {
+      setCardError(err?.message || 'Gagal mengunduh kartu e-KTA.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4">
       {createdResult?.success && (
@@ -68,15 +129,15 @@ export const DppEktaCardViewerTab: React.FC<DppEktaCardViewerTabProps> = ({
         </div>
 
         {viewingNokta.length >= 12 && (
-          <a
-            href={dppEktaService.getKtaCardUrl(viewingNokta, true)}
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2 rounded-xl bg-[#1A3282] hover:bg-[#21409A] text-white text-xs font-bold flex items-center justify-center gap-2 shrink-0"
+          <button
+            type="button"
+            onClick={handleDownloadCard}
+            disabled={isDownloading}
+            className="px-4 py-2 rounded-xl bg-[#1A3282] hover:bg-[#21409A] disabled:opacity-60 text-white text-xs font-bold flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
-            <Download className="w-4 h-4" />
-            <span>Download Kartu e-KTA (PNG HD)</span>
-          </a>
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>{isDownloading ? 'Mengunduh...' : 'Download Kartu e-KTA (PNG HD)'}</span>
+          </button>
         )}
       </div>
 
@@ -87,15 +148,22 @@ export const DppEktaCardViewerTab: React.FC<DppEktaCardViewerTabProps> = ({
               Kartu e-KTA Resmi DPP — {viewingMemberName} ({viewingNokta})
             </div>
           )}
-          <img
-            src={
-              createdResult?.nomor_ekta === viewingNokta && createdResult?.kta_card_base64
-                ? createdResult.kta_card_base64
-                : dppEktaService.getKtaCardUrl(viewingNokta)
-            }
-            alt={`Kartu e-KTA ${viewingNokta}`}
-            className="max-w-full sm:max-w-lg rounded-xl shadow-md border border-slate-200 dark:border-slate-700"
-          />
+          {inlineCardBase64 || cardBlobUrl ? (
+            <img
+              src={inlineCardBase64 || cardBlobUrl}
+              alt={`Kartu e-KTA ${viewingNokta}`}
+              className="max-w-full sm:max-w-lg rounded-xl shadow-md border border-slate-200 dark:border-slate-700"
+            />
+          ) : isLoadingCard ? (
+            <div className="py-10 flex items-center gap-2 text-xs text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Memuat kartu e-KTA resmi terproteksi...</span>
+            </div>
+          ) : (
+            <div className="py-6 text-center text-xs text-rose-600 dark:text-rose-400">
+              {cardError || 'Kartu e-KTA tidak dapat ditampilkan.'}
+            </div>
+          )}
           <a
             href="https://digital.partainasdem.id/v1/index?page=iuran/pendaftaran"
             target="_blank"
